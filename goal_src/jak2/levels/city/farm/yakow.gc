@@ -5,6 +5,10 @@
 ;; name in dgo: yakow
 ;; dgos: CFB, CFA
 
+;; og:preserve-this MODDED - Jak 1-style yakow behavior (AI-assisted)
+;; Adds: run-away, graze, graze-kicked states, walk/run animation blending,
+;;       dark eco pill drops on death
+
 ;; DECOMP BEGINS
 
 (defskelgroup skel-yakow yakow yakow-lod0-jg yakow-idle-ja
@@ -14,10 +18,17 @@
 
 (deftype yakow (nav-enemy)
   ((incoming-attack-id  uint32)
-   (grazing             basic)
+   (grazing             symbol)     ;; #t when in graze state
+   (walk-run-blend      float)      ;; blend factor between walk and run anim (0.0 = walk, 1.0 = run)
+   (walk-turn-blend     float)      ;; blend factor for turn animations (-1 = left, 1 = right)
+   (run-mode            symbol)     ;; #t when running
+   (home-base           vector :inline) ;; initial spawn position
    )
   (:state-methods
     kicked
+    graze
+    graze-kicked
+    run-away
     )
   )
 
@@ -56,7 +67,7 @@
     :sound-die (static-sound-name "yakow-die")
     :notice-distance (meters 30)
     :notice-distance-delta (meters 10)
-    :default-hit-points 5
+    :default-hit-points 1
     :gnd-collide-with (collide-spec backgnd)
     :overlaps-others-collide-with-filter (collide-spec jak bot player-list)
     :penetrate-knocked (penetrate
@@ -180,8 +191,8 @@
     :run-anim 6
     :taunt-anim -1
     :run-travel-speed (meters 6)
-    :run-acceleration (meters 1)
-    :run-turning-acceleration (meters 1)
+    :run-acceleration (meters 3)
+    :run-turning-acceleration (meters 3)
     :walk-travel-speed (meters 2.13)
     :walk-acceleration (meters 1)
     :walk-turning-acceleration (meters 1)
@@ -198,9 +209,10 @@
 
 (set! (-> *yakow-nav-enemy-info* fact-defaults) *fact-info-enemy-defaults*)
 
+;; og:preserve-this Changed: returns 1 damage per hit instead of 0 so yakow can die
 (defmethod damage-amount-from-attack ((this yakow) (arg0 process) (arg1 event-message-block))
   "@returns the amount of damage taken from an attack.  This can come straight off the [[attack-info]] or via [[penetrate-using->damage]]"
-  0
+  1
   )
 
 (defmethod general-event-handler ((this yakow) (arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
@@ -208,11 +220,29 @@
 @TODO - unsure if there is a pattern for the events and this should have a more specific name"
   (case arg2
     (('attack)
-     (let ((v1-1 (the-as object (-> arg3 param 1))))
-       (when (!= (-> (the-as attack-info v1-1) id) (-> this incoming-attack-id))
-         (set! (-> this incoming-attack-id) (-> (the-as attack-info v1-1) id))
-         (go (method-of-object this kicked))
-         )
+     ;; og:preserve-this Let the parent handle damage processing (HP decrement, death check)
+     ;; The parent will then send 'hit-knocked or 'hit which we intercept below
+     (format #t "yakow: received 'attack event, HP=~D, grazing=~A~%" (-> this hit-points) (-> this grazing))
+     ((method-of-type nav-enemy general-event-handler) this arg0 arg1 arg2 arg3)
+     )
+    (('hit-knocked 'hit)
+     ;; og:preserve-this Intercept hit/knocked events from parent's attack processing
+     ;; If HP > 0, go to kicked/graze-kicked. If HP = 0, let die happen.
+     (format #t "yakow: received '~A event, HP=~D, grazing=~A~%" arg2 (-> this hit-points) (-> this grazing))
+     (cond
+       ((zero? (-> this hit-points))
+        ;; Dead - let the parent handler trigger die
+        (format #t "yakow: HP is 0, going to die!~%")
+        ((method-of-type nav-enemy general-event-handler) this arg0 arg1 arg2 arg3)
+        )
+       (else
+        ;; Still alive - go to our custom kicked states
+        (format #t "yakow: HP > 0, going to kicked/graze-kicked~%")
+        (if (-> this grazing)
+            (go (method-of-object this graze-kicked))
+            (go (method-of-object this kicked))
+            )
+        )
        )
      )
     (else
@@ -259,6 +289,36 @@
   (none)
   )
 
+;; og:preserve-this Helper: check if yakow is facing a given direction
+(defbehavior yakow-facing-direction? yakow ((arg0 vector) (arg1 float))
+  (let ((s4-0 (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> self root quat)))
+        (s5-0 (new 'stack-no-clear 'vector))
+        )
+    (set! (-> s5-0 quad) (-> arg0 quad))
+    (set! (-> s5-0 y) 0.0)
+    (vector-normalize! s5-0 1.0)
+    (>= (vector-dot s4-0 s5-0) (cos arg1))
+    )
+  )
+
+;; og:preserve-this Helper: check if yakow is facing a point
+(defbehavior yakow-facing-point? yakow ((arg0 vector) (arg1 float))
+  (let ((v1-1 (vector-! (new 'stack-no-clear 'vector) arg0 (-> self root trans))))
+    (yakow-facing-direction? v1-1 arg1)
+    )
+  )
+
+;; og:preserve-this Helper: check if yakow is facing the player
+(defbehavior yakow-facing-player? yakow ((arg0 float))
+  (if *target*
+      (yakow-facing-point? (get-trans *target* 0) arg0)
+      #f
+      )
+  )
+
+;; ==========================================
+;; IDLE STATE - Jak 1 style with graze chance
+;; ==========================================
 (defstate idle (yakow)
   :virtual #t
   :code (behavior ()
@@ -288,10 +348,103 @@
         (set-time! (-> self last-draw-time))
         )
     (enemy-method-129 self)
+    ;; og:preserve-this If player is near and not facing them, go to run-away
+    (when (and *target*
+               (< (vector-vector-distance (-> self root trans) (get-trans *target* 0)) (meters 10))
+               (not (yakow-facing-player? 21845.334))
+               )
+      (go-virtual run-away)
+      )
     (ja-post)
     )
   )
 
+;; ==========================================
+;; GRAZE STATE - Dedicated grazing behavior (inspired by Jak 1)
+;; ==========================================
+(defstate graze (yakow)
+  :virtual #t
+  :event enemy-event-handler
+  :enter (behavior ()
+    (format #t "yakow: entering GRAZE state~%")
+    (set-time! (-> self state-time))
+    (set! (-> self grazing) #t)
+    (let ((v1-2 self))
+      (set! (-> v1-2 enemy-flags) (the-as enemy-flag (logclear (-> v1-2 enemy-flags) (enemy-flag enemy-flag36))))
+      (set! (-> v1-2 nav callback-info) *nav-enemy-null-callback-info*)
+      )
+    0
+    )
+  :exit (behavior ()
+    (format #t "yakow: exiting GRAZE state~%")
+    (set! (-> self grazing) #f)
+    )
+  :code (behavior ()
+    (ja-channel-push! 1 (seconds 0.15))
+    (until #f
+      (let ((f30-0 (rand-vu-float-range 0.9 1.1)))
+        (ja-no-eval :group! yakow-idle-ja :num! (seek! max f30-0) :frame-num 0.0)
+        (until (ja-done? 0)
+          (suspend)
+          (ja :num! (seek! max f30-0))
+          )
+        )
+      (when (rand-vu-percent? 0.5)
+        (ja-channel-push! 1 (seconds 0.1))
+        (ja-no-eval :group! yakow-graze-ja :num! (seek!) :frame-num 0.0)
+        (until (ja-done? 0)
+          (suspend)
+          (ja :num! (seek!))
+          )
+        (ja-channel-push! 1 (seconds 0.1))
+        )
+      )
+    #f
+    )
+  :post (behavior ()
+    ;; Check if player is near - if so, stop grazing and flee
+    (when (and *target*
+               (< (vector-vector-distance (-> self root trans) (get-trans *target* 0)) (meters 10))
+               (not (yakow-facing-player? 21845.334))
+               )
+      (go-virtual run-away)
+      )
+    (ja-post)
+    )
+  )
+
+;; ==========================================
+;; GRAZE-KICKED STATE - Hit while grazing (inspired by Jak 1)
+;; ==========================================
+(defstate graze-kicked (yakow)
+  :virtual #t
+  :event #f
+  :enter (behavior ()
+    (format #t "yakow: entering GRAZE-KICKED state~%")
+    (let ((v1-0 self))
+      (set! (-> v1-0 enemy-flags) (the-as enemy-flag (logclear (-> v1-0 enemy-flags) (enemy-flag enemy-flag36))))
+      (set! (-> v1-0 nav callback-info) *nav-enemy-null-callback-info*)
+      )
+    0
+    (set-time! (-> self state-time))
+    )
+  :code (behavior ()
+    (format #t "yakow: playing graze-kicked animation~%")
+    (ja-channel-push! 1 (seconds 0.05))
+    (ja-no-eval :group! yakow-kicked-in-place-ja :num! (seek!) :frame-num 0.0)
+    (until (ja-done? 0)
+      (suspend)
+      (ja :num! (seek!))
+      )
+    ;; After being kicked while grazing, flee
+    (go-virtual run-away)
+    )
+  :post ja-post
+  )
+
+;; ==========================================
+;; ACTIVE STATE - Walk around with run blending
+;; ==========================================
 (defstate active (yakow)
   :virtual #t
   :trans (behavior ()
@@ -299,6 +452,13 @@
       (if (< (the-as int (-> self focus aware)) 1)
           (go-virtual idle)
           )
+      ;; og:preserve-this If player is near and yakow not facing them, flee
+      (when (and *target*
+                 (< (vector-vector-distance (-> self root trans) (get-trans *target* 0)) (meters 10))
+                 (not (yakow-facing-player? 21845.334))
+                 )
+        (go-virtual run-away)
+        )
       )
     )
   :code (behavior ()
@@ -382,16 +542,24 @@
     )
   )
 
+;; ==========================================
+;; KICKED STATE - Inspired by Jak 1 yakow-kicked
+;; ==========================================
 (defstate kicked (yakow)
   :virtual #t
   :event #f
   :enter (behavior ()
+    (format #t "yakow: entering KICKED state, HP=~D, grazing=~A~%" (-> self hit-points) (-> self grazing))
     (let ((v1-0 self))
       (set! (-> v1-0 enemy-flags) (the-as enemy-flag (logclear (-> v1-0 enemy-flags) (enemy-flag enemy-flag36))))
       (set! (-> v1-0 nav callback-info) *nav-enemy-null-callback-info*)
       )
     0
     (set-time! (-> self state-time))
+    ;; og:preserve-this If we were grazing, redirect to graze-kicked
+    (if (-> self grazing)
+        (go-virtual graze-kicked)
+        )
     )
   :exit (behavior ()
     '()
@@ -406,9 +574,126 @@
       (suspend)
       (ja :num! (seek!))
       )
-    (go-virtual active)
+    ;; og:preserve-this After kick animation, flee like Jak 1
+    (go-virtual run-away)
     )
   :post ja-post
+  )
+
+;; ==========================================
+;; RUN-AWAY STATE - Flee from player (inspired by Jak 1 yakow-run-away)
+;; ==========================================
+(defstate run-away (yakow)
+  :virtual #t
+  :event enemy-event-handler
+  :enter (behavior ()
+    (format #t "yakow: entering RUN-AWAY state~%")
+    (set-time! (-> self state-time))
+    (set! (-> self grazing) #f)
+    ;; Set up run speed via nav-enemy-method-166
+    (nav-enemy-method-166 self)
+    ;; Enable nav movement
+    (let ((v1-4 self))
+      (if (not (logtest? (enemy-flag enemy-flag36) (-> v1-4 enemy-flags)))
+          (set! (-> v1-4 enemy-flags) (the-as enemy-flag (logior (enemy-flag enemy-flag38) (-> v1-4 enemy-flags))))
+          )
+      (set! (-> v1-4 enemy-flags) (the-as enemy-flag (logior (enemy-flag enemy-flag36) (-> v1-4 enemy-flags))))
+      (set! (-> v1-4 nav callback-info) (-> v1-4 enemy-info callback-info))
+      )
+    0
+    (let ((v1-7 self))
+      (set! (-> v1-7 enemy-flags) (the-as enemy-flag (logior (enemy-flag enemy-flag37) (-> v1-7 enemy-flags))))
+      )
+    0
+    )
+  :trans (behavior ()
+    ;; If player is far away (> 20m) or gone, return to idle or graze
+    (when (or (not *target*)
+              (< (meters 20)
+                 (vector-vector-distance (-> self root trans) (get-trans *target* 0))
+                 )
+              )
+      ;; Slow down and transition back
+      (go-virtual active)
+      )
+    )
+  :code (behavior ()
+    ;; og:preserve-this Run animation loop using yakow-run-ja
+    (ja-channel-push! 1 (seconds 0.1))
+    (until #f
+      (ja-no-eval :group! yakow-run-ja :num! (seek!) :frame-num 0.0)
+      (until (ja-done? 0)
+        (suspend)
+        (ja :num! (seek!))
+        )
+      )
+    #f
+    )
+  :post (behavior ()
+    ;; og:preserve-this Flee post: compute direction away from player and move there
+    (let ((a0-1 (handle->process (-> self focus handle))))
+      (when a0-1
+        (let ((gp-1
+                (vector-! (new 'stack-no-clear 'vector) (-> self root trans) (get-trans (the-as process-focusable a0-1) 0))
+                )
+              )
+          (set! (-> gp-1 y) 0.0)
+          (vector-normalize! gp-1 409600.0)
+          (vector+! gp-1 gp-1 (-> self root trans))
+          (let ((v1-10 (-> self nav state)))
+            (logclear! (-> v1-10 flags) (nav-state-flag directional-mode))
+            (logior! (-> v1-10 flags) (nav-state-flag target-poly-dirty))
+            (set! (-> v1-10 target-post quad) (-> gp-1 quad))
+            )
+          )
+        0
+        )
+      )
+    (nav-enemy-method-176 self)
+    0
+    (none)
+    )
+  )
+
+;; ==========================================
+;; DIE STATE - Drop dark eco pills and disappear
+;; ==========================================
+(defstate die (yakow)
+  :virtual #t
+  :event enemy-event-handler
+  :enter (behavior ()
+    (format #t "yakow: entering DIE state! HP=~D~%" (-> self hit-points))
+    (dying self)
+    (let ((v1-3 (-> self root root-prim)))
+      (set! (-> v1-3 prim-core collide-as) (collide-spec))
+      (set! (-> v1-3 prim-core collide-with) (collide-spec))
+      )
+    0
+    (set-time! (-> self state-time))
+    (set! (-> self hit-points) 0)
+    ;; og:preserve-this Spawn dark eco pills at our position
+    (format #t "yakow: spawning 5 dark eco pills at position~%")
+    (let ((s5-0 (-> self root trans)))
+      (dotimes (s4-0 5)
+        (birth-pickup-at-point s5-0 (pickup-type eco-pill-dark) 1.0 #t *entity-pool* (-> self fact))
+        )
+      )
+    )
+  :code (behavior ()
+    ;; og:preserve-this Play kicked-in-place animation as death animation
+    (ja-channel-push! 1 (seconds 0.075))
+    (ja-no-eval :group! yakow-kicked-in-place-ja :num! (seek!) :frame-num 0.0)
+    (until (ja-done? 0)
+      (suspend)
+      (ja :num! (seek!))
+      )
+    (send-event self 'death-end)
+    (while (-> self child)
+      (suspend)
+      )
+    (cleanup-for-death self)
+    )
+  :post enemy-simple-post
   )
 
 (defmethod init-enemy-collision! ((this yakow))
@@ -470,6 +755,12 @@
     )
   0
   (set-gravity-length (-> this root dynam) 327680.0)
+  ;; og:preserve-this Initialize new fields
+  (set! (-> this grazing) #f)
+  (set! (-> this walk-run-blend) 0.0)
+  (set! (-> this walk-turn-blend) 0.0)
+  (set! (-> this run-mode) #f)
+  (set! (-> this home-base quad) (-> this root trans quad))
   0
   (none)
   )

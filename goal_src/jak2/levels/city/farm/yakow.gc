@@ -671,21 +671,28 @@
     0
     (set-time! (-> self state-time))
     (set! (-> self hit-points) 0)
-    ;; og:preserve-this Spawn dark eco pills at our position
-    (format #t "yakow: spawning 5 dark eco pills at position~%")
-    (let ((s5-0 (-> self root trans)))
+    ;; og:preserve-this Spawn dark eco pills around our position
+    (format #t "yakow: spawning 5 dark eco pills around position~%")
+    (let ((s5-0 (new 'stack-no-clear 'vector)))
       (dotimes (s4-0 5)
+        (set! (-> s5-0 quad) (-> self root trans quad))
+        ;; Disperse in a ~1.5 meter radius (6144.0)
+        (+! (-> s5-0 x) (rnd-float-range self -6144.0 6144.0))
+        (+! (-> s5-0 z) (rnd-float-range self -6144.0 6144.0))
+        ;; Add a bit of vertical offset
+        (+! (-> s5-0 y) (rnd-float-range self 0.0 4096.0))
         (birth-pickup-at-point s5-0 (pickup-type eco-pill-dark) 1.0 #t *entity-pool* (-> self fact))
         )
       )
+    ;; Prevent the engine from dropping the default pickup-type during cleanup
+    (set! (-> self fact pickup-type) (pickup-type none))
     )
   :code (behavior ()
-    ;; og:preserve-this Play kicked-in-place animation as death animation
-    (ja-channel-push! 1 (seconds 0.075))
-    (ja-no-eval :group! yakow-kicked-in-place-ja :num! (seek!) :frame-num 0.0)
-    (until (ja-done? 0)
-      (suspend)
-      (ja :num! (seek!))
+    ;; Leave standard purple particles upon disappearance (using manual particle launch because Yakow skeleton lacks the effect)
+    (sound-play "enemy-fizz")
+    (let ((v1-2 (-> self root trans)))
+      (launch-particles (-> *part-id-table* 74) v1-2)
+      (launch-particles (-> *part-id-table* 72) v1-2)
       )
     (send-event self 'death-end)
     (while (-> self child)

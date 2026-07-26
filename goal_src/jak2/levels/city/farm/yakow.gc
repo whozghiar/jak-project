@@ -67,7 +67,7 @@
     :sound-die (static-sound-name "yakow-die")
     :notice-distance (meters 30)
     :notice-distance-delta (meters 10)
-    :default-hit-points 1
+    :default-hit-points 3
     :gnd-collide-with (collide-spec backgnd)
     :overlaps-others-collide-with-filter (collide-spec jak bot player-list)
     :penetrate-knocked (penetrate
@@ -223,6 +223,11 @@
      ;; og:preserve-this Let the parent handle damage processing (HP decrement, death check)
      ;; The parent will then send 'hit-knocked or 'hit which we intercept below
      (format #t "yakow: received 'attack event, HP=~D, grazing=~A~%" (-> this hit-points) (-> this grazing))
+     
+     ;; og:preserve-this Trigger Krimzon Guard alert when hitting a yakow! (Crime contre la nature)
+     (if *traffic-manager*
+         (send-event *traffic-manager* 'set-alert-level 1)
+     )
      ((method-of-type nav-enemy general-event-handler) this arg0 arg1 arg2 arg3)
      )
     (('hit-knocked 'hit)
@@ -568,6 +573,7 @@
     '()
     )
   :code (behavior ()
+    (sound-play "grunt-hit")
     (ja-channel-push! 1 (seconds 0.05))
     (ja-no-eval :group! yakow-kicked-in-place-ja :num! (seek!) :frame-num 0.0)
     (until (ja-done? 0)

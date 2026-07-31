@@ -1634,6 +1634,7 @@
       )
   (set! (-> this guard-type) arg0)
   (set! (-> this settings) (get-unit-settings-by-idx (-> this squad) (the-as int (-> this guard-type))))
+    
   (setup-masks (-> this draw) 0 30)
   (case (-> this guard-type)
     (((guard-type tazer) (guard-type grenade))
@@ -1706,6 +1707,22 @@
   (set! (-> this next-update-target-time) 0)
   (set! (-> this pursuit-start-time) 0)
   (set! (-> this last-choose-new-enemy-time) 0)
+  
+  ;; og:preserve-this mod: Comment le jeu gère l'apparition des gardes jaunes ?
+  ;; Le jeu utilise un système de "masques" sur le modèle 3D (via la commande setup-masks dans crimson-guard-method-267).
+  ;; - Le masque 3 correspond à la texture de base (bleu).
+  ;; - Le masque 5 correspond à la texture "dark-guard" (jaune élite de Jak 2).
+  ;; Si un garde possède le flag 'dark-guard', il activera le masque jaune.
+  ;; 
+  ;; Étant donné que les ennemis vaincus sont réutilisés depuis un "pool" en mémoire, on doit absolument 
+  ;; nettoyer (effacer) ce flag lors de la réapparition, sinon les gardes jaunes s'accumulent (jusqu'à 100%).
+  (logclear! (-> this flags) (citizen-flag dark-guard))
+  
+  ;; On relance ensuite les dés : 25% de chance de devenir jaune.
+  (when (zero? (rand-vu-int-count 4))
+    (logior! (-> this flags) (citizen-flag dark-guard))
+    )
+    
   (if (logtest? (-> this flags) (citizen-flag dark-guard))
       (set! (-> this hit-points) (* 2.0 (-> this enemy-info default-hit-points)))
       )

@@ -526,14 +526,36 @@
        )
      )
     (('alert-begin)
-     (when *debug-segment*
-       (when (focus-test? this inactive)
-         (format 0 "guard::event alert-begin recieved by inactive process ~d~%" (-> this pid))
-         (break!)
-         0
-         )
-       )
-     )
+      (when *debug-segment*
+        (when (focus-test? this inactive)
+          (format 0 "guard::event alert-begin recieved by inactive process ~d~%" (-> this pid))
+          (break!)
+          0
+          )
+        )
+      ;; og:preserve-this mod: Jak 2-style alert propagation — make ALL FF guards hostile when alert starts
+      (when (not (focus-test? this dead))
+        (when (not (logtest? (-> this flags) (citizen-flag hostile)))
+          (let ((a1-alert-target (the-as object (-> arg3 param 0))))
+            (when (and a1-alert-target
+                       (not (logtest? (-> (the-as process-focusable a1-alert-target) focus-status) (focus-status disable dead inactive)))
+                       )
+              (set! (-> this target-status handle) (process->handle (the-as process-focusable a1-alert-target)))
+              (set! (-> this focus handle) (process->handle (the-as process-focusable a1-alert-target)))
+              (logior! (-> this flags) (citizen-flag hostile))
+              (if (not (and (-> this next-state) (let ((v1-alert (-> this next-state name)))
+                                                    (or (= v1-alert 'jump) (= v1-alert 'exit-transport)
+                                                        (= v1-alert 'knocked) (= v1-alert 'knocked-recover))
+                                                    )
+                            )
+                       )
+                  (go-hostile this)
+                  )
+              )
+            )
+          )
+        )
+      )
     (('alert-end)
      (when *debug-segment*
        (when (focus-test? this inactive)
@@ -865,10 +887,12 @@
 
 ;; WARN: disable def twice: 6. This may happen when a cond (no else) is nested inside of another conditional, but it should be rare.
 (defmethod crimson-guard-method-290 ((this crimson-guard))
-  (if #t
-      (handle->process (-> this attacker-info enemy))
-      (squad-control-city-method-35 (-> this squad) this (-> this focus handle))
-      )
+  (let ((attacker (handle->process (-> this attacker-info enemy))))
+    (if attacker
+        attacker
+        (squad-control-city-method-35 (-> this squad) this (-> this focus handle))
+        )
+    )
   )
 
 (defmethod crimson-guard-method-261 ((this crimson-guard))
@@ -2033,6 +2057,12 @@
                 (send-event (handle->process (-> this vehicle)) 'member-attacked)
                 (send-event this 'member-attacked)
                 )
+            )
+          ;; og:preserve-this mod: Jak 2-style alert — trigger global alert when Jak attacks ANY FF guard
+          (when *ff-squad-control*
+            (logior! (-> this flags) (citizen-flag hostile))
+            (squad-control-method-27 *ff-squad-control* v1-4 1.0)
+            (squad-control-method-18 *ff-squad-control* 1 v1-4)
             )
           )
         )

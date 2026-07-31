@@ -55,8 +55,13 @@
 
 (define *default-faction-strength-mod* (new 'static 'cty-faction-strength))
 
+;; og:preserve-this mod: Force disable KG and MH spawns across all city states
 (defun setup-city-task-faction ()
+  ;; === ANCIEN CODE D'ORIGINE (MIS EN COMMENTAIRE POUR RÉFÉRENCE) ===
+  #|
   (cond
+    ;; Si la mission de la centrale électrique est terminée :
+    ;; -> Guerre totale : Max FF et MH en zone industrielle, KG envahissent les taudis et le port
     ((task-node-closed? (game-task-node city-power-game-resolution))
      (cty-faction-evaluate-commands '((faction-strength ff ind 5)
                                       (faction-strength mh ind 5)
@@ -66,12 +71,17 @@
                                       )
                                     )
      )
+    ;; Si on a fait sauter la barricade :
+    ;; -> Les KG ont une force de 1 globalement, et 1 dans les taudis
     ((task-node-closed? (game-task-node city-blow-barricade-resolution))
      (cty-faction-evaluate-commands '((faction-strength kg 1) (faction-strength kg slum 1)))
      )
+    ;; (Condition dupliquée de base dans le jeu original)
     ((task-node-closed? (game-task-node city-blow-barricade-resolution))
      (cty-faction-evaluate-commands '((faction-strength kg slum 1)))
      )
+    ;; Si le système de défense a été détruit :
+    ;; -> On retire les KG des taudis et de la zone industrielle, on laisse un peu de MH au port
     ((task-node-closed? (game-task-node city-destroy-grid-resolution))
      (cty-faction-evaluate-commands '((faction-strength kg slum -5)
                                       (faction-strength mh port 0)
@@ -82,14 +92,20 @@
                                       )
                                     )
      )
+    ;; Si l'eco noire a été détruite :
+    ;; -> On baisse légèrement la force des Metal Heads dans le port
     ((task-node-closed? (game-task-node city-destroy-darkeco-resolution))
      (cty-faction-evaluate-commands '((faction-strength mh port -1)))
      )
+    ;; Si l'attaque du port est terminée :
+    ;; -> Retrait total des Metal Heads (-5 et spawn off), et on vide la zone industrielle des gardes FF
     ((task-node-closed? (game-task-node city-port-attack-resolution))
      (cty-faction-evaluate-commands
        '((faction-strength mh -5) (faction-strength ff ind -5) (faction-spawn mh off))
        )
      )
+    ;; État par défaut de la ville en début de jeu :
+    ;; -> Pas de MH, pas de KG, et pas de gardes FF dans la zone industrielle (-5)
     (else
       (cty-faction-evaluate-commands '((faction-strength ff ind -5)
                                        (faction-strength mh -5)
@@ -100,6 +116,19 @@
                                      )
       )
     )
+  |#
+
+  ;; === NOUVEAU CODE (MODIFICATION ACTIVE) ===
+  ;; On force l'état pacifique en désactivant les Metal Heads et les Krimzon Guards de manière permanente.
+  ;; De plus, on demande explicitement que la Freedom Faction (ff) ait une force élevée PARTOUT (5),
+  ;; y compris dans la zone industrielle, afin d'avoir des citoyens et des gardes dans toutes les zones de la ville.
+  (cty-faction-evaluate-commands '((faction-strength ff 5)
+                                   (faction-strength mh -5)
+                                   (faction-strength kg -5)
+                                   (faction-spawn kg off)
+                                   (faction-spawn mh off)
+                                   )
+                                 )
   )
 
 (defmethod restore-defaults ((this cty-faction-manager))

@@ -19,9 +19,10 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this mod: increased ped-tazer target-count from 3 to 4 for minimum 6 guards per squad
 (define *alert-level-settings* (new 'static 'squad-alert-state-settings
                                  :ped-tazer (new 'static 'squad-unit-settings
-                                   :target-count 3
+                                   :target-count 4
                                    :shot-count 1
                                    :inaccuracy 0.5
                                    :acquire-delay (seconds 1)
@@ -146,11 +147,15 @@
   (let ((t9-1 (method-of-type squad-control init-alert)))
     (t9-1 this)
     )
+  ;; og:preserve-this mod: set min-target-count to 2 per pedestrian guard type (0-2) for minimum 6 total
   (dotimes (v1-4 3)
     (dotimes (a0-2 10)
       (when (logtest? *ff-guard-type-mask* (ash 1 a0-2))
         (let ((a1-6 (the-as traffic-guard-type-array (+ (+ (* v1-4 16) 1780 (* 48 a0-2)) (the-as int this)))))
-          (set! (-> a1-6 guard-info-normal min-target-count) 0)
+          (if (< a0-2 3)
+              (set! (-> a1-6 guard-info-normal min-target-count) 2)  ;; 3 types * 2 = 6 minimum guards
+              (set! (-> a1-6 guard-info-normal min-target-count) 0)
+              )
           (set! (-> a1-6 guard-info-normal max-target-count) 127)
           )
         )
@@ -234,22 +239,19 @@
   (none)
   )
 
+;; og:preserve-this mod: Jak 2-style neutral guards — ALL FF guards target Jak during alert, regardless of faction-mode
 (defmethod squad-control-city-method-35 ((this ff-squad-control) (arg0 citizen) (arg1 handle))
   (cond
     ((type? arg0 citizen)
-     (let ((a0-2 arg0))
-       (cond
-         ((!= (-> a0-2 faction-mode) 1)
-          (if (zero? (-> this alert-state level))
-              (the-as process-focusable #f)
-              (get-focus-in-range this arg0)
-              )
-          )
-         (else
-           (call-parent-method this arg0 arg1)
-           )
+     (if (zero? (-> this alert-state level))
+         ;; No alert: guards are neutral toward Jak, but war-mode guards still fight enemies
+         (if (= (-> (the-as citizen arg0) faction-mode) 1)
+             (call-parent-method this arg0 arg1)
+             (the-as process-focusable #f)
+             )
+         ;; Alert active: ALL guards target Jak
+         (get-focus-in-range this arg0)
          )
-       )
      )
     (else
       (ff-squad-control-method-51
@@ -819,13 +821,10 @@
      (if (and (not (logtest? (-> this alert-state flags) (squad-alert-flag alert-ending))) (get-target-focus this))
          (for-all-active-processes
            (-> this traffic)
+           ;; og:preserve-this mod: removed faction-mode check — ALL guards receive alert-begin
            (lambda ((arg0 crimson-guard) (arg1 traffic-object-type-info))
              (when (logtest? (-> arg1 flags) (traffic-type-flag ttf0))
-               (let ((a0-1 arg0))
-                 (if (!= (-> a0-1 faction-mode) 1)
-                     (send-event arg0 'alert-begin (get-target-focus *ff-squad-control*))
-                     )
-                 )
+               (send-event arg0 'alert-begin (get-target-focus *ff-squad-control*))
                )
              (none)
              )

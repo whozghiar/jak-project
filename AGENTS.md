@@ -18,6 +18,11 @@ Our objectives are:
 
 At the moment we support **x86_64** on Windows, Linux and macOS (via Rosetta translation).  There are no plans to ever make a mobile release.
 
+### Jak 2 
+If you are modding Jak 2, please refer to the `modding_jak2_instructions.md` file for specific instructions.
+### Jak 3
+If you are modding Jak 2, please refer to the `modding_jak3_instructions.md` file for specific instructions.
+
 ### Project Structure
 
 There are four main components to the project.

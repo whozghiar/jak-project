@@ -1,12 +1,29 @@
 # Modding Jak 3 - Change Log
 
-| Date       | Touched/Created Files                                                                                      | Technical Description                                                                                                                                                                                                                    | Objective                                                                                      |
-|------------|-----------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
-| 2026-07-31 | `goal_src/jak3/levels/city/traffic/citizen/guard.gc` (modified)                                           | Modified `damage-enemy-from-attack!`: added `start-alert` call on `*ff-squad-control*` when player attacks a guard + force hostile flag. Modified `event-handler` `'alert-begin`: added Jak 2-style behavior to set target, focus, hostile flag and go-hostile on all guards receiving alert. | Jak 2-style alert system: guards neutral by default, all become hostile when Jak attacks one. |
-| 2026-07-31 | `goal_src/jak3/levels/city/common/ff-squad-control.gc` (modified)                                         | Modified `squad-control-city-method-35`: reworked targeting logic to check alert-state level for ALL guards regardless of faction-mode. Modified `ff-squad-control-method-47`: removed `faction-mode != 1` check so ALL guards (incl. war-mode) receive `'alert-begin`. | All FF guards become hostile on alert (including war-mode allies). |
-| 2026-07-31 | `goal_src/jak3/levels/city/traffic/citizen/guard.gc` (modified)                                           | Fixed a decompiler bug in `crimson-guard-method-290` (target resolution): replaced `(if #t ...)` with proper validation of `attacker-info` before falling back to `squad-control-city-method-35`. | Fix bug where guards drop targeting instantly and lose hostile state. |
-| 2026-07-31 | `goal_src/jak3/levels/city/traffic/citizen/guard.gc` (modified)                                           | Modified `damage-enemy-from-attack!`: Replaced `start-alert` with explicit target registration `squad-control-method-27` and alert trigger `squad-control-method-18`. | Ensure the squad properly registers Jak as the primary target so guards don't lose focus. |
-| 2026-07-31 | `goal_src/jak3/levels/wascity/cty-faction.gc` (modified)                                                  | Completely overrode `setup-city-task-faction` to strictly enforce `(faction-spawn kg off)` and `(faction-spawn mh off)`. Set `(faction-strength ff 5)` globally. Preserved original code as comments. | Disable all Metal Head and Krimzon Guard spawns/alerts in the city to isolate the FF guard mod. |
-| 2026-07-31 | `goal_src/jak3/levels/city/common/ff-squad-control.gc` (modified)                                         | In the update method: added `(persist-with-delay *setting-control* 'cty-faction-music (seconds 2) 'music 'cityfi 0.0 0)` when alert level >= 1. | Play the city combat music (`cityfi`) continuously while a Freedom Faction alert is active. |
-| 2026-07-31 | `goal_src/jak3/levels/city/common/ff-squad-control.gc` (modified)                                         | In the update method: changed the `target-hide` state alert reduction multiplier from `2` to `10`. | Make the alert end almost instantly (in ~3 seconds) when Jak is hidden and out of sight. |
-| 2026-07-31 | `goal_src/jak3/levels/city/traffic/citizen/guard.gc` (modified)                                           | Moved the 25% random yellow guard spawn from `crimson-guard-method-267` to `citizen-method-194` (the true initialization). Added `logclear!` for `dark-guard` to prevent the flag from accumulating permanently when memory pooling reuses dead enemies. | Fix bug where yellow guards spawned at 80%+ because the `dark-guard` flag was never cleared upon enemy recycling. |
+| Date       | Touched/Created Files | Technical Description | Objective |
+|------------|-----------------------|-----------------------|-----------|
+| 2026-08-07 | `goal_src/jak3/levels/city/traffic/citizen/guard.gc`, `goal_src/jak3/levels/city/common/ff-squad-control.gc`, `goal_src/jak3/levels/wascity/cty-faction.gc`, `goal_src/jak3/pc/debug/default-menu-pc.gc` | Reworked Freedom Faction guard behavior (neutral by default, collective hostile aggro on attack, fast alert decay, combat music `cityfi`) and implemented dynamic City Modes (`*city-mode*`, `set-city-mode!`) integrated directly into the OpenGOAL PC Debug Menu under "City Mods" (Jak 2 Mode vs Chaos Mode). | Implement "[Mod] City Behavior": Jak 2-style guard hostility & dynamic City War / Jak 2 mode switcher via Debug Menu. |
+
+## [Mod] City Behavior
+
+### Description
+Le mod **City Behavior** apporte une refonte complète du comportement des gardes et du système de factions dans les secteurs d'Haven City pour Jak 3. Il permet de retrouver l'ambiance urbaine de Jak 2 tout en offrant une bascule dynamique vers un mode de guerre totale en ville.
+
+### Utilité & Fonctionnalités
+1. **Comportement des Gardes FF (Style Jak 2)** :
+   - Par défaut, les gardes de la Freedom Faction patrouillent pacifiquement en ville et n'attaquent pas Jak à vue.
+   - Si Jak attaque un garde, une alerte collective s'enclenche : les gardes dégainent et le prennent immédiatement en chasse.
+   - La musique de combat (`cityfi`) retentit pendant toute la durée de l'alerte.
+   - Fin d'alerte rapide (~3 secondes) dès que Jak se met à l'abri hors du champ de vision des gardes.
+
+2. **Modes de Ville Dynamiques (`City Mods`)** :
+   - **Mode Jak 2** *(Mode par défaut)* : Spawns d'ennemis (Metalheads et Robots Krimzon Guards) désactivés. Gardes FF pacifiques.
+   - **Mode Chaos** : Déclenche la guerre totale en ville. Des patrouilles d'attaque Metalheads, Krimzon Guards et Freedom Faction Guards sont générées en continu et s'affrontent à travers tous les territoires d'Haven City.
+
+### Mode d'Emploi
+1. Lancer le jeu OpenGOAL Jak 3.
+2. Ouvrir le **Menu Debug** PC (touche `R3` ou raccourci Debug).
+3. Naviguer vers la rubrique **`City Mods`**.
+4. Sélectionner l'option souhaitée :
+   - **`Activer le Mode Jak 2 (Gardes Neutres)`** : Pour repasser en ville calme avec gardes pacifiques.
+   - **`Activer le Mode Chaos (Guerre Totale)`** : Pour basculer instantanément la ville en état de guerre générale.

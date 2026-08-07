@@ -61,139 +61,103 @@
 
 (define *default-faction-strength-mod* (new 'static 'cty-faction-strength))
 
-;; og:preserve-this mod: Force disable KG and MH spawns across all city states
+;; og:preserve-this mod: Dynamic city mode control (Jak 2 vs Chaos)
+
+(define *city-mode* 'jak2)
+
+(define-extern *ff-squad-control* ff-squad-control)
+(define-extern *kg-squad-control* kg-squad-control)
+(define-extern *mh-squad-control* mh-squad-control)
+
+(defun set-city-mode! ((mode symbol))
+  (set! *city-mode* mode)
+  (case mode
+    (('chaos)
+     (format #t "~%[CITY-MODE] >>> ACTIVATION DU MODE CHAOS EN VILLE ! <<<~%")
+     (cty-faction-evaluate-commands '((faction-strength ff 5)
+                                     (faction-strength kg 5)
+                                     (faction-strength mh 5)
+                                     (faction-spawn kg-guard combat)
+                                     (faction-spawn mh-guard combat)
+                                     (faction-spawn ff-guard combat)
+                                     (faction-spawn kg-ambient combat)
+                                     (faction-spawn mh-ambient combat)))
+     (when *cty-faction-manager*
+       (dotimes (i 30)
+         (set! (-> *cty-faction-manager* territory-faction-modes i kg-mode) (the-as uint 1))
+         (set! (-> *cty-faction-manager* territory-faction-modes i ff-mode) (the-as uint 1))
+         (set! (-> *cty-faction-manager* territory-faction-modes i mh-mode) (the-as uint 1))
+         )
+       (faction-spawn *cty-faction-manager* 0 7 #t #t)
+       (faction-spawn *cty-faction-manager* 1 7 #t #t)
+       (faction-spawn *cty-faction-manager* 2 7 #t #t)
+       (logior! (-> *cty-faction-manager* update-flags) (cty-faction-update-flag cfu0))
+       (cty-faction-manager-method-24 *cty-faction-manager*)
+       )
+     (when *ff-squad-control*
+       (logior! (-> *ff-squad-control* alert-state flags) (squad-alert-flag war alarm-on))
+       (set! (-> *ff-squad-control* alert-state level) (the-as uint 3))
+       (init-alert *ff-squad-control*)
+       (ff-squad-control-method-47 *ff-squad-control*)
+       )
+     (when *kg-squad-control*
+       (logior! (-> *kg-squad-control* alert-state flags) (squad-alert-flag war alarm-on))
+       (set! (-> *kg-squad-control* alert-state level) (the-as uint 3))
+       (init-alert *kg-squad-control*)
+       )
+     (when *mh-squad-control*
+       (logior! (-> *mh-squad-control* alert-state flags) (squad-alert-flag war alarm-on))
+       (set! (-> *mh-squad-control* alert-state level) (the-as uint 3))
+       (init-alert *mh-squad-control*)
+       )
+     (when *traffic-engine*
+       (set! (-> *traffic-engine* allow-spawning?) #t)
+       (set-object-target-count *traffic-engine* (the-as int (traffic-type guard-a)) 15)
+       (set-object-target-count *traffic-engine* (the-as int (traffic-type roboguard)) 10)
+       (set-object-target-count *traffic-engine* (the-as int (traffic-type metalhead-grunt)) 15)
+       (set-object-target-count *traffic-engine* (the-as int (traffic-type metalhead-flitter)) 10)
+       (set-object-reserve-count *traffic-engine* (the-as int (traffic-type guard-a)) (the-as uint 30))
+       (set-object-reserve-count *traffic-engine* (the-as int (traffic-type roboguard)) (the-as uint 20))
+       (set-object-reserve-count *traffic-engine* (the-as int (traffic-type metalhead-grunt)) (the-as uint 30))
+       (set-object-reserve-count *traffic-engine* (the-as int (traffic-type metalhead-flitter)) (the-as uint 20))
+       )
+     )
+    (else ; 'jak2
+     (format #t "~%[CITY-MODE] >>> ACTIVATION DU MODE JAK 2 ! <<<~%")
+     (cty-faction-evaluate-commands '((faction-strength ff 5)
+                                     (faction-strength mh -5)
+                                     (faction-strength kg -5)
+                                     (faction-spawn kg-guard off)
+                                     (faction-spawn mh-guard off)
+                                     (faction-spawn ff-guard combat)))
+     (when *cty-faction-manager*
+       (dotimes (i 30)
+         (set! (-> *cty-faction-manager* territory-faction-modes i kg-mode) (the-as uint 0))
+         (set! (-> *cty-faction-manager* territory-faction-modes i mh-mode) (the-as uint 0))
+         (set! (-> *cty-faction-manager* territory-faction-modes i ff-mode) (the-as uint 1))
+         )
+       (logior! (-> *cty-faction-manager* update-flags) (cty-faction-update-flag cfu0))
+       (cty-faction-manager-method-24 *cty-faction-manager*)
+       )
+     (when *ff-squad-control*
+       (logclear! (-> *ff-squad-control* alert-state flags) (squad-alert-flag war alarm-on))
+       (set! (-> *ff-squad-control* alert-state level) (the-as uint 0))
+       )
+     (when *kg-squad-control*
+       (logclear! (-> *kg-squad-control* alert-state flags) (squad-alert-flag war alarm-on))
+       (set! (-> *kg-squad-control* alert-state level) (the-as uint 0))
+       )
+     (when *mh-squad-control*
+       (logclear! (-> *mh-squad-control* alert-state flags) (squad-alert-flag war alarm-on))
+       (set! (-> *mh-squad-control* alert-state level) (the-as uint 0))
+       )
+     )
+    )
+  mode
+  )
 
 (defun setup-city-task-faction ()
-  ;; === ANCIEN CODE D'ORIGINE (MIS EN COMMENTAIRE POUR RÉFÉRENCE) ===
-
-  #|
-  (cond
-
-    ;; Si la mission de la centrale électrique est terminée :
-
-    ;; -> Guerre totale : Max FF et MH en zone industrielle, KG envahissent les taudis et le port
-
-    ((task-node-closed? (game-task-node city-power-game-resolution))
-
-     (cty-faction-evaluate-commands '((faction-strength ff ind 5)
-
-                                      (faction-strength mh ind 5)
-
-                                      (faction-strength kg slum 5)
-
-                                      (faction-strength kg port 1)
-
-                                      (faction-strength mh port 1)
-
-                                      )
-
-                                    )
-
-     )
-
-    ;; Si on a fait sauter la barricade :
-
-    ;; -> Les KG ont une force de 1 globalement, et 1 dans les taudis
-
-    ((task-node-closed? (game-task-node city-blow-barricade-resolution))
-
-     (cty-faction-evaluate-commands '((faction-strength kg 1) (faction-strength kg slum 1)))
-
-     )
-
-    ;; (Condition dupliquée de base dans le jeu original)
-
-    ((task-node-closed? (game-task-node city-blow-barricade-resolution))
-
-     (cty-faction-evaluate-commands '((faction-strength kg slum 1)))
-
-     )
-
-    ;; Si le système de défense a été détruit :
-
-    ;; -> On retire les KG des taudis et de la zone industrielle, on laisse un peu de MH au port
-
-    ((task-node-closed? (game-task-node city-destroy-grid-resolution))
-
-     (cty-faction-evaluate-commands '((faction-strength kg slum -5)
-
-                                      (faction-strength mh port 0)
-
-                                      (faction-strength kg indb-kg-ff-border -5)
-
-                                      (faction-strength kg indb-kg -5)
-
-                                      (faction-strength kg indb-kg-deep -5)
-
-                                      (faction-strength kg sluma-ff-kg-border -5)
-
-                                      )
-
-                                    )
-
-     )
-
-    ;; Si l'eco noire a été détruite :
-
-    ;; -> On baisse légèrement la force des Metal Heads dans le port
-
-    ((task-node-closed? (game-task-node city-destroy-darkeco-resolution))
-
-     (cty-faction-evaluate-commands '((faction-strength mh port -1)))
-
-     )
-
-    ;; Si l'attaque du port est terminée :
-
-    ;; -> Retrait total des Metal Heads (-5 et spawn off), et on vide la zone industrielle des gardes FF
-
-    ((task-node-closed? (game-task-node city-port-attack-resolution))
-
-     (cty-faction-evaluate-commands
-
-       '((faction-strength mh -5) (faction-strength ff ind -5) (faction-spawn mh off))
-
-       )
-
-     )
-
-    ;; État par défaut de la ville en début de jeu :
-
-    ;; -> Pas de MH, pas de KG, et pas de gardes FF dans la zone industrielle (-5)
-
-    (else
-
-      (cty-faction-evaluate-commands '((faction-strength ff ind -5)
-
-                                       (faction-strength mh -5)
-
-                                       (faction-strength kg -5)
-
-                                       (faction-spawn kg off)
-
-                                       (faction-spawn mh off)
-
-                                       )
-
-                                     )
-
-      )
-
-    )
-  |#
-  ;; === NOUVEAU CODE (MODIFICATION ACTIVE) ===
-
-  ;; On force l'état pacifique en désactivant les Metal Heads et les Krimzon Guards de manière permanente.
-
-  ;; De plus, on demande explicitement que la Freedom Faction (ff) ait une force élevée PARTOUT (5),
-
-  ;; y compris dans la zone industrielle, afin d'avoir des citoyens et des gardes dans toutes les zones de la ville.
-
-  (cty-faction-evaluate-commands '((faction-strength ff 5)
-                                  (faction-strength mh -5)
-                                  (faction-strength kg -5)
-                                  (faction-spawn kg off)
-                                  (faction-spawn mh off))))
+  (set-city-mode! *city-mode*))
 
 (defmethod restore-defaults ((this cty-faction-manager))
   (dotimes (s5-0 (-> *default-faction-info* allocated-length))
@@ -367,27 +331,39 @@
   (when (logtest? (-> this update-flags) (cty-faction-update-flag cfu0))
     (dotimes (s5-1 30)
       (when (logtest? (-> this territory-flags s5-1) 1)
-        (set! (-> this territory-faction-modes s5-1 kg-mode) (the-as uint 0))
-        (set! (-> this territory-faction-modes s5-1 ff-mode) (the-as uint 0))
-        (set! (-> this territory-faction-modes s5-1 mh-mode) (the-as uint 0))
-        (let ((s2-0 (cty-faction-manager-method-14 this (the-as nav-territory-type s5-1) 1 0))
-              (s4-0 (cty-faction-manager-method-14 this (the-as nav-territory-type s5-1) 0 0))
-              (s3-0 (cty-faction-manager-method-14 this (the-as nav-territory-type s5-1) 2 1))
-              (v1-31 (cty-faction-manager-method-14 this (the-as nav-territory-type s5-1) 4 2)))
-          (when (or (logtest? s2-0 2) (logtest? s4-0 1))
-            (let ((a0-13 #f))
-              (when (logtest? s3-0 1)
-                (if (not (logtest? (-> this territory-faction-flags kg-mode) 1))
-                  (set! (-> this territory-faction-modes s5-1 kg-mode) (the-as uint 1)))
-                (set! a0-13 #t))
-              (when (logtest? v1-31 1)
-                (if (not (logtest? (-> this territory-faction-flags mh-mode) 1))
-                  (set! (-> this territory-faction-modes s5-1 mh-mode) (the-as uint 1)))
-                (set! a0-13 #t))
-              (when (and a0-13 (logtest? s4-0 1))
-                (when (not (logtest? (-> this territory-faction-flags ff-mode) 1))
-                  (set! (-> this territory-faction-modes s5-1 ff-mode) (the-as uint 1))
-                  (if (logtest? (-> this last-active-territories) (ash 1 s5-1)) #t)))))))))
+        (cond
+          ((= *city-mode* 'chaos)
+           (set! (-> this territory-faction-modes s5-1 kg-mode) (the-as uint 1))
+           (set! (-> this territory-faction-modes s5-1 ff-mode) (the-as uint 1))
+           (set! (-> this territory-faction-modes s5-1 mh-mode) (the-as uint 1))
+           )
+          (else
+           (set! (-> this territory-faction-modes s5-1 kg-mode) (the-as uint 0))
+           (set! (-> this territory-faction-modes s5-1 ff-mode) (the-as uint 0))
+           (set! (-> this territory-faction-modes s5-1 mh-mode) (the-as uint 0))
+           (let ((s2-0 (cty-faction-manager-method-14 this (the-as nav-territory-type s5-1) 1 0))
+                 (s4-0 (cty-faction-manager-method-14 this (the-as nav-territory-type s5-1) 0 0))
+                 (s3-0 (cty-faction-manager-method-14 this (the-as nav-territory-type s5-1) 2 1))
+                 (v1-31 (cty-faction-manager-method-14 this (the-as nav-territory-type s5-1) 4 2)))
+             (when (or (logtest? s2-0 2) (logtest? s4-0 1))
+               (let ((a0-13 #f))
+                 (when (logtest? s3-0 1)
+                   (if (not (logtest? (-> this territory-faction-flags kg-mode) 1))
+                     (set! (-> this territory-faction-modes s5-1 kg-mode) (the-as uint 1)))
+                   (set! a0-13 #t))
+                 (when (logtest? v1-31 1)
+                   (if (not (logtest? (-> this territory-faction-flags mh-mode) 1))
+                     (set! (-> this territory-faction-modes s5-1 mh-mode) (the-as uint 1)))
+                   (set! a0-13 #t))
+                 (when (and a0-13 (logtest? s4-0 1))
+                   (when (not (logtest? (-> this territory-faction-flags ff-mode) 1))
+                     (set! (-> this territory-faction-modes s5-1 ff-mode) (the-as uint 1))
+                     (if (logtest? (-> this last-active-territories) (ash 1 s5-1)) #t))))))
+           )
+          )
+        )
+      )
+    )
   (let ((s5-2 #f))
     (when (-> *setting-control* user-current attack)
       (dotimes (s4-1 30)

@@ -27,6 +27,16 @@
               ,inc #t ,min ,max 1)
   )
 
+(define-extern set-city-mode! (function symbol symbol))
+(define-extern *city-mode* symbol)
+
+(defun dm-city-mode-pick-func ((arg0 symbol) (arg1 debug-menu-msg))
+  (when (= arg1 (debug-menu-msg press))
+    (set-city-mode! arg0)
+    )
+  (eq? *city-mode* arg0)
+  )
+
 (defun dm-int-var-func ((var symbol) (msg debug-menu-msg) (val int) (undo-val int))
   (when (= msg (debug-menu-msg press))
     (set! (-> var value) val)
@@ -989,6 +999,15 @@
   (debug-menu-append-item (debug-menu-find-from-template *debug-menu-context* '("Collision")) (debug-menu-make-collision-renderer-menu *debug-menu-context*))
 
   (debug-menu-append-item (debug-menu-find-from-template *debug-menu-context* '("Artist")) (debug-menu-make-anim-tester-x-menu *debug-menu-context*))
+
+  (debug-menu-append-item (-> *debug-menu-context* root-menu)
+    (debug-menu-make-from-template *debug-menu-context*
+      '(menu "City Mods"
+          (function "Activer le Mode Chaos (Guerre Totale)" #f ,(lambda () (set-city-mode! 'chaos)))
+          (function "Activer le Mode Jak 2 (Gardes Neutres)" #f ,(lambda () (set-city-mode! 'jak2)))
+          )
+      )
+    )
 
   )
 

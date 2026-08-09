@@ -1003,6 +1003,7 @@
   (debug-menu-append-item (-> *debug-menu-context* root-menu)
     (debug-menu-make-from-template *debug-menu-context*
       '(menu "City Mods"
+          (function "Activer le Mode Default (Fin du Jeu)" #f ,(lambda () (set-city-mode! 'default)))
           (function "Activer le Mode Chaos (Guerre Totale)" #f ,(lambda () (set-city-mode! 'chaos)))
           (function "Activer le Mode Jak 2 (Gardes Neutres)" #f ,(lambda () (set-city-mode! 'jak2)))
           )

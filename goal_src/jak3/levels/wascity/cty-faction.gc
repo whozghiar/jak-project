@@ -122,6 +122,38 @@
        (set-object-reserve-count *traffic-engine* (the-as int (traffic-type metalhead-flitter)) (the-as uint 20))
        )
      )
+    (('default)
+     (format #t "~%[CITY-MODE] >>> ACTIVATION DU MODE DEFAULT (FIN DU JEU / 100%) EN VILLE ! <<<~%")
+     (when *cty-faction-manager*
+       (cty-faction-evaluate-commands '((restore-defaults)
+                                        (faction-strength ff ind 5)
+                                        (faction-strength mh ind 5)
+                                        (faction-strength kg slum 5)
+                                        (faction-strength kg port 1)
+                                        (faction-strength mh port 1)))
+       (logior! (-> *cty-faction-manager* update-flags) (cty-faction-update-flag cfu0))
+       (cty-faction-manager-method-24 *cty-faction-manager*)
+       )
+     (when *ff-squad-control*
+       (logclear! (-> *ff-squad-control* alert-state flags) (squad-alert-flag war alarm-on))
+       (set! (-> *ff-squad-control* alert-state level) (the-as uint 0))
+       (init-alert *ff-squad-control*)
+       )
+     (when *kg-squad-control*
+       (logclear! (-> *kg-squad-control* alert-state flags) (squad-alert-flag war alarm-on))
+       (set! (-> *kg-squad-control* alert-state level) (the-as uint 0))
+       (init-alert *kg-squad-control*)
+       )
+     (when *mh-squad-control*
+       (logclear! (-> *mh-squad-control* alert-state flags) (squad-alert-flag war alarm-on))
+       (set! (-> *mh-squad-control* alert-state level) (the-as uint 0))
+       (init-alert *mh-squad-control*)
+       )
+     (when *traffic-engine*
+       (set! (-> *traffic-engine* allow-spawning?) #t)
+       (restore-default-settings *traffic-engine*)
+       )
+     )
     (else ; 'jak2
      (format #t "~%[CITY-MODE] >>> ACTIVATION DU MODE JAK 2 ! <<<~%")
      (cty-faction-evaluate-commands '((faction-strength ff 5)

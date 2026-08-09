@@ -518,9 +518,10 @@
         (set-time! (-> this alert-state start-time)))
       (when (>= (-> this alert-state level) (the-as uint 1))
         (set! s5-1 #t)
-        ;; og:preserve-this mod: Play combat music 'cityfi' during FF alert
-
-        (persist-with-delay *setting-control* 'cty-faction-music (seconds 2) 'music 'cityfi 0.0 0)
+        ;; og:preserve-this mod: Play combat music 'cityfi' during FF alert (ONLY in 'jak2 mode)
+        (when (= *custom-city-mode* 'jak2)
+          (persist-with-delay *setting-control* 'cty-faction-music (seconds 2) 'music 'cityfi 0.0 0)
+          )
         (cond
           ((logtest? (-> this alert-state flags) (squad-alert-flag alert-ending))
            (cond
@@ -568,11 +569,10 @@
     ((> (-> this alert-state level) 0)
      (if (and (not (logtest? (-> this alert-state flags) (squad-alert-flag alert-ending))) (get-target-focus this))
        (for-all-active-processes (-> this traffic)
-                                 ;; og:preserve-this mod: removed faction-mode check — ALL guards receive alert-begin
-
                                  (lambda ((arg0 crimson-guard) (arg1 traffic-object-type-info))
                                    (when (logtest? (-> arg1 flags) (traffic-type-flag ttf0))
-                                     (send-event arg0 'alert-begin (get-target-focus *ff-squad-control*)))
+                                     (if (or (= *custom-city-mode* 'jak2) (!= (-> arg0 faction-mode) 1))
+                                       (send-event arg0 'alert-begin (get-target-focus *ff-squad-control*))))
                                    (none)))))
     (else
      (for-all-active-processes (-> this traffic)

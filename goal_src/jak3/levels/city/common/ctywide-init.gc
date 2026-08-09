@@ -93,6 +93,8 @@
       (add-squad-to-traffic-engine *mh-squad-control* *traffic-engine*)
       (squad-control-method-10 *mh-squad-control*)
       (restore-default-settings *traffic-engine*)
+      ;; og:preserve-this mod: Apply custom city mode upon ctywide activation
+      (set-city-mode! *custom-city-mode*)
       )
     )
   (let ((v1-27 *traffic-info*))

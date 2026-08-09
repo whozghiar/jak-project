@@ -533,8 +533,8 @@
           0
           )
         )
-      ;; og:preserve-this mod: Jak 2-style alert propagation — make ALL FF guards hostile when alert starts
-      (when (not (focus-test? this dead))
+      ;; og:preserve-this mod: Jak 2-style alert propagation — make ALL FF guards hostile when alert starts (ONLY in 'jak2 mode)
+      (when (and (= *custom-city-mode* 'jak2) (not (focus-test? this dead)))
         (when (not (logtest? (-> this flags) (citizen-flag hostile)))
           (let ((a1-alert-target (the-as object (-> arg3 param 0))))
             (when (and a1-alert-target
@@ -885,14 +885,19 @@
     )
   )
 
-;; WARN: disable def twice: 6. This may happen when a cond (no else) is nested inside of another conditional, but it should be rare.
+;; og:preserve-this mod: Target resolution for guards depending on city mode.
+;; En mode 'jak2: Si le garde n'a pas d'attaquant direct, il bascule sur la cible globale de l'escouade (*ff-squad-control* -> Jak).
+;; En modes 'default et 'chaos: Restauration stricte du comportement de la branche master — renvoie uniquement l'attaquant direct du garde.
 (defmethod crimson-guard-method-290 ((this crimson-guard))
-  (let ((attacker (handle->process (-> this attacker-info enemy))))
-    (if attacker
-        attacker
-        (squad-control-city-method-35 (-> this squad) this (-> this focus handle))
+  (if (= *custom-city-mode* 'jak2)
+      (let ((attacker (handle->process (-> this attacker-info enemy))))
+        (if attacker
+            attacker
+            (squad-control-city-method-35 (-> this squad) this (-> this focus handle))
+            )
         )
-    )
+      (handle->process (-> this attacker-info enemy))
+      )
   )
 
 (defmethod crimson-guard-method-261 ((this crimson-guard))
@@ -2075,8 +2080,8 @@
                 (send-event this 'member-attacked)
                 )
             )
-          ;; og:preserve-this mod: Jak 2-style alert — trigger global alert when Jak attacks ANY FF guard
-          (when *ff-squad-control*
+          ;; og:preserve-this mod: Jak 2-style alert — trigger global alert when Jak attacks ANY FF guard (ONLY in 'jak2 mode)
+          (when (and (= *custom-city-mode* 'jak2) *ff-squad-control*)
             (logior! (-> this flags) (citizen-flag hostile))
             (squad-control-method-27 *ff-squad-control* v1-4 1.0)
             (squad-control-method-18 *ff-squad-control* 1 v1-4)

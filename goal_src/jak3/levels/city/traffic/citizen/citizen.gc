@@ -435,7 +435,9 @@
              )
            (citizen-method-195 this)
            (citizen-method-194 this)
-           (move-to-ground this (meters 10) (meters 10) #t (-> this gnd-collide-with))
+           ;; mod: Augmentation du rayon vertical de recherche du sol de 10m à 40m pour éviter l'échec de move-to-ground
+           ;; sur les trottoirs/ponts surélevés d'Abriville et empêcher la disparition des civils à l'apparition ou lors du vol de véhicule.
+           (move-to-ground this (meters 40) (meters 40) #t (-> this gnd-collide-with))
            (set! (-> this gnd-height) (-> this root gspot-pos y))
            (go-from-behavior this s5-1)
            )

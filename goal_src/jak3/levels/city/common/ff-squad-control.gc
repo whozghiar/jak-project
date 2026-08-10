@@ -35,7 +35,8 @@
        :ped-rifle
        (new 'static
             'squad-unit-settings
-            :target-count 3
+            ;; mod: Augmentation à 6 fusiliers par escouade d'alerte en mode Jak 2 pour former des groupes d'intervention denses.
+            :target-count 6
             :shot-count 2
             :rand-shot-count 1
             :inaccuracy 0.5
@@ -45,7 +46,8 @@
        :ped-grenade
        (new 'static
             'squad-unit-settings
-            :target-count 1
+            ;; mod: Augmentation à 2 gardes jaunes (grenadiers) par escouade d'alerte en mode Jak 2.
+            :target-count 2
             :shot-count 1
             :inaccuracy 0.5
             :acquire-delay (seconds 1)

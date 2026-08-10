@@ -4,7 +4,19 @@
 |------------|-----------------------|-----------------------|-----------|
 | 2026-08-07 | `goal_src/jak3/levels/city/traffic/citizen/guard.gc`, `goal_src/jak3/levels/city/common/ff-squad-control.gc`, `goal_src/jak3/levels/wascity/cty-faction.gc`, `goal_src/jak3/pc/debug/default-menu-pc.gc` | Reworked Freedom Faction guard behavior (neutral by default, collective hostile aggro on attack, fast alert decay, combat music `cityfi`) and implemented dynamic City Modes (`*city-mode*`, `set-city-mode!`) integrated directly into the OpenGOAL PC Debug Menu under "City Mods" (Jak 2 Mode vs Chaos Mode). | Implement "[Mod] City Behavior": Jak 2-style guard hostility & dynamic City War / Jak 2 mode switcher via Debug Menu. |
 | 2026-08-09 | `goal_src/jak3/levels/wascity/cty-faction.gc`, `goal_src/jak3/pc/debug/default-menu-pc.gc`, `modding_jak3_changes.md` | Added third City Mode `'default` representing post-game state (`city-power-game-resolution` faction strengths and default traffic/spawner quotas). Integrated option in PC Debug Menu under "City Mods". | Provide full end-game spawn behavior option alongside Jak 2 mode and Chaos mode. |
-| 2026-08-09 | `goal_src/jak3/levels/city/traffic/citizen/guard.gc`, `goal_src/jak3/levels/city/common/ff-squad-control.gc`, `goal_src/jak3/levels/wascity/cty-faction.gc`, `goal_src/jak3/levels/city/common/ctywide-init.gc`, `goal_src/jak3/pc/debug/default-menu-pc.gc`, `modding_jak3_changes.md` | Overrode `cty-faction-manager-method-14` to grant 100% citywide spawn permissions for all 3 factions in `'chaos` and exclusively FF guards/peds in `'jak2` across all 30 territories. Added cache invalidation via `cty-faction-manager-method-19` on mode switches. | Fix level loading crashes, fix menu symbol quotation bug, enforce mode-specific spawn quotas per territory, and preserve alert state across zones. |
+| 2026-08-10 | `goal_src/jak3/levels/wascity/cty-faction.gc`, `goal_src/jak3/levels/city/traffic/citizen/citizen.gc`, `goal_src/jak3/levels/city/traffic/citizen/civilian.gc`, `modding_jak3_changes.md` | Extended move-to-ground vertical search radius to 40m in citizen.gc and civilian.gc, and appended 'ctypepa to *territory-list* in cty-faction.gc for Jak 2 and Chaos modes. | Fix vehicle hijack pilot ejection on carjacking across Haven City and guarantee ctypepa.DGO RAM retention. |
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## [Mod] City Behavior
 

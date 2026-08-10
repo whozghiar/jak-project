@@ -1723,8 +1723,9 @@
   ;; nettoyer (effacer) ce flag lors de la réapparition, sinon les gardes jaunes s'accumulent (jusqu'à 100%).
   (logclear! (-> this flags) (citizen-flag dark-guard))
   
-  ;; On relance ensuite les dés : 25% de chance de devenir jaune.
-  (when (zero? (rand-vu-int-count 4))
+  ;; mod: Les gardes jaunes (dark-guard) apparaissent exclusivement en mode Jak 2 et Chaos (25% de chance).
+  ;; En mode Default, 100% des gardes conservent l'uniforme bleu classique des gardes de la Freedom Faction.
+  (when (and (!= *custom-city-mode* 'default) (zero? (rand-vu-int-count 4)))
     (logior! (-> this flags) (citizen-flag dark-guard))
     )
     

@@ -432,7 +432,20 @@
     (logior! (-> a0-18 flags) (nav-state-flag target-poly-dirty))
     (vector-copy! (-> a0-18 target-pos) v1-42)
     )
-  0
+  ;; mod: En mode Jak 2, si les gardes passent en état d'alerte (*ff-squad-control* alert-state level > 0),
+  ;; nous orientons automatiquement la position de danger du civil vers Jak (*target*) et faisons passer le civil
+  ;; dans l'état 'flee' (course effrayée avec animations de fuite et cris de panique).
+  (when (and (= *custom-city-mode* 'jak2)
+             *ff-squad-control*
+             (> (-> *ff-squad-control* alert-state level) 0)
+             *target*)
+    (when (and (-> self next-state)
+               (let ((st-name (-> self next-state name)))
+                 (or (= st-name 'active) (= st-name 'wait) (= st-name 'avoid-danger))))
+      (vector-copy! (-> self danger-pos) (target-pos 0))
+      (go (method-of-object self flee))
+      )
+    )
   (vector-copy! (new 'stack-no-clear 'vector) (-> self nav state target-pos))
   (nav-enemy-method-187 self)
   (none)
@@ -1183,7 +1196,8 @@
       (vector-copy! (-> a0-3 travel) v1-5)
       )
     0
-    (move-to-ground self (meters 10) (meters 10) #t (-> self gnd-collide-with))
+    ;; mod: Augmentation de la recherche du sol de 10m à 40m pour stabiliser le placement des civils.
+    (move-to-ground self (meters 40) (meters 40) #t (-> self gnd-collide-with))
     (set! (-> self gnd-height) (-> self root gspot-pos y))
     (vector-reset! (-> self root transv))
     (if *citizen-debug*

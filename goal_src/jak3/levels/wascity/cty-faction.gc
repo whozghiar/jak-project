@@ -95,7 +95,9 @@
            (set! (-> *cty-faction-manager* territory-faction-modes i mh-mode) (the-as uint 1))
            )
          (faction-spawn *cty-faction-manager* 0 4 #t #t)
-         (faction-spawn *cty-faction-manager* 1 4 #t #t)
+         ;; mod: Niveau max (7) pour le groupe metalhead (grunt/flitter/predator) afin d'aligner le
+         ;; plafond de want-count sur les target-count/reserve-count fixés plus bas pour ces 3 types.
+         (faction-spawn *cty-faction-manager* 1 7 #t #t)
          (faction-spawn *cty-faction-manager* 2 4 #t #t)
          ;; mod: Demande du niveau 3 avec le drapeau fs0 (arg2=#t) pour l'index 3 (ff-ped / civils à pieds).
          ;; Permet de garantir un quota positif (10 hommes, 10 femmes, 3 fat) dans les zones pacifiques (Slums, Port).
@@ -132,6 +134,9 @@
          (set-object-reserve-count *traffic-engine* (the-as int (traffic-type metalhead-grunt)) (the-as uint 24))
          (set-object-target-count *traffic-engine* (the-as int (traffic-type metalhead-flitter)) 8)
          (set-object-reserve-count *traffic-engine* (the-as int (traffic-type metalhead-flitter)) (the-as uint 16))
+         ;; mod: Activation du Predator (auparavant absent du mode Chaos) - même traitement que Grunt/Flitter.
+         (set-object-target-count *traffic-engine* (the-as int (traffic-type metalhead-predator)) 4)
+         (set-object-reserve-count *traffic-engine* (the-as int (traffic-type metalhead-predator)) (the-as uint 8))
          )
        )
       ((= mode 'default)
@@ -187,8 +192,12 @@
            (set! (-> *cty-faction-manager* territory-faction-modes i mh-mode) (the-as uint 0))
            (set! (-> *cty-faction-manager* territory-faction-modes i ff-mode) (the-as uint 1))
            )
-         (faction-spawn *cty-faction-manager* 2 4 #t #t)
-         (faction-spawn *cty-faction-manager* 3 0 #t #t)
+         ;; mod: Niveau max (7) pour ff-guard, afin d'avoir assez de gardes-a disponibles pour à la
+         ;; fois les patrouilles solo ET le recrutement en escouades (voir *want-count-levels* plus bas).
+         (faction-spawn *cty-faction-manager* 2 7 #t #t)
+         ;; mod: Niveau 3 (au lieu de 0) pour ff-ped afin de faire apparaître les civils piétons
+         ;; (10 hommes, 10 femmes, 3 fat) en mode Jak 2, comme déjà fait en mode Chaos.
+         (faction-spawn *cty-faction-manager* 3 3 #t #t)
          (faction-spawn *cty-faction-manager* 0 0 #t #t)
          (faction-spawn *cty-faction-manager* 1 0 #t #t)
          (set! (-> *cty-faction-manager* last-active-territories) (the-as uint 0))
@@ -214,16 +223,15 @@
          (set-object-reserve-count *traffic-engine* (the-as int (traffic-type guard-a)) (the-as uint 40))
          (set-object-target-count *traffic-engine* (the-as int (traffic-type guard-b)) 10)
          (set-object-reserve-count *traffic-engine* (the-as int (traffic-type guard-b)) (the-as uint 20))
-         (set-object-target-count *traffic-engine* (the-as int (traffic-type civilian-male)) 0)
-         (set-object-reserve-count *traffic-engine* (the-as int (traffic-type civilian-male)) (the-as uint 0))
-         (set-object-target-count *traffic-engine* (the-as int (traffic-type civilian-female)) 0)
-         (set-object-reserve-count *traffic-engine* (the-as int (traffic-type civilian-female)) (the-as uint 0))
-         (set-object-target-count *traffic-engine* (the-as int (traffic-type civilian-fat)) 0)
-         (set-object-reserve-count *traffic-engine* (the-as int (traffic-type civilian-fat)) (the-as uint 0))
-         ;; mod: Activation massive des patrouilles d'escouades de gardes (traffic-type formation = 13) avec un quota de 12 escouades en ville.
-         (set-object-target-count *traffic-engine* (the-as int (traffic-type formation)) 0)
-         (set-object-reserve-count *traffic-engine* (the-as int (traffic-type formation)) (the-as uint 0))
-         (set! (-> *traffic-engine* object-type-info-array 13 want-count) 0)
+         ;; mod: Les civils (male/female/fat) sont désormais pilotés par le want-count dynamique
+         ;; (voir faction-spawn index 3 ci-dessus) - plus de mise à zéro explicite ici.
+         ;; mod: Activation des patrouilles d'escouades de gardes (traffic-type formation = 13), quota de 4 escouades simultanées.
+         ;; Chaque escouade recrute 3-4 gardes-a DEJA actifs dans le pool des patrouilleurs solo
+         ;; (voir formation-object-method-45, recrutement via inactive-count) - le plafond guard-a
+         ;; de *want-count-levels* reste donc inchangé (0xd), pas besoin de gardes supplémentaires.
+         (set-object-target-count *traffic-engine* (the-as int (traffic-type formation)) 4)
+         (set-object-reserve-count *traffic-engine* (the-as int (traffic-type formation)) (the-as uint 8))
+         (set! (-> *traffic-engine* object-type-info-array 13 want-count) 4)
          (set-object-target-count *traffic-engine* (the-as int (traffic-type roboguard)) 0)
          (set-object-reserve-count *traffic-engine* (the-as int (traffic-type roboguard)) (the-as uint 0))
          (set-object-target-count *traffic-engine* (the-as int (traffic-type metalhead-grunt)) 0)

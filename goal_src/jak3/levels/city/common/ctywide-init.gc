@@ -171,6 +171,9 @@
       (('ctypesb)
        (set! (-> v1-0 traffic-object-levels 8) a0-2)
        (set! (-> v1-0 traffic-object-levels 9) a0-2)
+       ;; mod: Le Predator est aussi lié à 'ctypesb (en plus de 'ctypepb) - c'est le DGO qui
+       ;; contient réellement metalhead-predator.o, ce qui fiabilise son éligibilité au spawn.
+       (set! (-> v1-0 traffic-object-levels 10) a0-2)
        )
       (('ctypepb)
        (set! (-> v1-0 traffic-object-levels 10) a0-2)

@@ -91,6 +91,16 @@
   )
 (hash-table-set! *file-entry-map* "dir-tpages.go" #f)
 
+;; mod: crimson-redguard - custom art-group (skeleton only, same joints as crimson-guard).
+;; Real visible geometry/textures come from a duplicated+recolored merc model injected
+;; directly into ctypesa's level data at build time (see build_level.cpp), not from this
+;; actor's own (dummy) mesh - its mgeo is only used for its name ("crimson-redguard-lod0",
+;; auto-suffixed by build-actor) so the PC renderer resolves it to that injected model.
+;; Registered here so cgo-file doesn't try to copy it from decompiled assets when it sees
+;; it listed in ctypesa.gd.
+(build-actor "crimson-redguard")
+(hash-table-set! *file-entry-map* "crimson-redguard-ag.go" #t)
+
 (cgo-file "game.gd" '("$OUT/obj/gcommon.o" "$OUT/obj/gstate.o" "$OUT/obj/gstring.o" "$OUT/obj/gkernel.o"))
 
 ;; note: some of these dependencies are slightly wrong because cgo-file doesn't really handle

@@ -1713,22 +1713,39 @@
   (set! (-> this pursuit-start-time) 0)
   (set! (-> this last-choose-new-enemy-time) 0)
   
-  ;; og:preserve-this mod: Comment le jeu gère l'apparition des gardes jaunes ?
+  ;; og:preserve-this mod: Comment le jeu gère l'apparition des gardes jaunes / rouges ?
   ;; Le jeu utilise un système de "masques" sur le modèle 3D (via la commande setup-masks dans crimson-guard-method-267).
   ;; - Le masque 3 correspond à la texture de base (bleu).
   ;; - Le masque 5 correspond à la texture "dark-guard" (jaune élite de Jak 2).
   ;; Si un garde possède le flag 'dark-guard', il activera le masque jaune.
-  ;; 
-  ;; Étant donné que les ennemis vaincus sont réutilisés depuis un "pool" en mémoire, on doit absolument 
-  ;; nettoyer (effacer) ce flag lors de la réapparition, sinon les gardes jaunes s'accumulent (jusqu'à 100%).
+  ;; Le garde rouge ('red-guard) n'utilise pas ce système de masques (aucun 3e masque n'existe dans
+  ;; l'asset d'origine) : il pointe (-> this draw mgeo) vers un modèle "crimson-redguard-lod0"
+  ;; entièrement séparé (même squelette/animations que crimson-guard, textures recolorées), injecté
+  ;; dans les données de niveau ctypesa au moment du build (voir build_level.cpp).
+  ;;
+  ;; Étant donné que les ennemis vaincus sont réutilisés depuis un "pool" en mémoire, on doit absolument
+  ;; nettoyer (effacer) ces flags lors de la réapparition, sinon les gardes jaunes/rouges s'accumulent (jusqu'à 100%).
   (logclear! (-> this flags) (citizen-flag dark-guard))
-  
-  ;; mod: Les gardes jaunes (dark-guard) apparaissent exclusivement en mode Jak 2 et Chaos (25% de chance).
-  ;; En mode Default, 100% des gardes conservent l'uniforme bleu classique des gardes de la Freedom Faction.
-  (when (and (!= *custom-city-mode* 'default) (zero? (rand-vu-int-count 4)))
-    (logior! (-> this flags) (citizen-flag dark-guard))
+  (logclear! (-> this flags) (citizen-flag red-guard))
+
+  ;; mod: Les gardes jaunes (dark-guard) apparaissent exclusivement en mode Jak 2 et Chaos (25% de chance,
+  ;; comportement d'origine inchangé). Les gardes rouges (red-guard) apparaissent exclusivement en mode
+  ;; Jak 2 (25% de chance), mutuellement exclusifs avec les gardes jaunes. En mode Default, 100% des gardes
+  ;; conservent l'uniforme bleu classique des gardes de la Freedom Faction.
+  (cond
+    ((= *custom-city-mode* 'jak2)
+     (case (rand-vu-int-count 8)
+       ((0 1) (logior! (-> this flags) (citizen-flag dark-guard)))
+       ((2 3) (logior! (-> this flags) (citizen-flag red-guard)))
+       )
+     )
+    ((!= *custom-city-mode* 'default)
+     (when (zero? (rand-vu-int-count 4))
+       (logior! (-> this flags) (citizen-flag dark-guard))
+       )
+     )
     )
-    
+
   (if (logtest? (-> this flags) (citizen-flag dark-guard))
       (set! (-> this hit-points) (* 2.0 (-> this enemy-info default-hit-points)))
       )
@@ -1737,6 +1754,23 @@
       (crimson-guard-method-267 this (the-as guard-type (ff-squad-control-method-54 (-> this squad) 6)) #f)
       (crimson-guard-method-267 this (guard-type tazer) #f)
       )
+  ;; mod: applique le modèle visuel rouge après que crimson-guard-method-267 ait fini de calculer
+  ;; les masques sur le modèle partagé d'origine - seul (-> this draw mgeo) change, (-> this draw
+  ;; art-group)/jgeo restent ceux de crimson-guard partagé (squelette + animations inchangés).
+  ;; Rien à faire dans le cas non-rouge : initialize-skeleton (appelé plus haut dans init-enemy!,
+  ;; à chaque réactivation du pool) remet déjà (-> this draw mgeo) sur le mgeo normal de
+  ;; crimson-guard avant que ce code ne s'exécute, donc pas besoin (et pas de risque) de le
+  ;; retoucher ici.
+  ;; TEMP DEBUG: modèle rouge désactivé pour isoler la cause du crash (le flag/tirage reste actif).
+  #|
+  (when (logtest? (-> this flags) (citizen-flag red-guard))
+    (let ((redguard-ag (the-as art-group (art-group-get-by-name *level* "crimson-redguard" (the-as (pointer level) #f)))))
+      (when (and redguard-ag (nonzero? (-> redguard-ag data 1)))
+        (set! (-> this draw mgeo) (the-as merc-ctrl (-> redguard-ag data 1)))
+        )
+      )
+    )
+  |#
   (let ((v1-15 (-> this nav)))
     (set! (-> v1-15 sphere-mask) (the-as uint #x1000de))
     )

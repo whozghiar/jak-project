@@ -24,6 +24,7 @@
   (neck-no-auto-look-at)
   (talking)
   (in-mission)
+  (red-guard)
   )
 ;; ---citizen-flag
 

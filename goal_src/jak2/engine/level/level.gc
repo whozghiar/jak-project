@@ -30,7 +30,10 @@ into 7 sections, which might explain the weird sizes in the center.
 
 (defglobalconstant LEVEL_HEAP_SIZE (* NUM_LEVEL_PAGES LEVEL_PAGE_SIZE))
 ;(defglobalconstant DEBUG_LEVEL_HEAP_MULT 1.5) ;; level heap in debug mode is 1.5x larger
-(defglobalconstant DEBUG_LEVEL_HEAP_MULT 15.0) ;; og:preserve-this PC port: ~262 MB total level heap for custom actors/entities
+(defglobalconstant DEBUG_LEVEL_HEAP_MULT 12.0) ;; og:preserve-this PC port: ~215 MB total level heap for custom actors/entities
+                                                ;; NOTE: jak2 shares GLOBAL_HEAP_END with jak3 but has more boot-time
+                                                ;; overhead before the first level loads, so 15.0 (jak3's value) overflows
+                                                ;; the global heap and crashes on boot; 12.0 leaves a safety margin.
 (defglobalconstant DEBUG_LEVEL_PAGE_SIZE (* 1024 (* DEBUG_LEVEL_HEAP_MULT LEVEL_PAGE_SIZE_KB)))
 (defglobalconstant DEBUG_LEVEL_HEAP_SIZE (* NUM_LEVEL_PAGES DEBUG_LEVEL_PAGE_SIZE))
 

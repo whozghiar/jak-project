@@ -67,7 +67,7 @@
     :sound-die (static-sound-name "yakow-die")
     :notice-distance (meters 30)
     :notice-distance-delta (meters 10)
-    :default-hit-points 3
+    :default-hit-points 4
     :gnd-collide-with (collide-spec backgnd)
     :overlaps-others-collide-with-filter (collide-spec jak bot player-list)
     :penetrate-knocked (penetrate
@@ -575,7 +575,16 @@
   :code (behavior ()
     (sound-play "grunt-hit")
     (ja-channel-push! 1 (seconds 0.05))
-    (ja-no-eval :group! yakow-kicked-in-place-ja :num! (seek!) :frame-num 0.0)
+    ;; og:preserve-this Jak 1 parity: play the traveling kick anim if the yakow was already
+    ;; moving when hit (e.g. mid-walk/graze-walk), otherwise the stationary in-place kick anim
+    (cond
+      ((< 40.96 (vector-length (-> self nav state travel)))
+       (ja-no-eval :group! yakow-kicked-ja :num! (seek!) :frame-num 0.0)
+       )
+      (else
+        (ja-no-eval :group! yakow-kicked-in-place-ja :num! (seek!) :frame-num 0.0)
+        )
+      )
     (until (ja-done? 0)
       (suspend)
       (ja :num! (seek!))
@@ -678,9 +687,9 @@
     (set-time! (-> self state-time))
     (set! (-> self hit-points) 0)
     ;; og:preserve-this Spawn dark eco pills around our position
-    (format #t "yakow: spawning 5 dark eco pills around position~%")
+    (format #t "yakow: spawning 6 dark eco pills around position~%")
     (let ((s5-0 (new 'stack-no-clear 'vector)))
-      (dotimes (s4-0 5)
+      (dotimes (s4-0 6)
         (set! (-> s5-0 quad) (-> self root trans quad))
         ;; Disperse in a ~1.5 meter radius (6144.0)
         (+! (-> s5-0 x) (rnd-float-range self -6144.0 6144.0))
@@ -694,12 +703,11 @@
     (set! (-> self fact pickup-type) (pickup-type none))
     )
   :code (behavior ()
-    ;; Leave standard purple particles upon disappearance (using manual particle launch because Yakow skeleton lacks the effect)
+    ;; og:preserve-this Leave a dust poof upon disappearance, like other entities dying/vanishing,
+    ;; reusing the always-resident dirt landing poof from engine/target/target-part.gc since
+    ;; Yakow's own skeleton has no dedicated death effect
     (sound-play "enemy-fizz")
-    (let ((v1-2 (-> self root trans)))
-      (launch-particles (-> *part-id-table* 74) v1-2)
-      (launch-particles (-> *part-id-table* 72) v1-2)
-      )
+    (part-tracker-spawn :to *entity-pool* :group group-land-poof-drt :mat-joint (-> self root trans))
     (send-event self 'death-end)
     (while (-> self child)
       (suspend)

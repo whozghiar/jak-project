@@ -80,6 +80,8 @@
   (set! (-> obj sliding-height) 0.0)
   (set! (-> obj sliding-off) 1.0)
   (set! (-> obj scanlines-alpha) 0.0)
+  ;; og:preserve-this - init the wheel-navigation throttle timer, matching jak 3's init-defaults
+  (set-time! (-> obj last-move))
   (set! (-> (the-as menu-on-off-game-vibrations-option (-> *game-options* options 0)) value-to-modify)
         (&-> *pc-settings* memcard-vibration?)
         )

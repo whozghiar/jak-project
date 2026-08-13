@@ -215,7 +215,10 @@
               (set! (-> this selected-option) #f))))
           (else
             (cond
-              ((cpad-pressed? 0 up l-analog-up)
+              ((or (cpad-pressed? 0 up l-analog-up)
+                   ;; og:preserve-this - hold direction to keep rotating the wheel, matching jak 3
+                   (and (cpad-hold? 0 up l-analog-up) (time-elapsed? (-> this last-move) (seconds 0.175))))
+               (set-time! (-> this last-move))
                (cond
                  ((= (-> this current-options) *main-options*)
                   (sound-play "ring-select"))
@@ -229,7 +232,10 @@
                   (set! (-> this want-option-index) -1))
                  ((< -2 (-> this want-option-index))
                   (+! (-> this want-option-index) -1))))
-              ((cpad-pressed? 0 down l-analog-down)
+              ((or (cpad-pressed? 0 down l-analog-down)
+                   ;; og:preserve-this - hold direction to keep rotating the wheel, matching jak 3
+                   (and (cpad-hold? 0 down l-analog-down) (time-elapsed? (-> this last-move) (seconds 0.175))))
+               (set-time! (-> this last-move))
                (cond
                  ((= (-> this current-options) *main-options*)
                   (sound-play "ring-select"))

@@ -49,6 +49,10 @@
    (sliding-off         float)
    (scanlines-alpha     float)
    (sliding-height      float)
+   ;; og:preserve-this - timestamp of the last wheel navigation step, used to throttle
+   ;; how often a held direction is allowed to advance the selection (see respond-to-cpad
+   ;; and menu-main-menu-option's respond-progress). jak 3 already has this field.
+   (last-move           time-frame)
    )
   (:state-methods
     come-in

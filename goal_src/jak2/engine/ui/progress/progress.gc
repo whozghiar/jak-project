@@ -989,7 +989,11 @@
            )
           (else
             (cond
-              ((cpad-pressed? 0 up l-analog-up)
+              ((or (cpad-pressed? 0 up l-analog-up)
+                   ;; og:preserve-this - hold direction to keep rotating the wheel, matching jak 3
+                   (and (cpad-hold? 0 up l-analog-up) (time-elapsed? (-> this last-move) (seconds 0.175)))
+                   )
+               (set-time! (-> this last-move))
                (cond
                  ((= (-> this current-options) *main-options*)
                   (sound-play "ring-select")
@@ -1010,7 +1014,11 @@
                   )
                  )
                )
-              ((cpad-pressed? 0 down l-analog-down)
+              ((or (cpad-pressed? 0 down l-analog-down)
+                   ;; og:preserve-this - hold direction to keep rotating the wheel, matching jak 3
+                   (and (cpad-hold? 0 down l-analog-down) (time-elapsed? (-> this last-move) (seconds 0.175)))
+                   )
+               (set-time! (-> this last-move))
                (cond
                  ((= (-> this current-options) *main-options*)
                   (sound-play "ring-select")
@@ -1216,7 +1224,11 @@
             )
         )
       )
-    (seek! (-> self ring-angle) (-> self ring-want-angle) (* speed-mod 455.1111 (-> self clock time-adjust-ratio)))
+    ;; og:preserve-this - doubled base ring speed (455.1111 -> 910.2222, matching jak 3) so the start menu
+    ;; wheel spins faster. new input isn't read again until ring-angle catches up to ring-want-angle (see
+    ;; the `(if (= ring-angle ring-want-angle) (respond-to-cpad self))` check below), so this speed is what
+    ;; actually governs how quickly you can move to the next option.
+    (seek! (-> self ring-angle) (-> self ring-want-angle) (* speed-mod 910.2222 (-> self clock time-adjust-ratio)))
     )
   (let ((gp-4 (quaternion-vector-angle!
                 (new 'stack-no-clear 'quaternion)
@@ -1987,7 +1999,11 @@
     ((not (-> arg0 selected-option))
      (let ((a0-53 (-> arg0 current-options options)))
        (cond
-         ((cpad-pressed? 0 left l-analog-left)
+         ((or (cpad-pressed? 0 left l-analog-left)
+              ;; og:preserve-this - hold direction to keep rotating the wheel, matching jak 3
+              (and (cpad-hold? 0 left l-analog-left) (time-elapsed? (-> arg0 last-move) (seconds 0.175)))
+              )
+          (set-time! (-> arg0 last-move))
           (if (!= (length a0-53) 1)
               (sound-play "ring-select")
               )
@@ -2000,7 +2016,11 @@
              )
             )
           )
-         ((cpad-pressed? 0 right l-analog-right)
+         ((or (cpad-pressed? 0 right l-analog-right)
+              ;; og:preserve-this - hold direction to keep rotating the wheel, matching jak 3
+              (and (cpad-hold? 0 right l-analog-right) (time-elapsed? (-> arg0 last-move) (seconds 0.175)))
+              )
+          (set-time! (-> arg0 last-move))
           (if (!= (length a0-53) 1)
               (sound-play "ring-select")
               )

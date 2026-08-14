@@ -40,6 +40,7 @@ When developing a mod for any game in the trilogy, the following documentation s
   - Jak 1: [`docs/jak1_modding_utilities.md`](./jak1_modding_utilities.md)
   - Jak 2: [`docs/jak2_modding_utilities.md`](./jak2_modding_utilities.md)
   - Jak 3: [`docs/jak3_modding_utilities.md`](./jak3_modding_utilities.md)
+* **Bilingual Requirement (🇬🇧 EN & 🇫🇷 FR):** All general knowledge bases must be written in both English and French, featuring clear language anchors (`# -english-version`, `# -version-française`) so that international and French-speaking contributors have immediate access to complete technical information.
 * **Factuality & Rigor:** Include only **verified, certain information** derived from source code analysis, decompiler outputs, or runtime tests. If an analysis point is an unverified hypothesis, it **must** be explicitly tagged with `[Hypothèse / Unverified]`.
 * **Pedagogical Approach:** Always write with clear explanations, simple and concrete code snippets, and contextual commentary.
 * **Topics to Document:** GOAL syntax particularities, engine structures, process & state machine, joint & skeleton systems (`cspace`, `joint-control`), animations (`merc`, `mips`), collision / spatial queries (`collide-shape`, `pat-surface`), sound & audio playback (`sound-play`), and memory budgets.
@@ -49,17 +50,19 @@ When developing a mod for any game in the trilogy, the following documentation s
   ```
   docs/mods/[mod_name]_readme.md
   ```
-* **Content:** Description of features and additions, player instructions, configuration toggles, technical architecture of the mod, and test procedures.
+* **Bilingual Documentation (🇬🇧 EN & 🇫🇷 FR):** Every mod readme must be fully written in both English and French (identical to `docs/mods/jak3-jetboard_readme.md`), with structured sections:
+  1. Description & Features / Description & Fonctionnalités
+  2. Technical Architecture & Tooling / Architecture Technique & Outillage
+  3. How to Test & Play / Commandes & Procédure de Test
+  4. Current Status & Investigations / Statut Actuel & Investigations
+  5. Modding Changes Log / Journal des Modifications
+* **Consolidated Change Log:** To keep the repository root clean, all modification steps and traceability logs must be recorded directly in the **Modding Changes Log** table inside the mod's readme (format: `Date | Touched/Created Files | Technical Description | Objective`), eliminating loose changelog files at workspace root.
 * **Mod Merging & Combinations:** Since multiple mods may eventually be merged together into composite branches or `master`:
   - Keep mod readmes modular: when branches merge, keep individual `[mod_name]_readme.md` files intact inside `docs/mods/` to preserve documentation history.
   - Prefix custom symbols, functions, types, and global variables with the mod's identifier (e.g. `*my-mod-speed*`, `my-mod-activate!`) to prevent naming collisions when fusing multiple mods.
 
 ### 3. Standard Modding Manual (`docs/jak_modding_instructions.md`)
 * This file serves as the universal rulebook and modding procedure reference across all games.
-
-### 4. Workspace Traceability (`modding_jak[N°]_changes.md`)
-* Maintain a `modding_jak[x]_changes.md` file at the root of the workspace to log each modification step.
-* **Required Log Format:** `Date | Touched/Created files | Technical description of the modification | Objective of the mod`
 
 ---
 

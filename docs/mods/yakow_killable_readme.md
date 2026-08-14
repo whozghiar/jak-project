@@ -1,7 +1,7 @@
 # Mod Readme — Yakow Killable & Behaviors (Jak 2)
 
 > **Game:** Jak 2  
-> **Branch:** `features_yakow_killable`  
+> **Branch:** `jak2/features/yakow_killable`  
 > **Target Entity:** `yakow` (`goal_src/jak2/levels/city/farm/yakow.gc`)
 
 ---

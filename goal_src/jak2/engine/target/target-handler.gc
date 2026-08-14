@@ -316,7 +316,7 @@
           )
         (let ((v1-37 arg1))
           (cond
-            ((or (= v1-37 'spin) (= v1-37 'spin-air) (= v1-37 'board-spin))
+            ((or (= v1-37 'spin) (= v1-37 'spin-air) (= v1-37 'board-spin) (= v1-37 'board-zap))
              (let ((sv-100 (prims-touching? arg2 (-> self control) (the-as uint 256))))
                (if sv-100
                    (part-tracker-spawn
@@ -331,6 +331,9 @@
                    )
                )
              (play-effect-sound (-> self skel effect) arg1 -1.0 38 (the-as basic #f) (cond
+                                                                                       ((= arg1 'board-zap)
+                                                                                        (static-sound-name "board-zap-hit")
+                                                                                        )
                                                                                        ((= arg1 'board-spin)
                                                                                         (static-sound-name "board-impact")
                                                                                         )

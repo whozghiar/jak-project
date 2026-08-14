@@ -209,6 +209,13 @@
    (trick-points-array      float              16      :offset 3272)
    (trick-list              board-tricks       16      :offset 3336)
    (pad                     uint8                      :offset 3399)
+   ;; jak3 board port: charged jump + board-zap attack
+   (charge-sound-id         sound-id)
+   (charge-part             sparticle-launch-control)
+   (charge-start-time       time-frame)
+   (charge-time             time-frame)
+   (charge-progress         float)
+   (zap-start-time          time-frame)
    )
   (:methods
     (add-to-trick-list (_type_ board-tricks float) none)
@@ -229,6 +236,11 @@
    (trickx-jump-height-max  meters)
    (tricky-jump-height-min  meters)
    (tricky-jump-height-max  meters)
+   (charge-jump-time        time-frame)
+   (charge-jump-fade-time   time-frame)
+   (charge-jump-height      meters)
+   (zap-duration            time-frame)
+   (zap-reset-time          time-frame)
    )
   )
 
@@ -245,6 +257,11 @@
                               :trickx-jump-height-max (meters 1.2)
                               :tricky-jump-height-min (meters 0.9)
                               :tricky-jump-height-max (meters 1.2)
+                              :charge-jump-time (seconds 0.7)
+                              :charge-jump-fade-time (seconds 0.25)
+                              :charge-jump-height (meters 3.5)
+                              :zap-duration (seconds 0.25)
+                              :zap-reset-time (seconds 0.25)
                               )
         )
 

@@ -421,6 +421,8 @@
   "jakb-ag.go"
   "daxter-ag.go"
   "board-ag.go"
+  "jakb-jak3-board-import-ag.go"
+  "daxter-jak3-board-import-ag.go"
   "gun-ag.go"
   "jak-gun+0-ag.go"
   "jak-board+0-ag.go"

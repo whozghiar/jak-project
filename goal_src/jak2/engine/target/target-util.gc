@@ -372,6 +372,18 @@
          (sphere<-vector+r! (the-as sphere (-> s4-0 local-sphere)) (-> *TARGET-bank* spin-offset) 6963.2)
          (set! (-> self control penetrate-using) (penetrate touch spin board))
          )
+        (('board-zap)
+         (sphere<-vector+r!
+           (the-as sphere (-> self control root-prim local-sphere))
+           (new 'static 'vector :y 6553.6 :w 1.0)
+           13107.2
+           )
+         (logior! (-> self focus-status) (focus-status dangerous))
+         (set! (-> s4-0 prim-core collide-as) (-> self control default-collide-as-fgnd))
+         (set! (-> s4-0 prim-core collide-with) (-> self control default-collide-with-fgnd))
+         (sphere<-vector+r! (the-as sphere (-> s4-0 local-sphere)) (-> *TARGET-bank* spin-offset) 12288.0)
+         (set! (-> self control penetrate-using) (penetrate touch spin board))
+         )
         (('duck-spin)
          (sphere<-vector+r!
            (the-as sphere (-> self control root-prim local-sphere))

@@ -1012,7 +1012,15 @@
                   )
                 (when (or (not s5-1) (= (-> s5-1 name) 'default))
                   (login this)
-                  (if (needs-link? this)
+                  ;; jak3 board port: jakb-jak3-board-import-ag/daxter-jak3-board-import-ag are
+                  ;; build-actor output with a joint-geo (not an art-joint-anim) at data[0], so
+                  ;; needs-link? is always #f for them and the splice into jakb-ag/daxter-ag would
+                  ;; never happen automatically. Force it here, once, at file-load time - same
+                  ;; hardcoded-name approach og-j1-board uses for "eichar-board+0" on Jak 1.
+                  (if (or (needs-link? this)
+                          (string= (-> this name) "jakb-jak3-board-import")
+                          (string= (-> this name) "daxter-jak3-board-import")
+                          )
                       (link-art! this)
                       )
                   )

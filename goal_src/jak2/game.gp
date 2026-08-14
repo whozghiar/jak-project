@@ -90,6 +90,10 @@
   :out '("$OUT/obj/dir-tpages.go")
   )
 (hash-table-set! *file-entry-map* "dir-tpages.go" #f)
+;; jak3 board port: these GAME.CGO members are built via build-actor below, not the decompiler's
+;; raw_obj output, so keep cgo-file from also generating a conflicting copy-go step for them.
+(hash-table-set! *file-entry-map* "jakb-jak3-board-import-ag.go" #f)
+(hash-table-set! *file-entry-map* "daxter-jak3-board-import-ag.go" #f)
 
 (cgo-file "game.gd" '("$OUT/obj/gcommon.o" "$OUT/obj/gstate.o" "$OUT/obj/gstring.o" "$OUT/obj/gkernel.o"))
 
@@ -325,6 +329,36 @@
 ;; more complicated actors like jak that make a lot of use of animation blending can have 24+ channels.
 (build-actor "test-actor" :force-run #t :gen-mesh #t)
 
+;; jak3 board port: import ONLY jakb-board-jump-high and jakb-board-turn-around (the 2 names jak2
+;; genuinely has no native equivalent for), at slots confirmed in-bounds for jakb-ag's real
+;; compiled array length. link-art! (see target-board-init) falls back to a linear scan for ANY
+;; free slot in the whole array when the requested index is out of bounds - which would silently
+;; hijack an unrelated native slot instead of failing cleanly - so we deliberately do NOT attempt
+;; to import more names here until that array length is confirmed and slots are picked safely
+;; within it (this held 12 more moves briefly; reverted after a boot crash report).
+(build-actor "jakb-jak3-board-import"
+             :texture-bucket 2
+             :force-run #t
+             :framerate 60
+             :joint-channel 24
+             :master-art-group jakb
+             :master-ag-map
+             ((jakb-board-jump-high 237)
+              (jakb-board-turn-around 236))
+             )
+
+;; jak3 board port: sidekick (daxter) counterpart of the above.
+(build-actor "daxter-jak3-board-import"
+             :texture-bucket 2
+             :force-run #t
+             :framerate 60
+             :joint-channel 24
+             :master-art-group daxter
+             :master-ag-map
+             ((daxter-board-jump-high 459)
+              (daxter-board-turn-around 460))
+             )
+
 ;;;;;;;;;;;;;;;;;;;;;
 ;; ANIMATIONS
 ;;;;;;;;;;;;;;;;;;;;;
@@ -373,9 +407,11 @@
 
 (copy-vag-files "ENG" "FRE" "GER" "ITA" "JAP" "KOR" "SPA")
 
+;; jak3 board port: "BOARD" is built below via append-sbk instead of copy-sbk-files, so the
+;; jak3-imported board-charge/board-launch/board-zap/board-zap-hit sounds get added to it.
 (copy-sbk-files
   "ASHTAN1" "ASHTAN2" "ATOLL1" "ATOLL2" "ATOLL3" "ATOLL4"
-  "BBUSH1" "BOARD" "BOMBBOT1" "CASBOSS1" "CASBOSS2" "CASBOSS3"
+  "BBUSH1" "BOMBBOT1" "CASBOSS1" "CASBOSS2" "CASBOSS3"
   "CASTLE1" "CASTLE2" "CASTLE3" "COMMON" "COMMONJ" "CONSITE1"
   "CONSITE2" "CONSITE3" "CTYFARM1" "CTYWIDE1" "CTYWIDE2" "CTYWIDE3"
   "CTYWIDE4" "CTYWIDE5" "DEMO1" "DIG1" "DIG2" "DIG3" "DIG4" "DIG5"
@@ -392,6 +428,12 @@
   "SEWER3" "SEWER4" "SEWER5" "SEWER6" "SKATE1" "STADIUM1" "STRIP1"
   "STRIP2" "STRIP3" "TOMB1" "TOMB2" "TOMB3" "TOMB4" "TOMB5" "TOMB6"
   "TOMB7" "TOMB8" "TOMB9" "UNDER1" "UNDER2" "UNDER3" "UNDER4" "UNDER5" "VINROOM1")
+
+;; jak3 board port: append the charged-jump/board-zap sounds imported from jak3's MODEBORD.SBK
+;; (see custom_assets/jak2/sounds/sfx/MODEBORD) onto jak2's native BOARD.SBK.
+(append-sbk "BOARD" "MODEBORD"
+            :force-run #t
+            :only-names (BOARD_CHARGE BOARD_LAUNCH BOARD_ZAP BOARD_ZAP_HIT))
 
 (copy-mus-files
   "ATOLL" "BATTLE" "CITY1" "CREDITS" "DANGER" "DANGER1" "DANGER2"

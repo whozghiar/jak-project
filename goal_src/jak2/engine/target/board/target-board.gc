@@ -31,6 +31,14 @@
 (define-extern target-board-halfpipe-check (function collide-action :behavior target))
 (define-extern target-board-jump-trans (function none :behavior target))
 
+;; jak3 board port: the imported jakb/daxter jetboard anims (jakb-jak3-board-import-ag /
+;; daxter-jak3-board-import-ag, produced by build-actor, see goal_src/jak2/game.gp) are spliced into
+;; the native jakb-ag/daxter-ag master art groups by a link-art! call hooked into art-group's relocate
+;; method (goal_src/jak2/engine/anim/joint.gc), exactly like og-j1-board does for eichar-board+0 on
+;; Jak 1 - a hardcoded name check forces the link once, automatically, at file-load time, since these
+;; build-actor groups have a joint-geo (not an art-joint-anim) at slot 0 and therefore never satisfy
+;; needs-link? on their own. See that method for the full explanation.
+
 (#when PC_PORT
 
 (define *board-trick-tracker* (new 'static 'board-trick-tracker))
@@ -1935,6 +1943,74 @@
               (set! (-> self board ride-rot-old) -1.0)
               )
             )
+          )
+        ;; jak3 board port: charged jump (hold l1, release x)
+        (cond
+          ((cpad-pressed? (-> self control cpad number) l1)
+           (set-time! (-> self board charge-start-time))
+           )
+          ((cpad-hold? (-> self control cpad number) l1)
+           (when (board-on-ground?)
+             (set-time! (-> self board charge-time))
+             (seek!
+               (-> self board charge-progress)
+               1.0
+               (* (/ 300.0 (the float (-> *TARGET_BOARD-bank* charge-jump-time))) (seconds-per-frame))
+               )
+             )
+           (sound-play-by-name
+             (static-sound-name "board-charge")
+             (-> self board charge-sound-id)
+             (the int (* 1024.0 (-> self board charge-progress)))
+             0
+             0
+             (sound-group)
+             (-> self control trans)
+             )
+           )
+          ((!= (-> self board charge-progress) 0.0)
+           (seek!
+             (-> self board charge-progress)
+             0.0
+             (* (/ 300.0 (the float (-> *TARGET_BOARD-bank* charge-jump-fade-time))) (seconds-per-frame))
+             )
+           (if (= (-> self board charge-progress) 0.0)
+               (sound-stop (-> self board charge-sound-id))
+               )
+           )
+          )
+        ;; jak3 board port: circle-button area attack (board-zap)
+        (cond
+          ((and (cpad-pressed? (-> self control cpad number) circle)
+                (time-elapsed?
+                  (-> self board zap-start-time)
+                  (+ (-> *TARGET_BOARD-bank* zap-duration) (-> *TARGET_BOARD-bank* zap-reset-time))
+                  )
+                (not (-> self control danger-mode))
+                (not (logtest? (-> self state-flags) (state-flags prevent-attack)))
+                (not (and (-> self next-state) (let ((v1-board-zap (-> self next-state name)))
+                                                 (or (= v1-board-zap 'target-board-get-on) (= v1-board-zap 'target-board-get-off))
+                                                 )
+                          )
+                     )
+                (not (logtest? (-> self focus-status) (focus-status dead hit grabbed)))
+                )
+           (sound-play "board-zap")
+           (target-start-attack)
+           (target-danger-set! 'board-zap #f)
+           (set-time! (-> self board zap-start-time))
+           (let ((zap-fx-pos (new 'stack-no-clear 'vector)))
+             (set! (-> zap-fx-pos quad) (-> self control trans quad))
+             (+! (-> zap-fx-pos y) 6553.6)
+             (part-tracker-spawn :to self :group group-board-spin-attack :mat-joint zap-fx-pos)
+             )
+           (target-timed-invulnerable (-> *TARGET_BOARD-bank* zap-duration) self 2)
+           )
+          ((and (-> self control danger-mode)
+                (time-elapsed? (-> self board zap-start-time) (-> *TARGET_BOARD-bank* zap-duration))
+                )
+           (target-danger-set! 'harmless #f)
+           )
           )
         (do-rotations2)
         (reverse-conversions (-> self control transv))

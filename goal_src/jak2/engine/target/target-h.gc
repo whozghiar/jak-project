@@ -217,6 +217,7 @@
     target-board-stance
     (target-board-start object)
     (target-board-trickx float float symbol)
+    target-board-turn-around
     (target-board-turn-to vector time-frame)
     (target-board-wall-kick vector float)
     target-carry-drop

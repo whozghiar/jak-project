@@ -780,6 +780,16 @@
   (set! (-> self board sound-air-knob) 0.0)
   (set! (-> self board sound-bank-knob) 0.0)
   (set! (-> self board unknown-sound-id00) (new 'static 'sound-id))
+  ;; jak3 board port: was missing entirely - Jak 3's target-board-init does this for
+  ;; charge-sound-id (goal_src/jak3/engine/target/board/target-board.gc:885), alongside the
+  ;; other per-mount sound-ids above. sound-play-by-name (engine/sound/gsound.gc) never generates
+  ;; an id itself - it just echoes back whatever it's given (see its last line, `arg1`) - so the
+  ;; per-frame board-charge call below relied on charge-sound-id already holding a real, unique id
+  ;; to let repeated calls update the same live sound instance instead of each looking like an
+  ;; unrelated request. Without this, charge-sound-id stayed at whatever a freshly-allocated
+  ;; board struct happens to hold, so the charge sound never played even though sound playback
+  ;; itself was otherwise fixed.
+  (set! (-> self board charge-sound-id) (new-sound-id))
   (set-setting! 'mode-sound-bank 'board 0.0 0)
   ;; jak3 board port: the "board" bank is never added to any level's :want-sound array (checked
   ;; engine/level/level-info.gc directly - 'board appears in none of the ~40 continue-point

@@ -304,63 +304,37 @@
   (none)
   )
 
-;; jak3 board port: zap attack burst. Uses `water-ring` for the expanding 3D shockwave and
-;; `starflash` for the core electrical discharge, both tracking the jetboard dynamically.
+;; jak3 board port: zap attack burst (exact 1:1 port of Jak 3's group-board-zap-attack & part 678).
+;; Spawns a series of 4-5 concentric rings over a 0.335s window tracking the jetboard dynamically.
 (defpartgroup group-board-zap-attack
   :id 1296
   :flags (use-local-clock)
-  :bounds (static-bspherem 0 0 0 10)
-  :parts ((sp-item 5489 :flags (is-3d) :period (seconds 20) :length (seconds 0.335))
-          (sp-item 5490 :period (seconds 20) :length (seconds 0.167))
-          )
+  :bounds (static-bspherem 0 0 0 2)
+  :parts ((sp-item 5489 :flags (is-3d) :period (seconds 20) :length (seconds 0.335)))
   )
 
-;; 3D Expanding Shockwave Ring (radius reaches ~5.0 meters to match collision sphere)
 (defpart 5489
   :init-specs ((:texture (water-ring effects))
-    (:num 1.0)
-    (:y (meters 0.3))
-    (:scale-x (meters 0.8))
+    (:num 0.25)
+    (:y (meters 0.5))
+    (:scale-x (meters 0.5))
     (:rot-y (degrees 0) (degrees 360))
     (:scale-y :copy scale-x)
     (:r 80.0)
-    (:g 180.0)
+    (:g 80.0)
     (:b 255.0)
-    (:a 200.0)
-    (:scalevel-x (meters 0.22))
+    (:a 255.0)
+    (:scalevel-x (meters 0.16666667))
     (:scalevel-y :copy scalevel-x)
-    (:fade-r -1.4)
-    (:fade-g -3.0)
-    (:fade-b -2.0)
-    (:fade-a -3.2)
-    (:timer (seconds 0.2))
+    (:fade-r -1.6)
+    (:fade-g -1.6)
+    (:timer (seconds 0.167))
     (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-3))
     (:func 'board-zap-track)
     (:rotate-y (degrees 0))
     )
   )
 
-;; Core Electrical Starflash
-(defpart 5490
-  :init-specs ((:texture (starflash effects))
-    (:num 1.0)
-    (:y (meters 0.3))
-    (:scale-x (meters 2.0))
-    (:rot-z (degrees 0) (degrees 360))
-    (:scale-y :copy scale-x)
-    (:r 100.0)
-    (:g 200.0)
-    (:b 255.0)
-    (:a 220.0)
-    (:scalevel-x (meters 0.08))
-    (:scalevel-y :copy scalevel-x)
-    (:fade-r -2.0)
-    (:fade-g -4.0)
-    (:fade-b -2.0)
-    (:fade-a -4.4)
-    (:timer (seconds 0.167))
-    (:flags (sp-cpuinfo-flag-0 sp-cpuinfo-flag-2 sp-cpuinfo-flag-3))
-    (:func 'board-zap-track)
-    )
-  )
+
+
 

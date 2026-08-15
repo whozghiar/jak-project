@@ -716,7 +716,7 @@
 
 ;; jak3 board port: triangle 180-degree turn-around
 (defstate target-board-turn-around (target)
-  :event target-board-handler
+  :event (-> target-board-stance event)
   :enter (behavior ()
     (set-time! (-> self state-time))
     (logior! (-> self focus-status) (focus-status board))
@@ -726,8 +726,11 @@
         )
     (set! (-> self control mod-surface) *turn-around-mods*)
     (set! (-> self control bend-target) 1.0)
+    ;; Lock out standard pad steering during the turn-around state
+    (set! (-> self control turn-lockout-end-time) (+ (current-time) (seconds 1.5)))
     )
   :exit (behavior ()
+    (set! (-> self control turn-lockout-end-time) 0)
     (set-forward-vel (-> self control ctrl-xz-vel))
     (set-quaternion! (-> self control) (-> self control dir-targ))
     (set! (-> self control bend-target) 0.0)
@@ -748,20 +751,23 @@
     (set! (-> self board turn-anim-targ) (* 10.0 (-> self board turn-anim-targ)))
     )
   :code (behavior ()
-    (let ((f30-0 (-> self control ctrl-xz-vel))
-          (gp-0 (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> self control quat-for-control)))
+    (let ((f30-0 (fmax (-> self control ctrl-xz-vel)
+                       (vector-length (vector-flatten! (new-stack-vector0) (-> self control transv) (-> self control dynam gravity-normal)))
+                       40960.0))
+          (gp-0 (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> self control quat)))
           )
       (ja-channel-push! 1 (seconds 0.04))
       ;; jak3 board port: real anim imported via build-actor, see goal_src/jak2/game.gp
       (ja :group! jakb-board-turn-around-ja :num! min)
-      (quaternion-rotate-y! (-> self control dir-targ) (-> self control quat-for-control) 32768.0)
+      (quaternion-rotate-y! (-> self control dir-targ) (-> self control quat) 32768.0)
       ;; jak3 board port: bounded by state-time as a safety net against a softlock
       (until (or (ja-done? 0) (time-elapsed? (-> self state-time) (seconds 1)))
         (suspend)
         (ja :num! (seek! max 1.25))
         ;; Progressively interpolate rotation towards dir-targ each frame of the turn
-        (quaternion-slerp! (-> self control quat-for-control) (-> self control quat-for-control) (-> self control dir-targ) 0.15)
-        (vector-z-quaternion! gp-0 (-> self control quat-for-control))
+        (quaternion-slerp! (-> self control quat) (-> self control quat) (-> self control dir-targ) 0.15)
+        (quaternion-copy! (-> self control quat-for-control) (-> self control quat))
+        (vector-z-quaternion! gp-0 (-> self control quat))
         (set! (-> self control ctrl-xz-vel) f30-0)
         (vector-float*! (-> self control transv) gp-0 (-> self control ctrl-xz-vel))
         (let ((v1-31 (new-stack-vector0))
@@ -787,6 +793,7 @@
           )
         )
       (remove-exit)
+      (set! (-> self control turn-lockout-end-time) 0)
       (quaternion-copy! (-> self control quat-for-control) (-> self control dir-targ))
       (set-quaternion! (-> self control) (-> self control dir-targ))
       (vector-z-quaternion! (-> self control transv) (-> self control dir-targ))

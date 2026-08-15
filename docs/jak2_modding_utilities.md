@@ -318,3 +318,23 @@ Dans OpenGOAL, le squelette d'un personnage principal (`jakb-lod0-jg`) comprend 
 - Comme les modèles décompilés (`jakb-lod0.glb`) **contiennent DÉJÀ `align` à l'index 0**, cela créait 64 joints au lieu de 63, décalant chaque os TransformQ de `+1` à la lecture du clip (`main` prenait `waist_prog`, `waist_prog` prenait `upper_body`, `hips` prenait `Lthigh`).
 - **Symptôme :** L'animation paraît 100% parfaite dans Blender, mais en jeu le personnage se disloque/s'étire violemment dès que l'animation importée est jouée.
 - **Règle :** Toujours vérifier si `gjoints[0].name == "align"` pour utiliser une indexation directe à 0 (`prefix_count = 0`), produisant `num_joints = 61` conforme au master art-group `jakb-ag`.
+
+---
+
+### 11. Gestion des États Jetboard (`target-board-exit` Whitelist & Orientation)
+
+#### ⚠️ Le Piège de la Liste Blanche `target-board-exit` (Le Bug du Mini-Jetboard)
+Dans Jak 2, le jetboard (`board-lod0`) est un processus acteur indépendant (`board.gc`) qui s'ancre sur `node-list data 25` et possède deux états visuels :
+1. **`use` (`board-open-ja`) :** Ailerons et pointes déployés en mode snowboard/surf complet.
+2. **`idle` (`board-close-ja`) :** Rétracté dans son dôme central (petit disque rond pour le dos de Jak).
+
+- La fonction `target-board-exit` (`target-board.gc:882`) possède une **liste blanche codée en dur** des états de jetboard valides.
+- Lors de l'ajout d'un nouvel état de jetboard (ex: `target-board-turn-around`), **il DOIT être ajouté à la liste blanche** de `target-board-exit`, `target-board-pre-move` et `target-board-real-post`.
+- **Symptôme si omis :** Dès l'entrée dans le nouvel état, le moteur croit que Jak descend du skate, efface `(focus-status board)`, et l'acteur `board` bascule instantanément en `idle` / `board-close-ja` (la planche se rétracte en mini-rondelle sous les pieds de Jak).
+
+#### Orientation & Maintien de Vélocité à la Sortie d'un État
+Pour garantir un changement de cap complet (ex: demi-tour à 180°) sans dépendre du joystick du joueur :
+1. `(quaternion-copy! (-> self control quat-for-control) (-> self control dir-targ))` : Inverse le quaternion de contrôle.
+2. `(set-quaternion! (-> self control) (-> self control dir-targ))` : Inverse l'orientation du root-transform.
+3. `(vector-z-quaternion! (-> self control transv) (-> self control dir-targ))` & `(vector-float*! (-> self control transv) ... f30-0)` : Aligne la vélocité monde.
+4. `(set-forward-vel f30-0)` & `(set! (-> self control ctrl-xz-vel) f30-0)` : Transmet la vitesse scalaire vers l'avant.

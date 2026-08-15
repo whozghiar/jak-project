@@ -718,7 +718,7 @@ void retarget_glb(const fs::path& base_glb,
 
       // translation: if source animates translation for this joint, keep the animated
       // translation (which contains authored root motion on main, squash & stretch on upper_body/knees,
-      // board position, hair physics, and gun holster offsets). If not animated in source, hold
+      // hair physics, and gun holster offsets). If not animated in source, hold
       // bind-pose translation.
       Curve trans_curve;
       if (src_has("translation")) {

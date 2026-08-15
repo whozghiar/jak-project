@@ -151,6 +151,19 @@ Add custom animations imported from a `.glb` into a resident character art-group
       (link-art! this)))
 ```
 
+### 10. GLTF Animation Retargeting & `build-actor` Joint Indexing
+
+#### Skeletons in OpenGOAL vs GLTF
+In OpenGOAL, character skeletons (like `jakb-lod0-jg`) contain:
+1. **2 Matrix joints (indices 0 & 1):** `align` (Matrix 0) and `prejoint` (Matrix 1).
+2. **61 TransformQ joints (indices 2 to 62):** `main` (TQ 0), `waist_prog` (TQ 1), ..., `hips` (TQ 23), `Lthigh` (TQ 24), ..., `pantsRthigh` (TQ 60).
+
+#### ⚠️ The Duplicate `align` Pitfall in `build-actor` (Off-By-One Shift)
+- `convert_joints` in `goalc/build_actor/common/build_actor.cpp` historically prepended a synthetic `"align"` joint at index 0 and offset all GLTF skin joints by `+1` (assuming external models lacked an align joint).
+- Because decompiled models (`jakb-lod0.glb`) **already include `align` at index 0**, this created 64 joints instead of 63, shifting every TransformQ joint by `+1` during playback (`main` mapped to `waist_prog`, `waist_prog` to `upper_body`, `hips` to `Lthigh`).
+- **Symptom:** Animation looks 100% perfect in Blender, but in-game the mesh stretches/dislocates violently whenever the imported animation is evaluated.
+- **Rule:** Always detect if `gjoints[0].name == "align"` and use direct 0-indexed mapping (`prefix_count = 0`), producing `num_joints = 61` matching native `jakb-ag`.
+
 ---
 
 # 🇫🇷 Version Française
@@ -165,6 +178,7 @@ Add custom animations imported from a `.glb` into a resident character art-group
 - [7. Outils de diagnostic mémoire en jeu](#7-outils-de-diagnostic-mémoire-en-jeu-1)
 - [8. Pièges connus / points de vigilance](#8-pièges-connus--points-de-vigilance-1)
 - [9. Art-groups custom : lier des animations importées](#9-art-groups-custom--lier-des-animations-importées)
+- [10. Reciblage d'Animations GLTF & Indexation de Squelette dans `build-actor`](#10-reciblage-danimations-gltf--indexation-de-squelette-dans-build-actor)
 
 ---
 
@@ -289,3 +303,18 @@ Ajouter des animations custom depuis un fichier `.glb` sur un art-group résiden
           (string= (-> this name) "jakb-jak3-board-import"))
       (link-art! this)))
 ```
+
+---
+
+### 10. Reciblage d'Animations GLTF & Indexation de Squelette dans `build-actor`
+
+#### Structure des Squelettes dans OpenGOAL vs GLTF
+Dans OpenGOAL, le squelette d'un personnage principal (`jakb-lod0-jg`) comprend :
+1. **2 Matrix joints (index 0 et 1) :** `align` (Matrix 0) et `prejoint` (Matrix 1).
+2. **61 TransformQ joints (index 2 à 62) :** `main` (TQ 0), `waist_prog` (TQ 1), ..., `hips` (TQ 23), `Lthigh` (TQ 24), ..., `pantsRthigh` (TQ 60).
+
+#### ⚠️ Le Piège de l'os `align` doublon dans `build-actor` (Décalage Off-By-One)
+- `convert_joints` dans `goalc/build_actor/common/build_actor.cpp` insérait historiquement un os `"align"` synthétique à l'index 0 et décalait tous les os du GLTF de `+1` (conçu à l'origine pour des modèles externes sans align).
+- Comme les modèles décompilés (`jakb-lod0.glb`) **contiennent DÉJÀ `align` à l'index 0**, cela créait 64 joints au lieu de 63, décalant chaque os TransformQ de `+1` à la lecture du clip (`main` prenait `waist_prog`, `waist_prog` prenait `upper_body`, `hips` prenait `Lthigh`).
+- **Symptôme :** L'animation paraît 100% parfaite dans Blender, mais en jeu le personnage se disloque/s'étire violemment dès que l'animation importée est jouée.
+- **Règle :** Toujours vérifier si `gjoints[0].name == "align"` pour utiliser une indexation directe à 0 (`prefix_count = 0`), produisant `num_joints = 61` conforme au master art-group `jakb-ag`.

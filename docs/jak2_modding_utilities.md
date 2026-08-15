@@ -19,6 +19,8 @@
 - [7. In-Game Memory Diagnostic Tools](#7-in-game-memory-diagnostic-tools)
 - [8. Known Pitfalls & Points of Vigilance](#8-known-pitfalls--points-of-vigilance)
 - [9. Custom Art-Groups: Dynamically Linking Imported Animations](#9-custom-art-groups-dynamically-linking-imported-animations)
+- [10. GLTF Animation Retargeting & `build-actor` Joint Indexing](#10-gltf-animation-retargeting--build-actor-joint-indexing)
+- [11. Jetboard State Handling (`target-board-exit` Whitelist & Heading Inversion)](#11-jetboard-state-handling-target-board-exit-whitelist--heading-inversion)
 
 ---
 
@@ -166,6 +168,26 @@ In OpenGOAL, character skeletons (like `jakb-lod0-jg`) contain:
 
 ---
 
+### 11. Jetboard State Handling (`target-board-exit` Whitelist & Heading Inversion)
+
+#### ⚠️ The `target-board-exit` Whitelist Pitfall (The Mini-Jetboard Bug)
+In Jak 2, the jetboard (`board-lod0`) is a standalone actor process (`board.gc`) anchored to `node-list data 25` with two distinct visual states:
+1. **`use` (`board-open-ja`):** Fins, wings, and tips deployed in full snowboard/surfboard shape.
+2. **`idle` (`board-close-ja`):** Fully retracted into its center dome (a small round disc for Jak's back).
+
+- The `target-board-exit` function (`target-board.gc:882`) contains a **hardcoded whitelist** of valid board states.
+- When creating a new board state (e.g. `target-board-turn-around`), **it MUST be added to the whitelist** in `target-board-exit`, `target-board-pre-move`, and `target-board-real-post`.
+- **Symptom if omitted:** Upon entering the new state, the engine assumes Jak is dismounting, clears `(focus-status board)`, and the `board` actor instantly drops to `idle` / `board-close-ja` (the board shrinks into a mini-puck under Jak's boots).
+
+#### Heading Inversion & Forward Momentum on State Exit
+To guarantee a complete autonomous heading change (e.g. 180° turnaround) without requiring active analog stick input:
+1. `(quaternion-copy! (-> self control quat-for-control) (-> self control dir-targ))`: Inverts the control quaternion.
+2. `(set-quaternion! (-> self control) (-> self control dir-targ))`: Inverts root-transform orientation.
+3. `(vector-z-quaternion! (-> self control transv) (-> self control dir-targ))` & `(vector-float*! (-> self control transv) ... f30-0)`: Re-aligns world velocity.
+4. `(set-forward-vel f30-0)` & `(set! (-> self control ctrl-xz-vel) f30-0)`: Passes scalar forward velocity.
+
+---
+
 # 🇫🇷 Version Française
 
 ## Sommaire
@@ -179,6 +201,7 @@ In OpenGOAL, character skeletons (like `jakb-lod0-jg`) contain:
 - [8. Pièges connus / points de vigilance](#8-pièges-connus--points-de-vigilance-1)
 - [9. Art-groups custom : lier des animations importées](#9-art-groups-custom--lier-des-animations-importées)
 - [10. Reciblage d'Animations GLTF & Indexation de Squelette dans `build-actor`](#10-reciblage-danimations-gltf--indexation-de-squelette-dans-build-actor)
+- [11. Gestion des États Jetboard (`target-board-exit` Whitelist & Orientation)](#11-gestion-des-états-jetboard-target-board-exit-whitelist--orientation)
 
 ---
 

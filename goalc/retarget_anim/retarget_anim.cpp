@@ -671,6 +671,22 @@ void retarget_glb(const fs::path& base_glb,
     decompose_matrix(m, &bind_trans[j], &bind_quat[j], &bind_scale[j]);
   }
 
+  // Same, but for the source (Jak 3) skeleton - needed below to retarget rotation as a *delta*
+  // from the source's own rest pose rather than copying its absolute local rotation. A raw copy
+  // implicitly assumes both rigs share the same bind/rest orientation per joint; where they don't,
+  // the error is small on any single joint but compounds down a chain, showing up most visibly at
+  // the far end of it (e.g. the `gun` attachment, well below any root joint) even when nothing in
+  // the chain is individually very wrong - confirmed by inspecting the previous output: `gun`'s own
+  // channel data was already a correct constant bind-pose offset, so the visible drift had to be
+  // coming from its animated parent chain (upper_body/waist_prog/main), not from `gun` itself.
+  std::vector<math::Vector3f> source_bind_trans(source_skel.names.size());
+  std::vector<math::Vector4f> source_bind_quat(source_skel.names.size());
+  std::vector<math::Vector3f> source_bind_scale(source_skel.names.size());
+  for (size_t j = 0; j < source_skel.names.size(); j++) {
+    auto m = matrix_from_node(source.nodes.at(source_skel.node_of_joint[j]));
+    decompose_matrix(m, &source_bind_trans[j], &source_bind_quat[j], &source_bind_scale[j]);
+  }
+
   const auto is_root = [&](const std::string& name) {
     return std::find(opts.root_joints.begin(), opts.root_joints.end(), name) !=
           opts.root_joints.end();
@@ -715,12 +731,32 @@ void retarget_glb(const fs::path& base_glb,
         trans_curve = constant_curve(num_frames, bind_trans[j]);
       }
 
-      // rotation: always take the source's articulation when present (bone-length independent,
-      // safe to retarget for any joint); otherwise hold the bind pose (no relative motion).
+      // rotation: retarget as a *delta* from the source's own bind pose, reapplied on top of the
+      // base's bind pose - not a raw copy of the source's absolute local rotation (bone-length
+      // independent, but NOT rest-orientation independent: a raw copy is only correct if both
+      // skeletons happen to share the same rest orientation for this joint). delta = source's
+      // animated rotation relative to source's own bind; result = that same relative change,
+      // applied on top of the base's own bind. Degrades to an exact bind-pose hold when the source
+      // doesn't animate this joint at all, and to the old raw-copy behavior when both skeletons
+      // happen to share a bind orientation, so this can't regress a joint that was already correct.
       Curve rot_curve;
       if (src_has("rotation")) {
         auto& raw = src.by_joint_path.at({name, "rotation"});
         rot_curve = resample_to_times(raw.times, raw.values, 4, times);
+        const int src_j = source_skel.name_to_joint.at(name);
+        const math::Vector4f src_bind_inv = quat_conjugate(source_bind_quat[src_j]);
+        for (size_t f = 0; f < num_frames; f++) {
+          const math::Vector4f animated{rot_curve.flat_values[f * 4 + 0],
+                                        rot_curve.flat_values[f * 4 + 1],
+                                        rot_curve.flat_values[f * 4 + 2],
+                                        rot_curve.flat_values[f * 4 + 3]};
+          const math::Vector4f delta = quat_multiply(animated, src_bind_inv);
+          const math::Vector4f result = quat_multiply(delta, bind_quat[j]);
+          rot_curve.flat_values[f * 4 + 0] = result.x();
+          rot_curve.flat_values[f * 4 + 1] = result.y();
+          rot_curve.flat_values[f * 4 + 2] = result.z();
+          rot_curve.flat_values[f * 4 + 3] = result.w();
+        }
       } else {
         rot_curve = constant_curve(num_frames, bind_quat[j]);
         if (name != "align" && name != "main" && root == false) {

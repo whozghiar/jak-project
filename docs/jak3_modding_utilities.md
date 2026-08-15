@@ -85,6 +85,28 @@ Structure standard d'un acteur dans Jak 3 :
   (suspend)
   ```
 
+### Trouver l'index d'un joint : ne jamais compter à la main
+
+`(-> self node-list data N)` a besoin d'un index numérique, mais cet index est celui du **joint-group compilé** (`*jg-info*`), pas la position brute dans le tableau de joints d'un GLB. Compter les entrées d'un GLB à la main pour deviner cet index est **non fiable** - vérifié en pratique : ça a donné 2 réponses différentes et fausses de suite sur le même joint dans une session de modding (index 25 puis 24, la vraie réponse était ailleurs), simplement parce que l'ordre du GLB ne correspond pas forcément à l'ordre d'assignation du compilateur.
+
+La bonne méthode - une résolution par nom, à la compilation, contre les vraies données `*jg-info*` :
+```lisp
+(joint-node-index jakb-lod0-jg board)          ; -> l'index entier
+(-> self node-list data (joint-node-index jakb-lod0-jg board))  ; -> le node directement
+;; ou, équivalent et plus court :
+(joint-node jakb-lod0-jg board)
+```
+Ces deux macros existent aussi bien côté Jak 2 que Jak 3 (`engine/data/art-h.gc`). Si un index de joint doit être écrit en dur dans du code de gameplay, préférer une de ces macros à un littéral numérique - le littéral casse silencieusement si la géométrie/le squelette change, la macro non.
+
+### Reciblage d'animations entre squelettes (ex: importer une animation Jak 3 dans Jak 2)
+
+Un outil dédié existe pour ça : `goalc/retarget_anim/` (build via CMake, cible `retarget_anim`, lié à `tiny_gltf`). Il prend un GLB de base (le squelette natif du jeu cible, ex. `decompiler_out/jak2/levels/common/jakb-lod0.glb`) et un GLB source (le squelette natif du jeu d'origine avec l'animation voulue déjà dedans, ex. `decompiler_out/jak3/levels/common/jakb-lod0.glb` - ces fichiers contiennent déjà toutes les animations natives du jeu, décompressées, pas besoin de retoucher le pipeline de décompilation), et retargete par **nom de joint**, pas par index.
+
+Règle de reciblage vérifiée contre de vraies données natives avant d'être appliquée (ne pas supposer, vérifier) :
+- **Translation :** seuls les joints racine (`align`, `main` par défaut, `--root-joints`) reçoivent la translation réelle de la source - c'est ce qui porte le vrai mouvement de la racine. Tout autre joint garde sa propre translation bind-pose (celle du squelette de base) : la translation encode la longueur d'os, et les deux squelettes n'ont pas forcément les mêmes proportions - copier la translation de la source sur un joint non-racine étire le membre.
+- **Rotation :** copiée depuis la source pour tout joint qui l'anime, indépendamment d'être racine ou non (la rotation n'encode pas de longueur d'os, donc a priori sûre à recibler partout) - **mais seulement si les deux squelettes partagent la même orientation de bind-pose pour ce joint**. Si un doute existe là-dessus, vérifier d'abord (`node.rotation` sur le joint concerné dans les deux GLB natifs) plutôt que de supposer un décalage à corriger : sur cette branche, l'hypothèse d'un décalage de bind-pose expliquant une dérive visuelle a été testée puis **infirmée** par comparaison directe - les deux squelettes avaient une bind-pose identique `(0,0,0,1)`, donc rien à corriger de ce côté-là pour ce cas précis.
+- **Échelle :** bind-pose du squelette de base par défaut ; ne jamais forcer `(1,1,1)` sur un joint dont la bind-pose native n'est pas neutre (un joint d'attache comme un porte-arme peut avoir une échelle non-neutre qui annule volontairement celle de son parent - le vérifier dans le GLB natif avant de forcer une valeur).
+
 ---
 
 ## 6. Déclarer un nouveau script dans le projet (`.gp`)
@@ -120,4 +142,5 @@ Pour ajouter un nouveau fichier `.gc` dans l'arbre de compilation :
 ## 8. Pièges connus et points de vigilance
 
 * **Interactions complexes entre pouvoirs et armes :** Modifier les états de `*target*` peut affecter les transitions d'armes (`gun-states`) et de pouvoirs (`light-jak` / `dark-jak`).
+* **Un son qui existe dans une `.SBK` n'est pas forcément chargé.** Le simple fait qu'une banque de sons soit présente sur le disque (ou déclarée en jeu comme `mode-sound-bank` côté GOAL) ne veut pas dire qu'elle est réellement chargée en mémoire - quelque chose doit explicitement le demander (`sound-bank-load` côté GOAL, qui part en RPC vers le code overlord IOP). Si des sons d'une banque nommée échouent tous en `play_sound_by_name: failed to find bank`, vérifier dans cet ordre : (1) quelque chose appelle bien `sound-bank-load` pour ce nom précis (les tables de rotation par niveau, `:want-sound` dans `level-info.gc`, ne couvrent que les banques tournantes, pas les banques à emplacement dédié) ; (2) côté C++ overlord, si la banque a un emplacement dédié réservé au boot (comme "common"), la fonction d'allocation par nom (`AllocateBankName`/équivalent) la traite bien comme cas spécial à retour direct - sinon elle peut tomber dans une boucle qui ne cherche que les emplacements de rotation (toujours pleins en jeu normal), et échouer avec "plus de place" alors que son propre emplacement dédié est inutilisé. **[Vérifié sur Jak 2]** (`game/overlord/common/sbank.cpp`, exploité par `jak2`) : les emplacements dédiés `gun`/`board` existaient depuis toujours mais n'étaient jamais retournés par `AllocateBankName`, qui ne traitait ce cas spécial que pour `common`. Jak 3 a sa propre implémentation séparée (`game/overlord/jak3/sbank.cpp`, structure différente - pas de slot `board` dédié, un slot `mode` à la place) - la démarche de vérification ci-dessus s'applique, mais ce bug précis n'a pas été vérifié côté Jak 3.
 * **Synchronisation Git :** Penser à merger régulièrement les ajouts factuels de ce fichier vers la branche `master`.

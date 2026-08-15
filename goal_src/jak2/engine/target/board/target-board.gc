@@ -2058,23 +2058,11 @@
            (target-start-attack)
            (target-danger-set! 'board-zap #f)
            (set-time! (-> self board zap-start-time))
-           ;; jak3 board port: was wrongly reusing the native trick-spin effect
-           ;; (group-board-spin-attack); Jak3's own board-zap uses a dedicated group attached at
-           ;; the hips joint (37 there, 25 here - see board-part.gc for the port of both).
-           ;; No :target argument here, unlike Jak3's call - Jak2's part-tracker-init casts the
-           ;; macro's constant *launch-matrix* pointer straight to an int for target-joint whenever
-           ;; :target is set (generic-obs.gc), producing a garbage joint index and an out-of-bounds
-           ;; node-list read on every zap; that's what was crashing the game. Jak3's macro takes an
-           ;; explicit tracker-type argument and a raw integer :mat-joint, so its call isn't
-           ;; portable as-is. Matching Jak2's own working native precedent instead
-           ;; (group-board-spin-attack, spawned the same way with a plain snapshotted :mat-joint
-           ;; vector and no :target) avoids the bug entirely. (A later attempt to spawn this
-           ;; directly on a dedicated zap-part launch control for continuous tracking, like
-           ;; charge-part, broke the move entirely - reverted back to this known-good version.)
            (part-tracker-spawn
              :to self
              :group group-board-zap-attack
-             :mat-joint (vector<-cspace! (new 'stack-no-clear 'vector) (-> self node-list data 25))
+             :callback part-tracker-track-target
+             :mat-joint (vector<-cspace! (new 'stack-no-clear 'vector) (-> self node-list data (joint-node-index jakb-lod0-jg board)))
              )
            (target-timed-invulnerable (-> *TARGET_BOARD-bank* zap-duration) self 2)
            )

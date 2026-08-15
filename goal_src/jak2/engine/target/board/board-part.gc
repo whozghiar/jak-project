@@ -284,46 +284,83 @@
   (none)
   )
 
-;; jak3 board port: zap attack burst. Jak3's group-board-zap-attack uses (laser-hit-rim
-;; level-default-sprite), also jak3-exclusive (same tex-info check as above) - substituted with
-;; `water-ring`, the same texture Jak2's own native group-board-spin-attack already uses just
-;; above, and the same substitution og-j1-board made for its own zap effect. Skips Jak3's
-;; group-board-green-eco-zap-attack variant: that's gated on a green-eco-stock/board-trail unlock
-;; feature Jak2 doesn't have, not something intrinsic to the zap attack itself.
+;; jak3 board port: tracks *target*'s board joint every frame for the zap attack particles,
+;; ensuring the expanding electric shockwave follows Jak smoothly while riding at any speed.
+(defun board-zap-track ((arg0 sparticle-system) (arg1 sparticle-cpuinfo) (arg2 vector))
+  (let ((v1-0 *target*))
+    (when v1-0
+      (let ((v1-2 (vector<-cspace! (new 'stack-no-clear 'vector)
+                                   (-> v1-0 node-list data (joint-node-index jakb-lod0-jg board))
+                                   )
+                  )
+            )
+        (set! (-> arg2 x) (-> v1-2 x))
+        (set! (-> arg2 y) (-> v1-2 y))
+        (set! (-> arg2 z) (-> v1-2 z))
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+;; jak3 board port: zap attack burst. Uses `water-ring` for the expanding 3D shockwave and
+;; `starflash` for the core electrical discharge, both tracking the jetboard dynamically.
 (defpartgroup group-board-zap-attack
   :id 1296
   :flags (use-local-clock)
-  :bounds (static-bspherem 0 0 0 2)
-  :parts ((sp-item 5489 :flags (is-3d) :period (seconds 20) :length (seconds 0.335)))
+  :bounds (static-bspherem 0 0 0 10)
+  :parts ((sp-item 5489 :flags (is-3d) :period (seconds 20) :length (seconds 0.335))
+          (sp-item 5490 :period (seconds 20) :length (seconds 0.167))
+          )
   )
 
-;; jak3 board port: uses sparticle-track-root, not a custom joint-tracking :func, because this
-;; group is spawned via part-tracker-spawn (see target-board.gc). The resulting sparticle's
-;; `key proc` is the ephemeral part-tracker process itself (set by part-tracker-init's own
-;; `(create-launch-control arg0 self)`), which has a `root` transform but no `node-list` - it isn't
-;; a skinned character. group-board-spin-attack (above) is spawned the same way natively and
-;; follows the same rule. A custom joint-lookup :func here previously crashed the game by
-;; dereferencing a null node-list on the tracker; a later attempt to spawn this group directly on
-;; a dedicated launch control (for continuous tracking) broke the move entirely instead - reverted
-;; back to this known-good version.
+;; 3D Expanding Shockwave Ring (radius reaches ~5.0 meters to match collision sphere)
 (defpart 5489
   :init-specs ((:texture (water-ring effects))
-    (:num 0.25)
-    (:y (meters 0.5))
-    (:scale-x (meters 0.5))
+    (:num 1.0)
+    (:y (meters 0.3))
+    (:scale-x (meters 0.8))
     (:rot-y (degrees 0) (degrees 360))
     (:scale-y :copy scale-x)
     (:r 80.0)
-    (:g 80.0)
+    (:g 180.0)
     (:b 255.0)
-    (:a 255.0)
-    (:scalevel-x (meters 0.16666667))
+    (:a 200.0)
+    (:scalevel-x (meters 0.22))
     (:scalevel-y :copy scalevel-x)
-    (:fade-r -1.6)
-    (:fade-g -1.6)
-    (:timer (seconds 0.167))
+    (:fade-r -1.4)
+    (:fade-g -3.0)
+    (:fade-b -2.0)
+    (:fade-a -3.2)
+    (:timer (seconds 0.2))
     (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-3))
-    (:func 'sparticle-track-root)
+    (:func 'board-zap-track)
     (:rotate-y (degrees 0))
     )
   )
+
+;; Core Electrical Starflash
+(defpart 5490
+  :init-specs ((:texture (starflash effects))
+    (:num 1.0)
+    (:y (meters 0.3))
+    (:scale-x (meters 2.0))
+    (:rot-z (degrees 0) (degrees 360))
+    (:scale-y :copy scale-x)
+    (:r 100.0)
+    (:g 200.0)
+    (:b 255.0)
+    (:a 220.0)
+    (:scalevel-x (meters 0.08))
+    (:scalevel-y :copy scalevel-x)
+    (:fade-r -2.0)
+    (:fade-g -4.0)
+    (:fade-b -2.0)
+    (:fade-a -4.4)
+    (:timer (seconds 0.167))
+    (:flags (sp-cpuinfo-flag-0 sp-cpuinfo-flag-2 sp-cpuinfo-flag-3))
+    (:func 'board-zap-track)
+    )
+  )
+

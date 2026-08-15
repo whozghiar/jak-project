@@ -192,6 +192,11 @@ To guarantee a complete autonomous heading change (e.g. 180° turnaround) and re
 4. `(set-forward-vel f30-1)` & `(set! (-> self control ctrl-xz-vel) f30-1)`: Passes scalar forward velocity.
 5. `(sound-play "board-boost")`, `(cpad-set-buzz!)`, and `part-tracker-spawn group-board-land-straight`: Plays audio, rumble, and landing dust VFX matching native spin-trick rewards.
 
+#### Dynamic Joint Tracking & AOE Collision Spheres (`board-zap-track`)
+For area-of-effect attacks while riding (e.g. `board-zap`):
+- **Dynamic Tracking:** Sparticle callbacks (`(:func 'board-zap-track)`) should query `*target*` directly and copy the board joint translation `(joint-node-index jakb-lod0-jg board)` into `(-> arg2 x/y/z)`. In parallel, `part-tracker-spawn` should pass `:callback part-tracker-track-target`. This ensures all particles and the tracker process follow the moving board in real time at high velocity.
+- **Damage Radius Alignment:** Configure the attack collision sphere in `target-util.gc` (`sphere<-vector+r!`) to $20480.0$ ($5.0\text{ m}$) with root bounding sphere $24576.0$ ($6.0\text{ m}$) so damage detection perfectly covers the visual shockwave ring.
+
 ---
 
 # 🇫🇷 Version Française
@@ -373,3 +378,9 @@ Pour garantir un changement de cap complet (demi-tour à 180°) et gratifier le 
 3. `(vector-z-quaternion! (-> self control transv) (-> self control dir-targ))` & `(vector-float*! (-> self control transv) ... f30-1)` : Aligne la vélocité monde dans la nouvelle direction avec boost d'accélération (`(fmax (+ f30-0 20480.0) 114688.0)`).
 4. `(set-forward-vel f30-1)` & `(set! (-> self control ctrl-xz-vel) f30-1)` : Transmet la vitesse scalaire vers l'avant.
 5. `(sound-play "board-boost")`, `(cpad-set-buzz!)`, et `part-tracker-spawn group-board-land-straight` : Déclenche le son de boost, la vibration manette et les particules de poussière au sol (identiques aux figures réussies).
+
+#### Suivi Dynamique de Joint & Sphères de Collision de Zone (`board-zap-track`)
+Pour les attaques de zone en déplacement (ex: `board-zap`) :
+- **Suivi Dynamique :** Les callbacks de sparticles (`(:func 'board-zap-track)`) doivent interroger `*target*` directement et recopier la translation du joint du skate `(joint-node-index jakb-lod0-jg board)` dans `(-> arg2 x/y/z)`. En parallèle, `part-tracker-spawn` doit recevoir `:callback part-tracker-track-target`. Les particules et le processus tracker accompagnent ainsi la planche en temps réel même à haute vitesse.
+- **Alignement du Rayon de Dégâts :** Configurer la sphère de collision d'attaque dans `target-util.gc` (`sphere<-vector+r!`) à $20480.0$ ($5.0\text{ m}$) avec une sphère racine englobante de $24576.0$ ($6.0\text{ m}$), garantissant que la détection de frappe recouvre fidèlement l'onde de choc visuelle.
+

@@ -691,11 +691,7 @@ void retarget_glb(const fs::path& base_glb,
     return std::find(opts.root_joints.begin(), opts.root_joints.end(), name) !=
           opts.root_joints.end();
   };
-  const auto is_forced_neutral_scale = [&](const std::string& name) {
-    return std::find(opts.force_neutral_scale_joints.begin(),
-                     opts.force_neutral_scale_joints.end(),
-                     name) != opts.force_neutral_scale_joints.end();
-  };
+
 
   int missing_in_source = 0;
   for (auto& anim_name : anim_names) {
@@ -720,11 +716,12 @@ void retarget_glb(const fs::path& base_glb,
         return src.by_joint_path.count({name, path}) != 0;
       };
 
-      // translation: root joints get real root motion from source when present; every other
-      // joint (and any root joint the source doesn't animate) keeps its own bind-pose offset so
-      // bone lengths stay correct.
+      // translation: if source animates translation for this joint, keep the animated
+      // translation (which contains authored root motion on main, squash & stretch on upper_body/knees,
+      // board position, hair physics, and gun holster offsets). If not animated in source, hold
+      // bind-pose translation.
       Curve trans_curve;
-      if (root && src_has("translation")) {
+      if (src_has("translation")) {
         auto& raw = src.by_joint_path.at({name, "translation"});
         trans_curve = resample_to_times(raw.times, raw.values, 3, times);
       } else {
@@ -766,26 +763,12 @@ void retarget_glb(const fs::path& base_glb,
         }
       }
 
-      // scale: bind pose, except joints explicitly forced to never drift from it (e.g. the board
-      // attachment) and root joints when the source animates scale itself.
-      //
-      // "Forced neutral" means hold the base's own bind-pose scale, NOT hard-code (1,1,1) - those
-      // are only the same thing if the joint's bind pose happens to be unscaled. Ground-truthed
-      // against decompiler_out/jak2/levels/common/jakb-lod0.glb: `board` (like `gun` and `extra`,
-      // the other attachment joints) has bind-pose scale (0.7143,0.7143,0.7143) - it's a direct
-      // child of `main`, whose own bind-pose scale is 1.4, and 0.7143 = 1/1.4 exactly, so the
-      // attachment's local scale cancels its parent's out and the held item renders at its
-      // natural size regardless of main's. Hard-coding (1,1,1) here broke that cancellation and
-      // made the board render at the wrong size throughout both new animations.
-      Curve scale_curve;
-      if (is_forced_neutral_scale(name)) {
-        scale_curve = constant_curve(num_frames, bind_scale[j]);
-      } else if (root && src_has("scale")) {
-        auto& raw = src.by_joint_path.at({name, "scale"});
-        scale_curve = resample_to_times(raw.times, raw.values, 3, times);
-      } else {
-        scale_curve = constant_curve(num_frames, bind_scale[j]);
-      }
+      // scale: hold the base's own bind-pose scale for all joints (main is held at 1.4,
+      // board/gun/extra at 0.7143 to cancel main's 1.4 scale, and all anatomical limbs at 1.0).
+      // Discarding extreme 1.68x smear-frame scale channels authored for fast 60fps playback
+      // prevents severe in-game mesh/texture stretching when the jump animation is scrubbed over
+      // long ascend times in board-states.gc.
+      Curve scale_curve = constant_curve(num_frames, bind_scale[j]);
 
       // Force the align joint's net yaw to a specific value for the designated animation
       // (turn-around), regardless of whether/how the source clip itself animates align - the

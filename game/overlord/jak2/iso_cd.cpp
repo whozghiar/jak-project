@@ -671,12 +671,20 @@ uint32_t FS_LoadSoundBank(char* name, SoundBank* buffer) {
   MakeISOName(isoname, namebuf);
   file = FS_FindIN(isoname);
   if (!file) {
+    // jak3 board port: TEMPORARY diagnostic - see matching note in overlord/jak2/srpc.cpp
+    // RPC_Loader. This is the actual point where a load-bank request can fail, and it was
+    // completely silent (LoadSoundBank/RPC_Loader don't propagate this status anywhere). Remove
+    // once the root cause of "board" failing to load is confirmed.
+    lg::warn("[board-sound-debug] FS_LoadSoundBank \"{}\": FS_FindIN could not find \"{}\"", name,
+             isoname);
     return CMD_STATUS_FAILED_TO_OPEN;
   }
 
   handle = snd_BankLoadEx(get_file_path(file), 0, bank->spu_loc, bank->spu_size);
   snd_ResolveBankXREFS();
   bank->bank_handle = handle;
+  lg::warn("[board-sound-debug] FS_LoadSoundBank \"{}\": found \"{}\", load {}", name, isoname,
+           handle != nullptr ? "ok" : "returned null handle");
 
   return CMD_STATUS_DONE;
 }

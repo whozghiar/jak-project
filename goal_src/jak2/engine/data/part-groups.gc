@@ -1291,3 +1291,11 @@
 (defconstant group-ctygenc-sign-8x4 (-> *part-group-id-table* 853))
 (defconstant group-ctygenc-sign-4x8 (-> *part-group-id-table* 854))
 
+;; jak3 board port: defpartgroup's own `(defconstant ,name ,id)` is commented out in its macro
+;; body (sparticle-launcher-h.gc) - every native group's usable name symbol actually comes from an
+;; entry in this file instead (presumably auto-generated from retail decompilation data). New,
+;; non-native groups need the same explicit declaration added by hand - mirrors how Jak3 declares
+;; its own group-target-board-duck-charge the same way (goal_src/jak3/engine/data/part-groups.gc).
+(defconstant group-target-board-duck-charge (-> *part-group-id-table* 1295))
+(defconstant group-board-zap-attack (-> *part-group-id-table* 1296))
+

@@ -393,12 +393,21 @@ void* RPC_Loader(unsigned int /*fno*/, void* data, int size) {
   while (n_messages > 0) {
     switch (cmd->j2command) {
       case Jak2SoundCommand::load_bank: {
+        // jak3 board port: TEMPORARY diagnostic - sound-bank-load("board") fires on the GOAL side
+        // (confirmed via a one-time log there) but the bank still isn't found by name afterward.
+        // Both early-exit branches below are otherwise silent, so there was no way to tell whether
+        // the request short-circuited here (thinking the bank was already loaded/allocated) or
+        // actually reached FS_LoadSoundBank. Remove once the root cause is confirmed.
         if (LookupBank(cmd->load_bank.bank_name)) {
+          lg::warn("[board-sound-debug] load_bank \"{}\": already in LookupBank, skipping load",
+                   cmd->load_bank.bank_name);
           break;
         }
 
         auto bank = AllocateBankName(cmd->load_bank.bank_name);
         if (bank == nullptr) {
+          lg::warn("[board-sound-debug] load_bank \"{}\": AllocateBankName failed (out of slots?)",
+                   cmd->load_bank.bank_name);
           break;
         }
 

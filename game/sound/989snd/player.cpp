@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: ISC
 #include "player.h"
 
+#include <cstring>
 #include <fstream>
 
 #include "sfxblock.h"
@@ -185,8 +186,17 @@ u32 Player::PlaySoundByName(BankHandle bank_id,
     bank = mLoader.GetBankWithSound(sound_name);
   }
 
+  // jak3 board port: sound_name is already uppercased (with '-' -> '_') by strcpy_toupper before
+  // this RPC is issued (game/overlord/jak2/srpc.cpp), so a plain substring check is enough here -
+  // no case folding needed. Scoped to "BOARD" specifically: logging every failed lookup game-wide
+  // buried the board-relevant lines under constant, unrelated, pre-existing failures for ambient
+  // sounds (PORT_AMB1, BARGE_ENGINE, ...) that have nothing to do with this mod.
+  const bool is_board_sound = sound_name != nullptr && strstr(sound_name, "BOARD") != nullptr;
+
   if (bank == nullptr) {
-    // lg::error("play_sound_by_name: failed to find bank for sound {}", sound_name);
+    if (is_board_sound) {
+      lg::error("play_sound_by_name: failed to find bank for sound {}", sound_name);
+    }
     return 0;
   }
 
@@ -195,7 +205,11 @@ u32 Player::PlaySoundByName(BankHandle bank_id,
     return PlaySound(bank, sound.value(), vol, pan, pm, pb);
   }
 
-  // lg::error("play_sound_by_name: failed to find sound {}", sound_name);
+  if (is_board_sound) {
+    lg::error("play_sound_by_name: failed to find sound {} in bank {}", sound_name,
+              bank->GetName().value_or("?"));
+    bank->DebugPrintAllSounds();
+  }
 
   return 0;
 }

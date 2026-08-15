@@ -31,6 +31,15 @@
 (define-extern target-board-halfpipe-check (function collide-action :behavior target))
 (define-extern target-board-jump-trans (function none :behavior target))
 
+;; jak3 board port: guards the forced sound-bank-load in target-board-init below so it only
+;; fires once per game session, not every time the player mounts the board - matches
+;; og-j1-board's own *board-bank-loaded?* guard for the identical problem. Repeated
+;; sound-bank-load calls aren't unsafe on this engine, just wasteful: Loader::BankLoad
+;; (game/sound/989snd/loader.cpp) appends unconditionally with no dedup against an
+;; already-loaded bank of the same name, so mounting/dismounting the board repeatedly would
+;; otherwise leak a duplicate bank entry every time.
+(define *board-sound-bank-loaded?* #f)
+
 ;; jak3 board port: the imported jakb/daxter jetboard anims (jakb-jak3-board-import-ag /
 ;; daxter-jak3-board-import-ag, produced by build-actor, see goal_src/jak2/game.gp) are spliced into
 ;; the native jakb-ag/daxter-ag master art groups by a link-art! call hooked into art-group's relocate
@@ -754,6 +763,11 @@
   (if (zero? (-> self board part-control))
       (set! (-> self board part-control) (create-launch-control group-target-board self))
       )
+  ;; jak3 board port: charge-up glow launch control (only created here; actually spawned per-frame
+  ;; in target-board-real-post while charge-progress is active - see below)
+  (if (zero? (-> self board charge-part))
+      (set! (-> self board charge-part) (create-launch-control group-target-board-duck-charge self))
+      )
   (mode-set! (-> self board main) (joint-mod-mode flex-blend))
   (mode-set! (-> self board upper-body) (joint-mod-mode flex-blend))
   (set! (-> self board engine-sound-pitch) 0.0)
@@ -767,6 +781,26 @@
   (set! (-> self board sound-bank-knob) 0.0)
   (set! (-> self board unknown-sound-id00) (new 'static 'sound-id))
   (set-setting! 'mode-sound-bank 'board 0.0 0)
+  ;; jak3 board port: the "board" bank is never added to any level's :want-sound array (checked
+  ;; engine/level/level-info.gc directly - 'board appears in none of the ~40 continue-point
+  ;; declarations there), so the native 3-slot per-level bank rotation in update-sound-banks
+  ;; (engine/level/level.gc) never loads it. mode-sound-bank above doesn't trigger a load either
+  ;; - its only reader is a debug-display line in engine/sound/gsound.gc. That means board
+  ;; sounds - including the 20 native ones, not just the 4 this mod adds - were never actually
+  ;; loaded during normal play. og-j1-board hit the identical gap on Jak 1's separate sound
+  ;; engine and fixed it with an explicit forced sound-bank-load hooked into level.gc's
+  ;; update-sound-banks; Jak 2 has the same sound-bank-load primitive natively
+  ;; (engine/sound/gsound.gc), so it's simpler to call it directly here, where the board bank
+  ;; is actually needed, guarded by *board-sound-bank-loaded?* above.
+  (when (not *board-sound-bank-loaded?*)
+    (sound-bank-load (static-sound-name "board"))
+    (set! *board-sound-bank-loaded?* #t)
+    ;; jak3 board port: TEMPORARY - fires exactly once per session (same guard as the load call
+    ;; above), so it can't add log noise. Confirms this code path actually runs at all, which the
+    ;; C++ side alone can't distinguish from "board bank loaded fine, individual sound names just
+    ;; don't match". Remove once the audio bug is root-caused.
+    (format 0 "[board-sound-debug] requested sound-bank-load for \"board\"~%")
+    )
   (set-setting! 'sound-flava #f 30.0 2)
   (set-time! (-> self board board-get-on-time))
   (set! (-> self board stick-lock) #f)
@@ -1979,6 +2013,20 @@
                )
            )
           )
+        ;; jak3 board port: charge-up glow, spawned every frame charge-progress is active (ramps
+        ;; up while L1 is held, fades back out on release) - mirrors Jak3's target-board.gc exactly,
+        ;; including the draw-status/active-channels guard so it doesn't spawn while not rendered
+        (if (and (!= (-> self board charge-progress) 0.0)
+                 (not (or (logtest? (-> self draw status) (draw-control-status no-draw no-draw-temp no-draw-bounds no-draw-bounds2))
+                          (zero? (-> self skel active-channels))
+                          )
+                      )
+                 )
+            (spawn
+              (-> self board charge-part)
+              (vector<-cspace! (new 'stack-no-clear 'vector) (joint-node jakb-lod0-jg board))
+              )
+            )
         ;; jak3 board port: circle-button area attack (board-zap)
         (cond
           ((and (cpad-pressed? (-> self control cpad number) circle)
@@ -1999,10 +2047,23 @@
            (target-start-attack)
            (target-danger-set! 'board-zap #f)
            (set-time! (-> self board zap-start-time))
-           (let ((zap-fx-pos (new 'stack-no-clear 'vector)))
-             (set! (-> zap-fx-pos quad) (-> self control trans quad))
-             (+! (-> zap-fx-pos y) 6553.6)
-             (part-tracker-spawn :to self :group group-board-spin-attack :mat-joint zap-fx-pos)
+           ;; jak3 board port: was wrongly reusing the native trick-spin effect
+           ;; (group-board-spin-attack); Jak3's own board-zap uses a dedicated group attached at
+           ;; the hips joint (37 there, 25 here - see board-part.gc for the port of both).
+           ;; No :target argument here, unlike Jak3's call - Jak2's part-tracker-init casts the
+           ;; macro's constant *launch-matrix* pointer straight to an int for target-joint whenever
+           ;; :target is set (generic-obs.gc), producing a garbage joint index and an out-of-bounds
+           ;; node-list read on every zap; that's what was crashing the game. Jak3's macro takes an
+           ;; explicit tracker-type argument and a raw integer :mat-joint, so its call isn't
+           ;; portable as-is. Matching Jak2's own working native precedent instead
+           ;; (group-board-spin-attack, spawned the same way with a plain snapshotted :mat-joint
+           ;; vector and no :target) avoids the bug entirely. (A later attempt to spawn this
+           ;; directly on a dedicated zap-part launch control for continuous tracking, like
+           ;; charge-part, broke the move entirely - reverted back to this known-good version.)
+           (part-tracker-spawn
+             :to self
+             :group group-board-zap-attack
+             :mat-joint (vector<-cspace! (new 'stack-no-clear 'vector) (-> self node-list data 25))
              )
            (target-timed-invulnerable (-> *TARGET_BOARD-bank* zap-duration) self 2)
            )

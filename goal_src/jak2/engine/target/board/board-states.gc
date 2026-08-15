@@ -760,9 +760,20 @@
         (ja :num! (seek! max 1.25))
         (compute-alignment! (-> self align))
         (align! (-> self align) (align-opts adjust-quat) 1.0 1.0 1.0)
-        (set! (-> self control ctrl-xz-vel)
-              (* (target-align-vel-z-adjust (-> self align delta trans z)) (-> self clock frames-per-second) f30-0)
-              )
+        ;; jak3 board port: matches Jak3's native formula exactly (goal_src/jak3/.../board-states.gc)
+        ;; - ctrl-xz-vel is normally f30-0 (speed at turn start) scaled by how far the animation's
+        ;; own root motion moved this frame, keeping applied speed in sync with the visual. Runtime
+        ;; logging confirmed align-delta-trans-z is exactly 0.0 every frame for the imported
+        ;; jakb-board-turn-around clip; a direct GLB channel dump then confirmed this is faithful to
+        ;; Jak3's own source data (align carries no translation keys at all in either imported board
+        ;; clip - all real motion is on `main` instead), not a retargeting gap. With the scaling
+        ;; factor always 0, this formula would zero the player's speed outright for the whole state
+        ;; instead of merely modulating it, which is what was making the character free-fall in
+        ;; place and sink into the ground on every turn-around. Falling back to the unscaled entry
+        ;; speed when there's no root-motion signal keeps the player moving through the turn.
+        (let ((align-vel-z (* (/ (-> self clock frames-per-second) (meters 10)) (-> self align delta trans z))))
+          (set! (-> self control ctrl-xz-vel) (if (zero? align-vel-z) f30-0 (* f30-0 align-vel-z)))
+          )
         (vector-float*! (-> self control transv) gp-0 (-> self control ctrl-xz-vel))
         (let ((v1-31 (new-stack-vector0))
               (f1-2 (vector-dot (-> self control dynam gravity-normal) (-> self control transv)))

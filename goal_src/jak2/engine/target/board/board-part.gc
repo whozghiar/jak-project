@@ -222,3 +222,108 @@
     (:rotate-y (degrees 0))
     )
   )
+
+;; jak3 board port: charge-up glow while holding L1. Jak3's own group-target-board-duck-charge
+;; (board-part.gc in goal_src/jak3) uses texture (laser-hit2 level-default-sprite), which doesn't
+;; exist in Jak2's asset set (checked decompiler/config/jak2/ntsc_v1/tex-info.min.json - absent;
+;; confirmed jak3-exclusive). og-j1-board hit the same gap porting this effect to Jak1 and
+;; substituted the native `starflash` texture rather than importing new art - same fix here, and
+;; `starflash` is confirmed present in Jak2's own `effects` tpage.
+(defpartgroup group-target-board-duck-charge
+  :id 1295
+  :bounds (static-bspherem 0 0 0 15)
+  :parts ((sp-item 5488 :flags (is-3d bit7)))
+  )
+
+(defpart 5488
+  :init-specs ((:texture (starflash effects))
+    (:num 0.3)
+    (:y (meters 0.5))
+    (:scale-x (meters 10) (meters 5))
+    (:rot-y (degrees 0) (degrees 360))
+    (:scale-y :copy scale-x)
+    (:r 0.0)
+    (:g 0.0)
+    (:b 255.0)
+    (:a 0.0)
+    (:scalevel-x (meters -0.06666667))
+    (:scalevel-y :copy scalevel-x)
+    (:fade-r 0.85333335)
+    (:fade-g 0.85333335)
+    (:fade-a 0.85333335 0.85333335)
+    (:timer (seconds 0.5))
+    (:flags (sp-cpuinfo-flag-0 sp-cpuinfo-flag-2 sp-cpuinfo-flag-3))
+    (:func 'board-charge-track)
+    (:rotate-y (degrees 0))
+    )
+  )
+
+;; jak3 board port: re-anchors the charge glow on *target*'s board joint every frame (mirrors
+;; Jak3's board-charge-track in goal_src/jak3/engine/target/board/board-part.gc). Uses
+;; joint-node-index's compile-time name lookup against the real jakb-lod0-jg joint-group data
+;; instead of a hand-counted numeric index - a hardcoded index here was tried twice this session
+;; (25, then 24) and was visibly wrong both times (landed on the hips, then near the head),
+;; which means manually counting entries in a GLB's skin joint list doesn't reliably match this
+;; joint-group's own real index assignment. joint-node-index reads the same data the compiler
+;; and every other native joint lookup in the game already trusts.
+(defun board-charge-track ((arg0 sparticle-system) (arg1 sparticle-cpuinfo) (arg2 vector))
+  (let ((v1-0 *target*))
+    (when *target*
+      (let ((v1-2 (vector<-cspace! (new 'stack-no-clear 'vector)
+                                    (-> v1-0 node-list data (joint-node-index jakb-lod0-jg board))
+                                    )
+                  )
+            )
+        (set! (-> arg2 x) (-> v1-2 x))
+        (set! (-> arg2 y) (-> v1-2 y))
+        (set! (-> arg2 z) (-> v1-2 z))
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+;; jak3 board port: zap attack burst. Jak3's group-board-zap-attack uses (laser-hit-rim
+;; level-default-sprite), also jak3-exclusive (same tex-info check as above) - substituted with
+;; `water-ring`, the same texture Jak2's own native group-board-spin-attack already uses just
+;; above, and the same substitution og-j1-board made for its own zap effect. Skips Jak3's
+;; group-board-green-eco-zap-attack variant: that's gated on a green-eco-stock/board-trail unlock
+;; feature Jak2 doesn't have, not something intrinsic to the zap attack itself.
+(defpartgroup group-board-zap-attack
+  :id 1296
+  :flags (use-local-clock)
+  :bounds (static-bspherem 0 0 0 2)
+  :parts ((sp-item 5489 :flags (is-3d) :period (seconds 20) :length (seconds 0.335)))
+  )
+
+;; jak3 board port: uses sparticle-track-root, not a custom joint-tracking :func, because this
+;; group is spawned via part-tracker-spawn (see target-board.gc). The resulting sparticle's
+;; `key proc` is the ephemeral part-tracker process itself (set by part-tracker-init's own
+;; `(create-launch-control arg0 self)`), which has a `root` transform but no `node-list` - it isn't
+;; a skinned character. group-board-spin-attack (above) is spawned the same way natively and
+;; follows the same rule. A custom joint-lookup :func here previously crashed the game by
+;; dereferencing a null node-list on the tracker; a later attempt to spawn this group directly on
+;; a dedicated launch control (for continuous tracking) broke the move entirely instead - reverted
+;; back to this known-good version.
+(defpart 5489
+  :init-specs ((:texture (water-ring effects))
+    (:num 0.25)
+    (:y (meters 0.5))
+    (:scale-x (meters 0.5))
+    (:rot-y (degrees 0) (degrees 360))
+    (:scale-y :copy scale-x)
+    (:r 80.0)
+    (:g 80.0)
+    (:b 255.0)
+    (:a 255.0)
+    (:scalevel-x (meters 0.16666667))
+    (:scalevel-y :copy scalevel-x)
+    (:fade-r -1.6)
+    (:fade-g -1.6)
+    (:timer (seconds 0.167))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-3))
+    (:func 'sparticle-track-root)
+    (:rotate-y (degrees 0))
+    )
+  )

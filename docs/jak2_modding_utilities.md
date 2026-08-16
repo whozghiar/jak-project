@@ -19,6 +19,8 @@
 - [7. In-Game Memory Diagnostic Tools](#7-in-game-memory-diagnostic-tools)
 - [8. Known Pitfalls & Points of Vigilance](#8-known-pitfalls--points-of-vigilance)
 - [9. Custom Art-Groups: Dynamically Linking Imported Animations](#9-custom-art-groups-dynamically-linking-imported-animations)
+- [10. GLTF Animation Retargeting & `build-actor` Joint Indexing](#10-gltf-animation-retargeting--build-actor-joint-indexing)
+- [11. Jetboard State Handling (`target-board-exit` Whitelist & Heading Inversion)](#11-jetboard-state-handling-target-board-exit-whitelist--heading-inversion)
 
 ---
 
@@ -151,6 +153,52 @@ Add custom animations imported from a `.glb` into a resident character art-group
       (link-art! this)))
 ```
 
+### 10. GLTF Animation Retargeting & `build-actor` Joint Indexing
+
+#### Skeletons in OpenGOAL vs GLTF
+In OpenGOAL, character skeletons (like `jakb-lod0-jg`) contain:
+1. **2 Matrix joints (indices 0 & 1):** `align` (Matrix 0) and `prejoint` (Matrix 1).
+2. **61 TransformQ joints (indices 2 to 62):** `main` (TQ 0), `waist_prog` (TQ 1), ..., `hips` (TQ 23), `Lthigh` (TQ 24), ..., `pantsRthigh` (TQ 60).
+
+#### ⚠️ The Duplicate `align` Pitfall in `build-actor` (Off-By-One Shift)
+- `convert_joints` in `goalc/build_actor/common/build_actor.cpp` historically prepended a synthetic `"align"` joint at index 0 and offset all GLTF skin joints by `+1` (assuming external models lacked an align joint).
+- Because decompiled models (`jakb-lod0.glb`) **already include `align` at index 0**, this created 64 joints instead of 63, shifting every TransformQ joint by `+1` during playback (`main` mapped to `waist_prog`, `waist_prog` to `upper_body`, `hips` to `Lthigh`).
+- **Symptom:** Animation looks 100% perfect in Blender, but in-game the mesh stretches/dislocates violently whenever the imported animation is evaluated.
+- **Rule:** Always detect if `gjoints[0].name == "align"` and use direct 0-indexed mapping (`prefix_count = 0`), producing `num_joints = 61` matching native `jakb-ag`.
+
+---
+
+### 11. Jetboard State Handling (`target-board-exit` Whitelist & Heading Inversion)
+
+#### ⚠️ The `target-board-exit` Whitelist Pitfall (The Mini-Jetboard Bug)
+In Jak 2, the jetboard (`board-lod0`) is a standalone actor process (`board.gc`) anchored to `node-list data 25` with two distinct visual states:
+1. **`use` (`board-open-ja`):** Fins, wings, and tips deployed in full snowboard/surfboard shape.
+2. **`idle` (`board-close-ja`):** Fully retracted into its center dome (a small round disc for Jak's back).
+
+- The `target-board-exit` function (`target-board.gc:882`) contains a **hardcoded whitelist** of valid board states.
+- When creating a new board state (e.g. `target-board-turn-around`), **it MUST be added to the whitelist** in `target-board-exit`, `target-board-pre-move`, and `target-board-real-post`.
+- **Symptom if omitted:** Upon entering the new state, the engine assumes Jak is dismounting, clears `(focus-status board)`, and the `board` actor instantly drops to `idle` / `board-close-ja` (the board shrinks into a mini-puck under Jak's boots).
+
+#### Autonomous Rotation & Pad Steering Lockout (`turn-lockout-end-time`)
+During autonomous animation-driven turns, `target-board-real-post` continuously executes `read-pad` and calls `turn-to-vector` (or `rot->dir-targ!` on neutral stick), which can overwrite `dir-targ` every frame with the player's stick input or reset it to the previous facing quaternion.
+- **Fix:** Set `(set! (-> self control turn-lockout-end-time) (+ (current-time) (seconds 1.5)))` in `:enter` (and reset to 0 in `:exit`), ensuring standard stick steering is suppressed until the turnaround completes.
+- **Entry Momentum:** Calculate entry velocity using `(fmax (-> self control ctrl-xz-vel) (vector-length (vector-flatten! (new-stack-vector0) (-> self control transv) (-> self control dynam gravity-normal))) 40960.0)` so momentum is preserved even if the player was drifting or gliding without forward stick input.
+
+#### Heading Inversion, Boost & Forward Momentum on State Exit
+To guarantee a complete autonomous heading change (e.g. 180° turnaround) and reward the player:
+1. `(quaternion-copy! (-> self control quat-for-control) (-> self control dir-targ))`: Inverts the control quaternion.
+2. `(set-quaternion! (-> self control) (-> self control dir-targ))`: Inverts root-transform orientation.
+3. `(vector-z-quaternion! (-> self control transv) (-> self control dir-targ))` & `(vector-float*! (-> self control transv) ... f30-1)`: Re-aligns world velocity in the reversed heading with acceleration boost (`(fmax (+ f30-0 20480.0) 114688.0)`).
+4. `(set-forward-vel f30-1)` & `(set! (-> self control ctrl-xz-vel) f30-1)`: Passes scalar forward velocity.
+5. `(sound-play "board-boost")`, `(cpad-set-buzz!)`, and `part-tracker-spawn group-board-land-straight`: Plays audio, rumble, and landing dust VFX matching native spin-trick rewards.
+
+#### Dynamic Joint Tracking, Particle Ripples & Collision Spheres (`board-zap-track`)
+For area-of-effect attacks while riding (e.g. `board-zap`):
+- **Dynamic Tracking:** Sparticle callbacks (`(:func 'board-zap-track)`) should query `*target*` directly and copy the board joint translation `(joint-node-index jakb-lod0-jg board)` into `(-> arg2 x/y/z)`. In parallel, `part-tracker-spawn` should pass `:callback part-tracker-track-target`. This ensures all particles and the tracker process follow the moving board in real time at high velocity.
+- **Concentric Multi-Ring Ripple:** Replicating Jak 3's `group-board-zap-attack` (`:num 0.25`, `:length (seconds 0.335)`, `:scalevel-x (meters 0.16666667)`) emits 4 to 5 concentric ripples expanding up to $3.0\text{ m}$.
+- **Damage Radius Alignment:** Configure the attack collision sphere in `target-util.gc` (`sphere<-vector+r!`) to $12288.0$ ($3.0\text{ m}$) with root bounding sphere $13107.2$ ($3.2\text{ m}$), matching native Jak 3 values exactly.
+- **Suppression of Trick FX on Hit:** In `target-board.gc` (`'touched` event handler), guard `(process-spawn part-tracker :init part-tracker-init group-board-spin-attack ...)` with `(if (!= (-> self control danger-mode) 'board-zap) ...)` to prevent native spin-trick flashes during zap attacks.
+
 ---
 
 # 🇫🇷 Version Française
@@ -165,6 +213,8 @@ Add custom animations imported from a `.glb` into a resident character art-group
 - [7. Outils de diagnostic mémoire en jeu](#7-outils-de-diagnostic-mémoire-en-jeu-1)
 - [8. Pièges connus / points de vigilance](#8-pièges-connus--points-de-vigilance-1)
 - [9. Art-groups custom : lier des animations importées](#9-art-groups-custom--lier-des-animations-importées)
+- [10. Reciblage d'Animations GLTF & Indexation de Squelette dans `build-actor`](#10-reciblage-danimations-gltf--indexation-de-squelette-dans-build-actor)
+- [11. Gestion des États Jetboard (`target-board-exit` Whitelist & Orientation)](#11-gestion-des-états-jetboard-target-board-exit-whitelist--orientation)
 
 ---
 
@@ -289,3 +339,53 @@ Ajouter des animations custom depuis un fichier `.glb` sur un art-group résiden
           (string= (-> this name) "jakb-jak3-board-import"))
       (link-art! this)))
 ```
+
+---
+
+### 10. Reciblage d'Animations GLTF & Indexation de Squelette dans `build-actor`
+
+#### Structure des Squelettes dans OpenGOAL vs GLTF
+Dans OpenGOAL, le squelette d'un personnage principal (`jakb-lod0-jg`) comprend :
+1. **2 Matrix joints (index 0 et 1) :** `align` (Matrix 0) et `prejoint` (Matrix 1).
+2. **61 TransformQ joints (index 2 à 62) :** `main` (TQ 0), `waist_prog` (TQ 1), ..., `hips` (TQ 23), `Lthigh` (TQ 24), ..., `pantsRthigh` (TQ 60).
+
+#### ⚠️ Le Piège de l'os `align` doublon dans `build-actor` (Décalage Off-By-One)
+- `convert_joints` dans `goalc/build_actor/common/build_actor.cpp` insérait historiquement un os `"align"` synthétique à l'index 0 et décalait tous les os du GLTF de `+1` (conçu à l'origine pour des modèles externes sans align).
+- Comme les modèles décompilés (`jakb-lod0.glb`) **contiennent DÉJÀ `align` à l'index 0**, cela créait 64 joints au lieu de 63, décalant chaque os TransformQ de `+1` à la lecture du clip (`main` prenait `waist_prog`, `waist_prog` prenait `upper_body`, `hips` prenait `Lthigh`).
+- **Symptôme :** L'animation paraît 100% parfaite dans Blender, mais en jeu le personnage se disloque/s'étire violemment dès que l'animation importée est jouée.
+- **Règle :** Toujours vérifier si `gjoints[0].name == "align"` pour utiliser une indexation directe à 0 (`prefix_count = 0`), produisant `num_joints = 61` conforme au master art-group `jakb-ag`.
+
+---
+
+### 11. Gestion des États Jetboard (`target-board-exit` Whitelist & Orientation)
+
+#### ⚠️ Le Piège de la Liste Blanche `target-board-exit` (Le Bug du Mini-Jetboard)
+Dans Jak 2, le jetboard (`board-lod0`) est un processus acteur indépendant (`board.gc`) qui s'ancre sur `node-list data 25` et possède deux états visuels :
+1. **`use` (`board-open-ja`) :** Ailerons et pointes déployés en mode snowboard/surf complet.
+2. **`idle` (`board-close-ja`) :** Rétracté dans son dôme central (petit disque rond pour le dos de Jak).
+
+- La fonction `target-board-exit` (`target-board.gc:882`) possède une **liste blanche codée en dur** des états de jetboard valides.
+- Lors de l'ajout d'un nouvel état de jetboard (ex: `target-board-turn-around`), **il DOIT être ajouté à la liste blanche** de `target-board-exit`, `target-board-pre-move` et `target-board-real-post`.
+- **Symptôme si omis :** Dès l'entrée dans le nouvel état, le moteur croit que Jak descend du skate, efface `(focus-status board)`, et l'acteur `board` bascule instantanément en `idle` / `board-close-ja` (la planche se rétracte en mini-rondelle sous les pieds de Jak).
+
+#### Rotation Autonome & Verrouillage du Pilotage Stick (`turn-lockout-end-time`)
+Lors d'un demi-tour piloté par animation, `target-board-real-post` exécute continuellement `read-pad` et appelle `turn-to-vector` (ou `rot->dir-targ!` si stick neutre), écrasant `dir-targ` à chaque frame avec l'orientation du joystick ou le réinitialisant sur l'ancien cap.
+- **Correctif :** Définir `(set! (-> self control turn-lockout-end-time) (+ (current-time) (seconds 1.5)))` dans `:enter` (et remettre à 0 dans `:exit`), supprimant toute interférence du joystick pendant le demi-tour.
+- **Conservation de vitesse d'entrée :** Calculer la vitesse initiale via `(fmax (-> self control ctrl-xz-vel) (vector-length (vector-flatten! (new-stack-vector0) (-> self control transv) (-> self control dynam gravity-normal))) 40960.0)` pour conserver l'élan même si Jak glissait ou dérivait sans pousser le stick vers l'avant.
+
+#### Inversion de Cap, Boost & Maintien de Vélocité à la Sortie
+Pour garantir un changement de cap complet (demi-tour à 180°) et gratifier le joueur :
+1. `(quaternion-copy! (-> self control quat-for-control) (-> self control dir-targ))` : Inverse le quaternion de contrôle.
+2. `(set-quaternion! (-> self control) (-> self control dir-targ))` : Inverse l'orientation du root-transform.
+3. `(vector-z-quaternion! (-> self control transv) (-> self control dir-targ))` & `(vector-float*! (-> self control transv) ... f30-1)` : Aligne la vélocité monde dans la nouvelle direction avec boost d'accélération (`(fmax (+ f30-0 20480.0) 114688.0)`).
+4. `(set-forward-vel f30-1)` & `(set! (-> self control ctrl-xz-vel) f30-1)` : Transmet la vitesse scalaire vers l'avant.
+5. `(sound-play "board-boost")`, `(cpad-set-buzz!)`, et `part-tracker-spawn group-board-land-straight` : Déclenche le son de boost, la vibration manette et les particules de poussière au sol (identiques aux figures réussies).
+
+#### Suivi Dynamique de Joint, Ondes Particulaires & Sphères de Collision (`board-zap-track`)
+Pour les attaques de zone en déplacement (ex: `board-zap`) :
+- **Suivi Dynamique :** Les callbacks de sparticles (`(:func 'board-zap-track)`) doivent interroger `*target*` directement et recopier la translation du joint du skate `(joint-node-index jakb-lod0-jg board)` dans `(-> arg2 x/y/z)`. En parallèle, `part-tracker-spawn` doit recevoir `:callback part-tracker-track-target`. Les particules et le processus tracker accompagnent ainsi la planche en temps réel même à haute vitesse.
+- **Ondes Concentriques Multi-Anneaux :** La réplication de `group-board-zap-attack` de Jak 3 (`:num 0.25`, `:length (seconds 0.335)`, `:scalevel-x (meters 0.16666667)`) émet 4 à 5 anneaux concentriques successifs s'étendant jusqu'à $3.0\text{ m}$.
+- **Alignement du Rayon de Dégâts :** Configurer la sphère de collision d'attaque dans `target-util.gc` (`sphere<-vector+r!`) à $12288.0$ ($3.0\text{ m}$) avec une sphère racine englobante de $13107.2$ ($3.2\text{ m}$), calquées à l'identique sur les constantes de Jak 3.
+- **Suppression de l'Effet de Spin à l'Impact :** Dans `target-board.gc` (gestionnaire d'événement `'touched`), protéger le spawn de `group-board-spin-attack` avec `(if (!= (-> self control danger-mode) 'board-zap) ...)` pour empêcher le déclenchement de l'effet visuel de figure/spin bleu lors des attaques zap.
+
+

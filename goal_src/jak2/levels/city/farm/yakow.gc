@@ -7,7 +7,8 @@
 
 ;; og:preserve-this MODDED - Jak 1-style yakow behavior (AI-assisted)
 ;; Adds: run-away, graze, graze-kicked states, walk/run animation blending,
-;;       dark eco pill drops on death
+;;       dark eco pill drops on death, generic purple "death-default" particle
+;;       dissolve effect + classic yakow-die cry on death
 
 ;; DECOMP BEGINS
 
@@ -703,11 +704,12 @@
     (set! (-> self fact pickup-type) (pickup-type none))
     )
   :code (behavior ()
-    ;; og:preserve-this Leave a dust poof upon disappearance, like other entities dying/vanishing,
-    ;; reusing the always-resident dirt landing poof from engine/target/target-part.gc since
-    ;; Yakow's own skeleton has no dedicated death effect
-    (sound-play "enemy-fizz")
-    (part-tracker-spawn :to *entity-pool* :group group-land-poof-drt :mat-joint (-> self root trans))
+    ;; og:preserve-this Standard enemy death effect: purple particles tracing the mesh/skeleton
+    ;; outline as it dissolves (same generic merc-death system used by civilians/crimson guards),
+    ;; paired with the "enemy-fizz" fizz sound baked into the death-default preset. The classic
+    ;; "yakow-die" cry is already played by (dying self) above in :enter.
+    (do-effect (-> self skel effect) 'death-default 0.0 -1)
+    (suspend-for (seconds 1))
     (send-event self 'death-end)
     (while (-> self child)
       (suspend)

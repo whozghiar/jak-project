@@ -2,6 +2,7 @@
 
 > **Bilingual Knowledge Item / Base de Connaissances Bilingue**
 >
+> - **Origin / Provenance:** `jak2/features/jak3-jetBoard`
 > - [🇬🇧 English Version](#-english-version)
 > - [🇫🇷 Version Française](#-version-française)
 

@@ -2,6 +2,7 @@
 
 > **Bilingual Knowledge Item / Base de Connaissances Bilingue**
 >
+> - **Origin / Provenance:** `master`
 > - [🇬🇧 English Version](#-english-version)
 > - [🇫🇷 Version Française](#-version-française)
 

@@ -43,10 +43,15 @@ When developing a mod for any game in the trilogy, the following documentation s
   - Jak 2: `docs/jak2_modding_utilities/`
   - Jak 3: `docs/jak3_modding_utilities/`
 * **One `.md` File per Tip / Utility:** Every engine discovery, technical mechanism, or modding utility must be documented in its own dedicated `.md` file inside the corresponding game directory (e.g. `docs/jak2_modding_utilities/jetboard_state_handling.md`, `docs/jak2_modding_utilities/sound_bank_allocation.md`, etc.).
+* **Mandatory Provenance Metadata (Branch Traceability):** Every tip file must display at the top the origin Git branch where the discovery was made or implemented, as well as subsequent branches that modified or refined it:
+  ```markdown
+  > - **Origin / Provenance:** `jak[x]/[type]/[name]` (or `master`)
+  > - **Last Updated / Dernière modification:** `jak[x]/[type]/[name]`
+  ```
 * **Bilingual Requirement & Strict Formalism (🇬🇧 EN & 🇫🇷 FR):** Each individual tip file must adhere strictly to the established bilingual standard:
   - Both English (`# 🇬🇧 English Version`) and French (`# 🇫🇷 Version Française`) sections within the same document.
   - Identical level of technical depth, precision, and commentary across both languages.
-  - Standardized structure: Title, Context & Core Concepts, Technical Implementation, Concrete Annotated Code Examples, Known Pitfalls / Edge Cases, and Verification Steps.
+  - Standardized structure: Title, Provenance, Context & Core Concepts, Technical Implementation, Concrete Annotated Code Examples, Known Pitfalls / Edge Cases, and Verification Steps.
 * **Factuality & Rigor:** Include only **verified, certain information** derived from source code analysis, decompiler outputs, or runtime tests. Tag unverified hypotheses with `[Hypothèse / Unverified]`.
 * **Automated Aggregation via GitHub Action:** This modular structure allows a future GitHub Action workflow to automatically aggregate all individual `.md` tip files for each game into a consolidated `docs/jak[x]_modding_utilities.md` document inside the corresponding directory.
 
@@ -125,10 +130,15 @@ Lors du développement d'un mod pour n'importe quel jeu de la trilogie, la struc
   - Jak 2 : `docs/jak2_modding_utilities/`
   - Jak 3 : `docs/jak3_modding_utilities/`
 * **Un Fichier `.md` par Tip / Utilitaire :** Chaque découverte moteur, mécanisme technique ou pattern d'utilitaire doit être consigné dans son propre fichier `.md` dédié au sein du répertoire du jeu correspondant (ex : `docs/jak2_modding_utilities/jetboard_state_handling.md`, `docs/jak2_modding_utilities/sound_bank_allocation.md`, etc.).
+* **Métadonnées de Traçabilité Obligatoires (Origine des Branches) :** Chaque fichier de tip doit obligatoirement afficher en en-tête la branche Git d'origine où la découverte/le code a été créé, ainsi que les branches ultérieures l'ayant modifié :
+  ```markdown
+  > - **Origin / Provenance :** `jak[x]/[type]/[nom]` (ou `master`)
+  > - **Last Updated / Dernière modification :** `jak[x]/[type]/[nom]`
+  ```
 * **Exigence Bilingue & Formalisme Strict (🇬🇧 EN & 🇫🇷 FR) :** Chaque fichier de tip individuel doit respecter rigoureusement le formalisme bilingue établi :
   - Les deux sections Anglais (`# 🇬🇧 English Version`) et Français (`# 🇫🇷 Version Française`) au sein du même document.
   - Même niveau de profondeur technique, de précision et de commentaires dans les deux langues.
-  - Structure standardisée : Titre, Contexte & Concepts Clés, Implémentation Technique, Exemples de Code annotés concrets, Pièges / Cas Particuliers et Procédure de Validation.
+  - Structure standardisée : Titre, Provenance, Contexte & Concepts Clés, Implémentation Technique, Exemples de Code annotés concrets, Pièges / Cas Particuliers et Procédure de Validation.
 * **Factualité & Rigueur :** N'inclure que des informations vérifiées et certaines issues de l'analyse du code source, de la décompilation ou des tests runtime. Taguer les hypothèses avec `[Hypothèse / Unverified]`.
 * **Agrégation Automatisée via GitHub Action :** Cette architecture modulaire est conçue pour permettre à une future GitHub Action d'agréger automatiquement l'ensemble des fichiers `.md` de tips individuels de chaque jeu dans un document consolidé `docs/jak[x]_modding_utilities.md` au sein du répertoire correspondant.
 

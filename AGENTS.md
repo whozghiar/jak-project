@@ -44,12 +44,12 @@ Common commands that are useful.  We use https://taskfile.dev/ to make cross-pla
 ## Modding Guidelines & Instructions
 
 When working on or creating mods for Jak 1, Jak 2, or Jak 3, all agents MUST strictly consult and follow:
-- **Modding Instructions & Rules:** [`docs/jak_modding_instructions.md`](docs/jak_modding_instructions.md)
+- **Modding Instructions & Rules:** [`docs/modding/jak_modding_instructions.md`](docs/modding/jak_modding_instructions.md)
 - **Git Branch Convention:** Dedicated branch per mod: `jak[N°]/[type_of_mod]/[mod_name]`
 - **Game-Specific Knowledge Bases & Modular Utilities:**
-  - Jak 1: [`docs/jak1_modding_utilities/`](docs/jak1_modding_utilities/) ([`docs/jak1_modding_utilities.md`](docs/jak1_modding_utilities.md))
-  - Jak 2: [`docs/jak2_modding_utilities/`](docs/jak2_modding_utilities/) ([`docs/jak2_modding_utilities.md`](docs/jak2_modding_utilities.md))
-  - Jak 3: [`docs/jak3_modding_utilities/`](docs/jak3_modding_utilities/) ([`docs/jak3_modding_utilities.md`](docs/jak3_modding_utilities.md))
+  - Jak 1: [`docs/modding/jak1_modding_utilities/`](docs/modding/jak1_modding_utilities/) ([`docs/modding/jak1_modding_utilities/jak1_modding_utilities.md`](docs/modding/jak1_modding_utilities/jak1_modding_utilities.md))
+  - Jak 2: [`docs/modding/jak2_modding_utilities/`](docs/modding/jak2_modding_utilities/) ([`docs/modding/jak2_modding_utilities/jak2_modding_utilities.md`](docs/modding/jak2_modding_utilities/jak2_modding_utilities.md))
+  - Jak 3: [`docs/modding/jak3_modding_utilities/`](docs/modding/jak3_modding_utilities/) ([`docs/modding/jak3_modding_utilities/jak3_modding_utilities.md`](docs/modding/jak3_modding_utilities/jak3_modding_utilities.md))
 - **Task Commands Policy:** Do NOT run `task` build, run, or extraction commands automatically in the background without explicit user request. Propose them for the user to execute.
 
 ## Contributing, Issue and PR Guidelines

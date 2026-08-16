@@ -43,6 +43,7 @@ When developing a mod for any game in the trilogy, the following documentation s
   - Jak 2: `docs/modding/jak2_modding_utilities/`
   - Jak 3: `docs/modding/jak3_modding_utilities/`
 * **One `.md` File per Tip / Utility:** Every engine discovery, technical mechanism, or modding utility must be documented in its own dedicated `.md` file inside the corresponding game directory (e.g. `docs/modding/jak2_modding_utilities/11_jetboard_state_handling.md`, etc.).
+* **⚠️ NEVER Edit Aggregated Files Directly:** Agents must **NEVER** edit or touch the consolidated files `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md` manually. Agents must exclusively create a new numbered `.md` file (or edit an existing individual tip file) according to the discovery. The aggregated document is maintained and regenerated exclusively by the automated CI aggregation script.
 * **Mandatory Provenance Metadata (Branch Traceability):** Every tip file must display at the top the origin Git branch where the discovery was made or implemented, as well as subsequent branches that modified or refined it:
   ```markdown
   > - **Origin / Provenance:** `jak[x]/[type]/[name]` (or `master`)
@@ -53,7 +54,7 @@ When developing a mod for any game in the trilogy, the following documentation s
   - Identical level of technical depth, precision, and commentary across both languages.
   - Standardized structure: Title, Provenance, Context & Core Concepts, Technical Implementation, Concrete Annotated Code Examples, Known Pitfalls / Edge Cases, and Verification Steps.
 * **Factuality & Rigor:** Include only **verified, certain information** derived from source code analysis, decompiler outputs, or runtime tests. Tag unverified hypotheses with `[Hypothèse / Unverified]`.
-* **Automated Aggregation via GitHub Action:** This modular structure allows a future GitHub Action workflow to automatically aggregate all individual `.md` tip files for each game into a consolidated `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md` document.
+* **Automated Aggregation via GitHub Action:** This modular structure allows the GitHub Action workflow (`.github/workflows/sync-modding-docs.yaml`) to automatically aggregate all individual `.md` tip files for each game into a consolidated `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md` document.
 
 ### 2. Dedicated Mod Readme (`docs/modding/current_mod/[mod_name]_readme.md`)
 * Every branch created for a mod must include its dedicated documentation file in `docs/modding/current_mod/`:
@@ -130,6 +131,7 @@ Lors du développement d'un mod pour n'importe quel jeu de la trilogie, la struc
   - Jak 2 : `docs/modding/jak2_modding_utilities/`
   - Jak 3 : `docs/modding/jak3_modding_utilities/`
 * **Un Fichier `.md` par Tip / Utilitaire :** Chaque découverte moteur, mécanisme technique ou pattern d'utilitaire doit être consigné dans son propre fichier `.md` dédié au sein du répertoire du jeu correspondant (ex : `docs/modding/jak2_modding_utilities/11_jetboard_state_handling.md`, etc.).
+* **⚠️ Interdiction de Modifier les Fichiers Agrégés Directement :** Les agents ne doivent **JAMAIS** modifier manuellement les fichiers consolidés `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md`. Les agents doivent exclusivement créer un nouveau fichier `.md` numéroté (ou modifier le fichier individuel existant) selon le tip découvert. Le fichier agrégé est maintenu et régénéré exclusivement par le script d'agrégation automatique CI.
 * **Métadonnées de Traçabilité Obligatoires (Origine des Branches) :** Chaque fichier de tip doit obligatoirement afficher en en-tête la branche Git d'origine où la découverte/le code a été créé, ainsi que les branches ultérieures l'ayant modifié :
   ```markdown
   > - **Origin / Provenance :** `jak[x]/[type]/[nom]` (ou `master`)
@@ -140,7 +142,7 @@ Lors du développement d'un mod pour n'importe quel jeu de la trilogie, la struc
   - Même niveau de profondeur technique, de précision et de commentaires dans les deux langues.
   - Structure standardisée : Titre, Provenance, Contexte & Concepts Clés, Implémentation Technique, Exemples de Code annotés concrets, Pièges / Cas Particuliers et Procédure de Validation.
 * **Factualité & Rigueur :** N'inclure que des informations vérifiées et certaines issues de l'analyse du code source, de la décompilation ou des tests runtime. Taguer les hypothèses avec `[Hypothèse / Unverified]`.
-* **Agrégation Automatisée via GitHub Action :** Cette architecture modulaire est conçue pour permettre à une future GitHub Action d'agréger automatiquement l'ensemble des fichiers `.md` de tips individuels de chaque jeu dans un document consolidé `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md`.
+* **Agrégation Automatisée via GitHub Action :** Cette architecture modulaire permet à la GitHub Action (`.github/workflows/sync-modding-docs.yaml`) d'agréger automatiquement l'ensemble des fichiers `.md` de tips individuels de chaque jeu dans un document consolidé `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md`.
 
 ### 2. Readme Dédié au Mod (`docs/modding/current_mod/[nom_du_mod]_readme.md`)
 * Chaque branche de mod doit posséder son fichier de documentation dans `docs/modding/current_mod/` :

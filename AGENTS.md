@@ -50,6 +50,7 @@ When working on or creating mods for Jak 1, Jak 2, or Jak 3, all agents MUST str
   - Jak 1: [`docs/modding/jak1_modding_utilities/`](docs/modding/jak1_modding_utilities/) ([`docs/modding/jak1_modding_utilities/jak1_modding_utilities.md`](docs/modding/jak1_modding_utilities/jak1_modding_utilities.md))
   - Jak 2: [`docs/modding/jak2_modding_utilities/`](docs/modding/jak2_modding_utilities/) ([`docs/modding/jak2_modding_utilities/jak2_modding_utilities.md`](docs/modding/jak2_modding_utilities/jak2_modding_utilities.md))
   - Jak 3: [`docs/modding/jak3_modding_utilities/`](docs/modding/jak3_modding_utilities/) ([`docs/modding/jak3_modding_utilities/jak3_modding_utilities.md`](docs/modding/jak3_modding_utilities/jak3_modding_utilities.md))
+- **Modular Tips Policy:** Agents must **NEVER** edit aggregated `jak[x]_modding_utilities.md` files directly. Only create or edit individual numbered `.md` files in the directories; the CI pipeline aggregates them automatically.
 - **Task Commands Policy:** Do NOT run `task` build, run, or extraction commands automatically in the background without explicit user request. Propose them for the user to execute.
 
 ## Contributing, Issue and PR Guidelines

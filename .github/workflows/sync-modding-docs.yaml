@@ -88,11 +88,11 @@ jobs:
             echo "--- Syncing documentation down to branch: $branch ---"
             git checkout -B "$branch" "origin/$branch"
             
-            # Checkout latest docs/modding and AGENTS.md from master
-            git checkout origin/master -- docs/modding/ AGENTS.md
+            # Checkout latest docs/modding, AGENTS.md, and CLAUDE.md from master
+            git checkout origin/master -- docs/modding/ AGENTS.md CLAUDE.md
             
-            if [ -n "$(git status --porcelain docs/modding AGENTS.md)" ]; then
-              git add docs/modding/ AGENTS.md
+            if [ -n "$(git status --porcelain docs/modding AGENTS.md CLAUDE.md)" ]; then
+              git add docs/modding/ AGENTS.md CLAUDE.md
               git commit -m "docs: synchronize updated modding documentation from master (AI-assisted)"
               git push origin "$branch"
               echo "Successfully pushed updated docs to $branch."

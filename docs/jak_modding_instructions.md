@@ -29,7 +29,7 @@ Over 98% of the original trilogy was coded in GOAL, a custom LISP dialect develo
   - `jak3/config/memory_increase`
 
 * **Master Sync for Utilities:** 
-  The general knowledge base file `docs/jak[N°]_modding_utilities.md` must be maintained and regularly merged/cherry-picked back into the `master` branch so that all concurrent and future mod branches benefit from verified engine discoveries.
+  The modding utilities directories `docs/jak[N°]_modding_utilities/` (and their aggregated documents) must be maintained and regularly merged/cherry-picked back into the `master` branch so that all concurrent and future mod branches benefit from verified engine discoveries.
 
 ---
 
@@ -37,14 +37,18 @@ Over 98% of the original trilogy was coded in GOAL, a custom LISP dialect develo
 
 When developing a mod for any game in the trilogy, the following documentation structure is mandatory:
 
-### 1. General Knowledge Base (`docs/jak[N°]_modding_utilities.md`)
-* Each game has its dedicated knowledge base:
-  - Jak 1: [`docs/jak1_modding_utilities.md`](./jak1_modding_utilities.md)
-  - Jak 2: [`docs/jak2_modding_utilities.md`](./jak2_modding_utilities.md)
-  - Jak 3: [`docs/jak3_modding_utilities.md`](./jak3_modding_utilities.md)
-* **Bilingual Requirement (🇬🇧 EN & 🇫🇷 FR):** All general knowledge bases must be written in both English and French, featuring clear language anchors (`# -english-version`, `# -version-française`).
+### 1. Modular Knowledge Bases (`docs/jak[N°]_modding_utilities/`)
+* Each game has its dedicated folder for knowledge base files:
+  - Jak 1: `docs/jak1_modding_utilities/`
+  - Jak 2: `docs/jak2_modding_utilities/`
+  - Jak 3: `docs/jak3_modding_utilities/`
+* **One `.md` File per Tip / Utility:** Every engine discovery, technical mechanism, or modding utility must be documented in its own dedicated `.md` file inside the corresponding game directory (e.g. `docs/jak2_modding_utilities/jetboard_state_handling.md`, `docs/jak2_modding_utilities/sound_bank_allocation.md`, etc.).
+* **Bilingual Requirement & Strict Formalism (🇬🇧 EN & 🇫🇷 FR):** Each individual tip file must adhere strictly to the established bilingual standard:
+  - Both English (`# 🇬🇧 English Version`) and French (`# 🇫🇷 Version Française`) sections within the same document.
+  - Identical level of technical depth, precision, and commentary across both languages.
+  - Standardized structure: Title, Context & Core Concepts, Technical Implementation, Concrete Annotated Code Examples, Known Pitfalls / Edge Cases, and Verification Steps.
 * **Factuality & Rigor:** Include only **verified, certain information** derived from source code analysis, decompiler outputs, or runtime tests. Tag unverified hypotheses with `[Hypothèse / Unverified]`.
-* **Pedagogical Approach:** Always write with clear explanations, simple and concrete code snippets, and contextual commentary.
+* **Automated Aggregation via GitHub Action:** This modular structure allows a future GitHub Action workflow to automatically aggregate all individual `.md` tip files for each game into a consolidated `docs/jak[x]_modding_utilities.md` document inside the corresponding directory.
 
 ### 2. Dedicated Mod Readme (`docs/mods/[mod_name]_readme.md`)
 * Every branch created for a mod must include a dedicated documentation file in `docs/mods/`:
@@ -107,7 +111,7 @@ Plus de 98% de la trilogie d'origine a été programmée en GOAL, un dialecte LI
   - `jak3/config/memory_increase`
 
 * **Synchronisation Master pour les Utilitaires :** 
-  Le fichier de base de connaissances `docs/jak[N°]_modding_utilities.md` doit être maintenu et régulièrement synchronisé / mergé sur la branche `master` afin que toutes les branches de mods bénéficient des découvertes moteur validées.
+  Les répertoires d'utilitaires `docs/jak[N°]_modding_utilities/` (et leurs documents agrégés) doivent être maintenus et régulièrement synchronisés / mergés sur la branche `master` afin que toutes les branches de mods bénéficient des découvertes moteur validées.
 
 ---
 
@@ -115,14 +119,18 @@ Plus de 98% de la trilogie d'origine a été programmée en GOAL, un dialecte LI
 
 Lors du développement d'un mod pour n'importe quel jeu de la trilogie, la structure documentaire suivante est obligatoire :
 
-### 1. Base de Connaissances Générale (`docs/jak[N°]_modding_utilities.md`)
-* Chaque jeu dispose de sa base de connaissances dédiée :
-  - Jak 1 : [`docs/jak1_modding_utilities.md`](./jak1_modding_utilities.md)
-  - Jak 2 : [`docs/jak2_modding_utilities.md`](./jak2_modding_utilities.md)
-  - Jak 3 : [`docs/jak3_modding_utilities.md`](./jak3_modding_utilities.md)
-* **Exigence Bilingue (🇬🇧 EN & 🇫🇷 FR) :** Toutes les bases de connaissances doivent être rédigées en anglais et en français avec des ancres de navigation (`# -english-version`, `# -version-française`).
+### 1. Bases de Connaissances Modulaires (`docs/jak[N°]_modding_utilities/`)
+* Chaque jeu dispose de son répertoire dédié pour les fichiers de base de connaissances :
+  - Jak 1 : `docs/jak1_modding_utilities/`
+  - Jak 2 : `docs/jak2_modding_utilities/`
+  - Jak 3 : `docs/jak3_modding_utilities/`
+* **Un Fichier `.md` par Tip / Utilitaire :** Chaque découverte moteur, mécanisme technique ou pattern d'utilitaire doit être consigné dans son propre fichier `.md` dédié au sein du répertoire du jeu correspondant (ex : `docs/jak2_modding_utilities/jetboard_state_handling.md`, `docs/jak2_modding_utilities/sound_bank_allocation.md`, etc.).
+* **Exigence Bilingue & Formalisme Strict (🇬🇧 EN & 🇫🇷 FR) :** Chaque fichier de tip individuel doit respecter rigoureusement le formalisme bilingue établi :
+  - Les deux sections Anglais (`# 🇬🇧 English Version`) et Français (`# 🇫🇷 Version Française`) au sein du même document.
+  - Même niveau de profondeur technique, de précision et de commentaires dans les deux langues.
+  - Structure standardisée : Titre, Contexte & Concepts Clés, Implémentation Technique, Exemples de Code annotés concrets, Pièges / Cas Particuliers et Procédure de Validation.
 * **Factualité & Rigueur :** N'inclure que des informations vérifiées et certaines issues de l'analyse du code source, de la décompilation ou des tests runtime. Taguer les hypothèses avec `[Hypothèse / Unverified]`.
-* **Approche Pédagogique :** Rédiger avec clarté, concision, et exemples de code concrets commentés.
+* **Agrégation Automatisée via GitHub Action :** Cette architecture modulaire est conçue pour permettre à une future GitHub Action d'agréger automatiquement l'ensemble des fichiers `.md` de tips individuels de chaque jeu dans un document consolidé `docs/jak[x]_modding_utilities.md` au sein du répertoire correspondant.
 
 ### 2. Readme Dédié au Mod (`docs/mods/[nom_du_mod]_readme.md`)
 * Chaque branche de mod doit posséder son fichier de documentation dans `docs/mods/` :

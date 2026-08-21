@@ -1,0 +1,102 @@
+name: Sync & Aggregate Modding Documentation
+
+on:
+  push:
+    branches:
+      - 'master'
+      - 'jak*/**'
+    paths:
+      - 'docs/modding/**'
+      - 'scripts/modding/aggregate_modding_utilities.py'
+  schedule:
+    # Run daily at 03:00 UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: sync-modding-docs
+  cancel-in-progress: false
+
+jobs:
+  sync-docs:
+    name: Aggregate & Propagate Modding Documentation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Configure Git Author
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Harvest Tips from Mod Branches into Master
+        run: |
+          git checkout master
+          # List all remote branches matching jak*
+          branches=$(git branch -r --list "origin/jak*" | sed 's/^[[:space:]]*origin\///' | grep -v 'HEAD' || true)
+
+          echo "Found branches to inspect: $branches"
+          for branch in $branches; do
+            echo "--- Inspecting branch: $branch ---"
+            # Get list of modding utility files in that branch
+            files=$(git ls-tree -r --name-only "origin/$branch" docs/modding 2>/dev/null || true)
+            for file in $files; do
+              # Check if it matches a numbered tip file
+              if [[ "$file" =~ docs/modding/jak[123]_modding_utilities/[0-9]+_.*\.md ]]; then
+                echo "Harvesting $file from $branch..."
+                git checkout "origin/$branch" -- "$file" || true
+              fi
+            done
+          done
+
+      - name: Run Aggregation Script
+        run: |
+          python scripts/modding/aggregate_modding_utilities.py
+
+      - name: Commit & Push to Master
+        id: commit_master
+        run: |
+          if [ -n "$(git status --porcelain docs/modding)" ]; then
+            git add docs/modding/
+            git commit -m "docs: aggregate modding utilities across all games (AI-assisted)"
+            git push origin master
+            echo "pushed_master=true" >> $GITHUB_OUTPUT
+          else
+            echo "No documentation changes detected on master."
+            echo "pushed_master=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Propagate Updated Documentation to Mod Branches
+        run: |
+          # Fetch latest master reference
+          git fetch origin master
+
+          branches=$(git branch -r --list "origin/jak*" | sed 's/^[[:space:]]*origin\///' | grep -v 'HEAD' || true)
+          for branch in $branches; do
+            echo "--- Syncing documentation down to branch: $branch ---"
+            git checkout -B "$branch" "origin/$branch"
+            
+            # Checkout latest docs/modding, AGENTS.md, and CLAUDE.md from master
+            git checkout origin/master -- docs/modding/ AGENTS.md CLAUDE.md
+            
+            if [ -n "$(git status --porcelain docs/modding AGENTS.md CLAUDE.md)" ]; then
+              git add docs/modding/ AGENTS.md CLAUDE.md
+              git commit -m "docs: synchronize updated modding documentation from master (AI-assisted)"
+              git push origin "$branch"
+              echo "Successfully pushed updated docs to $branch."
+            else
+              echo "Branch $branch is already in sync with master documentation."
+            fi
+          done

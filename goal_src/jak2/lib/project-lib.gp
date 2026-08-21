@@ -176,6 +176,21 @@
 (defmacro copy-sbk-files (&rest files)
   `(begin ,@(apply (lambda (x) `(set! *all-sbk* (cons (copy-iso-file ,x "SBK/" ".SBK") *all-sbk*))) files)))
 
+;; jak3 board port: append custom-imported sounds to an existing native sound bank.
+;; - name: the .SBK name (without extension), read from $ISO/SBK/<name>.SBK
+;; - src-dir: folder under custom_assets/jak2/sounds/sfx/ holding a metadata.txt + wavs
+;;   (as produced by the decompiler's SBK extractor) to append into the bank.
+;; - only-names: restrict to these sound names (as written in metadata.txt); empty = append all.
+(defmacro append-sbk (name src-dir &key (force-run #f) &key (only-names ()))
+  (let* ((base-path (string-append "$ISO/SBK/" name ".SBK"))
+         (src-path (string-append "custom_assets/jak2/sounds/sfx/" src-dir "/"))
+         (out-name (string-append "$OUT/iso/" name ".SBK")))
+    `(begin
+       (set! *all-sbk* (cons ,out-name *all-sbk*))
+       (defstep :in '(,base-path ,src-path ,(symbol->string force-run) ,only-names)
+                :tool 'append-sbk
+                :out '(,out-name)))))
+
 (defmacro copy-mus-files (&rest files)
   `(begin ,@(apply (lambda (x) `(set! *all-mus* (cons (copy-iso-file ,x "MUS/" ".MUS") *all-mus*))) files)))
 

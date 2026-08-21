@@ -177,6 +177,7 @@ struct Config {
   bool levels_extract;
   bool save_texture_pngs = false;
   bool rip_streamed_audio = false;
+  bool rip_sound_banks = false;
 
   DecompileHacks hacks;
 

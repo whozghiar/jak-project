@@ -3504,7 +3504,7 @@
             ((nonzero? s5-0)
              )
             (else
-              (align! (-> self align) (align-opts adjust-xz-vel) 1.0 1.0 f30-0)
+              (align! (-> self align) (align-opts adjust-xz-vel) 1.0 1.0 (* f30-0 (-> self darkjak-giant-interp)))
               (let ((s3-2 (new-stack-vector0)))
                 (vector-matrix*! s3-2 (-> self control transv) (-> self control w-R-c))
                 (set! (-> s3-2 y) 0.0)
@@ -3522,7 +3522,10 @@
                    )
                (can-jump? 'target-roll-flip)
                )
-          (go target-roll-flip (-> *TARGET-bank* roll-flip-height) (-> *TARGET-bank* roll-flip-dist))
+          (go target-roll-flip
+              (* (-> *TARGET-bank* roll-flip-height) (-> self darkjak-giant-interp))
+              (* (-> *TARGET-bank* roll-flip-dist) (-> self darkjak-giant-interp))
+              )
           )
       )
     (set-time! (-> self state-hook-time))
@@ -3538,7 +3541,10 @@
                 (if (and (recently-pressed? x)
                          (can-jump? 'target-roll-flip)
                          )
-                    (go target-roll-flip (-> *TARGET-bank* roll-flip-height) (-> *TARGET-bank* roll-flip-dist))
+                    (go target-roll-flip
+                        (* (-> *TARGET-bank* roll-flip-height) (-> self darkjak-giant-interp))
+                        (* (-> *TARGET-bank* roll-flip-dist) (-> self darkjak-giant-interp))
+                        )
                     )
                 )
               )

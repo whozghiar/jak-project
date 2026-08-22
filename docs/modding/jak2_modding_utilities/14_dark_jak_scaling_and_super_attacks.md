@@ -15,7 +15,7 @@
 ## 1. Context & Core Concepts
 In Jak 2, Dark Jak's physical transformation is governed by an engine interpolation variable `darkjak-giant-interp` (ranging from `1.0` to `2.0` in retail code) and the `darkjak-stage` bitfield enum in [`goal_src/jak2/engine/target/target-h.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-h.gc).
 
-Because OpenGOAL couples character scaling across physics velocities (`ctrl-xz-vel`), animation bone scales, collision spheres, and damage penetration, understanding how to extend this pipeline unlocks seamless multi-tier transformations, acrobatic restoration, and robust super abilities.
+Because OpenGOAL couples character scaling across physics velocities (`ctrl-xz-vel`), animation bone scales, collision spheres, and damage penetration, understanding how to extend this pipeline unlocks seamless multi-tier transformations, acrobatic restoration, HUD timer meters, and robust super abilities.
 
 ---
 
@@ -96,40 +96,45 @@ When expanding to a colossal scale (e.g. `3.5x`), the collision probe sphere and
 
 ---
 
-## 3. Super Attack & Locomotion Optimizations
+## 3. Control Hooks, HUD Meters & Super Attacks
 
-### A. Dark Bomb Velocity Gating (Preventing Jump Lockout)
-In vanilla `target.gc`, jump states gate the `target-flop` (and Dark Bomb) transition behind hardcoded vertical velocity checks (`< 73728.0` and `< 22118.4`). Because scaled jump impulses exceed these bounds, `darkjak-giant-interp` must scale the thresholds, or Dark Jak must bypass the check directly for instant response:
+### A. Universal Manual Revert (`R2`)
+In `target-darkjak-post`, checking `(cpad-pressed? (-> self control cpad number) r2)` ensures Jak can exit Dark Jak at any moment from any state (running, jumping, giant mode):
 
 ```lisp
-(if (and (recently-pressed? square)
-         (or (and (focus-test? self dark) (nonzero? (-> self darkjak)))
-             (and (< (vector-dot (-> self control dynam gravity-normal) (-> self control transv))
-                     (* 73728.0 (-> self darkjak-giant-interp))
-                     )
-                  (< (* -61440.0 (-> self darkjak-giant-interp)) (vector-dot (-> self control dynam gravity-normal) (-> self control transv)))
-                  )
-             )
-         ;; ...
+(if (and (cpad-pressed? (-> self control cpad number) r2)
+         (not (focus-test? self dead dangerous hit grabbed))
+         (not (and (-> self next-state) (= (-> self next-state name) 'target-darkjak-get-off)))
+         (not (logtest? (-> self darkjak stage) (darkjak-stage force-on)))
          )
-    (go target-flop ...)
+    (go target-darkjak-get-off)
     )
 ```
 
-### B. Level-Specific Roll Unlocking
-In retail Jak 2 code, `can-roll?` explicitly blocked Dark Jak via `(not (and (focus-test? self dark) (nonzero? (-> self darkjak))))`. Restricting this check to `(darkjak-stage giant mega-giant)` allows agile rolling for Level 1 Dark Jak while keeping giant tiers grounded and heavy:
+### B. Dynamic Countdown HUD Meter
+By computing `(- total elapsed) / total * 100%` in `hud-classes.gc`, the purple Dark Eco ring displays the remaining transformation timer:
 
 ```lisp
-;; In can-roll? (target-util.gc):
-(not (and (focus-test? self dark)
-          (nonzero? (-> self darkjak))
-          (logtest? (-> self darkjak stage) (darkjak-stage giant mega-giant))
-          )
-     )
+(cond
+  ((and *target* (focus-test? *target* dark) (nonzero? (-> *target* darkjak)))
+   (if (-> *setting-control* user-current darkjak)
+       (set! (-> this values 2 target) 100)
+       (let* ((elapsed (- (current-time) (-> (the-as fact-info-target (-> *target* fact)) darkjak-start-time)))
+              (total (-> (the-as fact-info-target (-> *target* fact)) darkjak-effect-time))
+              (remaining (max 0 (- total elapsed)))
+              )
+         (set! (-> this values 2 target) (the int (* 100.0 (/ (the float remaining) (the float total)))))
+         )
+       )
+   (set! (-> this values 3 target) (the-as int (current-time)))
+   )
+  ;; ...
+  )
 ```
 
-### C. Dark Blast Surface Abort Fix
-`target-darkjak-bomb1` originally inherited `:trans` logic from `target-attack-uppercut-jump`, aborting into `target-hit-ground` whenever `collide-status on-surface` was true. This caused premature termination and an instant exit to normal Jak in confined spaces. Removing surface-grounding checks in `:trans` ensures the full barrage completes regardless of geometry.
+### C. Dark Bomb & Dark Blast Optimizations
+- **Instant Dark Bomb:** Bypassing velocity limits in jump states allows instant plunge upon pressing Square.
+- **Surface-Resilient Blast:** Removing grounding aborts in `target-darkjak-bomb1 :trans` ensures the full barrage fires in tight environments.
 
 ---
 
@@ -138,7 +143,7 @@ In retail Jak 2 code, `can-roll?` explicitly blocked Dark Jak via `(not (and (fo
 ## 1. Contexte & Concepts Fondamentaux
 Dans Jak 2, la métamorphose de Dark Jak est gérée par une variable d'interpolation globale `darkjak-giant-interp` (`1.0` à `2.0` dans le code original) et l'énumération bitfield `darkjak-stage` dans [`goal_src/jak2/engine/target/target-h.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-h.gc).
 
-Le moteur OpenGOAL liant directement l'échelle du personnage à ses vitesses physiques (`ctrl-xz-vel`), aux échelles osseuses, aux sphères de collision et à la pénétration des dégâts, la compréhension de cette chaîne permet d'implémenter des évolutions multi-stades fluides, de restaurer l'agilité acrobatique et de fiabiliser les super-attaques.
+Le moteur OpenGOAL liant directement l'échelle du personnage à ses vitesses physiques (`ctrl-xz-vel`), aux échelles osseuses, aux sphères de collision et à la pénétration des dégâts, la compréhension de cette chaîne permet d'implémenter des évolutions multi-stades fluides, une annulation manuelle, un compte à rebours HUD et des super-attaques fiabilisées.
 
 ---
 
@@ -190,22 +195,42 @@ Lors d'une mise à l'échelle colossale (ex: `3.5x`), les sphères de test de co
 
 ---
 
-## 3. Optimisations des Super-Attaques & de la Locomotion
+## 3. Contrôles, Jauge HUD & Optimisations des Attaques
 
-### A. Vélocité de Déclenchement de la Dark Bomb
-Dans `target.gc`, les états de saut verrouillent la transition vers le plongeon derrière des seuils de vitesse verticale stricts (`< 73728.0`). L'impulsion de saut étant multipliée en mode géant, ces seuils doivent être mis à l'échelle ou contournés pour Dark Jak afin de permettre un plongeon instantané.
-
-### B. Déverrouillage Ciblé de la Roulade (Niveau 1 Uniquement)
-Dans le code de Jak 2, `can-roll?` excluait Dark Jak inconditionnellement. En ciblant uniquement les stades géants `(darkjak-stage giant mega-giant)`, Dark Jak niveau 1 retrouve son agilité tout en maintenant l'inertie pesante et imposante des colosses :
+### A. Annulation Manuelle Universelle (`R2`)
+Dans `target-darkjak-post`, la détection de `(cpad-pressed? (-> self control cpad number) r2)` permet à Jak de quitter Dark Jak à tout moment, quel que soit son état d'action ou son stade :
 
 ```lisp
-;; Dans can-roll? (target-util.gc) :
-(not (and (focus-test? self dark)
-          (nonzero? (-> self darkjak))
-          (logtest? (-> self darkjak stage) (darkjak-stage giant mega-giant))
-          )
-     )
+(if (and (cpad-pressed? (-> self control cpad number) r2)
+         (not (focus-test? self dead dangerous hit grabbed))
+         (not (and (-> self next-state) (= (-> self next-state name) 'target-darkjak-get-off)))
+         (not (logtest? (-> self darkjak stage) (darkjak-stage force-on)))
+         )
+    (go target-darkjak-get-off)
+    )
 ```
 
-### C. Fiabilisation du Dark Blast contre les Murs et Plafonds
-`target-darkjak-bomb1` héritait à l'origine d'un test de contact au sol (`on-surface`) issu de l'uppercut classique, provoquant un arrêt immédiat de l'attaque et un retour prématuré à Jak normal dans les zones exiguës. La suppression de ce test dans `:trans` garantit l'exécution intégrale des tirs.
+### B. Jauge de Décompte Dynamique dans l'HUD
+En calculant le pourcentage de temps restant dans `hud-classes.gc`, la jauge circulaire violette se vide en continu :
+
+```lisp
+(cond
+  ((and *target* (focus-test? *target* dark) (nonzero? (-> *target* darkjak)))
+   (if (-> *setting-control* user-current darkjak)
+       (set! (-> this values 2 target) 100)
+       (let* ((elapsed (- (current-time) (-> (the-as fact-info-target (-> *target* fact)) darkjak-start-time)))
+              (total (-> (the-as fact-info-target (-> *target* fact)) darkjak-effect-time))
+              (remaining (max 0 (- total elapsed)))
+              )
+         (set! (-> this values 2 target) (the int (* 100.0 (/ (the float remaining) (the float total)))))
+         )
+       )
+   (set! (-> this values 3 target) (the-as int (current-time)))
+   )
+  ;; ...
+  )
+```
+
+### C. Fiabilisation Dark Bomb & Dark Blast
+- **Dark Bomb Instantanée :** Suppression du verrouillage de vélocité dans les sauts.
+- **Dark Blast Résistant :** Suppression du test `on-surface` dans `target-darkjak-bomb1 :trans` pour garantir le tir complet des projectiles.

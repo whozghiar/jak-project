@@ -15,7 +15,7 @@
 ## 1. Context & Core Concepts
 In Jak 2, Dark Jak's physical transformation is governed by an engine interpolation variable `darkjak-giant-interp` (ranging from `1.0` to `2.0` in retail code) and the `darkjak-stage` bitfield enum in [`goal_src/jak2/engine/target/target-h.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-h.gc).
 
-Because OpenGOAL couples character scaling across physics velocities (`ctrl-xz-vel`), animation bone scales, collision spheres, and damage penetration, understanding how to extend this pipeline unlocks seamless multi-tier transformations, acrobatic restoration, proportional resource management, dedicated HUD timer bars, and robust super abilities.
+Because OpenGOAL couples character scaling across physics velocities (`ctrl-xz-vel`), animation bone scales, collision spheres, and damage penetration, understanding how to extend this pipeline unlocks seamless multi-tier transformations, acrobatic restoration, manual cancel controls, and robust super abilities.
 
 ---
 
@@ -63,49 +63,23 @@ When expanding to a colossal scale (e.g. `3.5x`), collision probe spheres and ca
 
 ---
 
-## 3. Dedicated HUD Timer Bar & Super Attacks
+## 3. Manual Cancel Control & Eco Consumption
 
-### A. Dedicated Purple Countdown Timer Bar
-To leave the circular Dark Eco gauge pristine, an independent horizontal timer bar is rendered via unused sprites in `hud-dark-eco-symbol draw`:
+### A. Universal Manual Revert (`R2`)
+In `target-darkjak-post`, checking `(cpad-pressed? (-> self control cpad number) r2)` allows Jak to exit Dark Jak smoothly at any moment:
 
 ```lisp
-(if (and *target* (focus-test? *target* dark) (nonzero? (-> *target* darkjak)))
-    (let* ((elapsed (- (current-time) (-> (the-as fact-info-target (-> *target* fact)) darkjak-start-time)))
-           (total (-> (the-as fact-info-target (-> *target* fact)) darkjak-effect-time))
-           (ratio (if (-> *setting-control* user-current darkjak) 1.0 (fmax 0.0 (/ (the float (- total elapsed)) (the float total)))))
-           (bar-x (if (= (-> *setting-control* user-default aspect-ratio) 'aspect4x3) (the int (+ 22.0 (* -130.0 f30-0))) (the int (+ 32.0 (* -130.0 f30-0)))))
-           (bar-y (the int (+ 294.0 (* 130.0 f30-0))))
-           )
-      ;; Background Track
-      (set-hud-piece-position! (-> this sprites 1) bar-x bar-y)
-      (set! (-> this sprites 1 tex) (get-texture hud-health-bar-lit-02 level-default-minimap))
-      (set! (-> this sprites 1 scale-x) 3.5)
-      (set! (-> this sprites 1 scale-y) 0.8)
-      (set! (-> this sprites 1 color x) 45)
-      (set! (-> this sprites 1 color y) 10)
-      (set! (-> this sprites 1 color z) 65)
-      (set! (-> this sprites 1 color w) 128)
-      (set! (-> this sprites 1 pos z) #xfffff8)
-      ;; Foreground Purple Fill
-      (set-hud-piece-position! (-> this sprites 2) bar-x bar-y)
-      (set! (-> this sprites 2 tex) (get-texture hud-health-bar-lit level-default-minimap))
-      (set! (-> this sprites 2 scale-x) (* 3.5 ratio))
-      (set! (-> this sprites 2 scale-y) 0.8)
-      (set! (-> this sprites 2 color x) 190)
-      (set! (-> this sprites 2 color y) 40)
-      (set! (-> this sprites 2 color z) 255)
-      (set! (-> this sprites 2 color w) 128)
-      (set! (-> this sprites 2 pos z) #xfffff9)
-      )
-    (begin
-      (set! (-> this sprites 1 scale-x) 0.0)
-      (set! (-> this sprites 2 scale-x) 0.0)
-      )
+(if (and (cpad-pressed? (-> self control cpad number) r2)
+         (not (focus-test? self dead dangerous hit grabbed))
+         (not (and (-> self next-state) (= (-> self next-state name) 'target-darkjak-get-off)))
+         (not (logtest? (-> self darkjak stage) (darkjak-stage force-on)))
+         )
+    (go target-darkjak-get-off)
     )
 ```
 
-### B. Full Eco Consumption on Super Attacks
-When triggering Dark Bomb or Dark Blast, `eco-pill-dark` is zeroed out to consume 100% of the player's dark eco:
+### B. Full Eco Consumption on Exit
+When Dark Jak ends (via `R2`, timeout, Dark Bomb, Dark Blast, or death), all remaining dark eco is consumed:
 ```lisp
 (set! (-> self game eco-pill-dark) 0.0)
 ```
@@ -117,7 +91,7 @@ When triggering Dark Bomb or Dark Blast, `eco-pill-dark` is zeroed out to consum
 ## 1. Contexte & Concepts Fondamentaux
 Dans Jak 2, la métamorphose de Dark Jak est régie par `darkjak-giant-interp` (`1.0` à `2.0` dans le code de base) et l'énumération bitfield `darkjak-stage` dans [`goal_src/jak2/engine/target/target-h.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-h.gc).
 
-La maîtrise de cette chaîne permet d'implémenter des évolutions multi-stades, une barre de décompte dédiée dans l'HUD et une consommation totale de l'éco sur les attaques spéciales.
+La maîtrise de cette chaîne permet d'implémenter des évolutions multi-stades, l'annulation manuelle avec `R2`, et des super-attaques fiabilisées.
 
 ---
 
@@ -133,10 +107,10 @@ La maîtrise de cette chaîne permet d'implémenter des évolutions multi-stades
 
 ---
 
-## 3. Barre de Compte à Rebours Dédiée & Super-Attaques
+## 3. Annulation Manuelle & Consommation d'Éco
 
-### A. Barre Violette Horizontale dans l'HUD
-Afin de préserver la jauge circulaire d'éco noire originale, une barre horizontale violette autonome est dessinée dans `hud-dark-eco-symbol draw` avec un fond sombre et un remplissage lumineux qui s'ajuste au ratio du temps restant.
+### A. Annulation Manuelle (`R2`)
+Détection dans `target-darkjak-post` permettant de revenir à l'état normal à tout moment via `R2`.
 
-### B. Consommation Totale de l'Éco sur Super-Attaques
-Lors du déclenchement d'une Dark Bomb ou d'un Dark Blast, la réserve d'éco noire est immédiatement réinitialisée à `0.0`.
+### B. Consommation Complète de l'Éco
+Dès que la transformation s'arrête (quelle que soit la manière), toute l'éco noire accumulée est consommée (`0.0`).

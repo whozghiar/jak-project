@@ -114,6 +114,7 @@
   (giant)
   (no-anim)
   (disable-force-on)
+  (mega-giant)
   )
 
 ;; og:ignore-form:(new 'static 'boxed-array

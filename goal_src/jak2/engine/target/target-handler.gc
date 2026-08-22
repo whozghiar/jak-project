@@ -639,6 +639,7 @@
                 )
        (case (-> arg3 param 0)
          (('effect-walk-step-left 'effect-walk-step-right 'effect-run-step-left 'effect-run-step-right)
+          ;; og:preserve-this MODDED - Double footstep camera shake for mega-giant Dark Jak (AI-assisted)
           (let ((intensity (if (logtest? (-> self darkjak stage) (darkjak-stage mega-giant)) 819.2 409.6)))
             (activate! *camera-smush-control* intensity 15 75 1.0 0.98 (-> *display* camera-clock))
             )

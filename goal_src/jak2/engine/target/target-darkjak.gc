@@ -1791,6 +1791,7 @@
   :post target-post
   )
 
+;; og:preserve-this MODDED - Progressive Dark Giant (2.0x) & Mega-Giant Titan (3.5x) (AI-assisted)
 (defstate target-darkjak-giant (target)
   :event target-standard-event-handler
   :exit (behavior ()

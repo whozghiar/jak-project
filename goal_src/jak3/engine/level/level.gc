@@ -2917,7 +2917,10 @@
   (start-debug "call to play-boot!~%")
   (process-spawn-function
     process
-    (lambda () (play #t #t) (none))
+    (lambda ()
+      (play #t #t)
+      (auto-save-command 'restore 0 0 *default-pool* #f)
+      (none))
     :from *4k-dead-pool*
     :stack *kernel-dram-stack*
     )

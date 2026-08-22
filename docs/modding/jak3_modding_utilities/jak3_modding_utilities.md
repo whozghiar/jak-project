@@ -18,6 +18,8 @@
 - [6. Declaring Scripts in Project File (`.gp`)](#6-declaring-scripts-in-project-file-gp)
 - [7. Compilation & Validation Workflow](#7-compilation-validation-workflow)
 - [8. Known Pitfalls & Best Practices](#8-known-pitfalls-best-practices)
+- [9. Architecture: Dark Jak Stages & Legacy Assets](#9-architecture-dark-jak-stages-legacy-assets)
+- [10. Architecture: Secrets Menu System (`game-secrets`)](#10-architecture-secrets-menu-system-game-secrets)
 
 ---
 
@@ -156,6 +158,56 @@ To add a new `.gc` script to the Jak 3 build tree:
 
 ---
 
+### 9. Architecture: Dark Jak Stages & Legacy Assets
+
+> **Origin / Provenance:** `master`
+
+* **Bitmask Flags:** Dark Jak capabilities are driven by the `darkjak-stage` bitfield enum in `target-h.gc` and stored in `(-> self darkjak stage)` and `(-> self darkjak want-stage)`:
+  - `active`: Base Dark Jak form.
+  - `bomb0` / `bomb1`: Dark Bomb and Dark Blast abilities.
+  - `invinc`: Invulnerability stage.
+  - `invis`: Invisibility modifier (suppresses offensive stages).
+  - `tracking`: Target tracking mode.
+  - `smack`: Dark Strike attack mode.
+  - `giant`: Scaling stage flag.
+
+## 2. Transformation Checks & Mod Surfaces
+* **Trigger Conditions:** `want-to-darkjak?` and `want-to-powerjak?` in `target-darkjak.gc` / `target-lightjak.gc` validate:
+  - Game features flag `(game-feature darkjak)` in `*setting-control*`.
+  - Focus tests (cannot transform while swimming underwater, piloting, carrying, etc.).
+  - Timing delays via `(-> self fact darkjak-start-time)`.
+* **Surface Modifiers:** Transformed movement is governed by `*darkjak-trans-mods*` surface parameters.
+
+## 3. Legacy Jak 2 Giant State Assets
+* **Unused Animation & Scale Hooks:** The Jak 3 engine retains full animation data for `jakb-darkjak-get-on-fast-ja` as well as scaling interpolation variables (`(-> self darkjak-giant-interp)`) originally used for the Jak 2 Dark Giant transformation.
+
+---
+
+---
+
+### 10. Architecture: Secrets Menu System (`game-secrets`)
+
+> **Origin / Provenance:** `master`
+
+* **Bitfield Enum:** Secrets and cheats in Jak 3 are tracked through the `game-secrets` bitfield declared in `settings-h.gc`.
+* **State Persistence:** Active secrets are saved in the game state within `(-> *game-info* secrets)` and can be checked using `(logtest? (game-secrets <flag>) (-> *game-info* secrets))`.
+
+## 2. Secrets Menu Structure (`secrets-menu.gc`)
+* **Menu Entries:** Purchasable and toggleable items are registered inside static arrays such as `*menu-secrets-array*` using `secret-item-option` instances.
+* **Key Fields:**
+  - `:name`: `text-id` specifying the localization string ID.
+  - `:cost`: Orb cost required to unlock (`0` allows free activation).
+  - `:secret`: Corresponding bit flag from the `game-secrets` enum.
+  - `:avail-after`: `game-task-node` prerequisite determining when the item appears in the menu.
+  - `:flags`: Behavior attributes (e.g. `(secret-item-option-flags sf1)`).
+
+## 3. UI Label Resolution (`progress-draw-pc.gc`)
+* **Custom & Unlocalized Names:** When adding or overriding secrets that lack dedicated strings in the text database, label strings are mapped dynamically during option rendering in `progress-draw-pc.gc`.
+
+---
+
+---
+
 # 🇫🇷 Version Française
 
 ## Sommaire
@@ -167,6 +219,8 @@ To add a new `.gc` script to the Jak 3 build tree:
 - [6. Déclarer un Script (`.gp`)](#6-déclarer-un-script-gp)
 - [7. Workflow de Compilation & Validation](#7-workflow-de-compilation-validation)
 - [8. Pièges Connus & Bonnes Pratiques](#8-pièges-connus-bonnes-pratiques)
+- [9. Architecture: Dark Jak Stages & Legacy Assets](#9-architecture-dark-jak-stages-legacy-assets)
+- [10. Architecture: Secrets Menu System (`game-secrets`)](#10-architecture-secrets-menu-system-game-secrets)
 
 ---
 
@@ -286,5 +340,51 @@ Pour ajouter un nouveau fichier `.gc` dans l'arbre de compilation de Jak 3 :
 
 * **Interactions Complexes Entre Pouvoirs et Armes :** Modifier les états de `*target*` peut affecter les transitions d'armes (`gun-states`) et de pouvoirs (`light-jak` / `dark-jak`).
 * **Synchronisation Git :** Penser à merger régulièrement les ajouts factuels de ce fichier vers la branche `master`.
+
+---
+
+### 9. Architecture: Dark Jak Stages & Legacy Assets
+
+> **Origin / Provenance :** `master`
+
+* **Drapeaux Bitmask :** Les capacités de Dark Jak sont régies par l'énumération de bits `darkjak-stage` (`target-h.gc`) et stockées dans `(-> self darkjak stage)` et `(-> self darkjak want-stage)` :
+  - `active` : Forme Dark Jak de base.
+  - `bomb0` / `bomb1` : Capacités Dark Bomb et Dark Blast.
+  - `invinc` : État d'invulnérabilité.
+  - `invis` : Modificateur d'invisibilité (neutralise les capacités offensives).
+  - `tracking` : Mode de suivi / ciblage.
+  - `smack` : Attaque Dark Strike.
+  - `giant` : Drapeau d'échelle / transformation géante.
+
+## 2. Conditions de Déclenchement et Surfaces Modificatrices
+* **Validation d'Entrée :** `want-to-darkjak?` et `want-to-powerjak?` (`target-darkjak.gc` / `target-lightjak.gc`) contrôlent :
+  - L'activation de la feature `(game-feature darkjak)` dans `*setting-control*`.
+  - Les tests de focus (interdiction sous l'eau, en véhicule, transport d'objet, etc.).
+  - Les temporisations via `(-> self fact darkjak-start-time)`.
+* **Modificateurs de Surface :** Les physiques de déplacement transformé utilisent `*darkjak-trans-mods*`.
+
+## 3. Reliquats Moteur du Dark Giant de Jak 2
+* **Animations et Variables d'Échelle Résiduelles :** Le moteur de Jak 3 intègre encore les données d'animation `jakb-darkjak-get-on-fast-ja` ainsi que la variable d'interpolation de taille `(-> self darkjak-giant-interp)` héritées du Dark Giant de Jak 2.
+
+---
+
+### 10. Architecture: Secrets Menu System (`game-secrets`)
+
+> **Origin / Provenance :** `master`
+
+* **Énumération Bitfield :** Les secrets et cheats de Jak 3 sont répertoriés dans le champ de bits `game-secrets` déclaré dans `settings-h.gc`.
+* **Persistance d'État :** L'état actif des secrets est conservé dans `(-> *game-info* secrets)` et testé via `(logtest? (game-secrets <flag>) (-> *game-info* secrets))`.
+
+## 2. Structure du Menu des Secrets (`secrets-menu.gc`)
+* **Déclaration des Éléments :** Les éléments déblocables et activables sont configurés dans des tableaux statiques comme `*menu-secrets-array*` via des structures `secret-item-option`.
+* **Champs Principaux :**
+  - `:name` : Identifiant `text-id` de la chaîne de texte localisée.
+  - `:cost` : Coût en orbes (`0` pour activation gratuite).
+  - `:secret` : Drapeau correspondant dans `game-secrets`.
+  - `:avail-after` : Prérequis de progression `game-task-node` pour l'affichage dans le menu.
+  - `:flags` : Attributs de comportement (ex. `(secret-item-option-flags sf1)`).
+
+## 3. Résolution des Textes UI (`progress-draw-pc.gc`)
+* **Noms Personnalisés ou Non Localisés :** Pour les options de secrets ne disposant pas d'entrée dédiée dans les fichiers de texte, le libellé est géré dynamiquement lors du rendu dans `progress-draw-pc.gc`.
 
 ---

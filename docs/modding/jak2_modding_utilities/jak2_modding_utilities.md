@@ -23,6 +23,7 @@
 - [11. Jetboard State Handling & Particle Tracking](#11-jetboard-state-handling-particle-tracking)
 - [12. Generic Enemy Death Effect (Purple Skeleton-Dissolve Particles)](#12-generic-enemy-death-effect-purple-skeleton-dissolve-particles)
 - [13. Custom Animation & Sound Import Pipeline (End-to-End)](#13-custom-animation-sound-import-pipeline-end-to-end)
+- [14. 14_dark_jak_scaling_and_super_attacks.md](#14-14-dark-jak-scaling-and-super-attacksmd)
 
 ---
 
@@ -503,6 +504,85 @@ the whole log. Remove or gate these prefixes once the bug is confirmed fixed.
 
 ---
 
+### 14. 14_dark_jak_scaling_and_super_attacks.md
+
+> **Origin / Provenance:** `jak2/features/dark_jak_enhanced` | **Last Updated:** `jak2/features/dark_jak_enhanced`
+
+In Jak 2, Dark Jak's physical transformation is governed by an engine interpolation variable `darkjak-giant-interp` (ranging from `1.0` to `2.0` in retail code) and the `darkjak-stage` bitfield enum in [`goal_src/jak2/engine/target/target-h.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-h.gc).
+
+Because OpenGOAL couples character scaling across physics velocities (`ctrl-xz-vel`), animation bone scales, collision spheres, and damage penetration, understanding how to extend this pipeline unlocks seamless multi-tier transformations, acrobatic restoration, manual cancel controls, and robust super abilities.
+
+---
+
+## 2. Multi-Tier Progressive Scaling Architecture
+
+### A. Stage Enumeration & Unlocked State Transitions
+The `darkjak-stage` bitfield enum can be safely extended with new evolutionary tiers (such as `mega-giant`):
+
+```lisp
+(defenum darkjak-stage
+  :bitfield #t
+  :type uint32
+  (force-on)
+  (active)
+  (bomb0)
+  (bomb1)
+  (invinc)
+  (giant)
+  (no-anim)
+  (disable-force-on)
+  (mega-giant)
+  )
+```
+
+In `target-darkjak.gc`, `want-to-darkjak?` allows progressive evolution across all tiers:
+```lisp
+(and (focus-test? self dark)
+     (nonzero? (-> self darkjak))
+     (not (logtest? (-> self darkjak stage) (darkjak-stage mega-giant)))
+     )
+```
+
+### B. Headroom Collision Queries & Progressive Camera Offsets
+When expanding to a colossal scale (e.g. `3.5x`), collision probe spheres and camera spring settings scale proportionally:
+
+```lisp
+(let* ((already-giant? (logtest? (-> self darkjak stage) (darkjak-stage giant)))
+       (target-scale (if already-giant? 3.5 2.0))
+       (start-scale (if already-giant? (-> self darkjak-giant-interp) 1.0))
+       )
+  (+! (-> s5-1 0 y) (if already-giant? 22000.0 12697.6))
+  (set! (-> s5-1 0 r) (if already-giant? 18000.0 11878.4))
+  )
+```
+
+---
+
+## 3. Manual Cancel Control & Eco Consumption
+
+### A. Universal Manual Revert (`R2`)
+In `target-darkjak-post`, checking `(cpad-pressed? (-> self control cpad number) r2)` allows Jak to exit Dark Jak smoothly at any moment:
+
+```lisp
+(if (and (cpad-pressed? (-> self control cpad number) r2)
+         (not (focus-test? self dead dangerous hit grabbed))
+         (not (and (-> self next-state) (= (-> self next-state name) 'target-darkjak-get-off)))
+         (not (logtest? (-> self darkjak stage) (darkjak-stage force-on)))
+         )
+    (go target-darkjak-get-off)
+    )
+```
+
+### B. Full Eco Consumption on Exit
+When Dark Jak ends (via `R2`, timeout, Dark Bomb, Dark Blast, or death), all remaining dark eco is consumed:
+```lisp
+(set! (-> self game eco-pill-dark) 0.0)
+```
+
+---
+
+---
+
 # 🇫🇷 Version Française
 
 ## Sommaire
@@ -519,6 +599,7 @@ the whole log. Remove or gate these prefixes once the bug is confirmed fixed.
 - [11. Gestion des États Jetboard & Particules](#11-gestion-des-états-jetboard-particules)
 - [12. Effet de Mort Générique des Ennemis (Particules Violettes de Dissolution)](#12-effet-de-mort-générique-des-ennemis-particules-violettes-de-dissolution)
 - [13. Pipeline Complet d'Import d'Animations et de Sons Custom](#13-pipeline-complet-dimport-danimations-et-de-sons-custom)
+- [14. 14_dark_jak_scaling_and_super_attacks.md](#14-14-dark-jak-scaling-and-super-attacksmd)
 
 ---
 
@@ -986,5 +1067,37 @@ suffisait pas), ajoutez des lignes de log temporaires avec un préfixe distincti
 d'affichage unique si le code s'exécute à chaque frame (pour éviter de noyer le log). Cherchez
 ensuite ce préfixe exact dans le fichier `log/jak2.<timestamp>.log` généré plutôt que de lire tout le
 log. Retirez ou conditionnez ces préfixes une fois le bug confirmé corrigé.
+
+---
+
+### 14. 14_dark_jak_scaling_and_super_attacks.md
+
+> **Origin / Provenance :** `jak2/features/dark_jak_enhanced` | **Dernière modification :** `jak2/features/dark_jak_enhanced`
+
+Dans Jak 2, la métamorphose de Dark Jak est régie par `darkjak-giant-interp` (`1.0` à `2.0` dans le code de base) et l'énumération bitfield `darkjak-stage` dans [`goal_src/jak2/engine/target/target-h.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-h.gc).
+
+La maîtrise de cette chaîne permet d'implémenter des évolutions multi-stades, l'annulation manuelle avec `R2`, et des super-attaques fiabilisées.
+
+---
+
+## 2. Architecture de Mise à l'Échelle Multi-Stades
+
+### A. Évolution Débloquée
+```lisp
+(and (focus-test? self dark)
+     (nonzero? (-> self darkjak))
+     (not (logtest? (-> self darkjak stage) (darkjak-stage mega-giant)))
+     )
+```
+
+---
+
+## 3. Annulation Manuelle & Consommation d'Éco
+
+### A. Annulation Manuelle (`R2`)
+Détection dans `target-darkjak-post` permettant de revenir à l'état normal à tout moment via `R2`.
+
+### B. Consommation Complète de l'Éco
+Dès que la transformation s'arrête (quelle que soit la manière), toute l'éco noire accumulée est consommée (`0.0`).
 
 ---

@@ -28,8 +28,8 @@ The **Dark Jak Enhanced** mod adds a full 3rd evolutionary stage to Dark Jak in 
    - Allows instant triggering of the Dark Bomb at any moment during jump ascent or descent on Square press, cancelling upward momentum immediately for a fast, responsive plunge.
 5. **Robust Dark Blast (No Surface Abort):**
    - Dark Blast barrage no longer prematurely cancels back to normal Jak when in confined spaces, low ceilings, or touching obstacles.
-6. **Unlocked Roll & Scaled Colossal Roll-Flip Jump:**
-   - Restored rolling (`L1` while moving) and roll-flip jump (`L1 + X`) for Dark Jak, with velocity and jump height/distance scaling dynamically with `darkjak-giant-interp` (up to 3.5x monumental leaps).
+6. **Unlocked Roll & Roll-Flip for Level 1 Dark Jak:**
+   - Restored rolling (`L1` while moving) and roll-flip jump (`L1 + X`) exclusively for **Level 1 Dark Jak**, while preserving the heavy brute locomotion (no rolling) for the colossal **Mega Dark Jak (Giant / Mega-Giant)** stages.
 
 ---
 
@@ -38,10 +38,10 @@ The **Dark Jak Enhanced** mod adds a full 3rd evolutionary stage to Dark Jak in 
 | File | Subsystem | Modifications |
 | :--- | :--- | :--- |
 | [`goal_src/jak2/engine/target/target-h.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-h.gc) | Type Definitions | Added `(mega-giant)` to `darkjak-stage` bitfield enum. |
-| [`goal_src/jak2/engine/target/target-util.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-util.gc) | Target Utilities | Removed Dark Jak exclusion check in `can-roll?`. |
+| [`goal_src/jak2/engine/target/target-util.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-util.gc) | Target Utilities | In `can-roll?`, allow rolling for Level 1 Dark Jak while disabling it for `giant` and `mega-giant` stages. |
 | [`goal_src/jak2/engine/target/target-darkjak.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-darkjak.gc) | Dark Jak States | Progressive scaling to 3.5 in `target-darkjak-giant`, instant upward momentum cancellation in `target-darkjak-bomb0`, and collision-resilient `:trans`/`:exit` in `target-darkjak-bomb1`. |
 | [`goal_src/jak2/engine/target/target-handler.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-handler.gc) | Event Handlers | Doubled camera smush intensity on `effect-control` footsteps in `mega-giant` stage. |
-| [`goal_src/jak2/engine/target/target.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target.gc) | Player Locomotion | Scaled jump velocity thresholds, instant Dark Bomb triggers, and scaled `target-roll` velocity and `target-roll-flip` height/distance by `darkjak-giant-interp`. |
+| [`goal_src/jak2/engine/target/target.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target.gc) | Player Locomotion | Scaled jump velocity thresholds, instant Dark Bomb triggers, and support for roll-flip jumps in Level 1 Dark Jak. |
 
 ---
 
@@ -55,8 +55,9 @@ The **Dark Jak Enhanced** mod adds a full 3rd evolutionary stage to Dark Jak in 
    ```lisp
    (set! (-> *setting-control* user-default cheat-mode) 'debug)
    ```
-3. Press **`L2`** three times consecutively to cycle through Dark Jak $\rightarrow$ Mega Dark Jak (2.0x) $\rightarrow$ Mega-Mega Dark Jak (3.5x).
-4. Jump and press **Square** to execute instant Dark Bomb; press **L1 + Square** near walls for Dark Blast; press **L1 then X** while moving to execute a colossal roll-flip jump.
+3. In **Level 1 Dark Jak (1st L2)**: perform rolls (`L1`) and roll-flips (`L1 + X`).
+4. In **Mega Dark Jak (2nd L2)** or **Mega-Mega Dark Jak (3rd L2)**: verify that rolling is disabled to preserve heavy brute locomotion.
+5. Jump and press **Square** to execute instant Dark Bomb; press **L1 + Square** near walls for Dark Blast.
 
 ---
 
@@ -68,7 +69,7 @@ The **Dark Jak Enhanced** mod adds a full 3rd evolutionary stage to Dark Jak in 
 | 2026-08-22 | `target.gc` | Scaled vertical jump velocity gates by `darkjak-giant-interp`. | Fix Dark Bomb not triggering in Mega Giant mode. |
 | 2026-08-22 | `target-darkjak.gc` | Removed `on-surface` abort in `target-darkjak-bomb1 :trans` and cleaned `:exit`. | Prevent Dark Blast from cancelling prematurely on surface contact. |
 | 2026-08-22 | `target.gc`, `target-darkjak.gc` | Allowed instantaneous Square press trigger during jumps and zeroed upward `transv` on `bomb0 :enter`. | Allow responsive instant plunge for Dark Bomb. |
-| 2026-08-22 | `target-util.gc`, `target.gc` | Removed Dark Jak restriction in `can-roll?` and scaled `target-roll` velocity and `target-roll-flip` height/dist by `darkjak-giant-interp`. | Restore rolling and roll-flip acrobatics for Dark Jak. |
+| 2026-08-22 | `target-util.gc`, `target.gc` | Enabled roll only for Level 1 Dark Jak in `can-roll?` and disabled it for `giant` and `mega-giant` stages. | Maintain agile roll for Level 1 Dark Jak while keeping giant stages heavy and grounded. |
 
 ---
 
@@ -89,8 +90,8 @@ Le mod **Dark Jak Enhanced** ajoute un troisième stade d'évolution complet pou
    - Déclenchement immédiat de la Dark Bomb à n'importe quel moment du saut dès l'appui sur Carré, annulant immédiatement la vélocité ascendante pour un plongeon rapide.
 5. **Dark Blast Résistant aux Collisions :**
    - Le Dark Blast ne s'annule plus prématurément lorsqu'il est déclenché dans des espaces confinés, sous un plafond bas ou près d'obstacles.
-6. **Déblocage de la Roulade & Roulade Sautée Proportionnelle :**
-   - Réactivation de la roulade (`L1` en mouvement) et de la roulade sautée (`L1 + Croix`), avec vitesse, hauteur et distance de saut multipliées par `darkjak-giant-interp` (sauts monumentaux en titan x3.5).
+6. **Roulade & Roulade Sautée pour Dark Jak Niveau 1 :**
+   - Réactivation de la roulade (`L1` en mouvement) et de la roulade sautée (`L1 + Croix`) exclusivement pour **Dark Jak Niveau 1**, tout en conservant la démarche de colosse lourd (sans roulade) pour les stades **Méga Dark Jak** et **Méga-Méga Dark Jak**.
 
 ---
 
@@ -99,10 +100,10 @@ Le mod **Dark Jak Enhanced** ajoute un troisième stade d'évolution complet pou
 | Fichier | Sous-système | Modifications |
 | :--- | :--- | :--- |
 | [`goal_src/jak2/engine/target/target-h.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-h.gc) | Définition de Types | Ajout de `(mega-giant)` dans l'énumération `darkjak-stage`. |
-| [`goal_src/jak2/engine/target/target-util.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-util.gc) | Utilitaires Joueur | Suppression du verrouillage de Dark Jak dans `can-roll?`. |
+| [`goal_src/jak2/engine/target/target-util.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-util.gc) | Utilitaires Joueur | Dans `can-roll?`, autorisation de la roulade pour le niveau 1 et blocage pour les stades `giant` et `mega-giant`. |
 | [`goal_src/jak2/engine/target/target-darkjak.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-darkjak.gc) | États de Dark Jak | Échelle progressive 3.5 dans `target-darkjak-giant`, annulation de vitesse ascensionnelle dans `target-darkjak-bomb0`, et fiabilisation de `target-darkjak-bomb1`. |
 | [`goal_src/jak2/engine/target/target-handler.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-handler.gc) | Gestionnaires d'Événements | Intensité de secousse d'écran doublée pour les pas en mode `mega-giant`. |
-| [`goal_src/jak2/engine/target/target.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target.gc) | Locomotion du Joueur | Ajustement des seuils de vélocité, Dark Bomb instantanée, et mise à l'échelle de la roulade et roulade sautée par `darkjak-giant-interp`. |
+| [`goal_src/jak2/engine/target/target.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target.gc) | Locomotion du Joueur | Ajustement des seuils de vélocité, Dark Bomb instantanée, et support de la roulade sautée en Dark Jak Niveau 1. |
 
 ---
 
@@ -116,5 +117,6 @@ Le mod **Dark Jak Enhanced** ajoute un troisième stade d'évolution complet pou
    ```lisp
    (set! (-> *setting-control* user-default cheat-mode) 'debug)
    ```
-3. Appuyer 3 fois sur **`L2`** pour observer la métamorphose complète.
-4. Sauter et appuyer sur **Carré** pour déclencher la Dark Bomb instantanée ; appuyer sur **L1 + Carré** près des murs pour tester le Dark Blast ; appuyer sur **L1 puis Croix** en mouvement pour déclencher une roulade sautée titanesque.
+3. En **Dark Jak Niveau 1 (1ᵉʳ L2)** : effectuer des roulades (`L1`) et roulades sautées (`L1 + Croix`).
+4. En **Méga Dark Jak (2ᵉ L2)** ou **Méga-Méga Dark Jak (3ᵉ L2)** : constater que la roulade est désactivée pour préserver l'inertie de titan.
+5. Sauter et appuyer sur **Carré** pour déclencher la Dark Bomb instantanée ; appuyer sur **L1 + Carré** près des murs pour tester le Dark Blast.

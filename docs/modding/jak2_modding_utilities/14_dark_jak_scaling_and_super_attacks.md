@@ -116,15 +116,16 @@ In vanilla `target.gc`, jump states gate the `target-flop` (and Dark Bomb) trans
     )
 ```
 
-### B. Restoring Roll & Colossal Roll-Flip Jump
-In retail Jak 2 code, `can-roll?` explicitly blocked Dark Jak via `(not (and (focus-test? self dark) (nonzero? (-> self darkjak))))`. Removing this restriction restores the roll and roll-flip jump. Scaling `arg0` (height) and `arg1` (distance) by `(-> self darkjak-giant-interp)` ensures gigantic leaps:
+### B. Level-Specific Roll Unlocking
+In retail Jak 2 code, `can-roll?` explicitly blocked Dark Jak via `(not (and (focus-test? self dark) (nonzero? (-> self darkjak))))`. Restricting this check to `(darkjak-stage giant mega-giant)` allows agile rolling for Level 1 Dark Jak while keeping giant tiers grounded and heavy:
 
 ```lisp
-;; In target-roll (target.gc):
-(go target-roll-flip
-    (* (-> *TARGET-bank* roll-flip-height) (-> self darkjak-giant-interp))
-    (* (-> *TARGET-bank* roll-flip-dist) (-> self darkjak-giant-interp))
-    )
+;; In can-roll? (target-util.gc):
+(not (and (focus-test? self dark)
+          (nonzero? (-> self darkjak))
+          (logtest? (-> self darkjak stage) (darkjak-stage giant mega-giant))
+          )
+     )
 ```
 
 ### C. Dark Blast Surface Abort Fix
@@ -194,15 +195,16 @@ Lors d'une mise à l'échelle colossale (ex: `3.5x`), les sphères de test de co
 ### A. Vélocité de Déclenchement de la Dark Bomb
 Dans `target.gc`, les états de saut verrouillent la transition vers le plongeon derrière des seuils de vitesse verticale stricts (`< 73728.0`). L'impulsion de saut étant multipliée en mode géant, ces seuils doivent être mis à l'échelle ou contournés pour Dark Jak afin de permettre un plongeon instantané.
 
-### B. Restauration de la Roulade & Roulade Sautée Titanesque
-Dans le code de Jak 2, `can-roll?` excluait Dark Jak via `(not (and (focus-test? self dark) (nonzero? (-> self darkjak))))`. La levée de ce verrou réactive la roulade et la roulade sautée. En multipliant `arg0` (hauteur) et `arg1` (distance) par `(-> self darkjak-giant-interp)`, Dark Jak effectue des bonds proportionnels à son envergure :
+### B. Déverrouillage Ciblé de la Roulade (Niveau 1 Uniquement)
+Dans le code de Jak 2, `can-roll?` excluait Dark Jak inconditionnellement. En ciblant uniquement les stades géants `(darkjak-stage giant mega-giant)`, Dark Jak niveau 1 retrouve son agilité tout en maintenant l'inertie pesante et imposante des colosses :
 
 ```lisp
-;; Dans target-roll (target.gc) :
-(go target-roll-flip
-    (* (-> *TARGET-bank* roll-flip-height) (-> self darkjak-giant-interp))
-    (* (-> *TARGET-bank* roll-flip-dist) (-> self darkjak-giant-interp))
-    )
+;; Dans can-roll? (target-util.gc) :
+(not (and (focus-test? self dark)
+          (nonzero? (-> self darkjak))
+          (logtest? (-> self darkjak stage) (darkjak-stage giant mega-giant))
+          )
+     )
 ```
 
 ### C. Fiabilisation du Dark Blast contre les Murs et Plafonds

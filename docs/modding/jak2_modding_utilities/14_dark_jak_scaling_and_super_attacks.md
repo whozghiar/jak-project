@@ -15,13 +15,13 @@
 ## 1. Context & Core Concepts
 In Jak 2, Dark Jak's physical transformation is governed by an engine interpolation variable `darkjak-giant-interp` (ranging from `1.0` to `2.0` in retail code) and the `darkjak-stage` bitfield enum in [`goal_src/jak2/engine/target/target-h.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-h.gc).
 
-Because OpenGOAL couples character scaling across physics velocities (`ctrl-xz-vel`), animation bone scales, collision spheres, and damage penetration, understanding how to extend this pipeline unlocks seamless multi-tier transformations, acrobatic restoration, HUD timer meters, and robust super abilities.
+Because OpenGOAL couples character scaling across physics velocities (`ctrl-xz-vel`), animation bone scales, collision spheres, and damage penetration, understanding how to extend this pipeline unlocks seamless multi-tier transformations, acrobatic restoration, proportional resource management, and robust super abilities.
 
 ---
 
 ## 2. Multi-Tier Progressive Scaling Architecture
 
-### A. Stage Enumeration & State Transitions
+### A. Stage Enumeration & Unlocked State Transitions
 The `darkjak-stage` bitfield enum can be safely extended with new evolutionary tiers (such as `mega-giant`):
 
 ```lisp
@@ -40,7 +40,7 @@ The `darkjak-stage` bitfield enum can be safely extended with new evolutionary t
   )
 ```
 
-In `target-darkjak.gc`, `want-to-darkjak?` determines whether an `L2` press triggers an initial transformation or evolves an existing active state:
+In `target-darkjak.gc`, `want-to-darkjak?` determines whether an `L2` press triggers an initial transformation or evolves an existing active state without gating behind story cheats:
 ```lisp
 (defbehavior want-to-darkjak? target ()
   (and (cpad-pressed? (-> self control cpad number) l2)
@@ -50,14 +50,10 @@ In `target-darkjak.gc`, `want-to-darkjak?` determines whether an `L2` press trig
                      (>= (-> self game eco-pill-dark) (-> *FACT-bank* eco-pill-dark-max-default))
                      )
                 )
-           ;; Allow transition until maximum evolutionary stage is reached:
-           (and (and (focus-test? self dark) (nonzero? (-> self darkjak)))
-                (not (and (focus-test? self dark)
-                          (nonzero? (-> self darkjak))
-                          (logtest? (-> self darkjak stage) (darkjak-stage mega-giant))
-                          )
-                     )
-                (logtest? (game-feature darkjak-giant) (-> self game features))
+           ;; Allow progressive evolution to giant & mega-giant in all game modes:
+           (and (focus-test? self dark)
+                (nonzero? (-> self darkjak))
+                (not (logtest? (-> self darkjak stage) (darkjak-stage mega-giant)))
                 )
            )
        )
@@ -96,45 +92,25 @@ When expanding to a colossal scale (e.g. `3.5x`), the collision probe sphere and
 
 ---
 
-## 3. Control Hooks, HUD Meters & Super Attacks
+## 3. Resource Management, HUD & Locomotion
 
-### A. Universal Manual Revert (`R2`)
-In `target-darkjak-post`, checking `(cpad-pressed? (-> self control cpad number) r2)` ensures Jak can exit Dark Jak at any moment from any state (running, jumping, giant mode):
+### A. Proportional Real-Time Eco Drain & `R2` Early Cancel
+Rather than immediately zeroing out `eco-pill-dark` on transformation start, dark eco is drained proportionally in real-time. If the player interrupts Dark Jak early using `R2`, the remaining dark eco is preserved:
 
 ```lisp
-(if (and (cpad-pressed? (-> self control cpad number) r2)
-         (not (focus-test? self dead dangerous hit grabbed))
-         (not (and (-> self next-state) (= (-> self next-state name) 'target-darkjak-get-off)))
-         (not (logtest? (-> self darkjak stage) (darkjak-stage force-on)))
+;; In target-darkjak-process (target-darkjak.gc):
+(when (not (-> *setting-control* user-current darkjak))
+  (let* ((elapsed (- (current-time) (-> (the-as fact-info-target (-> self fact)) darkjak-start-time)))
+         (total (-> (the-as fact-info-target (-> self fact)) darkjak-effect-time))
+         (remaining-ratio (fmax 0.0 (/ (the float (- total elapsed)) (the float total))))
          )
-    (go target-darkjak-get-off)
+    (set! (-> self game eco-pill-dark) (* (-> *FACT-bank* eco-pill-dark-max-default) remaining-ratio))
     )
-```
-
-### B. Dynamic Countdown HUD Meter
-By computing `(- total elapsed) / total * 100%` in `hud-classes.gc`, the purple Dark Eco ring displays the remaining transformation timer:
-
-```lisp
-(cond
-  ((and *target* (focus-test? *target* dark) (nonzero? (-> *target* darkjak)))
-   (if (-> *setting-control* user-current darkjak)
-       (set! (-> this values 2 target) 100)
-       (let* ((elapsed (- (current-time) (-> (the-as fact-info-target (-> *target* fact)) darkjak-start-time)))
-              (total (-> (the-as fact-info-target (-> *target* fact)) darkjak-effect-time))
-              (remaining (max 0 (- total elapsed)))
-              )
-         (set! (-> this values 2 target) (the int (* 100.0 (/ (the float remaining) (the float total)))))
-         )
-       )
-   (set! (-> this values 3 target) (the-as int (current-time)))
-   )
-  ;; ...
   )
 ```
 
-### C. Dark Bomb & Dark Blast Optimizations
-- **Instant Dark Bomb:** Bypassing velocity limits in jump states allows instant plunge upon pressing Square.
-- **Surface-Resilient Blast:** Removing grounding aborts in `target-darkjak-bomb1 :trans` ensures the full barrage fires in tight environments.
+### B. HUD Countdown Meter & Icon Scaling
+Scaling `hud-darkjak-head-01` to `1.0` inside `hud-dark-eco-symbol draw` ensures the circular purple gauge is clearly readable without clipping or visual obstruction.
 
 ---
 
@@ -143,13 +119,13 @@ By computing `(- total elapsed) / total * 100%` in `hud-classes.gc`, the purple 
 ## 1. Contexte & Concepts Fondamentaux
 Dans Jak 2, la métamorphose de Dark Jak est gérée par une variable d'interpolation globale `darkjak-giant-interp` (`1.0` à `2.0` dans le code original) et l'énumération bitfield `darkjak-stage` dans [`goal_src/jak2/engine/target/target-h.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-h.gc).
 
-Le moteur OpenGOAL liant directement l'échelle du personnage à ses vitesses physiques (`ctrl-xz-vel`), aux échelles osseuses, aux sphères de collision et à la pénétration des dégâts, la compréhension de cette chaîne permet d'implémenter des évolutions multi-stades fluides, une annulation manuelle, un compte à rebours HUD et des super-attaques fiabilisées.
+Le moteur OpenGOAL liant directement l'échelle du personnage à ses vitesses physiques (`ctrl-xz-vel`), aux échelles osseuses, aux sphères de collision et à la pénétration des dégâts, la compréhension de cette chaîne permet d'implémenter des évolutions multi-stades fluides, une gestion proportionnelle des ressources d'éco et des super-attaques fiabilisées.
 
 ---
 
 ## 2. Architecture de Mise à l'Échelle Multi-Stades
 
-### A. Énumération des Stades & Transitions d'États
+### A. Énumération des Stades & Évolution Débloquée
 L'énumération bitfield `darkjak-stage` peut être étendue sans risque :
 
 ```lisp
@@ -168,15 +144,11 @@ L'énumération bitfield `darkjak-stage` peut être étendue sans risque :
   )
 ```
 
-Dans `target-darkjak.gc`, la fonction `want-to-darkjak?` autorise l'évolution successive lors des appuis sur `L2` :
+Dans `target-darkjak.gc`, la fonction `want-to-darkjak?` autorise l'évolution successive sans blocage lié aux secrets :
 ```lisp
-(and (and (focus-test? self dark) (nonzero? (-> self darkjak)))
-     (not (and (focus-test? self dark)
-               (nonzero? (-> self darkjak))
-               (logtest? (-> self darkjak stage) (darkjak-stage mega-giant))
-               )
-          )
-     (logtest? (game-feature darkjak-giant) (-> self game features))
+(and (focus-test? self dark)
+     (nonzero? (-> self darkjak))
+     (not (logtest? (-> self darkjak stage) (darkjak-stage mega-giant)))
      )
 ```
 
@@ -195,42 +167,22 @@ Lors d'une mise à l'échelle colossale (ex: `3.5x`), les sphères de test de co
 
 ---
 
-## 3. Contrôles, Jauge HUD & Optimisations des Attaques
+## 3. Gestion Proportionnelle des Ressources & HUD
 
-### A. Annulation Manuelle Universelle (`R2`)
-Dans `target-darkjak-post`, la détection de `(cpad-pressed? (-> self control cpad number) r2)` permet à Jak de quitter Dark Jak à tout moment, quel que soit son état d'action ou son stade :
+### A. Drain Proportionnel d'Éco & Annulation Précoce (`R2`)
+Au lieu de vider instantanément l'éco noire lors de l'activation, l'éco diminue progressivement au fil du temps. Une interruption prématurée via `R2` permet à Jak de conserver toute l'éco restante :
 
 ```lisp
-(if (and (cpad-pressed? (-> self control cpad number) r2)
-         (not (focus-test? self dead dangerous hit grabbed))
-         (not (and (-> self next-state) (= (-> self next-state name) 'target-darkjak-get-off)))
-         (not (logtest? (-> self darkjak stage) (darkjak-stage force-on)))
+;; Dans target-darkjak-process (target-darkjak.gc) :
+(when (not (-> *setting-control* user-current darkjak))
+  (let* ((elapsed (- (current-time) (-> (the-as fact-info-target (-> self fact)) darkjak-start-time)))
+         (total (-> (the-as fact-info-target (-> self fact)) darkjak-effect-time))
+         (remaining-ratio (fmax 0.0 (/ (the float (- total elapsed)) (the float total))))
          )
-    (go target-darkjak-get-off)
+    (set! (-> self game eco-pill-dark) (* (-> *FACT-bank* eco-pill-dark-max-default) remaining-ratio))
     )
-```
-
-### B. Jauge de Décompte Dynamique dans l'HUD
-En calculant le pourcentage de temps restant dans `hud-classes.gc`, la jauge circulaire violette se vide en continu :
-
-```lisp
-(cond
-  ((and *target* (focus-test? *target* dark) (nonzero? (-> *target* darkjak)))
-   (if (-> *setting-control* user-current darkjak)
-       (set! (-> this values 2 target) 100)
-       (let* ((elapsed (- (current-time) (-> (the-as fact-info-target (-> *target* fact)) darkjak-start-time)))
-              (total (-> (the-as fact-info-target (-> *target* fact)) darkjak-effect-time))
-              (remaining (max 0 (- total elapsed)))
-              )
-         (set! (-> this values 2 target) (the int (* 100.0 (/ (the float remaining) (the float total)))))
-         )
-       )
-   (set! (-> this values 3 target) (the-as int (current-time)))
-   )
-  ;; ...
   )
 ```
 
-### C. Fiabilisation Dark Bomb & Dark Blast
-- **Dark Bomb Instantanée :** Suppression du verrouillage de vélocité dans les sauts.
-- **Dark Blast Résistant :** Suppression du test `on-surface` dans `target-darkjak-bomb1 :trans` pour garantir le tir complet des projectiles.
+### B. Ajustement de l'Icône de Tête HUD
+La mise à l'échelle à `1.0` de la tête de Dark Jak dans `hud-dark-eco-symbol draw` permet de laisser la jauge circulaire violette parfaitement lisible à l'écran.

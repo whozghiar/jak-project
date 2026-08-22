@@ -59,6 +59,7 @@
   (invinc)
   (invis)
   (no-anim)
+  (giant)
   )
 ;; ---darkjak-stage
 
@@ -411,6 +412,7 @@
     (target-credits int)
     target-darkjak-bomb0
     (target-darkjak-bomb1 float float)
+    target-darkjak-giant
     target-darkjak-get-off
     (target-darkjak-get-on darkjak-stage)
     target-darkjak-running-attack

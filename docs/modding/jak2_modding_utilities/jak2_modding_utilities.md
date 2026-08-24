@@ -25,6 +25,7 @@
 - [13. Custom Animation & Sound Import Pipeline (End-to-End)](#13-custom-animation-sound-import-pipeline-end-to-end)
 - [14. 14_dark_jak_scaling_and_super_attacks.md](#14-14-dark-jak-scaling-and-super-attacksmd)
 - [15. Virtual States, Methods & Child Process Level Binding (Vtables & Multi-DGOs)](#15-virtual-states-methods-child-process-level-binding-vtables-multi-dgos)
+- [16. 16_vehicle_mechanics_hijacking_and_flight_levels.md](#16-16-vehicle-mechanics-hijacking-and-flight-levelsmd)
 
 ---
 
@@ -680,6 +681,14 @@ flowchart TD
 
 ---
 
+### 16. 16_vehicle_mechanics_hijacking_and_flight_levels.md
+
+> **Origin / Provenance:** `master`
+
+
+
+---
+
 # 🇫🇷 Version Française
 
 ## Sommaire
@@ -698,6 +707,7 @@ flowchart TD
 - [13. Pipeline Complet d'Import d'Animations et de Sons Custom](#13-pipeline-complet-dimport-danimations-et-de-sons-custom)
 - [14. 14_dark_jak_scaling_and_super_attacks.md](#14-14-dark-jak-scaling-and-super-attacksmd)
 - [15. Résidence des États, Méthodes et Niveau des Processus Enfants](#15-résidence-des-états-méthodes-et-niveau-des-processus-enfants)
+- [16. 16_vehicle_mechanics_hijacking_and_flight_levels.md](#16-16-vehicle-mechanics-hijacking-and-flight-levelsmd)
 
 ---
 
@@ -1291,5 +1301,13 @@ flowchart TD
 - [ ] **Le processus est-il créé en jeu libre alors que son état `:virtual #t` a été codé dans un fichier de mission ?**
 - [ ] **Les logs affichent-ils `:state process-drawable-art-error` pour un processus enfant ?** *(Indique que `(-> self level)` pointe sur le mauvais DGO).*
 - [ ] **Le comportement change-t-il entre un démarrage à froid et après avoir visité une mission ?** *(Indique un pointeur pendant dans la vtable).*
+
+---
+
+### 16. 16_vehicle_mechanics_hijacking_and_flight_levels.md
+
+> **Origin / Provenance :** `master`
+
+
 
 ---

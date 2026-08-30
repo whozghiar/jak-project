@@ -26,6 +26,7 @@
 - [14. 14_dark_jak_scaling_and_super_attacks.md](#14-14-dark-jak-scaling-and-super-attacksmd)
 - [15. Virtual States, Methods & Child Process Level Binding (Vtables & Multi-DGOs)](#15-virtual-states-methods-child-process-level-binding-vtables-multi-dgos)
 - [16. 16_vehicle_mechanics_hijacking_and_flight_levels.md](#16-16-vehicle-mechanics-hijacking-and-flight-levelsmd)
+- [17. 17_traffic_engine_spawnrates_and_nav_mesh_limits.md](#17-17-traffic-engine-spawnrates-and-nav-mesh-limitsmd)
 
 ---
 
@@ -689,6 +690,14 @@ flowchart TD
 
 ---
 
+### 17. 17_traffic_engine_spawnrates_and_nav_mesh_limits.md
+
+> **Origin / Provenance:** `master`
+
+
+
+---
+
 # 🇫🇷 Version Française
 
 ## Sommaire
@@ -708,6 +717,7 @@ flowchart TD
 - [14. 14_dark_jak_scaling_and_super_attacks.md](#14-14-dark-jak-scaling-and-super-attacksmd)
 - [15. Résidence des États, Méthodes et Niveau des Processus Enfants](#15-résidence-des-états-méthodes-et-niveau-des-processus-enfants)
 - [16. 16_vehicle_mechanics_hijacking_and_flight_levels.md](#16-16-vehicle-mechanics-hijacking-and-flight-levelsmd)
+- [17. 17_traffic_engine_spawnrates_and_nav_mesh_limits.md](#17-17-traffic-engine-spawnrates-and-nav-mesh-limitsmd)
 
 ---
 
@@ -1305,6 +1315,14 @@ flowchart TD
 ---
 
 ### 16. 16_vehicle_mechanics_hijacking_and_flight_levels.md
+
+> **Origin / Provenance :** `master`
+
+
+
+---
+
+### 17. 17_traffic_engine_spawnrates_and_nav_mesh_limits.md
 
 > **Origin / Provenance :** `master`
 

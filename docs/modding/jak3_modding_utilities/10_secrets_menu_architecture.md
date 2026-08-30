@@ -1,8 +1,9 @@
-# Jak 3 — Architecture: Secrets Menu System (`game-secrets`)
+# Jak 3 — Secrets Menu System (`game-secrets`) / Système du Menu des Secrets (`game-secrets`)
 
 > **Bilingual Knowledge Item / Base de Connaissances Bilingue**
 >
-> - **Origin / Provenance:** Technical investigation (`goal_src/jak3/engine/common-obs/secrets-menu.gc`, `goal_src/jak3/pc/progress/progress-draw-pc.gc`)
+> - **Origin / Provenance:** `jak3/features/jak2_skin_secret` (technical investigation: `secrets-menu.gc`, `progress-draw-pc.gc`)
+> - **Last Updated / Dernière modification:** `jak3/features/jak2_skin_secret`
 > - [🇬🇧 English Version](#-english-version)
 > - [🇫🇷 Version Française](#-version-française)
 

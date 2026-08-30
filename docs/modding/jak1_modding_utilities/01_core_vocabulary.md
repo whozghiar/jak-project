@@ -3,6 +3,7 @@
 > **Bilingual Knowledge Item / Base de Connaissances Bilingue**
 >
 > - **Origin / Provenance:** `master`
+> - **Last Updated / Dernière modification:** `master`
 > - [🇬🇧 English Version](#-english-version)
 > - [🇫🇷 Version Française](#-version-française)
 

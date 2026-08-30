@@ -18,14 +18,14 @@
 - [6. Declaring Scripts in Project File (`.gp`)](#6-declaring-scripts-in-project-file-gp)
 - [7. Compilation & Validation Workflow](#7-compilation-validation-workflow)
 - [8. Known Pitfalls & Best Practices](#8-known-pitfalls-best-practices)
-- [9. Architecture: Dark Jak Stages & Legacy Assets](#9-architecture-dark-jak-stages-legacy-assets)
-- [10. Architecture: Secrets Menu System (`game-secrets`)](#10-architecture-secrets-menu-system-game-secrets)
+- [9. Dark Jak Stages & Legacy Giant Assets](#9-dark-jak-stages-legacy-giant-assets)
+- [10. Secrets Menu System (`game-secrets`)](#10-secrets-menu-system-game-secrets)
 
 ---
 
 ### 1. Core Vocabulary
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 | Term | Definition & Role in Jak 3 |
 |---|---|
@@ -41,7 +41,7 @@
 
 ### 2. Memory Architecture & Constants
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 * **Kernel Entry Point:** `goal_src/jak3/kernel/gcommon.gc` and `goal_src/jak3/engine/level/level.gc`.
 * **Memory Budget (PC Extension):**
@@ -55,7 +55,7 @@
 
 ### 3. Weapons, Vehicles & Entities
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 ### Weapon System (`gun`)
 Weapon properties, ammo counts, and projectile configurations are accessed through the target process:
@@ -76,7 +76,7 @@ Weapon properties, ammo counts, and projectile configurations are accessed throu
 
 ### 4. Processes, States & Behaviors
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 Standard focusable actor structure in Jak 3:
 ```lisp
@@ -96,7 +96,7 @@ Standard focusable actor structure in Jak 3:
 
 ### 5. Skeleton, Joints & Animations
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 * **Animation Pipeline:** Managed by `merc` / `mips2c` for skinning and skeletal evaluations.
 * **Direct Joint Transform Access:** Joint transformation matrices can be read and manipulated via `(-> self node-list data [index] bone transform)`.
@@ -112,7 +112,7 @@ Standard focusable actor structure in Jak 3:
 
 ### 6. Declaring Scripts in Project File (`.gp`)
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 To add a new `.gc` script to the Jak 3 build tree:
 1. Locate the configuration `.gp` file (e.g. `goal_src/jak3/jak3-game.gp`).
@@ -128,7 +128,7 @@ To add a new `.gc` script to the Jak 3 build tree:
 
 ### 7. Compilation & Validation Workflow
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 1. **Select Jak 3:**
    ```bash
@@ -149,7 +149,7 @@ To add a new `.gc` script to the Jak 3 build tree:
 
 ### 8. Known Pitfalls & Best Practices
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 * **Complex Interplay Between Powers and Weapons:** Modifying `*target*` states can disrupt weapon transitions (`gun-states`) and powers (`light-jak` / `dark-jak`).
 * **Git Synchronization:** Always merge verified additions from these files back to the `master` branch.
@@ -158,9 +158,9 @@ To add a new `.gc` script to the Jak 3 build tree:
 
 ---
 
-### 9. Architecture: Dark Jak Stages & Legacy Assets
+### 9. Dark Jak Stages & Legacy Giant Assets
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `jak3/features/mega_dark_jak` | **Last Updated:** `jak3/features/mega_dark_jak`
 
 * **Bitmask Flags:** Dark Jak capabilities are driven by the `darkjak-stage` bitfield enum in `target-h.gc` and stored in `(-> self darkjak stage)` and `(-> self darkjak want-stage)`:
   - `active`: Base Dark Jak form.
@@ -185,9 +185,9 @@ To add a new `.gc` script to the Jak 3 build tree:
 
 ---
 
-### 10. Architecture: Secrets Menu System (`game-secrets`)
+### 10. Secrets Menu System (`game-secrets`)
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `jak3/features/jak2_skin_secret` | **Last Updated:** `jak3/features/jak2_skin_secret`
 
 * **Bitfield Enum:** Secrets and cheats in Jak 3 are tracked through the `game-secrets` bitfield declared in `settings-h.gc`.
 * **State Persistence:** Active secrets are saved in the game state within `(-> *game-info* secrets)` and can be checked using `(logtest? (game-secrets <flag>) (-> *game-info* secrets))`.
@@ -219,14 +219,14 @@ To add a new `.gc` script to the Jak 3 build tree:
 - [6. Déclarer un Script (`.gp`)](#6-déclarer-un-script-gp)
 - [7. Workflow de Compilation & Validation](#7-workflow-de-compilation-validation)
 - [8. Pièges Connus & Bonnes Pratiques](#8-pièges-connus-bonnes-pratiques)
-- [9. Architecture: Dark Jak Stages & Legacy Assets](#9-architecture-dark-jak-stages-legacy-assets)
-- [10. Architecture: Secrets Menu System (`game-secrets`)](#10-architecture-secrets-menu-system-game-secrets)
+- [9. Stades de Dark Jak & Reliquats du Dark Giant](#9-stades-de-dark-jak-reliquats-du-dark-giant)
+- [10. Système du Menu des Secrets (`game-secrets`)](#10-système-du-menu-des-secrets-game-secrets)
 
 ---
 
 ### 1. Vocabulaire de Base
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 | Terme | Définition & Rôle dans Jak 3 |
 |---|---|
@@ -240,7 +240,7 @@ To add a new `.gc` script to the Jak 3 build tree:
 
 ### 2. Architecture Mémoire & Constantes
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 * **Point d'Entrée Kernel :** `goal_src/jak3/kernel/gcommon.gc` et `goal_src/jak3/engine/level/level.gc`.
 * **Budget Mémoire (Extension PC) :**
@@ -252,7 +252,7 @@ To add a new `.gc` script to the Jak 3 build tree:
 
 ### 3. Armes, Véhicules & Entités
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 ### Système d'Armes (`gun`)
 L'état de l'arme, les munitions et le morphing s'interrogent via le processus joueur :
@@ -271,7 +271,7 @@ L'état de l'arme, les munitions et le morphing s'interrogent via le processus j
 
 ### 4. Processus, États & Comportements
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 Structure standard d'un acteur focusable dans Jak 3 :
 ```lisp
@@ -289,7 +289,7 @@ Structure standard d'un acteur focusable dans Jak 3 :
 
 ### 5. Squelette, Joints & Animations
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 * **Moteur d'Animation :** Système `merc` / `mips2c` pour le calcul squelettique et le rendu.
 * **Accès Direct aux Joints :** Les matrices de transformation sont accessibles via `(-> self node-list data [index] bone transform)`.
@@ -303,7 +303,7 @@ Structure standard d'un acteur focusable dans Jak 3 :
 
 ### 6. Déclarer un Script (`.gp`)
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 Pour ajouter un nouveau fichier `.gc` dans l'arbre de compilation de Jak 3 :
 1. Localiser le fichier `.gp` de configuration (ex: `goal_src/jak3/jak3-game.gp`).
@@ -317,7 +317,7 @@ Pour ajouter un nouveau fichier `.gc` dans l'arbre de compilation de Jak 3 :
 
 ### 7. Workflow de Compilation & Validation
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 1. **Sélectionner Jak 3 :**
    ```bash
@@ -336,16 +336,16 @@ Pour ajouter un nouveau fichier `.gc` dans l'arbre de compilation de Jak 3 :
 
 ### 8. Pièges Connus & Bonnes Pratiques
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 * **Interactions Complexes Entre Pouvoirs et Armes :** Modifier les états de `*target*` peut affecter les transitions d'armes (`gun-states`) et de pouvoirs (`light-jak` / `dark-jak`).
 * **Synchronisation Git :** Penser à merger régulièrement les ajouts factuels de ce fichier vers la branche `master`.
 
 ---
 
-### 9. Architecture: Dark Jak Stages & Legacy Assets
+### 9. Stades de Dark Jak & Reliquats du Dark Giant
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `jak3/features/mega_dark_jak` | **Dernière modification :** `jak3/features/mega_dark_jak`
 
 * **Drapeaux Bitmask :** Les capacités de Dark Jak sont régies par l'énumération de bits `darkjak-stage` (`target-h.gc`) et stockées dans `(-> self darkjak stage)` et `(-> self darkjak want-stage)` :
   - `active` : Forme Dark Jak de base.
@@ -368,9 +368,9 @@ Pour ajouter un nouveau fichier `.gc` dans l'arbre de compilation de Jak 3 :
 
 ---
 
-### 10. Architecture: Secrets Menu System (`game-secrets`)
+### 10. Système du Menu des Secrets (`game-secrets`)
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `jak3/features/jak2_skin_secret` | **Dernière modification :** `jak3/features/jak2_skin_secret`
 
 * **Énumération Bitfield :** Les secrets et cheats de Jak 3 sont répertoriés dans le champ de bits `game-secrets` déclaré dans `settings-h.gc`.
 * **Persistance d'État :** L'état actif des secrets est conservé dans `(-> *game-info* secrets)` et testé via `(logtest? (game-secrets <flag>) (-> *game-info* secrets))`.

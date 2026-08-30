@@ -24,7 +24,7 @@
 
 ### 1. Core Vocabulary
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 | Term | Definition & Role in Jak 1 |
 |---|---|
@@ -40,7 +40,7 @@
 
 ### 2. Memory Architecture & Constants
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 * **Kernel Entry Point:** `goal_src/jak1/kernel/gcommon.gc` and `goal_src/jak1/engine/level/level.gc`.
 * **Address Validation (`valid?`):** `END_OF_MEMORY` in `goal_src/jak1/kernel/gcommon.gc` protects pointer dereferencing across memory bounds.
@@ -52,7 +52,7 @@
 
 ### 3. Entity System, Processes & State Machine
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 In GOAL, custom interactive actors derive from `process-drawable`:
 
@@ -92,7 +92,7 @@ A state is declared with `:virtual #t`, event handlers, code loop, and post func
 
 ### 4. Skeleton, Joints & Animations
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 * **Joint Subsystem:** Managed by `cspace` / `joint-control` (`goal_src/jak1/engine/anim/joint.gc`).
 * **Common Animation Macros:**
@@ -107,7 +107,7 @@ A state is declared with `:virtual #t`, event handlers, code loop, and post func
 
 ### 5. Collisions & Spatial Queries
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 * **Collision Root:** Handled in the `(root ...)` field of `process-drawable` (type `collide-shape` or `trsqv`).
 * **Surface Properties & Materials:** Defined in `goal_src/jak1/engine/collide/pat-h.gc` (`pat-surface`).
@@ -118,7 +118,7 @@ A state is declared with `:virtual #t`, event handlers, code loop, and post func
 
 ### 6. Audio & Sound Playback
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 * **Simple SFX Playback:**
   ```lisp
@@ -135,7 +135,7 @@ A state is declared with `:virtual #t`, event handlers, code loop, and post func
 
 ### 7. Declaring Scripts in Project File (`.gp`)
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 To register a new `.gc` file created under `goal_src/jak1/custom/`:
 1. Open the project configuration file: `goal_src/jak1/jak1-game.gp`.
@@ -151,7 +151,7 @@ To register a new `.gc` file created under `goal_src/jak1/custom/`:
 
 ### 8. Compilation & Validation Workflow
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 1. **Select Active Game:**
    ```bash
@@ -172,7 +172,7 @@ To register a new `.gc` file created under `goal_src/jak1/custom/`:
 
 ### 9. Known Pitfalls & Best Practices
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `master` | **Last Updated:** `master`
 
 * **Symbol Loading Order:** Parent types must strictly be declared before child types in `.gp` and file include lists.
 * **REPL Ghost Memory:** Always perform a clean cold restart of the REPL to ensure changes compile from scratch without relying on stale runtime state.
@@ -199,7 +199,7 @@ To register a new `.gc` file created under `goal_src/jak1/custom/`:
 
 ### 1. Vocabulaire de Base
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 | Terme | Définition & Rôle dans Jak 1 |
 |---|---|
@@ -213,7 +213,7 @@ To register a new `.gc` file created under `goal_src/jak1/custom/`:
 
 ### 2. Architecture Mémoire & Constantes
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 * **Point d'Entrée Kernel :** `goal_src/jak1/kernel/gcommon.gc` et `goal_src/jak1/engine/level/level.gc`.
 * **Vérification d'Adresses (`valid?`) :** `END_OF_MEMORY` dans `goal_src/jak1/kernel/gcommon.gc` sécurise les déréférencements de pointeurs.
@@ -223,7 +223,7 @@ To register a new `.gc` file created under `goal_src/jak1/custom/`:
 
 ### 3. Système d'Entités, Process & États
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 En GOAL, les entités interactives dérivent généralement de `process-drawable` :
 
@@ -261,7 +261,7 @@ Un état associe des gestionnaires d'événements, une boucle de code et une mé
 
 ### 4. Squelette, Joints & Animations
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 * **Sous-Système d'Os & Joints :** Géré par `cspace` / `joint-control` (`goal_src/jak1/engine/anim/joint.gc`).
 * **Macros d'Animation Courantes :**
@@ -274,7 +274,7 @@ Un état associe des gestionnaires d'événements, une boucle de code et une mé
 
 ### 5. Collisions & Requêtes Spatiales
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 * **Gestionnaire de Collision :** Stocké dans le champ `(root ...)` du process (type `collide-shape` ou `trsqv`).
 * **Surfaces & Matières :** Définies dans `goal_src/jak1/engine/collide/pat-h.gc` (`pat-surface`).
@@ -283,7 +283,7 @@ Un état associe des gestionnaires d'événements, une boucle de code et une mé
 
 ### 6. Audio & Lecture de Sons
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 * **Lecture d'Effet Sonore Simple :**
   ```lisp
@@ -298,7 +298,7 @@ Un état associe des gestionnaires d'événements, une boucle de code et une mé
 
 ### 7. Déclarer un Script (`.gp`)
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 Pour faire reconnaître un nouveau fichier `.gc` créé sous `goal_src/jak1/custom/` :
 1. Ouvrir le fichier projet : `goal_src/jak1/jak1-game.gp`.
@@ -312,7 +312,7 @@ Pour faire reconnaître un nouveau fichier `.gc` créé sous `goal_src/jak1/cust
 
 ### 8. Workflow de Compilation & Validation
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 1. **Sélectionner le Jeu Actif :**
    ```bash
@@ -331,7 +331,7 @@ Pour faire reconnaître un nouveau fichier `.gc` créé sous `goal_src/jak1/cust
 
 ### 9. Pièges Connus & Bonnes Pratiques
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `master` | **Dernière modification :** `master`
 
 * **Ordre de Chargement des Symboles :** Les types parents doivent impérativement être déclarés avant les types enfants dans les fichiers `.gp`.
 * **REPL Ghost Memory :** Toujours valider les modifications avec un redémarrage à froid du REPL pour s'assurer d'une compilation complète sans état résiduel.

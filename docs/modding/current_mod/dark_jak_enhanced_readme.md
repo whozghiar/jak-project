@@ -1,4 +1,4 @@
-# Dark Jak Enhanced Mod Readme (Jak 2) / Guide du Mod Dark Jak Amélioré
+# Dark Jak Enhanced Mod Readme (Jak 2) / Guide du Mod Dark Jak Amélioré (Jak 2)
 
 > - **Branch / Branche :** `jak2/features/dark_jak_enhanced`
 > - **Game / Jeu :** Jak II
@@ -14,6 +14,7 @@
 # 🇬🇧 English Version
 
 ## 1. Description & Features
+
 The **Dark Jak Enhanced** mod adds a full 3rd evolutionary stage to Dark Jak in Jak 2: the **Mega-Mega Dark Jak (Titan / Colossus)**, alongside critical quality-of-life, acrobatic, and responsiveness enhancements:
 
 1. **Progressive 3-Tier Transformation (via `L2`):**
@@ -43,49 +44,61 @@ The **Dark Jak Enhanced** mod adds a full 3rd evolutionary stage to Dark Jak in 
 
 | File | Subsystem | Modifications |
 | :--- | :--- | :--- |
-| [`goal_src/jak2/engine/target/target-h.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-h.gc) | Type Definitions | Added `(mega-giant)` to `darkjak-stage` bitfield enum. |
-| [`goal_src/jak2/engine/target/target-util.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-util.gc) | Target Utilities | In `can-roll?`, allow rolling for Level 1 Dark Jak while disabling it for `giant` and `mega-giant` stages. |
-| [`goal_src/jak2/engine/target/target-darkjak.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-darkjak.gc) | Dark Jak States | Unlocked progressive evolution in `want-to-darkjak?`, `R2` manual cancel in `target-darkjak-post`, instant upward momentum cancellation in `target-darkjak-bomb0`, collision-resilient `:trans`/`:exit` in `target-darkjak-bomb1`, and 100% dark eco drain on transformation exit in `target-darkjak-end-mode`. |
-| [`goal_src/jak2/engine/target/target-handler.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-handler.gc) | Event Handlers | Doubled camera smush intensity on `effect-control` footsteps in `mega-giant` stage. |
-| [`goal_src/jak2/engine/target/target.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target.gc) | Player Locomotion | Scaled jump velocity thresholds, instant Dark Bomb triggers, and support for roll-flip jumps in Level 1 Dark Jak. |
+| [`goal_src/jak2/engine/target/target-h.gc`](../../../goal_src/jak2/engine/target/target-h.gc) | Type Definitions | Added `(mega-giant)` to the `darkjak-stage` bitfield enum. |
+| [`goal_src/jak2/engine/target/target-util.gc`](../../../goal_src/jak2/engine/target/target-util.gc) | Target Utilities | In `can-roll?`, allow rolling for Level 1 Dark Jak while disabling it for the `giant` and `mega-giant` stages. |
+| [`goal_src/jak2/engine/target/target-darkjak.gc`](../../../goal_src/jak2/engine/target/target-darkjak.gc) | Dark Jak States | Unlocked progressive evolution in `want-to-darkjak?`, `R2` manual cancel in `target-darkjak-post`, instant upward-momentum cancellation in `target-darkjak-bomb0`, collision-resilient `:trans`/`:exit` in `target-darkjak-bomb1`, and 100% dark eco drain on transformation exit in `target-darkjak-end-mode`. |
+| [`goal_src/jak2/engine/target/target-handler.gc`](../../../goal_src/jak2/engine/target/target-handler.gc) | Event Handlers | Doubled camera smush intensity on `effect-control` footsteps in the `mega-giant` stage. |
+| [`goal_src/jak2/engine/target/target.gc`](../../../goal_src/jak2/engine/target/target.gc) | Player Locomotion | Scaled jump velocity thresholds, instant Dark Bomb triggers, and support for roll-flip jumps in Level 1 Dark Jak. |
+
+**Reused engine systems (no new engine code):** the mod rides the existing `darkjak-stage` bitfield, `target-darkjak` state machine, and `effect-control` footstep hooks — it only extends the enum, re-tunes scaling/velocity constants, and adds override branches. No new types, DGOs, or art groups.
 
 ---
 
 ## 3. How to Test & Play
 
-1. Start the game via REPL or boot command:
+1. Start the game via the REPL or the boot command:
    ```bash
    task boot-game
    ```
-2. Collect dark eco pills or enable debug cheat mode in REPL:
+2. Collect dark eco pills or enable debug cheat mode in the REPL:
    ```lisp
    (set! (-> *setting-control* user-default cheat-mode) 'debug)
    ```
 3. Press **`L2`** to transform:
-   - **`R2` :** Instantly reverts Jak to his normal form at any moment.
-   - **2nd & 3rd `L2` :** Evolve into Mega Dark Jak and Titan (3.5x).
-   - **`L1` / `L1 + X` :** Roll and roll-flip in Level 1 Dark Jak.
-   - **Square in air (Dark Bomb) :** Instant Dark Bomb plunge.
-   - **L1 + Square (Dark Blast) :** Collision-resilient Dark Blast.
+   - **`R2`:** instantly reverts Jak to his normal form at any moment.
+   - **2nd & 3rd `L2`:** evolve into Mega Dark Jak and Titan (3.5x).
+   - **`L1` / `L1 + X`:** roll and roll-flip in Level 1 Dark Jak.
+   - **Square in air (Dark Bomb):** instant Dark Bomb plunge.
+   - **L1 + Square (Dark Blast):** collision-resilient Dark Blast.
 
 ---
 
-## 4. Modding Changes Log
+## 4. Current Status & Investigations
+
+- **Stable / working as intended:** the 3-tier `L2` evolution, `R2` universal cancel, 100% eco drain on exit, panoramic camera, doubled footstep shake, instant Dark Bomb, no-abort Dark Blast, and Level-1-only roll all behave as designed in-game.
+- **HUD deliberately untouched:** an earlier iteration added a purple HUD timer bar and eco meter; it was reverted (`47cf701a0`) to keep the HUD 100% authentic. The eco-drain and manual-cancel behavior is now driven entirely from `target-darkjak.gc`, no HUD code.
+- **Not yet investigated:** whether the 3.5x Titan collision sphere clips through low geometry in tight interiors, and whether the `mega-giant` footstep camera shake should ease out rather than being a flat 2x multiplier.
+
+---
+
+## 5. Modding Changes Log
 
 | Date | Touched/Created Files | Technical Description | Objective |
 | :--- | :--- | :--- | :--- |
-| 2026-08-22 | `target-h.gc`, `target-darkjak.gc`, `target-handler.gc` | Added `(mega-giant)` enum bitfield and implemented 3.5x progressive scaling, panoramic camera, and amplified footstep shakes. | Implement Stage 3 Colossal Dark Jak. |
-| 2026-08-22 | `target.gc` | Scaled vertical jump velocity gates by `darkjak-giant-interp`. | Fix Dark Bomb not triggering in Mega Giant mode. |
-| 2026-08-22 | `target-darkjak.gc` | Removed `on-surface` abort in `target-darkjak-bomb1 :trans` and cleaned `:exit`. | Prevent Dark Blast from cancelling prematurely on surface contact. |
-| 2026-08-22 | `target.gc`, `target-darkjak.gc` | Allowed instantaneous Square press trigger during jumps and zeroed upward `transv` on `bomb0 :enter`. | Allow responsive instant plunge for Dark Bomb. |
-| 2026-08-22 | `target-util.gc`, `target.gc` | Enabled roll only for Level 1 Dark Jak in `can-roll?` and disabled it for `giant` and `mega-giant` stages. | Maintain agile roll for Level 1 Dark Jak while keeping giant stages heavy and grounded. |
-| 2026-08-22 | `target-darkjak.gc` | Added `R2` manual de-transformation hook and ensured 100% dark eco consumption when transformation ends. | Provide universal R2 cancel and standard eco consumption without HUD modification. |
+| 2026-08-22 | `target-h.gc`, `target-darkjak.gc`, `target-handler.gc` | Added the `(mega-giant)` enum bitfield and implemented 3.5x progressive scaling, panoramic camera, and amplified footstep shakes. | Implement Stage 3 Colossal Dark Jak. |
+| 2026-08-22 | `target.gc` | Scaled the vertical jump velocity gates by `darkjak-giant-interp`. | Fix Dark Bomb not triggering in Mega Giant mode. |
+| 2026-08-22 | `target-darkjak.gc` | Removed the `on-surface` abort in `target-darkjak-bomb1 :trans` and cleaned `:exit`. | Prevent Dark Blast from cancelling prematurely on surface contact. |
+| 2026-08-22 | `target.gc`, `target-darkjak.gc` | Allowed an instantaneous Square-press trigger during jumps and zeroed upward `transv` on `bomb0 :enter`. | Allow a responsive instant plunge for Dark Bomb. |
+| 2026-08-22 | `target-util.gc`, `target.gc` | Enabled roll only for Level 1 Dark Jak in `can-roll?` and disabled it for the `giant` and `mega-giant` stages. | Keep an agile roll for Level 1 Dark Jak while keeping the giant stages heavy and grounded. |
+| 2026-08-22 | `target-darkjak.gc` | Added the `R2` manual de-transformation hook and ensured 100% dark eco consumption when the transformation ends. | Provide a universal `R2` cancel and standard eco consumption without HUD modification. |
+| 2026-08-30 | `docs/modding/current_mod/dark_jak_enhanced_readme.md` | Added the full French version of the changelog, added the "Current Status & Investigations" section (both languages), and replaced the `c:/Users/...` absolute file links with repo-relative paths. | Bring the mod readme into compliance with the modding directive. |
 
 ---
 
 # 🇫🇷 Version Française
 
 ## 1. Description & Fonctionnalités
+
 Le mod **Dark Jak Enhanced** ajoute un troisième stade d'évolution complet pour Dark Jak dans Jak 2 : le **Méga-Méga Dark Jak (Titan / Colosse)**, accompagné d'améliorations majeures d'acrobatie, de contrôles et de robustesse :
 
 1. **Évolution Progressive en 3 Stades (via `L2`) :**
@@ -115,17 +128,19 @@ Le mod **Dark Jak Enhanced** ajoute un troisième stade d'évolution complet pou
 
 | Fichier | Sous-système | Modifications |
 | :--- | :--- | :--- |
-| [`goal_src/jak2/engine/target/target-h.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-h.gc) | Définition de Types | Ajout de `(mega-giant)` dans l'énumération `darkjak-stage`. |
-| [`goal_src/jak2/engine/target/target-util.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-util.gc) | Utilitaires Joueur | Dans `can-roll?`, autorisation de la roulade pour le niveau 1 et blocage pour les stades `giant` et `mega-giant`. |
-| [`goal_src/jak2/engine/target/target-darkjak.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-darkjak.gc) | États de Dark Jak | Évolution débloquée dans `want-to-darkjak?`, annulation manuelle `R2` dans `target-darkjak-post`, Dark Bomb instantanée, fiabilisation de `target-darkjak-bomb1`, et consommation de 100% de l'éco noire à l'arrêt du mode dans `target-darkjak-end-mode`. |
-| [`goal_src/jak2/engine/target/target-handler.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-handler.gc) | Gestionnaires d'Événements | Intensité de secousse d'écran doublée pour les pas en mode `mega-giant`. |
-| [`goal_src/jak2/engine/target/target.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target.gc) | Locomotion du Joueur | Ajustement des seuils de vélocité, Dark Bomb instantanée, et support de la roulade sautée en Dark Jak Niveau 1. |
+| [`goal_src/jak2/engine/target/target-h.gc`](../../../goal_src/jak2/engine/target/target-h.gc) | Définition de Types | Ajout de `(mega-giant)` dans l'énumération `darkjak-stage`. |
+| [`goal_src/jak2/engine/target/target-util.gc`](../../../goal_src/jak2/engine/target/target-util.gc) | Utilitaires Joueur | Dans `can-roll?`, autorisation de la roulade pour le niveau 1 et blocage pour les stades `giant` et `mega-giant`. |
+| [`goal_src/jak2/engine/target/target-darkjak.gc`](../../../goal_src/jak2/engine/target/target-darkjak.gc) | États de Dark Jak | Évolution débloquée dans `want-to-darkjak?`, annulation manuelle `R2` dans `target-darkjak-post`, Dark Bomb instantanée, fiabilisation de `target-darkjak-bomb1`, et consommation de 100% de l'éco noire à l'arrêt du mode dans `target-darkjak-end-mode`. |
+| [`goal_src/jak2/engine/target/target-handler.gc`](../../../goal_src/jak2/engine/target/target-handler.gc) | Gestionnaires d'Événements | Intensité de secousse d'écran doublée pour les pas en mode `mega-giant`. |
+| [`goal_src/jak2/engine/target/target.gc`](../../../goal_src/jak2/engine/target/target.gc) | Locomotion du Joueur | Ajustement des seuils de vélocité, Dark Bomb instantanée, et support de la roulade sautée en Dark Jak Niveau 1. |
+
+**Systèmes moteur réutilisés (aucun nouveau code moteur) :** le mod s'appuie sur le champ de bits `darkjak-stage`, la machine à états `target-darkjak` et les hooks de pas `effect-control` existants — il ne fait qu'étendre l'énumération, réajuster des constantes d'échelle / vélocité et ajouter des branches de surcharge. Aucun nouveau type, DGO ni groupe d'art.
 
 ---
 
 ## 3. Commandes & Procédure de Test
 
-1. Lancer le jeu :
+1. Lancer le jeu via le REPL ou la commande de boot :
    ```bash
    task boot-game
    ```
@@ -134,8 +149,30 @@ Le mod **Dark Jak Enhanced** ajoute un troisième stade d'évolution complet pou
    (set! (-> *setting-control* user-default cheat-mode) 'debug)
    ```
 3. Appuyer sur **`L2`** pour se transformer :
-   - **`R2` :** Annule immédiatement la transformation et revient à Jak normal.
-   - **2ᵉ et 3ᵉ appuis sur `L2` :** Évolue en Méga Dark Jak et Titan (3.5x).
-   - **`L1` / `L1 + Croix` :** Roulade et roulade sautée en Dark Jak Niveau 1.
-   - **Carré en l'air (Dark Bomb) :** Plongeon instantané.
-   - **L1 + Carré (Dark Blast) :** Salve complète même en espace restreint.
+   - **`R2` :** annule immédiatement la transformation et revient à Jak normal.
+   - **2ᵉ et 3ᵉ appuis sur `L2` :** évolue en Méga Dark Jak et Titan (3.5x).
+   - **`L1` / `L1 + Croix` :** roulade et roulade sautée en Dark Jak Niveau 1.
+   - **Carré en l'air (Dark Bomb) :** plongeon instantané.
+   - **L1 + Carré (Dark Blast) :** salve complète même en espace restreint.
+
+---
+
+## 4. Statut Actuel & Investigations
+
+- **Stable / fonctionne comme prévu :** l'évolution à 3 stades via `L2`, l'annulation universelle `R2`, la vidange à 100% de l'éco à la sortie, la caméra panoramique, les secousses de pas doublées, la Dark Bomb instantanée, le Dark Blast sans annulation et la roulade réservée au niveau 1 se comportent tous comme prévu en jeu.
+- **HUD délibérément intact :** une itération antérieure ajoutait une barre de minuterie violette et une jauge d'éco au HUD ; elle a été annulée (`47cf701a0`) pour garder le HUD 100% authentique. Le comportement de vidange d'éco et d'annulation manuelle est désormais piloté entièrement depuis `target-darkjak.gc`, sans code HUD.
+- **Non encore investigué :** si la sphère de collision du Titan à 3.5x traverse la géométrie basse dans les intérieurs exigus, et si la secousse de caméra des pas en `mega-giant` devrait s'atténuer progressivement plutôt qu'être un multiplicateur fixe de 2x.
+
+---
+
+## 5. Journal des Modifications
+
+| Date | Fichiers touchés/créés | Description technique | Objectif |
+| :--- | :--- | :--- | :--- |
+| 2026-08-22 | `target-h.gc`, `target-darkjak.gc`, `target-handler.gc` | Ajout du champ de bits d'énumération `(mega-giant)` et implémentation de la mise à l'échelle progressive à 3.5x, de la caméra panoramique et des secousses de pas amplifiées. | Implémenter le Dark Jak colossal de stade 3. |
+| 2026-08-22 | `target.gc` | Mise à l'échelle des seuils de vélocité de saut vertical par `darkjak-giant-interp`. | Corriger le non-déclenchement de la Dark Bomb en mode Méga Giant. |
+| 2026-08-22 | `target-darkjak.gc` | Suppression de l'annulation `on-surface` dans `target-darkjak-bomb1 :trans` et nettoyage de `:exit`. | Empêcher le Dark Blast de s'annuler prématurément au contact d'une surface. |
+| 2026-08-22 | `target.gc`, `target-darkjak.gc` | Autorisation d'un déclenchement instantané à l'appui sur Carré pendant les sauts et mise à zéro de `transv` ascendant sur `bomb0 :enter`. | Permettre un plongeon instantané et réactif pour la Dark Bomb. |
+| 2026-08-22 | `target-util.gc`, `target.gc` | Activation de la roulade uniquement pour Dark Jak Niveau 1 dans `can-roll?` et blocage pour les stades `giant` et `mega-giant`. | Conserver une roulade agile pour le niveau 1 tout en gardant les stades géants lourds et ancrés au sol. |
+| 2026-08-22 | `target-darkjak.gc` | Ajout du hook de détransformation manuelle `R2` et garantie de la consommation à 100% de l'éco noire à la fin de la transformation. | Fournir une annulation `R2` universelle et une consommation d'éco standard sans modification du HUD. |
+| 2026-08-30 | `docs/modding/current_mod/dark_jak_enhanced_readme.md` | Ajout de la version française complète du journal, ajout de la section « Statut Actuel & Investigations » (les deux langues), et remplacement des liens de fichiers absolus `c:/Users/...` par des chemins relatifs au dépôt. | Mettre le readme du mod en conformité avec la directive de modding. |

@@ -881,6 +881,55 @@
        )
   )
 
+;; ==============================================================================
+;; Custom art-group linking (mod support)
+;; ==============================================================================
+;; Context:
+;;   An art-group produced by `build-actor` with `:master-art-group` / `:master-ag-map`
+;;   stores its imported animations at data slots 2+, and always has a `joint-geo` at
+;;   slot 0. The stock `needs-link?` above only returns #t when slot 0 is an
+;;   `art-joint-anim`, so these custom groups would never have their animations spliced
+;;   into their master art-group (e.g. jakb-ag, daxter-ag) during level login, and any
+;;   `ja` call targeting an imported slot would read #f.
+;;
+;; Usage:
+;;   From a top-level form in ANY mod source file (loaded at boot), call
+;;     (register-custom-art-group "my-import")
+;;   where "my-import" is exactly the string passed to `build-actor` (the art-group
+;;   file name WITHOUT the "-ag" suffix). Registration is idempotent and order does not
+;;   matter: the list is only consulted at level-login time (see `relocate` below).
+;;   Custom actors that keep their animations in their OWN art-group (no
+;;   `:master-art-group`) do NOT need to be registered.
+(define *custom-art-groups-to-link* '())
+
+(defun register-custom-art-group ((name string))
+  "Register a `build-actor` art-group (built with :master-art-group) so its imported
+   animations are linked into their master art-group during level login."
+  (let ((lst *custom-art-groups-to-link*)
+        (known #f))
+    (while (not (null? lst))
+      (if (string= (the-as string (car lst)) name)
+          (set! known #t))
+      (set! lst (cdr lst))
+      )
+    (when (not known)
+      (set! *custom-art-groups-to-link* (cons name *custom-art-groups-to-link*))
+      )
+    )
+  name)
+
+(defun custom-art-group-to-link? ((this art-group))
+  "True if `this` was registered via `register-custom-art-group`."
+  (let ((lst *custom-art-groups-to-link*)
+        (match #f))
+    (while (not (null? lst))
+      (if (string= (the-as string (car lst)) (-> this name))
+          (set! match #t))
+      (set! lst (cdr lst))
+      )
+    match)
+  )
+
 ;; WARN: Return type mismatch art-element vs basic.
 (defmethod get-art-by-name-method ((this art-group) (arg0 string) (arg1 type))
   (cond
@@ -1012,7 +1061,10 @@
                   )
                 (when (or (not s5-1) (= (-> s5-1 name) 'default))
                   (login this)
-                  (if (needs-link? this)
+                  ;; mod support: also link custom build-actor art-groups registered via
+                  ;; `register-custom-art-group` (their slot 0 is a joint-geo, so `needs-link?`
+                  ;; is always #f for them even though they carry imported animations).
+                  (if (or (needs-link? this) (custom-art-group-to-link? this))
                       (link-art! this)
                       )
                   )

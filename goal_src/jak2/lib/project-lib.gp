@@ -191,6 +191,26 @@
                 :tool 'append-sbk
                 :out '(,out-name)))))
 
+;; custom sound import: build a brand-new, self-contained sound bank from scratch.
+;; - name: the output .SBK name (without extension); it ends up at $OUT/iso/<name>.SBK
+;;   and must match the string passed to `sound-bank-load` at runtime.
+;; - src-dir: folder under custom_assets/jak2/sounds/sfx/ holding a metadata.txt + wavs
+;;   (same layout the decompiler's SBK extractor produces).
+;; - bank-id: numeric id written into the SBlk header (default 0).
+;; - only-names: restrict to these sound names (as written in metadata.txt); empty = all.
+;; NOTE: a new bank needs a free overlord sound-bank slot at runtime. jak2 has three
+;; dedicated slots (common / gun / board) plus a small rotating pool for level banks.
+;; If you are adding globally-available sounds, prefer `append-sbk` onto COMMON instead
+;; (and drop "COMMON" from the copy-sbk-files list in game.gp so the outputs don't clash).
+(defmacro build-sbk (name src-dir &key (force-run #f) &key (bank-id 0) &key (only-names ()))
+  (let* ((src-path (string-append "custom_assets/jak2/sounds/sfx/" src-dir "/"))
+         (out-name (string-append "$OUT/iso/" name ".SBK")))
+    `(begin
+       (set! *all-sbk* (cons ,out-name *all-sbk*))
+       (defstep :in '(,src-path ,(symbol->string force-run) ,bank-id "#f" ,only-names)
+                :tool 'build-sbk
+                :out '(,out-name)))))
+
 (defmacro copy-mus-files (&rest files)
   `(begin ,@(apply (lambda (x) `(set! *all-mus* (cons (copy-iso-file ,x "MUS/" ".MUS") *all-mus*))) files)))
 

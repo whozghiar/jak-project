@@ -1178,8 +1178,10 @@ into 7 sections, which might explain the weird sizes in the center.
           (when (< (the-as int art-group-array-idx) (-> lev art-group art-group-array length))
             (let ((current-ag (-> lev art-group art-group-array art-group-array-idx)))
               ;; login and link. only janim's need linking.
+              ;; mod support: `custom-art-group-to-link?` also covers custom build-actor
+              ;; art-groups registered via `register-custom-art-group` (see joint.gc).
               (login current-ag)
-              (if (needs-link? current-ag)
+              (if (or (needs-link? current-ag) (custom-art-group-to-link? current-ag))
                   (link-art! current-ag)
                   )
               )

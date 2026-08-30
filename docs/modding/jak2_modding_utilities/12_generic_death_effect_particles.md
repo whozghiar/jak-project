@@ -3,6 +3,7 @@
 > **Bilingual Knowledge Item / Base de Connaissances Bilingue**
 >
 > - **Origin / Provenance:** `jak2/features/yakow_killable`
+> - **Last Updated / Dernière modification:** `jak2/features/yakow_killable`
 > - [🇬🇧 English Version](#-english-version)
 > - [🇫🇷 Version Française](#-version-française)
 

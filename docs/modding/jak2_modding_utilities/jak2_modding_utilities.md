@@ -23,10 +23,10 @@
 - [11. Jetboard State Handling & Particle Tracking](#11-jetboard-state-handling-particle-tracking)
 - [12. Generic Enemy Death Effect (Purple Skeleton-Dissolve Particles)](#12-generic-enemy-death-effect-purple-skeleton-dissolve-particles)
 - [13. Custom Animation & Sound Import Pipeline (End-to-End)](#13-custom-animation-sound-import-pipeline-end-to-end)
-- [14. 14_dark_jak_scaling_and_super_attacks.md](#14-14-dark-jak-scaling-and-super-attacksmd)
+- [14. Dark Jak Scaling, Multi-Tier Evolution & Super Attack Mechanics](#14-dark-jak-scaling-multi-tier-evolution-super-attack-mechanics)
 - [15. Virtual States, Methods & Child Process Level Binding (Vtables & Multi-DGOs)](#15-virtual-states-methods-child-process-level-binding-vtables-multi-dgos)
-- [16. 16_vehicle_mechanics_hijacking_and_flight_levels.md](#16-16-vehicle-mechanics-hijacking-and-flight-levelsmd)
-- [17. 17_traffic_engine_spawnrates_and_nav_mesh_limits.md](#17-17-traffic-engine-spawnrates-and-nav-mesh-limitsmd)
+- [16. Vehicle Mechanics: Hijacking, Grab Rails, Weapons & Flight Levels](#16-vehicle-mechanics-hijacking-grab-rails-weapons-flight-levels)
+- [17. Traffic Engine: Spawn Rates, Alert Quotas, Distance Spheres & Nav-Mesh Limits](#17-traffic-engine-spawn-rates-alert-quotas-distance-spheres-nav-mesh-limits)
 
 ---
 
@@ -172,7 +172,7 @@ This prints the real-time breakdown of textures, collision, animations, and leve
 
 ### 9. Custom Art-Groups & Dynamic Animation Linking (`link-art!`)
 
-> **Origin / Provenance:** `jak2/features/jak3-jetBoard`
+> **Origin / Provenance:** `jak2/features/jak3-jetBoard` | **Last Updated:** `jak2/features/jak3-jetBoard`
 
 ### The Requirement
 Add custom animations imported from a `.glb` into a resident character art-group (`jakb-ag`, `daxter-ag`) without modifying or recompiling the hundreds of native animations.
@@ -199,7 +199,7 @@ Add custom animations imported from a `.glb` into a resident character art-group
 
 ### 10. GLTF Retargeting & `build-actor` Skeletons
 
-> **Origin / Provenance:** `jak2/features/jak3-jetBoard`
+> **Origin / Provenance:** `jak2/features/jak3-jetBoard` | **Last Updated:** `jak2/features/jak3-jetBoard`
 
 ### Skeletons in OpenGOAL vs GLTF
 In OpenGOAL, character skeletons (like `jakb-lod0-jg`) contain:
@@ -218,7 +218,7 @@ In OpenGOAL, character skeletons (like `jakb-lod0-jg`) contain:
 
 ### 11. Jetboard State Handling & Particle Tracking
 
-> **Origin / Provenance:** `jak2/features/jak3-jetBoard`
+> **Origin / Provenance:** `jak2/features/jak3-jetBoard` | **Last Updated:** `jak2/features/jak3-jetBoard`
 
 ### ⚠️ The `target-board-exit` Whitelist Pitfall (The Mini-Jetboard Bug)
 In Jak 2, the jetboard (`board-lod0`) is a standalone actor process (`board.gc`) anchored to `node-list data 25` with two distinct visual states:
@@ -255,7 +255,7 @@ For area-of-effect attacks while riding (e.g. `board-zap`):
 
 ### 12. Generic Enemy Death Effect (Purple Skeleton-Dissolve Particles)
 
-> **Origin / Provenance:** `jak2/features/yakow_killable`
+> **Origin / Provenance:** `jak2/features/yakow_killable` | **Last Updated:** `jak2/features/yakow_killable`
 
 ### Context & Core Concepts
 When many Jak II enemies (civilians, Crimson Guards, wasps, etc.) die, their model dissolves into purple/violet particles that appear to trace the outline of the mesh as it fades out, accompanied by a "fizz" sound. This is **not** a per-joint/bone particle emitter — it is a generic, reusable engine system built around a `death-info` data type and a handful of static presets, driven through the existing `effect-control` resource-tag dispatcher (`do-effect`).
@@ -507,11 +507,11 @@ the whole log. Remove or gate these prefixes once the bug is confirmed fixed.
 
 ---
 
-### 14. 14_dark_jak_scaling_and_super_attacks.md
+### 14. Dark Jak Scaling, Multi-Tier Evolution & Super Attack Mechanics
 
 > **Origin / Provenance:** `jak2/features/dark_jak_enhanced` | **Last Updated:** `jak2/features/dark_jak_enhanced`
 
-In Jak 2, Dark Jak's physical transformation is governed by an engine interpolation variable `darkjak-giant-interp` (ranging from `1.0` to `2.0` in retail code) and the `darkjak-stage` bitfield enum in [`goal_src/jak2/engine/target/target-h.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-h.gc).
+In Jak 2, Dark Jak's physical transformation is governed by an engine interpolation variable `darkjak-giant-interp` (ranging from `1.0` to `2.0` in retail code) and the `darkjak-stage` bitfield enum in [`goal_src/jak2/engine/target/target-h.gc`](../../../goal_src/jak2/engine/target/target-h.gc).
 
 Because OpenGOAL couples character scaling across physics velocities (`ctrl-xz-vel`), animation bone scales, collision spheres, and damage penetration, understanding how to extend this pipeline unlocks seamless multi-tier transformations, acrobatic restoration, manual cancel controls, and robust super abilities.
 
@@ -520,6 +520,7 @@ Because OpenGOAL couples character scaling across physics velocities (`ctrl-xz-v
 ## 2. Multi-Tier Progressive Scaling Architecture
 
 ### A. Stage Enumeration & Unlocked State Transitions
+
 The `darkjak-stage` bitfield enum can be safely extended with new evolutionary tiers (such as `mega-giant`):
 
 ```lisp
@@ -539,6 +540,7 @@ The `darkjak-stage` bitfield enum can be safely extended with new evolutionary t
 ```
 
 In `target-darkjak.gc`, `want-to-darkjak?` allows progressive evolution across all tiers:
+
 ```lisp
 (and (focus-test? self dark)
      (nonzero? (-> self darkjak))
@@ -547,6 +549,7 @@ In `target-darkjak.gc`, `want-to-darkjak?` allows progressive evolution across a
 ```
 
 ### B. Headroom Collision Queries & Progressive Camera Offsets
+
 When expanding to a colossal scale (e.g. `3.5x`), collision probe spheres and camera spring settings scale proportionally:
 
 ```lisp
@@ -564,6 +567,7 @@ When expanding to a colossal scale (e.g. `3.5x`), collision probe spheres and ca
 ## 3. Manual Cancel Control & Eco Consumption
 
 ### A. Universal Manual Revert (`R2`)
+
 In `target-darkjak-post`, checking `(cpad-pressed? (-> self control cpad number) r2)` allows Jak to exit Dark Jak smoothly at any moment:
 
 ```lisp
@@ -577,7 +581,9 @@ In `target-darkjak-post`, checking `(cpad-pressed? (-> self control cpad number)
 ```
 
 ### B. Full Eco Consumption on Exit
+
 When Dark Jak ends (via `R2`, timeout, Dark Bomb, Dark Blast, or death), all remaining dark eco is consumed:
+
 ```lisp
 (set! (-> self game eco-pill-dark) 0.0)
 ```
@@ -588,7 +594,7 @@ When Dark Jak ends (via `R2`, timeout, Dark Bomb, Dark Blast, or death), all rem
 
 ### 15. Virtual States, Methods & Child Process Level Binding (Vtables & Multi-DGOs)
 
-> **Origin / Provenance:** `jak2/features/enhanced_guard` | **Last Updated:** `jak2/features/enhanced_guard`
+> **Origin / Provenance:** `jak2/features/paddy-wagon` | **Last Updated:** `jak2/features/guard_transport`
 
 > [!IMPORTANT]
 > **Rule 1 — Virtual Method & State Residency:**
@@ -682,19 +688,239 @@ flowchart TD
 
 ---
 
-### 16. 16_vehicle_mechanics_hijacking_and_flight_levels.md
+### 16. Vehicle Mechanics: Hijacking, Grab Rails, Weapons & Flight Levels
 
-> **Origin / Provenance:** `master`
+> **Origin / Provenance:** `jak2/features/paddy-wagon` | **Last Updated:** `jak2/features/guard_transport`
 
-
+In Jak 2, all ambient and player vehicles inherit from the base `vehicle` class (defined in [`goal_src/jak2/levels/city/traffic/vehicle/vehicle.gc`](../../../goal_src/jak2/levels/city/traffic/vehicle/vehicle.gc)). This document outlines the generic engine mechanics governing vehicle boarding, edge-grabbing, weapons while driving, and flight altitude zones.
 
 ---
 
-### 17. 17_traffic_engine_spawnrates_and_nav_mesh_limits.md
+## 2. Vehicle Constant Flags (`info flags`)
 
-> **Origin / Provenance:** `master`
+The `rigid-body-vehicle-constants` struct contains a `:flags` bitfield that configures key gameplay behaviors:
 
+| Flag Bit | Hex Value | Name / Effect | Description |
+| :--- | :--- | :--- | :--- |
+| **Bit 2** | `#x04` | `guard-vehicle` | Marks the vehicle as a Crimson Guard asset (Hellcat, Guard Bike, Prison Zoomer). |
+| **Bit 3** | `#x08` | `vehicle` | Standard vehicle physics flag. |
+| **Bit 5** | `#x20` | `allow-gun` (`gun?`) | Enables Jak to draw, aim, and fire all guns while driving (`(-> self pilot gun?)` in `target-pilot.gc`). |
+| **Bit 6** | `#x40` | `allow-flight-zones` | Enables altitude switching (`switch-zone-high!` / `switch-zone-low!`) via **R2** and vertical flight-level transitions. |
 
+> [!TIP]
+> To allow Jak to both change altitude levels with **R2** and use guns on a guard vehicle, set `:flags #x6c` (`#x04 | #x08 | #x20 | #x40`).
+
+---
+
+## 3. Hijacking & Grab Rails (`grab-rail-array`)
+
+Jak 2 distinguishes between two boarding behaviors based on the vehicle's grab rails:
+
+### A. Small Vehicles (Bikes, no grab rails)
+
+- `:grab-rail-array #f` and `:grab-rail-count 0`.
+- Pressing **Triangle** immediately seats Jak without an intermediate suspension phase.
+
+### B. Large Vehicles (Cars, Transports, Hellcats)
+
+- Defining `:grab-rail-count` and `:grab-rail-array` enables long-range edge-grabbing (up to 20 meters / `81920.0` units):
+
+  ```lisp
+  :grab-rail-count 6
+  :grab-rail-array (new 'static 'inline-array vehicle-grab-rail-info 6
+    (new 'static 'vehicle-grab-rail-info
+      :local-pos (new 'static 'inline-array vector 2
+        (new 'static 'vector :x 5120.0 :y 1024.0 :z 8192.0 :w 1.0)
+        (new 'static 'vector :x -5120.0 :y 1024.0 :z 8192.0 :w 1.0)
+        )
+      :normal (new 'static 'vector :z 1.0 :w 1.0)
+      )
+    ;; Additional side, rear, and corner rails...
+    )
+  ```
+
+- **Workflow:**
+  1. When Jak is on the ground underneath or jumping near the vehicle, the prompt `PRESS TRIANGLE TO USE` appears.
+  2. Pressing **Triangle** sends `'pilot-edge-grab` to `*target*`.
+  3. Jak leaps up and **hangs / suspends from the rail** (`target-pilot-edge-grab` state).
+  4. Pressing **Jump (Cross)** or **Triangle** while hanging pulls Jak up into the cockpit, ejects the driver, and takes full control.
+
+---
+
+## 4. Player Driving Controls & Uninitialized Turret Pitfalls
+
+When a vehicle enters the `player-control` state (`vehicle-states.gc`), its `:post` handler executes `vehicle-method-94`:
+
+- **`vehicle-guard` assumption:** The default `(vehicle-method-94 ((this vehicle-guard)))` assumes the vehicle is armed with a turret (`hellcat`, `guard-bike`) and attempts to update `(-> this turret info)`.
+- **Unarmed vehicles (`paddywagon`):** If a child of `vehicle-guard` has no turret, calling `vehicle-guard`'s `vehicle-method-94` causes an immediate **null pointer dereference (exit status 5 / SIGSEGV)**.
+- **Fix:** Override `vehicle-method-94` to call the base `vehicle` method directly:
+
+  ```lisp
+  (defmethod vehicle-method-94 ((this paddywagon))
+    ((method-of-type vehicle vehicle-method-94) this)
+    0
+    (none)
+    )
+  ```
+
+---
+
+## 5. Flight Altitude & Zone Switching
+
+- **Player Control:** Pressing **R2** toggles between low and high altitude flight corridors (provided `#x40` is set in `:flags`).
+- **Ambient Guard Traffic:** `vehicle-guard-method-150` forces all guard vehicles to `(switch-zone-high! this)` on every cycle. If an ambient vehicle should roam both low and high traffic lanes naturally, ensure its `vehicle-method-120` delegates to `(method-of-type vehicle vehicle-method-120)` rather than `vehicle-guard`.
+
+---
+
+## 6. Known Pitfalls — Passenger Ejection & Nav-Mesh Saturation
+
+During `target-pilot-init`, the engine sends `'knocked-off` to **all seats** of the vehicle:
+
+- For rear passenger / captive seats (e.g. `seat-index > 0`), the rider should return `#f` on `'knocked-off` to remain safely seated inside.
+- When spawning ejected riders onto the ground, always verify `(when (-> gp-0 nav-mesh) ...)` before sending `'activate-object` to `*traffic-manager*` to prevent infinite spawn retry loops and memory exhaustion crashes.
+
+---
+
+## 7. Verification Steps
+
+1. `task repl` → `(mi)` must report `Successfully built all N targets`.
+2. `task boot-game`, free-roam in Haven City.
+3. Stand under a large guard vehicle: `PRESS TRIANGLE TO USE` must appear; Triangle → edge-grab → Cross → cockpit control.
+4. With `#x40` set, **R2** must swap altitude corridors without dropping the vehicle.
+5. With `#x20` set, guns must draw and fire while driving.
+6. Drive an unarmed guard-derived vehicle for 30+ seconds: no `exit status 5` from the turret path.
+
+---
+
+---
+
+### 17. Traffic Engine: Spawn Rates, Alert Quotas, Distance Spheres & Nav-Mesh Limits
+
+> **Origin / Provenance:** `jak2/config/enhanced_spawnrates` | **Last Updated:** `jak2/config/enhanced_spawnrates`
+
+This document details the city traffic engine in Jak 2 — how ambient citizens, Crimson Guards, and vehicles are managed, and how to scale spawn densities and ranges without exceeding engine limits.
+
+---
+
+## 2. Traffic Object Types & Quotas (`traffic-manager.gc`)
+
+The traffic system controls ambient density via `want-count` entries assigned in `init-params` of `traffic-manager`:
+
+| Type Index | Traffic Type Enum | Description | Vanilla Quota | Enhanced Quota Example |
+| :---: | :--- | :--- | :---: | :---: |
+| **0** | `citizen-norm` | Standard male citizen | 20 | 18 |
+| **1** | `citizen-chick` | Female citizen | 20 | 18 |
+| **2** | `citizen-fat` | Heavy citizen | 20 | 18 |
+| **4** | `crimson-guard-0` | Crimson Guard (Patrol) | 1 | 6 |
+| **6** | `crimson-guard-1` | Crimson Guard (Rifle) | 9 | 22 |
+| **7** | `crimson-guard-2` | Crimson Guard (Tazer) | 0 | 10 |
+| **11-13** | `car-a`, `car-b`, `car-c` | Civilian hover cars | 16 / 16 / 16 | 16 / 16 / 16 |
+| **14-16** | `bike-a`, `bike-b`, `bike-c` | Civilian hover bikes | 14 / 14 / 14 | 14 / 14 / 14 |
+| **18** | `guard-bike` | Crimson Guard hover bike | 4 | 10 |
+| **19** | `hellcat` | Crimson Guard Hellcat cruiser | 3 | 8 |
+
+---
+
+## 3. Alert Level Settings (`traffic-engine.gc`)
+
+When an alarm triggers in Haven City, the `traffic-alert-state` dynamically overrides guard want counts according to `*alert-level-settings*` (indexed 0 to 4):
+
+```lisp
+(define *alert-level-settings* (new 'static 'inline-array traffic-alert-state-settings 5
+  ;; Alert Level 0 (Peacetime / Low Tension)
+  (new 'static 'traffic-alert-state-settings
+    :ped-tazer (new 'static 'traffic-guard-type-settings :target-count 12 ...)
+    :ped-rifle (new 'static 'traffic-guard-type-settings :target-count 6 ...)
+    :bike-turret (new 'static 'traffic-guard-type-settings :target-count 2 ...)
+    :hellcat-turret (new 'static 'traffic-guard-type-settings :target-count 2 ...)
+    )
+  ;; Alert Level 4 (Maximum Alert / Heavy Reinforcements)
+  (new 'static 'traffic-alert-state-settings
+    :ped-tazer (new 'static 'traffic-guard-type-settings :target-count 8 ...)
+    :ped-rifle (new 'static 'traffic-guard-type-settings :target-count 22 ...)
+    :ped-grenade (new 'static 'traffic-guard-type-settings :target-count 6 ...)
+    :bike-turret (new 'static 'traffic-guard-type-settings :target-count 10 ...)
+    :hellcat-turret (new 'static 'traffic-guard-type-settings :target-count 8 ...)
+    )
+  )
+)
+```
+
+---
+
+## 4. Cell Activation Radii & Distance Spheres (`per-frame-cell-update`)
+
+The method `(per-frame-cell-update ((this traffic-level-data)))` in [`traffic-engine.gc`](../../../goal_src/jak2/levels/city/traffic/traffic-engine.gc) evaluates visibility and distance for each cell in the level's grid:
+
+```lisp
+(let ((s5-0 (math-camera-pos))
+      (f30-0 122880.0)    ;; 30m - Frustum cull threshold
+      (f28-0 983040.0)    ;; 240m - Active vehicle sphere (vanilla: 200m)
+      (f26-0 655360.0)    ;; 160m - Active pedestrian sphere (vanilla: 120m)
+      )
+  ...)
+```
+
+> [!WARNING]
+> **Static Cell Limit (255 Cells):**
+> `traffic-level-data` defines `(active-cell-list vis-cell 255)`. If the vehicle/pedestrian distance sphere is set too high (e.g. > 300m), especially during level streaming transitions where multiple levels are resident simultaneously, more than 255 cells become active, resulting in buffer overflows and rendering DMA crashes (`exit status 5`).
+> Keep vehicle activation around **240m** and pedestrian activation around **160m** for optimal density and stability.
+
+---
+
+## 5. Nav-Mesh Capacity & Multi-Level Streaming (`nav-mesh.gc`)
+
+Every city district (`ctywide`, `ctyport`, `ctypal`, `ctyfarmb`, etc.) has its own `nav-mesh` containing navigation polygons. When an enemy or pedestrian spawns, `(new-nav-control this proc)` requests a slot on that nav-mesh.
+
+### The 64-User Nav-Mesh Bottleneck
+
+In vanilla Jak 2, `(init-from-entity ((this nav-mesh) (arg0 entity-nav-mesh)))` defaults `nav-max-users` to `64`:
+
+```lisp
+(let ((s5-1 (res-lump-value arg0 'nav-max-users uint128 :default (the-as uint128 64) :time -1000000000.0)))
+```
+
+When moving between districts with high density, all active guards and civilians request nav slots on the destination district's mesh. Exceeding 64 users outputs:
+
+```text
+nav-mesh::new-nav-control:  too many users for nav-mesh #f
+ERROR: nav-mesh::change-to: unable to allocate nav-mesh for #<crimson-guard ...>
+```
+
+and crashes the runtime.
+
+### The Fix
+
+Update `init-from-entity` in [`nav-mesh.gc`](../../../goal_src/jak2/engine/nav/nav-mesh.gc) to raise the default user limit:
+
+```lisp
+(let ((s5-1 (the-as uint128 (min 200 (max 128 (the-as int (res-lump-value arg0 'nav-max-users uint128 :default (the-as uint128 128) :time -1000000000.0)))))))
+```
+
+This safely allocates `nav-control-array` and engine `user-list` for up to **128 concurrent pathfinding actors** per level.
+
+---
+
+## 6. Known Pitfalls — Console Diagnostics & OpenGOAL Constraints
+
+- **8-Parameter Function Limit:** GOAL functions strictly limit calls to 8 parameters (including `#t` and format strings). Split diagnostic logging into multiple `format` statements if more parameters are required.
+- **Dead-Pool Type Casting:** `*default-dead-pool*` is typed as generic `dead-pool`. To invoke `(memory-free ...)` or `(memory-total ...)`, cast it explicitly:
+
+  ```lisp
+  (/ (memory-free (the-as dead-pool-heap *default-dead-pool*)) 1024)
+  ```
+
+---
+
+## 7. Verification Steps
+
+1. `task repl` → `(mi)` reports `Successfully built all N targets`.
+2. `task boot-game`, roam Haven City: guard density should visibly match the tuned quotas.
+3. Trigger a full city alert (attack a guard): reinforcement waves scale up to the level-4 targets.
+4. Cross several district boundaries at high alert: no `too many users for nav-mesh` error, no DMA `exit status 5`.
+5. Check the console diagnostic line for free `*default-dead-pool*` headroom staying comfortably positive.
+
+---
 
 ---
 
@@ -714,10 +940,10 @@ flowchart TD
 - [11. Gestion des États Jetboard & Particules](#11-gestion-des-états-jetboard-particules)
 - [12. Effet de Mort Générique des Ennemis (Particules Violettes de Dissolution)](#12-effet-de-mort-générique-des-ennemis-particules-violettes-de-dissolution)
 - [13. Pipeline Complet d'Import d'Animations et de Sons Custom](#13-pipeline-complet-dimport-danimations-et-de-sons-custom)
-- [14. 14_dark_jak_scaling_and_super_attacks.md](#14-14-dark-jak-scaling-and-super-attacksmd)
+- [14. Mise à l'Échelle de Dark Jak, Évolution Multi-Stades & Mécaniques des Super-Attaques](#14-mise-à-léchelle-de-dark-jak-évolution-multi-stades-mécaniques-des-super-attaques)
 - [15. Résidence des États, Méthodes et Niveau des Processus Enfants](#15-résidence-des-états-méthodes-et-niveau-des-processus-enfants)
-- [16. 16_vehicle_mechanics_hijacking_and_flight_levels.md](#16-16-vehicle-mechanics-hijacking-and-flight-levelsmd)
-- [17. 17_traffic_engine_spawnrates_and_nav_mesh_limits.md](#17-17-traffic-engine-spawnrates-and-nav-mesh-limitsmd)
+- [16. Mécaniques des Véhicules : Détournement, Barres d'Accroche, Armes & Niveaux de Vol](#16-mécaniques-des-véhicules-détournement-barres-daccroche-armes-niveaux-de-vol)
+- [17. Moteur de Trafic : Taux d'Apparition, Quotas d'Alerte, Sphères de Distance & Limites de Nav-Mesh](#17-moteur-de-trafic-taux-dapparition-quotas-dalerte-sphères-de-distance-limites-de-nav-mesh)
 
 ---
 
@@ -844,7 +1070,7 @@ Affiche la répartition exacte des textures, collisions, animations et l'espace 
 
 ### 9. Art-Groups Custom & Liaison Dynamique
 
-> **Origin / Provenance :** `jak2/features/jak3-jetBoard`
+> **Origin / Provenance :** `jak2/features/jak3-jetBoard` | **Dernière modification :** `jak2/features/jak3-jetBoard`
 
 ### L'Objectif
 Injecter des animations importées d'un `.glb` dans un art-group résident (`jakb-ag`, `daxter-ag`) sans modifier ni recompiler les centaines d'animations natives d'origine.
@@ -869,7 +1095,7 @@ Injecter des animations importées d'un `.glb` dans un art-group résident (`jak
 
 ### 10. Reciblage GLTF & Squelettes `build-actor`
 
-> **Origin / Provenance :** `jak2/features/jak3-jetBoard`
+> **Origin / Provenance :** `jak2/features/jak3-jetBoard` | **Dernière modification :** `jak2/features/jak3-jetBoard`
 
 ### Les Squelettes dans OpenGOAL vs GLTF
 Dans OpenGOAL, les squelettes de personnages (comme `jakb-lod0-jg`) contiennent :
@@ -886,7 +1112,7 @@ Dans OpenGOAL, les squelettes de personnages (comme `jakb-lod0-jg`) contiennent 
 
 ### 11. Gestion des États Jetboard & Particules
 
-> **Origin / Provenance :** `jak2/features/jak3-jetBoard`
+> **Origin / Provenance :** `jak2/features/jak3-jetBoard` | **Dernière modification :** `jak2/features/jak3-jetBoard`
 
 ### ⚠️ Le Piège de la Whitelist `target-board-exit` (Le Bug du Mini-Jetboard)
 Dans Jak 2, le jetboard (`board-lod0`) est un processus acteur autonome (`board.gc`) attaché à `node-list data 25` avec deux états visuels distincts :
@@ -921,7 +1147,7 @@ Pour les attaques de zone en déplacement (ex: `board-zap`) :
 
 ### 12. Effet de Mort Générique des Ennemis (Particules Violettes de Dissolution)
 
-> **Origin / Provenance :** `jak2/features/yakow_killable`
+> **Origin / Provenance :** `jak2/features/yakow_killable` | **Dernière modification :** `jak2/features/yakow_killable`
 
 ### Contexte & Concepts Clés
 Quand de nombreux ennemis de Jak II meurent (civils, Crimson Guards, guêpes, etc.), leur modèle se dissout en particules violettes qui semblent tracer le contour du maillage pendant qu'il disparaît, accompagné d'un son de "fizz". Ce n'est **pas** un émetteur de particules par joint/os — c'est un système moteur générique et réutilisable, construit autour d'un type `death-info` et de quelques presets statiques, déclenché via le dispatcher de resource-tags existant `effect-control` (`do-effect`).
@@ -1188,19 +1414,40 @@ log. Retirez ou conditionnez ces préfixes une fois le bug confirmé corrigé.
 
 ---
 
-### 14. 14_dark_jak_scaling_and_super_attacks.md
+### 14. Mise à l'Échelle de Dark Jak, Évolution Multi-Stades & Mécaniques des Super-Attaques
 
 > **Origin / Provenance :** `jak2/features/dark_jak_enhanced` | **Dernière modification :** `jak2/features/dark_jak_enhanced`
 
-Dans Jak 2, la métamorphose de Dark Jak est régie par `darkjak-giant-interp` (`1.0` à `2.0` dans le code de base) et l'énumération bitfield `darkjak-stage` dans [`goal_src/jak2/engine/target/target-h.gc`](file:///c:/Users/theol/Documents/Developpement/jak-project/goal_src/jak2/engine/target/target-h.gc).
+Dans Jak 2, la métamorphose physique de Dark Jak est régie par une variable d'interpolation moteur `darkjak-giant-interp` (comprise entre `1.0` et `2.0` dans le code de base) et par l'énumération bitfield `darkjak-stage` dans [`goal_src/jak2/engine/target/target-h.gc`](../../../goal_src/jak2/engine/target/target-h.gc).
 
-La maîtrise de cette chaîne permet d'implémenter des évolutions multi-stades, l'annulation manuelle avec `R2`, et des super-attaques fiabilisées.
+Comme OpenGOAL couple la mise à l'échelle du personnage à travers les vitesses physiques (`ctrl-xz-vel`), les échelles d'os d'animation, les sphères de collision et la pénétration des dégâts, la maîtrise de cette chaîne permet d'implémenter des transformations multi-stades fluides, la restauration des acrobaties, l'annulation manuelle des contrôles et des super-capacités fiabilisées.
 
 ---
 
-## 2. Architecture de Mise à l'Échelle Multi-Stades
+## 2. Architecture de Mise à l'Échelle Progressive Multi-Stades
 
-### A. Évolution Débloquée
+### A. Énumération des Stades & Transitions d'État Débloquées
+
+L'énumération bitfield `darkjak-stage` peut être étendue sans risque avec de nouveaux paliers évolutifs (tel que `mega-giant`) :
+
+```lisp
+(defenum darkjak-stage
+  :bitfield #t
+  :type uint32
+  (force-on)
+  (active)
+  (bomb0)
+  (bomb1)
+  (invinc)
+  (giant)
+  (no-anim)
+  (disable-force-on)
+  (mega-giant)
+  )
+```
+
+Dans `target-darkjak.gc`, `want-to-darkjak?` autorise l'évolution progressive sur l'ensemble des paliers :
+
 ```lisp
 (and (focus-test? self dark)
      (nonzero? (-> self darkjak))
@@ -1208,21 +1455,51 @@ La maîtrise de cette chaîne permet d'implémenter des évolutions multi-stades
      )
 ```
 
+### B. Requêtes de Collision « Headroom » & Décalages Progressifs de Caméra
+
+Lors d'une expansion à une échelle colossale (ex. `3.5x`), les sphères de sonde de collision et les réglages de ressort de caméra sont mis à l'échelle proportionnellement :
+
+```lisp
+(let* ((already-giant? (logtest? (-> self darkjak stage) (darkjak-stage giant)))
+       (target-scale (if already-giant? 3.5 2.0))
+       (start-scale (if already-giant? (-> self darkjak-giant-interp) 1.0))
+       )
+  (+! (-> s5-1 0 y) (if already-giant? 22000.0 12697.6))
+  (set! (-> s5-1 0 r) (if already-giant? 18000.0 11878.4))
+  )
+```
+
 ---
 
-## 3. Annulation Manuelle & Consommation d'Éco
+## 3. Contrôle d'Annulation Manuelle & Consommation d'Éco
 
-### A. Annulation Manuelle (`R2`)
-Détection dans `target-darkjak-post` permettant de revenir à l'état normal à tout moment via `R2`.
+### A. Annulation Manuelle Universelle (`R2`)
 
-### B. Consommation Complète de l'Éco
-Dès que la transformation s'arrête (quelle que soit la manière), toute l'éco noire accumulée est consommée (`0.0`).
+Dans `target-darkjak-post`, la détection de `(cpad-pressed? (-> self control cpad number) r2)` permet à Jak de quitter Dark Jak proprement à n'importe quel moment :
+
+```lisp
+(if (and (cpad-pressed? (-> self control cpad number) r2)
+         (not (focus-test? self dead dangerous hit grabbed))
+         (not (and (-> self next-state) (= (-> self next-state name) 'target-darkjak-get-off)))
+         (not (logtest? (-> self darkjak stage) (darkjak-stage force-on)))
+         )
+    (go target-darkjak-get-off)
+    )
+```
+
+### B. Consommation Complète de l'Éco à la Sortie
+
+Dès que Dark Jak se termine (via `R2`, expiration du timer, Dark Bomb, Dark Blast ou mort), toute l'éco noire restante est consommée :
+
+```lisp
+(set! (-> self game eco-pill-dark) 0.0)
+```
 
 ---
 
 ### 15. Résidence des États, Méthodes et Niveau des Processus Enfants
 
-> **Origin / Provenance :** `jak2/features/enhanced_guard` | **Dernière modification :** `jak2/features/enhanced_guard`
+> **Origin / Provenance :** `jak2/features/paddy-wagon` | **Dernière modification :** `jak2/features/guard_transport`
 
 > [!IMPORTANT]
 > **Règle 1 — Résidence des Méthodes et États Virtuels :**
@@ -1314,18 +1591,234 @@ flowchart TD
 
 ---
 
-### 16. 16_vehicle_mechanics_hijacking_and_flight_levels.md
+### 16. Mécaniques des Véhicules : Détournement, Barres d'Accroche, Armes & Niveaux de Vol
 
-> **Origin / Provenance :** `master`
+> **Origin / Provenance :** `jak2/features/paddy-wagon` | **Dernière modification :** `jak2/features/guard_transport`
 
-
+Dans Jak 2, tous les véhicules ambiants et pilotables héritent de la classe de base `vehicle` (définie dans [`goal_src/jak2/levels/city/traffic/vehicle/vehicle.gc`](../../../goal_src/jak2/levels/city/traffic/vehicle/vehicle.gc)). Ce document décrit les mécaniques moteur génériques régissant l'embarquement, l'accroche aux rebords, l'usage des armes en conduite et les zones d'altitude de vol.
 
 ---
 
-### 17. 17_traffic_engine_spawnrates_and_nav_mesh_limits.md
+## 2. Drapeaux de Constantes de Véhicule (`info flags`)
 
-> **Origin / Provenance :** `master`
+La structure `rigid-body-vehicle-constants` contient un champ de bits `:flags` qui configure des comportements de gameplay clés :
 
+| Bit du drapeau | Valeur hex | Nom / Effet | Description |
+| :--- | :--- | :--- | :--- |
+| **Bit 2** | `#x04` | `guard-vehicle` | Marque le véhicule comme un asset de la Garde Grenat (Hellcat, moto de garde, Prison Zoomer). |
+| **Bit 3** | `#x08` | `vehicle` | Drapeau de physique de véhicule standard. |
+| **Bit 5** | `#x20` | `allow-gun` (`gun?`) | Autorise Jak à dégainer, viser et tirer avec toutes ses armes en conduisant (`(-> self pilot gun?)` dans `target-pilot.gc`). |
+| **Bit 6** | `#x40` | `allow-flight-zones` | Active le changement d'altitude (`switch-zone-high!` / `switch-zone-low!`) via **R2** et les transitions de niveau de vol verticales. |
 
+> [!TIP]
+> Pour permettre à Jak à la fois de changer de niveau d'altitude avec **R2** et d'utiliser ses armes sur un véhicule de garde, définir `:flags #x6c` (`#x04 | #x08 | #x20 | #x40`).
+
+---
+
+## 3. Détournement & Barres d'Accroche (`grab-rail-array`)
+
+Jak 2 distingue deux comportements d'embarquement selon les barres d'accroche du véhicule :
+
+### A. Petits véhicules (motos, sans barres d'accroche)
+
+- `:grab-rail-array #f` et `:grab-rail-count 0`.
+- Un appui sur **Triangle** installe immédiatement Jak sans phase de suspension intermédiaire.
+
+### B. Grands véhicules (voitures, transports, Hellcats)
+
+- Définir `:grab-rail-count` et `:grab-rail-array` active l'accroche aux rebords à longue portée (jusqu'à 20 mètres / `81920.0` unités) :
+
+  ```lisp
+  :grab-rail-count 6
+  :grab-rail-array (new 'static 'inline-array vehicle-grab-rail-info 6
+    (new 'static 'vehicle-grab-rail-info
+      :local-pos (new 'static 'inline-array vector 2
+        (new 'static 'vector :x 5120.0 :y 1024.0 :z 8192.0 :w 1.0)
+        (new 'static 'vector :x -5120.0 :y 1024.0 :z 8192.0 :w 1.0)
+        )
+      :normal (new 'static 'vector :z 1.0 :w 1.0)
+      )
+    ;; Rails latéraux, arrière et d'angle supplémentaires...
+    )
+  ```
+
+- **Déroulé :**
+  1. Lorsque Jak est au sol sous le véhicule ou saute à proximité, l'indication `Appuyez sur Triangle` apparaît.
+  2. Un appui sur **Triangle** envoie `'pilot-edge-grab` à `*target*`.
+  3. Jak bondit et **s'agrippe / se suspend au rail** (état `target-pilot-edge-grab`).
+  4. Un appui sur **Saut (Croix)** ou **Triangle** pendant la suspension hisse Jak dans le cockpit, éjecte le conducteur et donne le contrôle total.
+
+---
+
+## 4. Contrôles de Conduite & Pièges des Tourelles Non Initialisées
+
+Lorsqu'un véhicule entre dans l'état `player-control` (`vehicle-states.gc`), son gestionnaire `:post` exécute `vehicle-method-94` :
+
+- **Hypothèse de `vehicle-guard` :** Le `(vehicle-method-94 ((this vehicle-guard)))` par défaut suppose que le véhicule est armé d'une tourelle (`hellcat`, `guard-bike`) et tente de mettre à jour `(-> this turret info)`.
+- **Véhicules non armés (`paddywagon`) :** Si un enfant de `vehicle-guard` n'a pas de tourelle, appeler le `vehicle-method-94` de `vehicle-guard` provoque un **déréférencement de pointeur nul immédiat (exit status 5 / SIGSEGV)**.
+- **Correctif :** Surcharger `vehicle-method-94` pour appeler directement la méthode de base `vehicle` :
+
+  ```lisp
+  (defmethod vehicle-method-94 ((this paddywagon))
+    ((method-of-type vehicle vehicle-method-94) this)
+    0
+    (none)
+    )
+  ```
+
+---
+
+## 5. Altitude de Vol & Changement de Zone
+
+- **Contrôle joueur :** Un appui sur **R2** bascule entre les couloirs de vol basse et haute altitude (à condition que `#x40` soit présent dans `:flags`).
+- **Trafic de gardes ambiant :** `vehicle-guard-method-150` force tous les véhicules de garde à `(switch-zone-high! this)` à chaque cycle. Si un véhicule ambiant doit circuler naturellement sur les couloirs bas et hauts, s'assurer que son `vehicle-method-120` délègue à `(method-of-type vehicle vehicle-method-120)` plutôt qu'à `vehicle-guard`.
+
+---
+
+## 6. Pièges Connus — Éjection des Passagers & Saturation du Nav-Mesh
+
+Pendant `target-pilot-init`, le moteur envoie `'knocked-off` à **tous les sièges** du véhicule :
+
+- Pour les sièges de passager arrière / captif (ex. `seat-index > 0`), le passager doit renvoyer `#f` sur `'knocked-off` pour rester assis à l'intérieur en sécurité.
+- Lors de l'apparition de passagers éjectés au sol, toujours vérifier `(when (-> gp-0 nav-mesh) ...)` avant d'envoyer `'activate-object` à `*traffic-manager*` afin d'éviter les boucles infinies de nouvelle tentative d'apparition et les plantages par épuisement mémoire.
+
+---
+
+## 7. Procédure de Validation
+
+1. `task repl` → `(mi)` doit afficher `Successfully built all N targets`.
+2. `task boot-game`, exploration libre dans Haven City.
+3. Se placer sous un grand véhicule de garde : `Appuyez sur Triangle` doit apparaître ; Triangle → accroche → Croix → contrôle du cockpit.
+4. Avec `#x40` défini, **R2** doit changer de couloir d'altitude sans faire chuter le véhicule.
+5. Avec `#x20` défini, les armes doivent se dégainer et tirer pendant la conduite.
+6. Conduire un véhicule dérivé de garde non armé pendant 30 s et plus : aucun `exit status 5` provenant du chemin de la tourelle.
+
+---
+
+### 17. Moteur de Trafic : Taux d'Apparition, Quotas d'Alerte, Sphères de Distance & Limites de Nav-Mesh
+
+> **Origin / Provenance :** `jak2/config/enhanced_spawnrates` | **Dernière modification :** `jak2/config/enhanced_spawnrates`
+
+Ce document détaille le moteur de trafic urbain de Jak 2 — comment les citoyens ambiants, les Gardes Grenat et les véhicules sont gérés, et comment mettre à l'échelle les densités et portées d'apparition sans dépasser les limites du moteur.
+
+---
+
+## 2. Types d'Objets de Trafic & Quotas (`traffic-manager.gc`)
+
+Le système de trafic contrôle la densité ambiante via les entrées `want-count` assignées dans `init-params` de `traffic-manager` :
+
+| Index de type | Énum `traffic-type` | Description | Quota vanilla | Exemple de quota renforcé |
+| :---: | :--- | :--- | :---: | :---: |
+| **0** | `citizen-norm` | Citoyen masculin standard | 20 | 18 |
+| **1** | `citizen-chick` | Citoyenne | 20 | 18 |
+| **2** | `citizen-fat` | Citoyen corpulent | 20 | 18 |
+| **4** | `crimson-guard-0` | Garde Grenat (patrouille) | 1 | 6 |
+| **6** | `crimson-guard-1` | Garde Grenat (fusil) | 9 | 22 |
+| **7** | `crimson-guard-2` | Garde Grenat (tazer) | 0 | 10 |
+| **11-13** | `car-a`, `car-b`, `car-c` | Voitures volantes civiles | 16 / 16 / 16 | 16 / 16 / 16 |
+| **14-16** | `bike-a`, `bike-b`, `bike-c` | Motos volantes civiles | 14 / 14 / 14 | 14 / 14 / 14 |
+| **18** | `guard-bike` | Moto volante de la Garde Grenat | 4 | 10 |
+| **19** | `hellcat` | Croiseur Hellcat de la Garde Grenat | 3 | 8 |
+
+---
+
+## 3. Réglages des Niveaux d'Alerte (`traffic-engine.gc`)
+
+Lorsqu'une alarme se déclenche à Haven City, `traffic-alert-state` surcharge dynamiquement les quotas de gardes selon `*alert-level-settings*` (indexé de 0 à 4) :
+
+```lisp
+(define *alert-level-settings* (new 'static 'inline-array traffic-alert-state-settings 5
+  ;; Niveau d'alerte 0 (temps de paix / faible tension)
+  (new 'static 'traffic-alert-state-settings
+    :ped-tazer (new 'static 'traffic-guard-type-settings :target-count 12 ...)
+    :ped-rifle (new 'static 'traffic-guard-type-settings :target-count 6 ...)
+    :bike-turret (new 'static 'traffic-guard-type-settings :target-count 2 ...)
+    :hellcat-turret (new 'static 'traffic-guard-type-settings :target-count 2 ...)
+    )
+  ;; Niveau d'alerte 4 (alerte maximale / renforts massifs)
+  (new 'static 'traffic-alert-state-settings
+    :ped-tazer (new 'static 'traffic-guard-type-settings :target-count 8 ...)
+    :ped-rifle (new 'static 'traffic-guard-type-settings :target-count 22 ...)
+    :ped-grenade (new 'static 'traffic-guard-type-settings :target-count 6 ...)
+    :bike-turret (new 'static 'traffic-guard-type-settings :target-count 10 ...)
+    :hellcat-turret (new 'static 'traffic-guard-type-settings :target-count 8 ...)
+    )
+  )
+)
+```
+
+---
+
+## 4. Rayons d'Activation des Cellules & Sphères de Distance (`per-frame-cell-update`)
+
+La méthode `(per-frame-cell-update ((this traffic-level-data)))` dans [`traffic-engine.gc`](../../../goal_src/jak2/levels/city/traffic/traffic-engine.gc) évalue la visibilité et la distance de chaque cellule de la grille du niveau :
+
+```lisp
+(let ((s5-0 (math-camera-pos))
+      (f30-0 122880.0)    ;; 30m - Seuil de culling du frustum
+      (f28-0 983040.0)    ;; 240m - Sphère de véhicules actifs (vanilla : 200m)
+      (f26-0 655360.0)    ;; 160m - Sphère de piétons actifs (vanilla : 120m)
+      )
+  ...)
+```
+
+> [!WARNING]
+> **Limite statique de cellules (255) :**
+> `traffic-level-data` définit `(active-cell-list vis-cell 255)`. Si la sphère de distance véhicules/piétons est réglée trop haut (ex. > 300m), en particulier durant les transitions de streaming où plusieurs niveaux sont résidents simultanément, plus de 255 cellules deviennent actives, provoquant des débordements de tampon et des plantages DMA du rendu (`exit status 5`).
+> Conserver l'activation des véhicules autour de **240m** et celle des piétons autour de **160m** pour un bon compromis densité / stabilité.
+
+---
+
+## 5. Capacité du Nav-Mesh & Streaming Multi-Niveaux (`nav-mesh.gc`)
+
+Chaque quartier de la ville (`ctywide`, `ctyport`, `ctypal`, `ctyfarmb`, etc.) possède son propre `nav-mesh` contenant les polygones de navigation. Lorsqu'un ennemi ou un piéton apparaît, `(new-nav-control this proc)` demande un emplacement sur ce nav-mesh.
+
+### Le goulot d'étranglement des 64 utilisateurs
+
+Dans Jak 2 vanilla, `(init-from-entity ((this nav-mesh) (arg0 entity-nav-mesh)))` fixe `nav-max-users` à `64` par défaut :
+
+```lisp
+(let ((s5-1 (res-lump-value arg0 'nav-max-users uint128 :default (the-as uint128 64) :time -1000000000.0)))
+```
+
+Lors du passage entre quartiers à forte densité, tous les gardes et civils actifs demandent un emplacement sur le mesh du quartier de destination. Dépasser 64 utilisateurs affiche :
+
+```text
+nav-mesh::new-nav-control:  too many users for nav-mesh #f
+ERROR: nav-mesh::change-to: unable to allocate nav-mesh for #<crimson-guard ...>
+```
+
+et fait planter le runtime.
+
+### Le correctif
+
+Mettre à jour `init-from-entity` dans [`nav-mesh.gc`](../../../goal_src/jak2/engine/nav/nav-mesh.gc) pour relever la limite d'utilisateurs par défaut :
+
+```lisp
+(let ((s5-1 (the-as uint128 (min 200 (max 128 (the-as int (res-lump-value arg0 'nav-max-users uint128 :default (the-as uint128 128) :time -1000000000.0)))))))
+```
+
+Cela alloue en toute sécurité `nav-control-array` et le `user-list` moteur pour jusqu'à **128 acteurs de pathfinding simultanés** par niveau.
+
+---
+
+## 6. Pièges Connus — Diagnostics Console & Contraintes OpenGOAL
+
+- **Limite de 8 paramètres de fonction :** les fonctions GOAL limitent strictement les appels à 8 paramètres (y compris `#t` et les chaînes de format). Découper la journalisation de diagnostic en plusieurs instructions `format` si davantage de paramètres sont nécessaires.
+- **Cast de type du Dead-Pool :** `*default-dead-pool*` est typé comme un `dead-pool` générique. Pour invoquer `(memory-free ...)` ou `(memory-total ...)`, le caster explicitement :
+
+  ```lisp
+  (/ (memory-free (the-as dead-pool-heap *default-dead-pool*)) 1024)
+  ```
+
+---
+
+## 7. Procédure de Validation
+
+1. `task repl` → `(mi)` affiche `Successfully built all N targets`.
+2. `task boot-game`, se promener dans Haven City : la densité de gardes doit correspondre visiblement aux quotas réglés.
+3. Déclencher une alerte générale (attaquer un garde) : les vagues de renfort montent jusqu'aux cibles du niveau 4.
+4. Franchir plusieurs frontières de quartier en alerte maximale : aucune erreur `too many users for nav-mesh`, aucun `exit status 5` DMA.
+5. Vérifier la ligne de diagnostic console : la marge libre de `*default-dead-pool*` doit rester confortablement positive.
 
 ---

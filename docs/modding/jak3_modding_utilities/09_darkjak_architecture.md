@@ -1,8 +1,9 @@
-# Jak 3 — Architecture: Dark Jak Stages & Legacy Assets
+# Jak 3 — Dark Jak Stages & Legacy Giant Assets / Stades de Dark Jak & Reliquats du Dark Giant
 
 > **Bilingual Knowledge Item / Base de Connaissances Bilingue**
 >
-> - **Origin / Provenance:** Technical investigation (`goal_src/jak3/engine/target/target-darkjak.gc`, `goal_src/jak3/engine/target/target-lightjak.gc`)
+> - **Origin / Provenance:** `jak3/features/mega_dark_jak` (technical investigation: `target-darkjak.gc`, `target-lightjak.gc`)
+> - **Last Updated / Dernière modification:** `jak3/features/mega_dark_jak`
 > - [🇬🇧 English Version](#-english-version)
 > - [🇫🇷 Version Française](#-version-française)
 

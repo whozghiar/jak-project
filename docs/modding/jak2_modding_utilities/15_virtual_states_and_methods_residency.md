@@ -2,8 +2,8 @@
 
 > **Bilingual Knowledge Item / Base de Connaissances Bilingue**
 >
-> - **Origin / Provenance:** `jak2/features/enhanced_guard` (Discovered during ambient vehicle traffic integration)
-> - **Last Updated / Dernière modification:** `jak2/features/enhanced_guard`
+> - **Origin / Provenance:** `jak2/features/paddy-wagon` (discovered during ambient vehicle traffic integration)
+> - **Last Updated / Dernière modification:** `jak2/features/guard_transport`
 > - [🇬🇧 English Version](#-english-version)
 > - [🇫🇷 Version Française](#-version-française)
 

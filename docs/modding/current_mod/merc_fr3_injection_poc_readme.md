@@ -167,24 +167,23 @@ stays visible (it is now in the resident `lwide*` `.fr3`, not gated on any borro
 | Item | State |
 |---|---|
 | Decompiler `extra_art_groups_by_dgo` field + extraction | **implemented** |
-| `jak2_config.jsonc` POC value (`transport-ag` → 3 traffic art levels) | **implemented** |
-| Circuit 1 wiring (`lwide[abc].gd`, `transport.gc` entity hack) | **implemented** |
-| C++ compile check (`decomp` lib + `extractor` + `decompiler`) | **passing** (MSVC Release, clean compile + link) |
-| `task extract` + in-game visual confirmation | **pending — requires the user to build** |
+| Home-level texture remap (`"<ag>:<HOME.DGO>"`) | **implemented** |
+| `jak2_config.jsonc` POC value (`transport-ag:LPROTECT.DGO` → 3 traffic art levels) | **implemented** |
+| Circuit 1 wiring (`lwide[abc].gd`, `transport.gc` entity hack, `spawn-poc-transport`) | **implemented** |
+| C++ compile check (`decomp` lib + `extractor` + `decompiler`) | **passing** (MSVC Release) |
+| `task extract` + in-game visual confirmation | **✅ confirmed** — hull draws, textured, in free-roam Haven City |
 
 ### 5. Generalization
 
-`extra_art_groups_by_dgo` is not transport-specific. To make any model drawable in any level:
+`extra_art_groups_by_dgo` is not transport-specific — it is a general "inject any
+skeletal model into any level's `.fr3`" mechanism. The reusable step-by-step guide,
+with this transport work as the worked example, is
+[`../jak2_modding_utilities/18_injecting_a_model_into_a_level.md`](../jak2_modding_utilities/18_injecting_a_model_into_a_level.md).
 
-1. Find the model's `-ag` base name (`git grep -l "<model>-ag" -- goal_src/jak2/dgos/`
-   or `goal_src/jak2/build/all_objs.json`).
-2. Add `"<TARGET DGO>": ["<model>-ag"]` to `extra_art_groups_by_dgo`.
-3. If you also need to *spawn / skin* it there (not just have it drawable), add
-   `"<model>-ag.go"` (+ its tpage) to that level's `.gd` for Circuit 1.
-4. `task extract` + `task build-release`.
-
-Cost: one `task extract` per builder (offline; runtime untouched). This is the
-"re-bake" row of the table in tip 18 — now a config line instead of a code patch.
+Short version: pick the target level DGO, add `"<model>-ag:<HOME.DGO>"` to the config,
+add `"<model>-ag.go"` (+ its tpage) to the target level's `.gd` if you also need to
+spawn/skin it there, then `task extract`. Cost: one offline `task extract` per builder;
+the `gk`/`game` runtime is never touched.
 
 ### 6. Modding Changes Log
 
@@ -199,6 +198,7 @@ Cost: one `task extract` per builder (offline; runtime untouched). This is the
 | 2026-09-01 | `goal_src/jak2/dgos/lwidea.gd`, `lwideb.gd`, `lwidec.gd` | + `"tpage-2869.go"`, `"transport-ag.go"` before the bsp `.go` | Circuit 1 residency with the traffic art levels |
 | 2026-09-01 | `goal_src/jak2/levels/city/traffic/vehicle/transport.gc` | `transport-init-by-other`: `(ctywide-entity-hack)` before `initialize-skeleton` (+ comment); append `(defun spawn-poc-transport ())` REPL helper at EOF | re-home a city-spawned transport onto `ctywide` like `vehicle-turret`; one-word command to drop a test transport |
 | 2026-09-01 | `docs/modding/current_mod/merc_fr3_injection_poc_readme.md` | new | this document |
+| 2026-09-01 | `docs/modding/jak2_modding_utilities/18_injecting_a_model_into_a_level.md` | new | reusable step-by-step guide (two circuits, `extra_art_groups_by_dgo`, home-level texture remap, target-level choice, troubleshooting, Ninja/VS build gotcha) with the transport as the worked example |
 
 ---
 
@@ -363,27 +363,24 @@ de 20–40 m puis reviens — la carlingue reste visible (elle est maintenant da
 | Élément | État |
 |---|---|
 | Champ décompilateur `extra_art_groups_by_dgo` + extraction | **implémenté** |
-| Valeur POC `jak2_config.jsonc` (`transport-ag` → 3 niveaux d'art de circulation) | **implémenté** |
-| Câblage Circuit 1 (`lwide[abc].gd`, entity hack `transport.gc`) | **implémenté** |
-| Vérification de compilation C++ (`decomp` + `extractor` + `decompiler`) | **OK** (MSVC Release, compile + link propres) |
-| `task extract` + confirmation visuelle en jeu | **en attente — nécessite le build par l'utilisateur** |
+| Remap texture du niveau d'origine (`"<ag>:<HOME.DGO>"`) | **implémenté** |
+| Valeur POC `jak2_config.jsonc` (`transport-ag:LPROTECT.DGO` → 3 niveaux d'art de circulation) | **implémenté** |
+| Câblage Circuit 1 (`lwide[abc].gd`, entity hack `transport.gc`, `spawn-poc-transport`) | **implémenté** |
+| Vérification de compilation C++ (`decomp` + `extractor` + `decompiler`) | **OK** (MSVC Release) |
+| `task extract` + confirmation visuelle en jeu | **✅ confirmé** — la carlingue s'affiche, texturée, en jeu libre à Haven City |
 
 ### 5. Généralisation
 
-`extra_art_groups_by_dgo` n'est pas spécifique au transport. Pour rendre n'importe quel
-modèle affichable dans n'importe quel niveau :
+`extra_art_groups_by_dgo` n'est pas spécifique au transport — c'est un mécanisme
+générique « injecter n'importe quel modèle squelettique dans le `.fr3` de n'importe
+quel niveau ». Le guide pas-à-pas réutilisable, avec ce travail sur le transport comme
+exemple concret, est dans
+[`../jak2_modding_utilities/18_injecting_a_model_into_a_level.md`](../jak2_modding_utilities/18_injecting_a_model_into_a_level.md).
 
-1. Trouver le nom de base `-ag` du modèle
-   (`git grep -l "<modele>-ag" -- goal_src/jak2/dgos/` ou
-   `goal_src/jak2/build/all_objs.json`).
-2. Ajouter `"<DGO CIBLE>": ["<modele>-ag"]` à `extra_art_groups_by_dgo`.
-3. Si tu dois aussi le *spawner / skinner* là (pas seulement l'avoir affichable),
-   ajouter `"<modele>-ag.go"` (+ sa tpage) au `.gd` de ce niveau pour le Circuit 1.
-4. `task extract` + `task build-release`.
-
-Coût : un `task extract` par personne qui build (hors-ligne ; runtime intact). C'est la
-ligne « re-bake » du tableau du tip 18 — désormais une ligne de config au lieu d'un
-patch de code.
+Version courte : choisir le DGO du niveau cible, ajouter `"<modele>-ag:<HOME.DGO>"` à la
+config, ajouter `"<modele>-ag.go"` (+ sa tpage) au `.gd` du niveau cible si tu dois
+aussi l'y spawner/skinner, puis `task extract`. Coût : un `task extract` hors-ligne par
+personne qui build ; le runtime `gk`/`game` n'est jamais touché.
 
 ### 6. Journal des Modifications (Modding Changes Log)
 
@@ -398,3 +395,4 @@ patch de code.
 | 2026-09-01 | `goal_src/jak2/dgos/lwidea.gd`, `lwideb.gd`, `lwidec.gd` | + `"tpage-2869.go"`, `"transport-ag.go"` avant le `.go` du bsp | résidence Circuit 1 avec les niveaux d'art de circulation |
 | 2026-09-01 | `goal_src/jak2/levels/city/traffic/vehicle/transport.gc` | `transport-init-by-other` : `(ctywide-entity-hack)` avant `initialize-skeleton` (+ commentaire) ; ajout de `(defun spawn-poc-transport ())` (helper REPL) en fin de fichier | re-rattacher un transport spawné en ville à `ctywide`, comme `vehicle-turret` ; commande d'un mot pour larguer un transport de test |
 | 2026-09-01 | `docs/modding/current_mod/merc_fr3_injection_poc_readme.md` | nouveau | ce document |
+| 2026-09-01 | `docs/modding/jak2_modding_utilities/18_injecting_a_model_into_a_level.md` | nouveau | guide pas-à-pas réutilisable (les deux circuits, `extra_art_groups_by_dgo`, remap texture du niveau d'origine, choix du niveau cible, dépannage, piège de build Ninja/VS) avec le transport comme exemple concret |

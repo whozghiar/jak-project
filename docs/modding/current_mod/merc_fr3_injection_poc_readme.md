@@ -132,24 +132,16 @@ task build-release
 
 #### Step 3 — verify in-game (renderer side)
 
-Boot into Haven City with the REPL attached (`task run-game`), then in the REPL:
+Boot into Haven City with the REPL attached (`task run-game`), then in the REPL call
+the helper compiled into this branch (`transport.gc`):
 
 ```lisp
-;; spawn one transport ~25 m in front of the player; it drops in from above.
-(let ((params (new 'stack 'transport-params)))
-  (set! (-> params spawn-pos quad) (-> (target-pos 0) quad))
-  (+! (-> params spawn-pos z) (meters 25))
-  (forward-up-nopitch->quaternion
-    (-> params quat)
-    (new 'static 'vector :z 1.0 :w 1.0)
-    (new 'static 'vector :y 1.0 :w 1.0))
-  (set! (-> params nav-mesh) (find-nearest-nav-mesh (-> params spawn-pos) (the-as float #x7f800000)))
-  (set! (-> params max-guard) (the-as uint 4))
-  (set! (-> params max-time) 0.0)
-  (set! (-> params turret?) #t)
-  (set! (-> params speeches?) #f)
-  (process-spawn transport params :to *default-pool* :name "poc-transport"))
+(spawn-poc-transport)
 ```
+
+It drops one transport ~25 m in front of the player (with 4 guards if a nav-mesh is
+nearby, hull only otherwise), prints the spawned process, and returns it. Run it again
+for another. The transport unloads its guards then flies off on its own.
 
 **Expected:** the full drop-ship hull descends, textured, hatch opens, guards climb
 out; the chin turret is attached and tracks. Walk 20–40 m away and back — the hull
@@ -197,7 +189,7 @@ Cost: one `task extract` per builder (offline; runtime untouched). This is the
 | 2026-09-01 | `decompiler/level_extractor/extract_level.cpp` | `extract_art_groups_from_level` takes `const Config&`; extra `-ag` loop via `db.obj_files_by_name` → `extract_merc`/`extract_joint_group`/`extract_animations`; retail-dupe + unknown-name guards; 3 call sites updated | the actual bake |
 | 2026-09-01 | `decompiler/config/jak2/jak2_config.jsonc` | + POC value `transport-ag` → `LWIDEA/LWIDEB/LWIDEC.DGO` | the transport test case |
 | 2026-09-01 | `goal_src/jak2/dgos/lwidea.gd`, `lwideb.gd`, `lwidec.gd` | + `"tpage-2869.go"`, `"transport-ag.go"` before the bsp `.go` | Circuit 1 residency with the traffic art levels |
-| 2026-09-01 | `goal_src/jak2/levels/city/traffic/vehicle/transport.gc` | `transport-init-by-other`: `(ctywide-entity-hack)` before `initialize-skeleton` (+ comment) | re-home a city-spawned transport onto `ctywide`, like `vehicle-turret` |
+| 2026-09-01 | `goal_src/jak2/levels/city/traffic/vehicle/transport.gc` | `transport-init-by-other`: `(ctywide-entity-hack)` before `initialize-skeleton` (+ comment); append `(defun spawn-poc-transport ())` REPL helper at EOF | re-home a city-spawned transport onto `ctywide` like `vehicle-turret`; one-word command to drop a test transport |
 | 2026-09-01 | `docs/modding/current_mod/merc_fr3_injection_poc_readme.md` | new | this document |
 
 ---
@@ -333,24 +325,16 @@ task build-release
 
 #### Étape 3 — vérifier en jeu (côté renderer)
 
-Boote dans Haven City avec le REPL attaché (`task run-game`), puis dans le REPL :
+Boote dans Haven City avec le REPL attaché (`task run-game`), puis dans le REPL appelle
+le helper compilé dans cette branche (`transport.gc`) :
 
 ```lisp
-;; spawne un transport ~25 m devant le joueur ; il descend depuis le ciel.
-(let ((params (new 'stack 'transport-params)))
-  (set! (-> params spawn-pos quad) (-> (target-pos 0) quad))
-  (+! (-> params spawn-pos z) (meters 25))
-  (forward-up-nopitch->quaternion
-    (-> params quat)
-    (new 'static 'vector :z 1.0 :w 1.0)
-    (new 'static 'vector :y 1.0 :w 1.0))
-  (set! (-> params nav-mesh) (find-nearest-nav-mesh (-> params spawn-pos) (the-as float #x7f800000)))
-  (set! (-> params max-guard) (the-as uint 4))
-  (set! (-> params max-time) 0.0)
-  (set! (-> params turret?) #t)
-  (set! (-> params speeches?) #f)
-  (process-spawn transport params :to *default-pool* :name "poc-transport"))
+(spawn-poc-transport)
 ```
+
+Il fait apparaître un transport ~25 m devant le joueur (avec 4 gardes si une nav-mesh
+est proche, sinon carlingue seule), affiche le process créé et le retourne. Relance-le
+pour en spawner un autre. Le transport débarque ses gardes puis repart tout seul.
 
 **Attendu :** la carlingue complète du drop-ship descend, texturée, la trappe s'ouvre,
 les gardes sortent ; la tourelle de menton est attachée et suit la cible. Éloigne-toi
@@ -402,5 +386,5 @@ patch de code.
 | 2026-09-01 | `decompiler/level_extractor/extract_level.cpp` | `extract_art_groups_from_level` prend `const Config&` ; boucle `-ag` extra via `db.obj_files_by_name` → `extract_merc`/`extract_joint_group`/`extract_animations` ; garde-fous doublon-retail + nom-inconnu ; 3 sites d'appel mis à jour | la cuisson elle-même |
 | 2026-09-01 | `decompiler/config/jak2/jak2_config.jsonc` | + valeur POC `transport-ag` → `LWIDEA/LWIDEB/LWIDEC.DGO` | le cas de test transport |
 | 2026-09-01 | `goal_src/jak2/dgos/lwidea.gd`, `lwideb.gd`, `lwidec.gd` | + `"tpage-2869.go"`, `"transport-ag.go"` avant le `.go` du bsp | résidence Circuit 1 avec les niveaux d'art de circulation |
-| 2026-09-01 | `goal_src/jak2/levels/city/traffic/vehicle/transport.gc` | `transport-init-by-other` : `(ctywide-entity-hack)` avant `initialize-skeleton` (+ commentaire) | re-rattacher un transport spawné en ville à `ctywide`, comme `vehicle-turret` |
+| 2026-09-01 | `goal_src/jak2/levels/city/traffic/vehicle/transport.gc` | `transport-init-by-other` : `(ctywide-entity-hack)` avant `initialize-skeleton` (+ commentaire) ; ajout de `(defun spawn-poc-transport ())` (helper REPL) en fin de fichier | re-rattacher un transport spawné en ville à `ctywide`, comme `vehicle-turret` ; commande d'un mot pour larguer un transport de test |
 | 2026-09-01 | `docs/modding/current_mod/merc_fr3_injection_poc_readme.md` | nouveau | ce document |

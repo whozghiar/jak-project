@@ -553,3 +553,57 @@ This commonly includes things such as:
   (go (method-of-object this come-down))
   (none)
   )
+
+;; ==========================================================================
+;; POC (jak2/features/merc-fr3-injection-poc) -- REPL spawn helper
+;; ==========================================================================
+;; `(spawn-poc-transport)` from the goalc REPL drops one Crimson-Guard troop
+;; transport ~25 m in front of the player, descending from above. Use it to
+;; check whether the drop-ship HULL (`transport-lod*-mg`) resolves in the PC
+;; merc renderer while you are in Haven City.
+;;
+;; What has to be true for the hull to actually show:
+;;  - Haven City loaded (free-roam), so `*target*` and `ctywide` exist.
+;;  - the running build was produced with THIS branch's `task extract`, which
+;;    bakes `transport-lod*-mg` + `tpage-2869` into lwidea/lwideb/lwidec.fr3
+;;    via the decompiler config field `extra_art_groups_by_dgo` (Circuit 2).
+;;  - `transport-ag.go` is resident (now listed in lwide[abc].gd) so
+;;    `skel-transport` / the joints / the animations load (Circuit 1).
+;;
+;; Returns the spawned process, or #f if it could not spawn (a reason is
+;; printed). The transport unloads its guards then flies off by itself -- no
+;; manual cleanup needed.
+(defun spawn-poc-transport ()
+  (cond
+    ((not *target*)
+     (format 0 "spawn-poc-transport: no *target* -- boot into Haven City first~%")
+     #f)
+    ((not (art-group-get-by-name *level* "skel-transport" (the-as (pointer uint32) #f)))
+     (format 0 "spawn-poc-transport: `skel-transport` art not resident -- is `transport-ag.go` in a loaded DGO? (Circuit 1)~%")
+     #f)
+    (else
+      (let ((params (new 'stack 'transport-params))
+            (drop-pos (new 'stack-no-clear 'vector)))
+        ;; landing point: 25 m along the player's facing, at the player's height.
+        ;; transport-init-by-other lifts spawn-pos by 40 m and descends back to
+        ;; it, so an approximate height only changes how far the ship falls.
+        (vector-z-quaternion! drop-pos (-> *target* control quat-for-control))
+        (vector-float*! drop-pos drop-pos (meters 25))
+        (vector+! drop-pos drop-pos (target-pos 0))
+        (set! (-> drop-pos w) 1.0)
+        (set! (-> params spawn-pos quad) (-> drop-pos quad))
+        ;; upright, facing +z (world) -- good enough for a spawn test
+        (forward-up-nopitch->quaternion
+          (-> params quat)
+          (new 'static 'vector :z 1.0 :w 1.0)
+          (new 'static 'vector :y 1.0 :w 1.0))
+        ;; pedestrian nav-mesh for the dropped guards; if none here, hull only
+        (set! (-> params nav-mesh) (find-nearest-nav-mesh drop-pos (the-as float #x7f800000)))
+        (set! (-> params max-guard) (the-as uint (if (-> params nav-mesh) 4 0)))
+        (set! (-> params max-time) 0.0)
+        (set! (-> params turret?) #t)
+        (set! (-> params speeches?) #f)
+        (let ((proc (process-spawn transport params :to *default-pool* :name "poc-transport")))
+          (format 0 "spawn-poc-transport: spawned ~A with ~D guard(s)~%"
+                  (ppointer->process proc) (-> params max-guard))
+          proc)))))

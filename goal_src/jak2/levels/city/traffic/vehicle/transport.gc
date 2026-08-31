@@ -497,6 +497,21 @@
   (set! (-> self count-guard) (the-as uint 0))
   (set! (-> self nav-mesh) (-> arg0 nav-mesh))
   (set! (-> self max-time) 0.0)
+  ;; --- POC (jak2/features/merc-fr3-injection-poc): drop-ship hull visible in the city ---
+  ;; A `transport` spawned in Haven City has no home entity, so `*level*` art-group
+  ;; lookups (and the merc draw-control's texture level) would bind to the wrong level
+  ;; or to none. `ctywide-entity-hack` re-homes this process onto the always-resident
+  ;; `ctywide` level -- this is exactly what the chin `vehicle-turret` already does in
+  ;; `vehicle-turret-init-by-other`. Without it, `art-group-get-by-name "skel-transport"`
+  ;; can miss and `initialize-skeleton` fails.
+  ;;
+  ;; Two circuits feed the hull:
+  ;;  - Circuit 1 (skeleton / joint-geo / animations): `transport-ag.go`, now listed in
+  ;;    goal_src/jak2/dgos/lwide[abc].gd so it is resident with the traffic art levels.
+  ;;  - Circuit 2 (merc render geometry `transport-lod*-mg` + textures): baked into
+  ;;    lwidea/lwideb/lwidec.fr3 by `task extract` via the decompiler config field
+  ;;    `extra_art_groups_by_dgo` (decompiler/config/jak2/jak2_config.jsonc).
+  (ctywide-entity-hack)
   (initialize-skeleton
     self
     (the-as skeleton-group (art-group-get-by-name *level* "skel-transport" (the-as (pointer uint32) #f)))

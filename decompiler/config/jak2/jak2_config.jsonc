@@ -123,6 +123,25 @@
 
   // turn this on to extract level background graphics data as .fr3 files in out/<game>/fr3
   "levels_extract": true,
+
+  // POC (jak2/features/merc-fr3-injection-poc) -- generalized "Solution B".
+  // Bake the merc geometry of art groups that never shipped in a level into that
+  // level's resident .fr3, so the PC merc renderer can draw them there with no borrow.
+  // Key = target DGO (as in inputs.jsonc "levels_to_extract"); value = list of -ag base
+  // names (each must live in some DGO already listed in inputs.jsonc "dgo_names").
+  //   "CWI.DGO"                       -> ctywide.fr3            (resident all over Haven City)
+  //   "LWIDEA.DGO"/"LWIDEB.DGO"/...   -> lwidea.fr3/lwideb.fr3  (traffic-actor art, borrowed
+  //                                                             into ctywide slot 1 in free-roam)
+  //   "GAME.CGO"                      -> GAME.fr3               (resident in every level, global)
+  // POC test case: make the Crimson Guard troop-transport drop-ship hull drawable in
+  // the city exactly like its chin turret already is. We bake into the three traffic
+  // art levels because the traffic manager borrows lwidea / lwideb / lwidec by city
+  // region, so the hull has to be in whichever one is resident.
+  "extra_art_groups_by_dgo": {
+    "LWIDEA.DGO": ["transport-ag"],
+    "LWIDEB.DGO": ["transport-ag"],
+    "LWIDEC.DGO": ["transport-ag"]
+  },
   // turn this on if you want extracted levels to be saved out as .glb files in decompiler_out/<game>/levels
   "rip_levels": false,
   // should we also extract collision meshes to the .fr3 files?

@@ -171,7 +171,7 @@ stays visible (it is now in the resident `lwide*` `.fr3`, not gated on any borro
 | Decompiler `extra_art_groups_by_dgo` field + extraction | **implemented** |
 | `jak2_config.jsonc` POC value (`transport-ag` → 3 traffic art levels) | **implemented** |
 | Circuit 1 wiring (`lwide[abc].gd`, `transport.gc` entity hack) | **implemented** |
-| C++ compile check (`extractor` target) | see commit notes |
+| C++ compile check (`decomp` lib + `extractor` + `decompiler`) | **passing** (MSVC Release, clean compile + link) |
 | `task extract` + in-game visual confirmation | **pending — requires the user to build** |
 
 ### 5. Generalization
@@ -373,7 +373,7 @@ de 20–40 m puis reviens — la carlingue reste visible (elle est maintenant da
 | Champ décompilateur `extra_art_groups_by_dgo` + extraction | **implémenté** |
 | Valeur POC `jak2_config.jsonc` (`transport-ag` → 3 niveaux d'art de circulation) | **implémenté** |
 | Câblage Circuit 1 (`lwide[abc].gd`, entity hack `transport.gc`) | **implémenté** |
-| Vérification de compilation C++ (cible `extractor`) | voir les notes de commit |
+| Vérification de compilation C++ (`decomp` + `extractor` + `decompiler`) | **OK** (MSVC Release, compile + link propres) |
 | `task extract` + confirmation visuelle en jeu | **en attente — nécessite le build par l'utilisateur** |
 
 ### 5. Généralisation

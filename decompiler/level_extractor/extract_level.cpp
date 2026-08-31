@@ -145,9 +145,24 @@ void extract_art_groups_from_level(const ObjectFileDB& db,
     // baked into this level's .fr3 so the PC merc renderer can resolve them by name
     // while this level is resident. The -ag object itself is looked up globally in the
     // object DB (it lives in some other level's retail DGO).
+    //
+    // Entry syntax in config: "<art-group>" or "<art-group>:<HOME.DGO>". The merc's
+    // texture ids are relative to the level it shipped in, so they must be resolved
+    // against THAT level's texture-remap-table, not this borrower level's (whose
+    // remap knows nothing about the injected model). <HOME.DGO> names the level whose
+    // remap to use; if omitted we auto-pick the first real level DGO the art group
+    // shipped in. Get this wrong and the model renders untextured / mis-textured.
     auto extra_it = config.extra_art_groups_by_dgo.find(dgo_name);
     if (extra_it != config.extra_art_groups_by_dgo.end()) {
-      for (const auto& ag_name : extra_it->second) {
+      for (const auto& raw_entry : extra_it->second) {
+        std::string ag_name = raw_entry;
+        std::string home_dgo;
+        auto colon = raw_entry.find(':');
+        if (colon != std::string::npos) {
+          ag_name = raw_entry.substr(0, colon);
+          home_dgo = raw_entry.substr(colon + 1);
+        }
+
         if (ag_names_in_this_dgo.count(ag_name)) {
           lg::warn("extra_art_groups_by_dgo: '{}' is already part of retail {}, skipping", ag_name,
                    dgo_name);
@@ -161,8 +176,29 @@ void extract_art_groups_from_level(const ObjectFileDB& db,
           continue;
         }
         const auto& ag_file = by_name->second.at(0);
+
+        // pick the home level DGO whose texture-remap-table to use for this model
+        if (home_dgo.empty()) {
+          for (const auto& d : ag_file.dgo_names) {
+            if (d.size() > 4 && d.compare(d.size() - 4, 4, ".DGO") == 0 &&
+                db.obj_files_by_dgo.count(d) && get_bsp_file(db.obj_files_by_dgo.at(d), d)) {
+              home_dgo = d;
+              break;
+            }
+          }
+        }
+        std::vector<level_tools::TextureRemap> injected_remap;
+        if (!home_dgo.empty() && db.obj_files_by_dgo.count(home_dgo)) {
+          injected_remap = extract_tex_remap(db, home_dgo);
+          lg::info("extra_art_groups_by_dgo: '{}' textures remapped via {}", ag_name, home_dgo);
+        } else {
+          lg::warn("extra_art_groups_by_dgo: no home level DGO for '{}' -- textures may be wrong; "
+                   "add \"{}:<HOME.DGO>\" to the config",
+                   ag_name, ag_name);
+        }
+
         lg::info("extra_art_groups_by_dgo: baking '{}' into {} (.fr3)", ag_name, dgo_name);
-        extract_merc(ag_file, tex_db, db.dts, tex_remap, level_data, false, db.version(),
+        extract_merc(ag_file, tex_db, db.dts, injected_remap, level_data, false, db.version(),
                      swapped_info);
         extract_joint_group(ag_file, db.dts, db.version(), art_group_data);
         extract_animations(ag_file, db.dts, db.version(), art_group_data);

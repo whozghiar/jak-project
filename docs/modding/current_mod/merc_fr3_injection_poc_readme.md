@@ -63,12 +63,18 @@ that is why the hull was invisible while the turret worked.
 |---|---|
 | [`decompiler/config.h`](../../../decompiler/config.h) | new `Config` field `std::unordered_map<std::string, std::vector<std::string>> extra_art_groups_by_dgo` |
 | [`decompiler/config.cpp`](../../../decompiler/config.cpp) | parse it from `jak2_config.jsonc` (optional key) |
-| [`decompiler/level_extractor/extract_level.cpp`](../../../decompiler/level_extractor/extract_level.cpp) | `extract_art_groups_from_level` now takes `const Config&`; after the normal per-DGO `-ag` loop it processes the configured extras — looked up globally via `db.obj_files_by_name`, then fed through the **same** `extract_merc` / `extract_joint_group` / `extract_animations` calls. Guarded against a name already present in the retail DGO and against an unknown name. 3 call sites updated. |
-| [`decompiler/config/jak2/jak2_config.jsonc`](../../../decompiler/config/jak2/jak2_config.jsonc) | POC value: `{"LWIDEA.DGO": ["transport-ag"], "LWIDEB.DGO": ["transport-ag"], "LWIDEC.DGO": ["transport-ag"]}` |
+| [`decompiler/level_extractor/extract_level.cpp`](../../../decompiler/level_extractor/extract_level.cpp) | `extract_art_groups_from_level` now takes `const Config&`; after the normal per-DGO `-ag` loop it processes the configured extras — looked up globally via `db.obj_files_by_name`, then fed through the **same** `extract_merc` / `extract_joint_group` / `extract_animations` calls, but with the **home level's** `texture-remap-table` (via `extract_tex_remap`) instead of the borrower's. Guarded against a name already in the retail DGO and against an unknown name. 3 call sites updated. |
+| [`decompiler/config/jak2/jak2_config.jsonc`](../../../decompiler/config/jak2/jak2_config.jsonc) | POC value: `{"LWIDEA.DGO": ["transport-ag:LPROTECT.DGO"], "LWIDEB.DGO": [...], "LWIDEC.DGO": [...]}` |
 
-Because the extras are pushed through `extract_merc`, textures they reference
-(`tpage-2869` for the transport) are pulled into the `.fr3` automatically via
-`find_or_add_texture_to_level` — no separate texture config.
+**Entry syntax:** `"<art-group>"` or `"<art-group>:<HOME.DGO>"`. A merc's texture ids
+are relative to the level it shipped in, so `extract_merc` must resolve them against
+**that** level's `texture-remap-table`, not the borrower level's (whose remap knows
+nothing about the injected model). `<HOME.DGO>` names that level; omitted, the first
+real level DGO the art group shipped in is auto-picked (unreliable — the transport
+ships in FOB/NES/CTYKORA/NESTT/LPROTECT and only LPROTECT carries `tpage-2869`). Get
+it wrong → the hull renders **untextured** (shiny envmap-only, no albedo). Other
+textures (`tpage-2869`) are still pulled into the `.fr3` automatically by
+`find_or_add_texture_to_level` once the combo id is right — no separate texture config.
 
 **GOAL source (needed only so a `transport` can actually be spawned & skinned in the city):**
 
@@ -153,7 +159,7 @@ stays visible (it is now in the resident `lwide*` `.fr3`, not gated on any borro
 |---|---|
 | Turret + guards appear, **hull invisible** | Circuit 2 bake failed — check the extract log / `.fr3` size |
 | `art-error` / process dies at spawn | Circuit 1 missing — `transport-ag.go` not resident (check `.gd` + rebuild) |
-| Hull visible but **untextured / wrong textures** | `tpage-2869` texture remap mismatch in `lwide*` — mechanism works, texture path needs a tweak |
+| Hull visible but **untextured** (shiny, envmap only) / wrong textures | `<HOME.DGO>` missing or wrong in the config entry → merc texture ids resolved against the borrower's remap instead of the model's home level. Use `"transport-ag:LPROTECT.DGO"`. Extract log should say `'transport-ag' textures remapped via LPROTECT.DGO` and have **no** `merc failed to find texture` for a `transport-*` draw. |
 | Hull visible only in part of the city | one of `lwidea/lwideb/lwidec` was missed |
 
 ### 4. Status
@@ -187,6 +193,8 @@ Cost: one `task extract` per builder (offline; runtime untouched). This is the
 | 2026-09-01 | `decompiler/config.h` | + `Config::extra_art_groups_by_dgo` | declare the new per-game extraction directive |
 | 2026-09-01 | `decompiler/config.cpp` | parse `extra_art_groups_by_dgo` (optional) from `jak2_config.jsonc` | wire the field to the JSON |
 | 2026-09-01 | `decompiler/level_extractor/extract_level.cpp` | `extract_art_groups_from_level` takes `const Config&`; extra `-ag` loop via `db.obj_files_by_name` → `extract_merc`/`extract_joint_group`/`extract_animations`; retail-dupe + unknown-name guards; 3 call sites updated | the actual bake |
+| 2026-09-01 | `decompiler/level_extractor/extract_level.cpp` | entry syntax `"<ag>:<HOME.DGO>"`; injected `extract_merc` now gets the home level's `texture-remap-table` (`extract_tex_remap`), not the borrower's; auto-picks first level DGO if omitted | fix untextured hull — merc texture ids are home-level-relative |
+| 2026-09-01 | `decompiler/config/jak2/jak2_config.jsonc` | POC value → `"transport-ag:LPROTECT.DGO"` (×3) | LPROTECT carries `tpage-2869`; its remap textures the hull |
 | 2026-09-01 | `decompiler/config/jak2/jak2_config.jsonc` | + POC value `transport-ag` → `LWIDEA/LWIDEB/LWIDEC.DGO` | the transport test case |
 | 2026-09-01 | `goal_src/jak2/dgos/lwidea.gd`, `lwideb.gd`, `lwidec.gd` | + `"tpage-2869.go"`, `"transport-ag.go"` before the bsp `.go` | Circuit 1 residency with the traffic art levels |
 | 2026-09-01 | `goal_src/jak2/levels/city/traffic/vehicle/transport.gc` | `transport-init-by-other`: `(ctywide-entity-hack)` before `initialize-skeleton` (+ comment); append `(defun spawn-poc-transport ())` REPL helper at EOF | re-home a city-spawned transport onto `ctywide` like `vehicle-turret`; one-word command to drop a test transport |
@@ -347,7 +355,7 @@ de 20–40 m puis reviens — la carlingue reste visible (elle est maintenant da
 |---|---|
 | Tourelle + gardes apparaissent, **carlingue invisible** | échec de la cuisson Circuit 2 — vérifier le log d'extraction / la taille des `.fr3` |
 | `art-error` / le process meurt au spawn | Circuit 1 manquant — `transport-ag.go` pas résident (vérifier le `.gd` + rebuild) |
-| Carlingue visible mais **non texturée / mauvaises textures** | mauvais remap de `tpage-2869` dans `lwide*` — le mécanisme marche, le chemin texture demande un ajustement |
+| Carlingue visible mais **non texturée** (brillante, envmap seul) / mauvaises textures | `<HOME.DGO>` absent ou faux dans l'entrée config → les ids de texture merc résolus contre le remap du niveau emprunteur au lieu du niveau d'origine du modèle. Utiliser `"transport-ag:LPROTECT.DGO"`. Le log d'extraction doit dire `'transport-ag' textures remapped via LPROTECT.DGO` et **aucun** `merc failed to find texture` pour un draw `transport-*`. |
 | Carlingue visible seulement dans une partie de la ville | un des `lwidea/lwideb/lwidec` a été oublié |
 
 ### 4. Statut
@@ -384,6 +392,8 @@ patch de code.
 | 2026-09-01 | `decompiler/config.h` | + `Config::extra_art_groups_by_dgo` | déclarer la nouvelle directive d'extraction par jeu |
 | 2026-09-01 | `decompiler/config.cpp` | parse de `extra_art_groups_by_dgo` (optionnel) depuis `jak2_config.jsonc` | relier le champ au JSON |
 | 2026-09-01 | `decompiler/level_extractor/extract_level.cpp` | `extract_art_groups_from_level` prend `const Config&` ; boucle `-ag` extra via `db.obj_files_by_name` → `extract_merc`/`extract_joint_group`/`extract_animations` ; garde-fous doublon-retail + nom-inconnu ; 3 sites d'appel mis à jour | la cuisson elle-même |
+| 2026-09-01 | `decompiler/level_extractor/extract_level.cpp` | syntaxe d'entrée `"<ag>:<HOME.DGO>"` ; l'`extract_merc` injecté reçoit la `texture-remap-table` du niveau d'origine (`extract_tex_remap`), pas celle de l'emprunteur ; auto-choix du 1er DGO de niveau sinon | corrige la carlingue non texturée — les ids de texture merc sont relatifs au niveau d'origine |
+| 2026-09-01 | `decompiler/config/jak2/jak2_config.jsonc` | valeur POC → `"transport-ag:LPROTECT.DGO"` (×3) | LPROTECT porte `tpage-2869` ; son remap texture la carlingue |
 | 2026-09-01 | `decompiler/config/jak2/jak2_config.jsonc` | + valeur POC `transport-ag` → `LWIDEA/LWIDEB/LWIDEC.DGO` | le cas de test transport |
 | 2026-09-01 | `goal_src/jak2/dgos/lwidea.gd`, `lwideb.gd`, `lwidec.gd` | + `"tpage-2869.go"`, `"transport-ag.go"` avant le `.go` du bsp | résidence Circuit 1 avec les niveaux d'art de circulation |
 | 2026-09-01 | `goal_src/jak2/levels/city/traffic/vehicle/transport.gc` | `transport-init-by-other` : `(ctywide-entity-hack)` avant `initialize-skeleton` (+ commentaire) ; ajout de `(defun spawn-poc-transport ())` (helper REPL) en fin de fichier | re-rattacher un transport spawné en ville à `ctywide`, comme `vehicle-turret` ; commande d'un mot pour larguer un transport de test |

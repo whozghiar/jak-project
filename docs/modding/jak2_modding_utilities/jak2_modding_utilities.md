@@ -27,6 +27,8 @@
 - [15. Virtual States, Methods & Child Process Level Binding (Vtables & Multi-DGOs)](#15-virtual-states-methods-child-process-level-binding-vtables-multi-dgos)
 - [16. Vehicle Mechanics: Hijacking, Grab Rails, Weapons & Flight Levels](#16-vehicle-mechanics-hijacking-grab-rails-weapons-flight-levels)
 - [17. Traffic Engine: Spawn Rates, Alert Quotas, Distance Spheres & Nav-Mesh Limits](#17-traffic-engine-spawn-rates-alert-quotas-distance-spheres-nav-mesh-limits)
+- [18. Merc Geometry, `.fr3` Residency & the Level Borrow System](#18-merc-geometry-fr3-residency-the-level-borrow-system)
+- [19. Injecting a Model into a Level it Never Shipped In](#19-injecting-a-model-into-a-level-it-never-shipped-in)
 
 ---
 
@@ -924,6 +926,355 @@ This safely allocates `nav-control-array` and engine `user-list` for up to **128
 
 ---
 
+### 18. Merc Geometry, `.fr3` Residency & the Level Borrow System
+
+> **Origin / Provenance:** `jak2/features/guard_transport` | **Last Updated:** `jak2/features/guard_transport`
+
+> [!IMPORTANT]
+> **Rule 1 — A skeletal model is two separate data sets.**
+> The **art group** (`<name>-ag.go`) and the **merc geometry** (`<name>-lod*-mg` vertices + its texture page) travel through **two independent pipelines**. Loading the art group (via a `.gd` DGO edit) makes the skeleton, joints and animations resident — it does **NOT** make the model drawable on the PC port.
+
+> [!IMPORTANT]
+> **Rule 2 — The PC merc renderer draws geometry only from a resident `.fr3`.**
+> `Merc2::handle_pc_model` resolves a model **by name** against `m_all_merc_models`, which is populated exclusively from the `merc_data.models` of every currently-loaded `.fr3` (per-level and the common `GAME.fr3`). If the name is not found: `stats->num_missing_models++; return;` — no draw, **no crash, no error message**. An animated-but-invisible model is the signature of this.
+
+> [!IMPORTANT]
+> **Rule 3 — `.fr3` contents are fixed by the RETAIL DGOs, not by `goal_src/*.gd`.**
+> The decompiler bakes each `.fr3` from the art groups present in the **retail PS2 DGO** of that level (`iso_data/jak2/DGO/*.DGO`). Editing `goal_src/jak2/dgos/<lvl>.gd` only changes what `goalc` packs into the runtime DGO (i.e. Rule 1's art group). It can **never** add merc geometry to a `.fr3`.
+
+> [!IMPORTANT]
+> **Rule 4 — `ctywide` has exactly 2 borrow slots, and both are always taken in the city.**
+> Slot 0 = `lmeetbrt` (paddywagon hull), slot 1 = `lwidea` (traffic actors). The count `2` is baked into the `level` type (`(borrow-heap kheap 2 :inline)` in `level-h.gc`). A third resident art level in the city means a *temporal* share of a slot, or a decompiler-side re-bake — never a third slot without an engine-structural change.
+
+---
+
+## 🧠 Mechanism 1: The Two Circuits
+
+```mermaid
+flowchart TD
+    subgraph C1 ["Circuit 1 — Art group (GOAL logic)"]
+        AG["&lt;name&gt;-ag.go"] -->|"listed in a .gd DGO, packed by goalc"| HEAP["Level GOAL heap"]
+        HEAP --> ISK["initialize-skeleton / joint anim / collisions / sounds / state machine"]
+    end
+    subgraph C2 ["Circuit 2 — Merc geometry (rendering)"]
+        RET["RETAIL DGO of the level"] -->|"decompiler bakes"| FR3["&lt;level&gt;.fr3 (vertices + textures)"]
+        FR3 -->|"Loader -> MercLoaderStage"| MAP["m_all_merc_models[name]"]
+        MAP -->|"get_merc_model(name)"| DRAW["Merc2 draws triangles"]
+    end
+    ISK -.->|"draw-control sends the model NAME each frame (pc-merc-draw-request)"| MAP
+```
+
+- **Circuit 1** is what a `.gd` edit touches. Enough to make a process *run*: it will animate, drop passengers, play sounds, follow its state machine.
+- **Circuit 2** is what actually puts pixels on screen. Its only knob a modder controls is **which `.fr3` files are resident** — via the level system (a level being active, or **borrowed**).
+- The bridge: every frame, `pc-merc-draw-request` ([`foreground.gc`](../../../goal_src/jak2/engine/gfx/foreground/foreground.gc)) sends the string `(-> dc mgeo name)` (e.g. `"transport-lod0-mg"`) in a DMA packet. `Merc2` looks that string up in `m_all_merc_models`. Match → draw. No match → silently skipped.
+
+### How to tell which `.fr3` contains a model
+
+`decompiler_out/jak2/levels/<level>/<model>-lod0.glb` is a 1:1 mirror of that `.fr3`'s `merc_data.models` (the `rip_levels` gltf dump). If `decompiler_out/jak2/levels/ctywide/` has `vehicle-turret-lod0.glb` but not `transport-lod0.glb`, then `ctywide.fr3` can draw the turret but not the transport.
+
+```bash
+find decompiler_out/jak2/levels -iname "<model>-lod0.glb"        # which .fr3 have it
+git grep -l "<model>-ag" master -- goal_src/jak2/dgos/           # which RETAIL DGOs had the art group
+```
+
+---
+
+## 🧠 Mechanism 2: Why the turret is visible but the hull is not
+
+| | chin `vehicle-turret` | `transport` hull |
+|---|---|---|
+| Type / states DGO | `CWI.DGO` (always resident) | `CWI.DGO` (always resident) |
+| `<name>-ag` in retail `CWI.DGO`? | **YES** | no (only `LPROTECT`, `NES`, `CTYKORA`, `FOB`, `NESTT`) |
+| → merc geometry baked into… | **`ctywide.fr3`** (always resident) | `lprotect.fr3` / `nes.fr3` / … (never resident in free-roam) |
+| Result in Haven City | drawn | `get_merc_model` fails → invisible |
+
+Two same-DGO processes, opposite outcomes — decided entirely by **retail DGO membership of the art group**, which fixes which `.fr3` gets the geometry.
+
+---
+
+## 🧠 Mechanism 3: The Borrow System (how a "mission" `.fr3` becomes resident in the city)
+
+The borrow system lets an always-resident **host** level (`ctywide`) lend fixed memory pockets to small transient **borrower** levels.
+
+```mermaid
+flowchart TD
+    CTY["ctywide (host, always loaded)"] -->|"carves 2 fixed pockets from the top of its heap (level.gc ~1392)"| S0["borrow slot 0  (borrow-size #x17c)"]
+    CTY --> S1["borrow slot 1  (borrow-size #x82f)"]
+    S0 -->|"free-roam: (ctywide 0 lmeetbrt display)"| LM["lmeetbrt loaded -> lmeetbrt.fr3 resident -> paddy-wagon-*-mg drawable"]
+    S1 -->|"free-roam: (ctywide 1 lwidea special)"| LW["lwidea loaded -> lwidea.fr3 resident -> hellcat/bikes/cars drawable"]
+```
+
+- A borrow is declared as `(<host> <slot> <borrower> <priority>)` in a task node's `:borrow` list ([`game-task.gc`](../../../goal_src/jak2/engine/game/task/game-task.gc)), or pushed at runtime with `(set-setting *setting-control* proc 'borrow '((<host> <slot> <borrower> <prio>)) 0.0 0)`.
+- **Evaluation order** ([`task-control.gc`](../../../goal_src/jak2/engine/game/task/task-control.gc) `update-task-masks`): the `fortress-escape-start` node (always) → every open task node → **the `'borrow` setting last**. Last write to a given `host/slot` wins, so a `set-setting` `'borrow` **overrides** a task-node borrow for that exact slot, and only that slot (other slots keep their task-node value).
+- **On PC**, each pocket is `BORROW_MULT` (= 12.0) times the retail size — slot 0 ≈ 4.5 MB, slot 1 ≈ 24 MB. Memory is *not* the constraint; the **count of 2** is.
+- A pocket holds **one borrower at a time** (`level.gc` ~766: "nobody else using the slot").
+- Borrowing a level **also loads its `.fr3`** on the PC port (that is the whole point for a modder: it makes that level's merc geometry + textures drawable).
+
+### The three ways to make a non-city model drawable in the city
+
+| Approach | Cost | Coexistence | Example |
+|---|---|---|---|
+| **Permanent borrow** in a city task node | GOAL only, no re-extract | consumes a slot forever | paddywagon: `(ctywide 0 lmeetbrt display)` |
+| **Temporal borrow** via `set-setting 'borrow`, released when done | GOAL only, no re-extract | shares a slot; the previous tenant's models blink out while active | transport: `lprotect` borrowed only during a drop |
+| **Re-bake** the art group into a resident `.fr3` (`ctywide.fr3` or `GAME.fr3`) | decompiler patch + full `task extract` for every builder | perfect — behaves like `vehicle-turret` | Solution B (see the mod's `transport_solution_B_bake_into_fr3.md`) |
+
+---
+
+## 🛠️ Diagnostic Checklist
+
+- [ ] Model animates / plays sounds / spawns children but **has no visible mesh**, no crash → **missing merc geometry in a resident `.fr3`** (Rules 1–3).
+- [ ] `find decompiler_out/jak2/levels -iname "<model>-lod0.glb"` — is any of those levels resident where you need the model?
+- [ ] `git grep -l "<model>-ag" master -- goal_src/jak2/dgos/` — which retail DGOs had it? Is a borrowable small level among them (like `lprotect`, `lmeetbrt`)?
+- [ ] Did you edit only a `.gd` file and expect the mesh to appear? It won't — that's Circuit 1 only.
+- [ ] Borrow not taking effect → check you are not fighting another `set-setting 'borrow` caller (whack.gc, hiphog-scenes.gc, race-manager.gc), and that the host level is actually loaded.
+
+---
+
+---
+
+### 19. Injecting a Model into a Level it Never Shipped In
+
+> **Origin / Provenance:** `jak2/features/merc-fr3-injection-poc` | **Last Updated:** `jak2/features/merc-fr3-injection-poc`
+
+You want a skeletal model — a vehicle, an enemy, a prop with joints/animation — to
+appear in a level where the retail game never used it. You add its art group to the
+level's `.gd`, it compiles, the process spawns, animations play, sounds play… **but the
+model is invisible** (or visible but untextured). Only its child processes (a turret, a
+rider) show up.
+
+This is because a skeletal model needs **two independent pieces of data**, and the
+`.gd` edit only provides one of them.
+
+## 2. The two circuits
+
+| Circuit | What it is | Where it lives | Loaded into | Used by |
+|---|---|---|---|---|
+| **1 — art group** | skeleton, joint geometry (`*-lod*-jg`), animations (`*-ja`), LOD distances | `<model>-ag.go`, listed in a level's `.gd` (→ DGO) | the GOAL heap | `art-group-get-by-name`, `initialize-skeleton`, the animation system |
+| **2 — merc render geometry** | the actual triangles the PC renderer draws (`*-lod*-mg`), plus the textures they use | baked into `<level>.fr3` by the **decompiler**, from the **retail** DGO contents | the OpenGL renderer / VRAM | `Merc2::handle_pc_model`, which looks models up **by name** |
+
+Key facts:
+
+- **`.gd` / DGO edits only ever add Circuit 1.** They put the skeleton + animations in
+  the GOAL heap. They do nothing for the renderer.
+- **`Merc2` draws only from Circuit 2.** For every skinned draw, GOAL sends a model
+  name (e.g. `transport-lod0-mg`). `Merc2` looks it up in `m_all_merc_models`, which is
+  populated only from the `merc_data.models` of each **resident `.fr3`**. Miss = silent
+  `num_missing_models++; return;` — no crash, no log, nothing drawn.
+- **What is in a `.fr3` is fixed by the *retail* DGO membership**, read by the
+  decompiler from `iso_data/jak2/DGO/*.DGO`. It is **not** controlled by
+  `goal_src/jak2/dgos/*.gd`. Editing a `.gd` never changes a `.fr3`.
+- So: to make a model drawable in a level it never shipped in, you must get its
+  Circuit-2 geometry **baked into a `.fr3` that is resident there**. That is what the
+  `extra_art_groups_by_dgo` decompiler config field does.
+
+See also: the merc renderer path is `foreground.gc` DMA → `Merc2.cpp` →
+`Loader.cpp`/`LoaderStages.cpp` (`MercLoaderStage`).
+
+## 3. The mechanism — `extra_art_groups_by_dgo`
+
+In `decompiler/config/jak2/jak2_config.jsonc`:
+
+```jsonc
+"extra_art_groups_by_dgo": {
+  "<TARGET DGO>": [ "<art-group>:<HOME.DGO>", ... ],
+  ...
+}
+```
+
+- **`<TARGET DGO>`** — the level whose `.fr3` gets the geometry, written as the DGO
+  name exactly as in `inputs.jsonc` → `levels_to_extract` (e.g. `CWI.DGO`,
+  `LWIDEA.DGO`, or `GAME.CGO` for the global `GAME.fr3`).
+- **`<art-group>`** — the base name of the model's art group, e.g. `transport-ag`. It
+  must be reachable from *some* DGO already in `inputs.jsonc` → `dgo_names` (every
+  level is, by default) — its own home level does **not** need to be a borrow target.
+- **`<HOME.DGO>`** — the level the model shipped in. Its `texture-remap-table` is used
+  to resolve the model's texture ids. **This part matters**: a merc's texture ids are
+  *relative to the level it was built for*. Resolve them against the wrong level's
+  remap and the model renders **untextured** (shiny, environment-map only, no albedo).
+  If you omit `:<HOME.DGO>`, the decompiler auto-picks the first real level DGO the art
+  group shipped in — often wrong, so **always specify it**.
+
+At `task extract`, for each `<TARGET DGO>`, the decompiler runs the same
+`extract_merc` / `extract_joint_group` / `extract_animations` it runs for that level's
+native art groups — but for the listed extras, sourced globally from the object DB and
+textured via `<HOME.DGO>`'s remap. The referenced texture pages are pulled into the
+`.fr3` automatically. No C++ patch, no runtime change — the `gk`/`game` binaries are
+untouched. Cost: one `task extract` (offline, needs a legally-dumped ISO) for anyone
+who builds the mod.
+
+Implementation: `decompiler/config.{h,cpp}` (the field), and
+`decompiler/level_extractor/extract_level.cpp` → `extract_art_groups_from_level` (the
+extra loop, after the native `-ag` loop).
+
+## 4. Choosing the target level
+
+The geometry only helps while its `.fr3` is **resident**. Pick the target by where the
+model needs to be visible:
+
+| Target | `.fr3` | Resident when | Use for |
+|---|---|---|---|
+| `GAME.CGO` | `GAME.fr3` | always, every level | a model needed everywhere; cheapest to reason about, costs a bit of RAM in every level |
+| `CWI.DGO` | `ctywide.fr3` | the whole time you are in Haven City (`small-center`) | anything city-wide. **But** `ctywide`'s DGO heap is tight — a large `-ag.go` (Circuit 1) may not fit in `cwi.gd` (same issue as `paddy-wagon-ag.go`) |
+| `LWIDEA.DGO` / `LWIDEB.DGO` / `LWIDEC.DGO` | `lwidea/b/c.fr3` | borrowed into `ctywide` slot 1 during free-roam; the traffic manager picks one of the three by city region | traffic-actor-sized vehicle art in the city. Bake into **all three** so the model is in whichever one is resident where the player is |
+| a mission level DGO (`FRA.DGO`, `NEB.DGO`, …) | that level's `.fr3` | only while that mission level is loaded | a model needed in one specific mission |
+
+## 5. Worked example — the Crimson Guard troop transport in Haven City
+
+Goal: make the `transport` drop-ship hull draw in free-roam Haven City, the same way
+its chin `vehicle-turret` already does. (This is the `jak2/features/guard_transport`
+mod; the POC branch is `jak2/features/merc-fr3-injection-poc`.)
+
+### Step 0 — confirm the diagnosis
+
+In the REPL, in Haven City, spawn the model. Hull invisible, turret + guards fine →
+Circuit 2 missing. Confirm the geometry is *not* in any resident `.fr3`:
+
+```bash
+git grep -l "transport-ag" master -- goal_src/jak2/dgos/
+# -> ctykora.gd fob.gd lprotect.gd nes.gd nestt.gd   (no city level)
+```
+
+### Step 1 — find the pieces
+
+| Piece | How | Value here |
+|---|---|---|
+| art-group base name | `grep transport-ag goal_src/jak2/build/all_objs.json` | `transport-ag` |
+| the model names GOAL sends | the `defskelgroup` in the model's `.gc` | `transport-lod0-mg`, `-lod1-mg`, `-lod2-mg` |
+| home level DGO (for textures) | which retail DGO has the `-ag` **and** its `tpage-*.go` | `LPROTECT.DGO` (its `lprotect.gd` lists both `transport-ag.go` and `tpage-2869.go`) |
+| the tpage | `all_objs.json` line for the `tpage-*` next to the `-ag`, or `lprotect.gd` | `tpage-2869` |
+| target level(s) | where it must be visible → §4 | `LWIDEA.DGO`, `LWIDEB.DGO`, `LWIDEC.DGO` |
+
+### Step 2 — Circuit 2: the `.fr3` bake
+
+`decompiler/config/jak2/jak2_config.jsonc`:
+
+```jsonc
+"extra_art_groups_by_dgo": {
+  "LWIDEA.DGO": ["transport-ag:LPROTECT.DGO"],
+  "LWIDEB.DGO": ["transport-ag:LPROTECT.DGO"],
+  "LWIDEC.DGO": ["transport-ag:LPROTECT.DGO"]
+}
+```
+
+### Step 3 — Circuit 1: the art group in the target levels
+
+`goal_src/jak2/dgos/lwidea.gd`, `lwideb.gd`, `lwidec.gd` — add **before** the level's
+own `<level>.go` (the bsp must stay last):
+
+```
+  "tpage-2869.go"
+  "transport-ag.go"
+```
+
+`transport-ag` already has a source-folder entry in `all_objs.json` (it is a
+retail object), so no `.gp` change is needed — the DGO build picks it up.
+
+### Step 4 — make it reachable at runtime
+
+A model spawned in the city has no home entity, so `*level*` art lookups and the merc
+draw-control's texture level bind to the wrong level. Re-home the process onto the
+resident city level, exactly like `vehicle-turret-init-by-other` does:
+
+```lisp
+;; in transport-init-by-other, before initialize-skeleton
+(ctywide-entity-hack)
+```
+
+### Step 5 — build and verify
+
+```bash
+task extract        # re-bakes lwidea/lwideb/lwidec.fr3 with transport-lod*-mg + tpage-2869
+# no task build-release needed for the .fr3 — it is runtime data
+```
+
+The extract log must show, per target DGO:
+
+```
+extra_art_groups_by_dgo: 'transport-ag' textures remapped via LPROTECT.DGO
+extra_art_groups_by_dgo: baking 'transport-ag' into LWIDEA.DGO (.fr3)
+```
+
+and **no** `merc failed to find texture: … for transport-…`.
+
+Then run the game, go to Haven City, spawn the model. Hull draws, textured, and stays
+visible as you move around (it is in the resident `lwide*` `.fr3`, not gated on any
+runtime borrow).
+
+## 6. Template — any model into any level
+
+1. **Pick the target level DGO** (§4). If it must be visible city-wide and its `-ag.go`
+   is large, use `LWIDEA/LWIDEB/LWIDEC.DGO` (bake into all three), not `CWI.DGO`.
+2. **Find `<model>-ag`** and its **`<HOME.DGO>`** (a retail level that has both the
+   `-ag.go` and its `tpage-*.go` in its `.gd`).
+3. **Config:** add `"<TARGET DGO>": ["<model>-ag:<HOME.DGO>"]` to
+   `extra_art_groups_by_dgo` (append to the target's list if it already has one).
+4. **`.gd`:** add `"<tpage>.go"` and `"<model>-ag.go"` to the target level's `.gd`,
+   before the bsp `.go`. (Skip if you only need the model *drawable* as a child of
+   something whose art is already resident, and never call `initialize-skeleton` /
+   `art-group-get-by-name` for it yourself.)
+5. **Runtime:** if you spawn it yourself in a level it has no entity in, call the
+   level's entity hack (`ctywide-entity-hack`, `lwide-entity-hack`, …) in its
+   `init-by-other` before `initialize-skeleton`.
+6. **`task extract`**, check the log, run the game.
+
+## 7. Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| model **invisible**, child processes fine | Circuit 2 missing — geometry not in a resident `.fr3` | add / fix the `extra_art_groups_by_dgo` entry; check the target `.fr3` is actually resident where you tested (§4) |
+| `process-drawable-art-error` / process dies at spawn | Circuit 1 missing — `<model>-ag.go` not resident | add it (+ its tpage) to the resident level's `.gd`, rebuild GOAL |
+| model visible but **untextured** (shiny, envmap only) | textures resolved against the wrong level's remap | add / fix `:<HOME.DGO>` — pick the retail level that carries the model's `tpage-*.go` |
+| `merc failed to find texture: 0x… Should be in tpage N` in the extract log | that tpage was not processed, or the remap points nowhere | make sure `<HOME.DGO>` (or the DGO holding `tpage-N`) is in `inputs.jsonc` `dgo_names` |
+| model visible only in part of the city | only one of `lwidea/lwideb/lwidec` was baked | bake into all three |
+| `extra_art_groups_by_dgo: '<x>' not found in the object DB` | the `-ag`'s source DGO is not a decompiler input | add its DGO to `inputs.jsonc` `dgo_names` |
+| `task extract` seems to run but the `.fr3` is unchanged | **you ran a stale decompiler** — see §8 | rebuild it into the path the Taskfile uses |
+
+## 8. Build gotcha — Ninja vs Visual Studio output layout
+
+The Taskfile (`task extract`, `task build-release`, …) expects the **Ninja** preset
+(`Release-windows-clang`), which puts binaries flat in `out/build/Release/bin/`. If
+your `out/build/Release` was instead configured with the **Visual Studio** generator
+(VS, or VS Code's CMake Tools default on Windows), binaries go to
+`out/build/Release/bin/Release/` and the flat `bin/` keeps whatever old build was there.
+
+`task extract` runs `out/build/Release/bin/decompiler.exe` + `bin/decomp.dll`. If those
+are stale, your decompiler config changes silently do nothing.
+
+- **One-off fix:** `cp out/build/Release/bin/Release/{decomp,common,compiler}.dll
+  out/build/Release/bin/Release/decompiler.exe → out/build/Release/bin/` after building.
+  (The DLL is the one that matters; it holds the decompiler code.)
+- **Permanent fix:** `rm -rf out/build/Release && task gen-cmake-release && task
+  build-release` — reconfigures with the Ninja preset so every `task` uses the same,
+  fresh binaries.
+- **Check:** `grep -ac extra_art_groups_by_dgo out/build/Release/bin/decomp.dll` should
+  be non-zero.
+
+## 9. Limits and alternatives
+
+- **Offline cost.** Everyone who builds the mod must run `task extract` (needs a
+  legally-dumped ISO). Pure-source mods (`(mi)` and go) do not. This is the price of
+  Circuit 2.
+- **`.fr3` size.** Each injected model adds its vertices + textures (typically a few
+  hundred KB) to every target `.fr3`. Do not inject the whole game catalog into
+  `GAME.fr3`.
+- **Drawable ≠ placed entity.** This makes a model *renderable* and lets you spawn it
+  from code. Hand-placing it as an `entity-actor` in a level still needs level/bsp
+  editing (custom level tools).
+- **Collision, nav-mesh, LOD ranges** all come from Circuit 1 (`-ag` + the model's
+  `.gc`) and behave normally once both circuits are present.
+- **Alternatives:**
+  - `custom_assets/jak2/merc_replacements/<ctrl>.glb` — *replace* an existing merc.
+  - `custom_assets/jak2/models/<level|common>/<name>.glb` — *add* a merc from a GLB
+    (auto directory-scan, no config; needs the GLB, which loses some material
+    fidelity). `extra_art_groups_by_dgo` is the no-GLB-roundtrip variant for
+    game-native models.
+  - a runtime level **borrow** of the model's home level — no re-extract, but it
+    consumes one of `ctywide`'s two borrow slots for the borrow's lifetime.
+
+---
+
+---
+
 # 🇫🇷 Version Française
 
 ## Sommaire
@@ -944,6 +1295,8 @@ This safely allocates `nav-control-array` and engine `user-list` for up to **128
 - [15. Résidence des États, Méthodes et Niveau des Processus Enfants](#15-résidence-des-états-méthodes-et-niveau-des-processus-enfants)
 - [16. Mécaniques des Véhicules : Détournement, Barres d'Accroche, Armes & Niveaux de Vol](#16-mécaniques-des-véhicules-détournement-barres-daccroche-armes-niveaux-de-vol)
 - [17. Moteur de Trafic : Taux d'Apparition, Quotas d'Alerte, Sphères de Distance & Limites de Nav-Mesh](#17-moteur-de-trafic-taux-dapparition-quotas-dalerte-sphères-de-distance-limites-de-nav-mesh)
+- [18. Géométrie Merc, Résidence des `.fr3` et le Système d'Emprunt de Niveaux](#18-géométrie-merc-résidence-des-fr3-et-le-système-demprunt-de-niveaux)
+- [19. Injecter un Modèle dans un Niveau où il n'a Jamais Été Livré](#19-injecter-un-modèle-dans-un-niveau-où-il-na-jamais-été-livré)
 
 ---
 
@@ -1820,5 +2173,360 @@ Cela alloue en toute sécurité `nav-control-array` et le `user-list` moteur pou
 3. Déclencher une alerte générale (attaquer un garde) : les vagues de renfort montent jusqu'aux cibles du niveau 4.
 4. Franchir plusieurs frontières de quartier en alerte maximale : aucune erreur `too many users for nav-mesh`, aucun `exit status 5` DMA.
 5. Vérifier la ligne de diagnostic console : la marge libre de `*default-dead-pool*` doit rester confortablement positive.
+
+---
+
+### 18. Géométrie Merc, Résidence des `.fr3` et le Système d'Emprunt de Niveaux
+
+> **Origin / Provenance :** `jak2/features/guard_transport` | **Dernière modification :** `jak2/features/guard_transport`
+
+> [!IMPORTANT]
+> **Règle 1 — Un modèle squelettique, c'est deux jeux de données distincts.**
+> Le **groupe d'art** (`<nom>-ag.go`) et la **géométrie merc** (vertex `<nom>-lod*-mg` + sa page de textures) passent par **deux tuyaux indépendants**. Charger le groupe d'art (via un edit `.gd`) rend le squelette, les joints et les animations résidents — cela ne rend **PAS** le modèle dessinable sur le port PC.
+
+> [!IMPORTANT]
+> **Règle 2 — Le renderer merc PC ne dessine la géométrie que depuis un `.fr3` résident.**
+> `Merc2::handle_pc_model` résout un modèle **par son nom** dans `m_all_merc_models`, peuplée exclusivement à partir du `merc_data.models` de chaque `.fr3` chargé (par niveau + le `GAME.fr3` commun). Si le nom est absent : `num_missing_models++; return;` — pas de dessin, **pas de crash, pas de message**. Un modèle animé mais invisible est la signature de ce cas.
+
+> [!IMPORTANT]
+> **Règle 3 — Le contenu des `.fr3` est fixé par les DGO RETAIL, pas par `goal_src/*.gd`.**
+> Le décompilateur cuit chaque `.fr3` à partir des groupes d'art présents dans le **DGO PS2 retail** de ce niveau (`iso_data/jak2/DGO/*.DGO`). Éditer `goal_src/jak2/dgos/<lvl>.gd` ne change que ce que `goalc` empaquette dans le DGO runtime (le groupe d'art de la Règle 1). Cela ne peut **jamais** ajouter de géométrie merc à un `.fr3`.
+
+> [!IMPORTANT]
+> **Règle 4 — `ctywide` a exactement 2 slots d'emprunt, tous deux pris en permanence en ville.**
+> Slot 0 = `lmeetbrt` (carlingue du paddywagon), slot 1 = `lwidea` (acteurs de circulation). Le nombre `2` est gravé dans le type `level` (`(borrow-heap kheap 2 :inline)` dans `level-h.gc`). Un troisième niveau d'art résident en ville implique un partage *temporel* d'un slot, ou une re-cuisson côté décompilateur — jamais un 3ᵉ slot sans modifier la structure du moteur.
+
+---
+
+## 🧠 Mécanisme 1 : Les Deux Circuits
+
+```mermaid
+flowchart TD
+    subgraph C1 ["Circuit 1 — Groupe d'art (logique GOAL)"]
+        AG["&lt;nom&gt;-ag.go"] -->|"listé dans un DGO .gd, empaqueté par goalc"| HEAP["Tas GOAL du niveau"]
+        HEAP --> ISK["initialize-skeleton / anim joints / collisions / sons / machine à états"]
+    end
+    subgraph C2 ["Circuit 2 — Géométrie merc (rendu)"]
+        RET["DGO RETAIL du niveau"] -->|"le décompilateur cuit"| FR3["&lt;niveau&gt;.fr3 (vertex + textures)"]
+        FR3 -->|"Loader -> MercLoaderStage"| MAP["m_all_merc_models[nom]"]
+        MAP -->|"get_merc_model(nom)"| DRAW["Merc2 dessine les triangles"]
+    end
+    ISK -.->|"le draw-control envoie le NOM du modèle chaque frame (pc-merc-draw-request)"| MAP
+```
+
+- **Circuit 1** est ce qu'un edit `.gd` touche. Suffisant pour faire *tourner* un process : il s'animera, larguera des passagers, jouera des sons, suivra sa machine à états.
+- **Circuit 2** est ce qui met réellement des pixels à l'écran. Le seul levier que le moddeur contrôle, c'est **quels `.fr3` sont résidents** — via le système de niveaux (un niveau actif, ou **emprunté**).
+- Le pont : à chaque frame, `pc-merc-draw-request` ([`foreground.gc`](../../../goal_src/jak2/engine/gfx/foreground/foreground.gc)) envoie la chaîne `(-> dc mgeo name)` (ex. `"transport-lod0-mg"`) dans un paquet DMA. `Merc2` cherche cette chaîne dans `m_all_merc_models`. Trouvé → dessin. Absent → ignoré silencieusement.
+
+### Comment savoir quel `.fr3` contient un modèle
+
+`decompiler_out/jak2/levels/<niveau>/<modèle>-lod0.glb` est un miroir 1:1 du `merc_data.models` de ce `.fr3` (le dump gltf `rip_levels`). Si `decompiler_out/jak2/levels/ctywide/` contient `vehicle-turret-lod0.glb` mais pas `transport-lod0.glb`, alors `ctywide.fr3` peut dessiner la tourelle mais pas le transport.
+
+```bash
+find decompiler_out/jak2/levels -iname "<modèle>-lod0.glb"        # quels .fr3 l'ont
+git grep -l "<modèle>-ag" master -- goal_src/jak2/dgos/           # quels DGO RETAIL avaient le groupe d'art
+```
+
+---
+
+## 🧠 Mécanisme 2 : Pourquoi la tourelle est visible mais pas la carlingue
+
+| | tourelle `vehicle-turret` | carlingue `transport` |
+|---|---|---|
+| DGO du type / des états | `CWI.DGO` (toujours résident) | `CWI.DGO` (toujours résident) |
+| `<nom>-ag` dans le `CWI.DGO` retail ? | **OUI** | non (seulement `LPROTECT`, `NES`, `CTYKORA`, `FOB`, `NESTT`) |
+| → géométrie merc cuite dans… | **`ctywide.fr3`** (toujours résident) | `lprotect.fr3` / `nes.fr3` / … (jamais résident en jeu libre) |
+| Résultat à Abriville | dessinée | `get_merc_model` échoue → invisible |
+
+Deux process du même DGO, résultats opposés — décidés entièrement par l'**appartenance du groupe d'art au DGO retail**, qui fixe quel `.fr3` reçoit la géométrie.
+
+---
+
+## 🧠 Mécanisme 3 : Le Système d'Emprunt (comment un `.fr3` de « mission » devient résident en ville)
+
+Le système d'emprunt permet à un niveau **hôte** toujours résident (`ctywide`) de prêter des poches de mémoire fixes à de petits niveaux **emprunteurs** transitoires.
+
+```mermaid
+flowchart TD
+    CTY["ctywide (hôte, toujours chargé)"] -->|"découpe 2 poches fixes en haut de son tas (level.gc ~1392)"| S0["slot d'emprunt 0  (borrow-size #x17c)"]
+    CTY --> S1["slot d'emprunt 1  (borrow-size #x82f)"]
+    S0 -->|"jeu libre : (ctywide 0 lmeetbrt display)"| LM["lmeetbrt chargé -> lmeetbrt.fr3 résident -> paddy-wagon-*-mg dessinable"]
+    S1 -->|"jeu libre : (ctywide 1 lwidea special)"| LW["lwidea chargé -> lwidea.fr3 résident -> hellcat/motos/voitures dessinables"]
+```
+
+- Un emprunt se déclare `(<hôte> <slot> <emprunteur> <priorité>)` dans la liste `:borrow` d'un nœud de tâche ([`game-task.gc`](../../../goal_src/jak2/engine/game/task/game-task.gc)), ou se pousse à l'exécution via `(set-setting *setting-control* proc 'borrow '((<hôte> <slot> <emprunteur> <prio>)) 0.0 0)`.
+- **Ordre d'évaluation** ([`task-control.gc`](../../../goal_src/jak2/engine/game/task/task-control.gc) `update-task-masks`) : le nœud `fortress-escape-start` (toujours) → chaque nœud de tâche ouvert → **le setting `'borrow` en dernier**. La dernière écriture sur un `hôte/slot` donné gagne : un `set-setting` `'borrow` **écrase** l'emprunt du nœud de tâche pour ce slot précis, et seulement lui (les autres slots gardent leur valeur de nœud).
+- **Sur PC**, chaque poche fait `BORROW_MULT` (= 12,0) fois la taille retail — slot 0 ≈ 4,5 Mo, slot 1 ≈ 24 Mo. La mémoire n'est *pas* la contrainte ; c'est le **nombre de 2**.
+- Une poche accueille **un emprunteur à la fois** (`level.gc` ~766 : « nobody else using the slot »).
+- Emprunter un niveau **charge aussi son `.fr3`** sur le port PC (c'est tout l'intérêt pour un moddeur : cela rend la géométrie merc + les textures de ce niveau dessinables).
+
+### Les trois façons de rendre un modèle non-urbain dessinable en ville
+
+| Approche | Coût | Coexistence | Exemple |
+|---|---|---|---|
+| **Emprunt permanent** dans un nœud de tâche de la ville | GOAL seul, pas de re-extract | consomme un slot pour toujours | paddywagon : `(ctywide 0 lmeetbrt display)` |
+| **Emprunt temporel** via `set-setting 'borrow`, rendu à la fin | GOAL seul, pas de re-extract | partage un slot ; les modèles du locataire précédent clignotent pendant ce temps | transport : `lprotect` emprunté seulement pendant un largage |
+| **Re-cuire** le groupe d'art dans un `.fr3` résident (`ctywide.fr3` ou `GAME.fr3`) | patch du décompilateur + `task extract` complet pour chaque builder | parfaite — se comporte comme `vehicle-turret` | Solution B (voir `transport_solution_B_bake_into_fr3.md` du mod) |
+
+---
+
+## 🛠️ Checklist de Diagnostic
+
+- [ ] Le modèle s'anime / joue des sons / spawn des enfants mais **n'a aucun maillage visible**, sans crash → **géométrie merc absente d'un `.fr3` résident** (Règles 1–3).
+- [ ] `find decompiler_out/jak2/levels -iname "<modèle>-lod0.glb"` — l'un de ces niveaux est-il résident là où tu as besoin du modèle ?
+- [ ] `git grep -l "<modèle>-ag" master -- goal_src/jak2/dgos/` — quels DGO retail l'avaient ? Y a-t-il un petit niveau empruntable parmi eux (comme `lprotect`, `lmeetbrt`) ?
+- [ ] As-tu édité seulement un `.gd` en attendant que le maillage apparaisse ? Il n'apparaîtra pas — c'est le Circuit 1 uniquement.
+- [ ] L'emprunt ne prend pas effet → vérifie que tu ne te bats pas avec un autre appelant `set-setting 'borrow` (whack.gc, hiphog-scenes.gc, race-manager.gc), et que le niveau hôte est bien chargé.
+
+---
+
+### 19. Injecter un Modèle dans un Niveau où il n'a Jamais Été Livré
+
+> **Origin / Provenance :** `jak2/features/merc-fr3-injection-poc` | **Dernière modification :** `jak2/features/merc-fr3-injection-poc`
+
+Tu veux qu'un modèle squelettique — un véhicule, un ennemi, un accessoire avec
+articulations/animation — apparaisse dans un niveau où le jeu retail ne l'a jamais
+utilisé. Tu ajoutes son groupe d'art au `.gd` du niveau, ça compile, le process
+apparaît, les animations jouent, les sons jouent… **mais le modèle est invisible** (ou
+visible mais sans textures). Seuls ses process enfants (une tourelle, un pilote)
+s'affichent.
+
+C'est parce qu'un modèle squelettique a besoin de **deux données indépendantes**, et la
+modification du `.gd` n'en fournit qu'une.
+
+## 2. Les deux circuits
+
+| Circuit | Ce que c'est | Où ça réside | Chargé dans | Utilisé par |
+|---|---|---|---|---|
+| **1 — groupe d'art** | squelette, géométrie de joints (`*-lod*-jg`), animations (`*-ja`), distances de LOD | `<modele>-ag.go`, listé dans le `.gd` d'un niveau (→ DGO) | le tas GOAL | `art-group-get-by-name`, `initialize-skeleton`, le système d'animation |
+| **2 — géométrie de rendu merc** | les triangles que le renderer PC dessine réellement (`*-lod*-mg`), + les textures qu'ils utilisent | cuit dans `<niveau>.fr3` par le **décompilateur**, depuis le contenu du DGO **retail** | le renderer OpenGL / VRAM | `Merc2::handle_pc_model`, qui cherche les modèles **par nom** |
+
+Faits clés :
+
+- **Les modifications de `.gd` / DGO n'ajoutent jamais que le Circuit 1.** Elles
+  mettent le squelette + animations dans le tas GOAL. Elles ne font rien pour le
+  renderer.
+- **`Merc2` ne dessine que depuis le Circuit 2.** Pour chaque draw skinné, GOAL envoie
+  un nom de modèle (ex. `transport-lod0-mg`). `Merc2` le cherche dans
+  `m_all_merc_models`, rempli uniquement depuis les `merc_data.models` de chaque `.fr3`
+  **résident**. Absent = `num_missing_models++; return;` silencieux — pas de crash, pas
+  de log, rien de dessiné.
+- **Le contenu d'un `.fr3` est fixé par l'appartenance au DGO *retail***, lu par le
+  décompilateur depuis `iso_data/jak2/DGO/*.DGO`. Ce n'est **pas** contrôlé par
+  `goal_src/jak2/dgos/*.gd`. Modifier un `.gd` ne change jamais un `.fr3`.
+- Donc : pour rendre un modèle affichable dans un niveau où il n'a jamais été livré, il
+  faut faire **cuire sa géométrie Circuit 2 dans un `.fr3` qui y est résident**. C'est
+  ce que fait le champ de config décompilateur `extra_art_groups_by_dgo`.
+
+Voir aussi : le chemin du renderer merc est DMA `foreground.gc` → `Merc2.cpp` →
+`Loader.cpp`/`LoaderStages.cpp` (`MercLoaderStage`).
+
+## 3. Le mécanisme — `extra_art_groups_by_dgo`
+
+Dans `decompiler/config/jak2/jak2_config.jsonc` :
+
+```jsonc
+"extra_art_groups_by_dgo": {
+  "<DGO CIBLE>": [ "<groupe-art>:<HOME.DGO>", ... ],
+  ...
+}
+```
+
+- **`<DGO CIBLE>`** — le niveau dont le `.fr3` reçoit la géométrie, écrit comme le nom
+  de DGO exactement comme dans `inputs.jsonc` → `levels_to_extract` (ex. `CWI.DGO`,
+  `LWIDEA.DGO`, ou `GAME.CGO` pour le `GAME.fr3` global).
+- **`<groupe-art>`** — le nom de base du groupe d'art du modèle, ex. `transport-ag`. Il
+  doit être atteignable depuis *un* DGO déjà dans `inputs.jsonc` → `dgo_names` (tous
+  les niveaux le sont par défaut) — son niveau d'origine n'a **pas** besoin d'être une
+  cible de « borrow ».
+- **`<HOME.DGO>`** — le niveau dans lequel le modèle a été livré. Sa
+  `texture-remap-table` sert à résoudre les ids de texture du modèle. **Cette partie
+  compte** : les ids de texture d'un merc sont *relatifs au niveau pour lequel il a été
+  construit*. Résous-les avec le remap du mauvais niveau et le modèle s'affiche **sans
+  textures** (brillant, environment-map seul, pas d'albédo). Si tu omets `:<HOME.DGO>`,
+  le décompilateur auto-choisit le premier DGO de niveau où le groupe d'art a été livré
+  — souvent faux, donc **spécifie-le toujours**.
+
+Au `task extract`, pour chaque `<DGO CIBLE>`, le décompilateur lance les mêmes
+`extract_merc` / `extract_joint_group` / `extract_animations` que pour les groupes
+d'art natifs du niveau — mais pour les extras listés, sourcés globalement depuis la DB
+d'objets et texturés via le remap de `<HOME.DGO>`. Les pages de textures référencées
+sont tirées dans le `.fr3` automatiquement. Aucun patch C++, aucun changement runtime —
+les binaires `gk`/`game` sont intacts. Coût : un `task extract` (hors-ligne, nécessite
+un ISO légalement extrait) pour quiconque build le mod.
+
+Implémentation : `decompiler/config.{h,cpp}` (le champ), et
+`decompiler/level_extractor/extract_level.cpp` → `extract_art_groups_from_level` (la
+boucle extra, après la boucle `-ag` native).
+
+## 4. Choisir le niveau cible
+
+La géométrie ne sert que tant que son `.fr3` est **résident**. Choisis la cible selon
+l'endroit où le modèle doit être visible :
+
+| Cible | `.fr3` | Résident quand | À utiliser pour |
+|---|---|---|---|
+| `GAME.CGO` | `GAME.fr3` | toujours, dans chaque niveau | un modèle nécessaire partout ; le plus simple à raisonner, coûte un peu de RAM dans chaque niveau |
+| `CWI.DGO` | `ctywide.fr3` | tout le temps où tu es dans Haven City (`small-center`) | tout ce qui est à l'échelle de la ville. **Mais** le tas DGO de `ctywide` est serré — un gros `-ag.go` (Circuit 1) peut ne pas rentrer dans `cwi.gd` (même souci que `paddy-wagon-ag.go`) |
+| `LWIDEA.DGO` / `LWIDEB.DGO` / `LWIDEC.DGO` | `lwidea/b/c.fr3` | emprunté dans le slot 1 de `ctywide` en jeu libre ; le gestionnaire de trafic choisit l'un des trois par région | l'art de véhicules dimensionné pour les acteurs de trafic en ville. Cuire dans **les trois** pour que le modèle soit dans celui qui est résident là où est le joueur |
+| un DGO de niveau de mission (`FRA.DGO`, `NEB.DGO`, …) | le `.fr3` de ce niveau | seulement quand ce niveau de mission est chargé | un modèle nécessaire dans une mission précise |
+
+## 5. Exemple concret — le transport de troupes des Crimson Guards dans Haven City
+
+Objectif : faire s'afficher la carlingue du drop-ship `transport` en jeu libre à Haven
+City, comme sa tourelle de menton `vehicle-turret` le fait déjà. (C'est le mod
+`jak2/features/guard_transport` ; la branche POC est
+`jak2/features/merc-fr3-injection-poc`.)
+
+### Étape 0 — confirmer le diagnostic
+
+Dans le REPL, à Haven City, fais apparaître le modèle. Carlingue invisible, tourelle +
+gardes OK → Circuit 2 manquant. Confirme que la géométrie n'est dans **aucun** `.fr3`
+résident :
+
+```bash
+git grep -l "transport-ag" master -- goal_src/jak2/dgos/
+# -> ctykora.gd fob.gd lprotect.gd nes.gd nestt.gd   (aucun niveau de ville)
+```
+
+### Étape 1 — trouver les pièces
+
+| Pièce | Comment | Valeur ici |
+|---|---|---|
+| nom de base du groupe d'art | `grep transport-ag goal_src/jak2/build/all_objs.json` | `transport-ag` |
+| les noms de modèle que GOAL envoie | le `defskelgroup` dans le `.gc` du modèle | `transport-lod0-mg`, `-lod1-mg`, `-lod2-mg` |
+| DGO du niveau d'origine (pour les textures) | quel DGO retail a le `-ag` **et** son `tpage-*.go` | `LPROTECT.DGO` (son `lprotect.gd` liste `transport-ag.go` **et** `tpage-2869.go`) |
+| la tpage | la ligne `all_objs.json` du `tpage-*` à côté du `-ag`, ou `lprotect.gd` | `tpage-2869` |
+| niveau(x) cible(s) | où il doit être visible → §4 | `LWIDEA.DGO`, `LWIDEB.DGO`, `LWIDEC.DGO` |
+
+### Étape 2 — Circuit 2 : la cuisson `.fr3`
+
+`decompiler/config/jak2/jak2_config.jsonc` :
+
+```jsonc
+"extra_art_groups_by_dgo": {
+  "LWIDEA.DGO": ["transport-ag:LPROTECT.DGO"],
+  "LWIDEB.DGO": ["transport-ag:LPROTECT.DGO"],
+  "LWIDEC.DGO": ["transport-ag:LPROTECT.DGO"]
+}
+```
+
+### Étape 3 — Circuit 1 : le groupe d'art dans les niveaux cibles
+
+`goal_src/jak2/dgos/lwidea.gd`, `lwideb.gd`, `lwidec.gd` — ajouter **avant** le
+`<niveau>.go` propre du niveau (le bsp doit rester en dernier) :
+
+```
+  "tpage-2869.go"
+  "transport-ag.go"
+```
+
+`transport-ag` a déjà une entrée de dossier source dans `all_objs.json` (c'est un objet
+retail), donc aucun changement `.gp` n'est nécessaire — le build du DGO le récupère.
+
+### Étape 4 — le rendre atteignable au runtime
+
+Un modèle spawné en ville n'a pas d'entité d'origine, donc les recherches d'art
+`*level*` et le niveau de texture du draw-control merc se lient au mauvais niveau.
+Re-rattache le process au niveau de ville résident, exactement comme
+`vehicle-turret-init-by-other` le fait :
+
+```lisp
+;; dans transport-init-by-other, avant initialize-skeleton
+(ctywide-entity-hack)
+```
+
+### Étape 5 — build et vérification
+
+```bash
+task extract        # re-cuit lwidea/lwideb/lwidec.fr3 avec transport-lod*-mg + tpage-2869
+# pas de task build-release pour le .fr3 — c'est de la donnée runtime
+```
+
+Le log d'extraction doit montrer, par DGO cible :
+
+```
+extra_art_groups_by_dgo: 'transport-ag' textures remapped via LPROTECT.DGO
+extra_art_groups_by_dgo: baking 'transport-ag' into LWIDEA.DGO (.fr3)
+```
+
+et **aucun** `merc failed to find texture: … for transport-…`.
+
+Puis lance le jeu, va à Haven City, fais apparaître le modèle. La carlingue s'affiche,
+texturée, et reste visible quand tu te déplaces (elle est dans le `.fr3` résident
+`lwide*`, plus conditionnée à un borrow runtime).
+
+## 6. Modèle — n'importe quel modèle dans n'importe quel niveau
+
+1. **Choisir le DGO du niveau cible** (§4). S'il doit être visible à l'échelle de la
+   ville et que son `-ag.go` est gros, utiliser `LWIDEA/LWIDEB/LWIDEC.DGO` (cuire dans
+   les trois), pas `CWI.DGO`.
+2. **Trouver `<modele>-ag`** et son **`<HOME.DGO>`** (un niveau retail qui a à la fois
+   le `-ag.go` et son `tpage-*.go` dans son `.gd`).
+3. **Config :** ajouter `"<DGO CIBLE>": ["<modele>-ag:<HOME.DGO>"]` à
+   `extra_art_groups_by_dgo` (l'ajouter à la liste de la cible si elle en a déjà une).
+4. **`.gd` :** ajouter `"<tpage>.go"` et `"<modele>-ag.go"` au `.gd` du niveau cible,
+   avant le `.go` du bsp. (À sauter si tu as seulement besoin que le modèle soit
+   *affichable* comme enfant de quelque chose dont l'art est déjà résident, et que tu
+   n'appelles jamais `initialize-skeleton` / `art-group-get-by-name` pour lui.)
+5. **Runtime :** si tu le spawnes toi-même dans un niveau où il n'a pas d'entité,
+   appelle l'entity hack du niveau (`ctywide-entity-hack`, `lwide-entity-hack`, …) dans
+   son `init-by-other` avant `initialize-skeleton`.
+6. **`task extract`**, vérifier le log, lancer le jeu.
+
+## 7. Dépannage
+
+| Symptôme | Cause | Correctif |
+|---|---|---|
+| modèle **invisible**, process enfants OK | Circuit 2 manquant — géométrie absente d'un `.fr3` résident | ajouter / corriger l'entrée `extra_art_groups_by_dgo` ; vérifier que le `.fr3` cible est bien résident là où tu as testé (§4) |
+| `process-drawable-art-error` / le process meurt au spawn | Circuit 1 manquant — `<modele>-ag.go` pas résident | l'ajouter (+ sa tpage) au `.gd` du niveau résident, recompiler le GOAL |
+| modèle visible mais **sans textures** (brillant, envmap seul) | textures résolues contre le remap du mauvais niveau | ajouter / corriger `:<HOME.DGO>` — prendre le niveau retail qui porte le `tpage-*.go` du modèle |
+| `merc failed to find texture: 0x… Should be in tpage N` dans le log d'extraction | cette tpage n'a pas été traitée, ou le remap ne pointe nulle part | s'assurer que `<HOME.DGO>` (ou le DGO qui contient `tpage-N`) est dans `inputs.jsonc` `dgo_names` |
+| modèle visible seulement dans une partie de la ville | un seul de `lwidea/lwideb/lwidec` a été cuit | cuire dans les trois |
+| `extra_art_groups_by_dgo: '<x>' not found in the object DB` | le DGO source du `-ag` n'est pas une entrée du décompilateur | ajouter son DGO à `inputs.jsonc` `dgo_names` |
+| `task extract` tourne mais le `.fr3` est inchangé | **tu as lancé un décompilateur périmé** — voir §8 | le recompiler dans le chemin que le Taskfile utilise |
+
+## 8. Piège de build — layout de sortie Ninja vs Visual Studio
+
+Le Taskfile (`task extract`, `task build-release`, …) attend le preset **Ninja**
+(`Release-windows-clang`), qui met les binaires à plat dans `out/build/Release/bin/`. Si
+ton `out/build/Release` a été configuré avec le générateur **Visual Studio** (VS, ou le
+défaut de CMake Tools de VS Code sur Windows), les binaires vont dans
+`out/build/Release/bin/Release/` et le `bin/` à plat garde le vieux build qui s'y
+trouvait.
+
+`task extract` lance `out/build/Release/bin/decompiler.exe` + `bin/decomp.dll`. S'ils
+sont périmés, tes changements de config décompilateur ne font rien, silencieusement.
+
+- **Correctif ponctuel :** `cp out/build/Release/bin/Release/{decomp,common,compiler}.dll`
+  et `decompiler.exe` → `out/build/Release/bin/` après avoir buildé. (La DLL est celle
+  qui compte ; elle contient le code du décompilateur.)
+- **Correctif permanent :** `rm -rf out/build/Release && task gen-cmake-release && task
+  build-release` — reconfigure avec le preset Ninja pour que chaque `task` utilise les
+  mêmes binaires à jour.
+- **Vérif :** `grep -ac extra_art_groups_by_dgo out/build/Release/bin/decomp.dll` doit
+  être non nul.
+
+## 9. Limites et alternatives
+
+- **Coût hors-ligne.** Quiconque build le mod doit lancer `task extract` (nécessite un
+  ISO légalement extrait). Les mods 100 % source (`(mi)` et c'est bon) non. C'est le
+  prix du Circuit 2.
+- **Taille des `.fr3`.** Chaque modèle injecté ajoute ses sommets + textures
+  (typiquement quelques centaines de Ko) à chaque `.fr3` cible. Ne pas injecter tout le
+  catalogue du jeu dans `GAME.fr3`.
+- **Affichable ≠ entité placée.** Ça rend un modèle *dessinable* et permet de le
+  spawner depuis le code. Le placer à la main comme `entity-actor` dans un niveau
+  nécessite encore l'édition du niveau/bsp (outils de niveaux custom).
+- **Collision, nav-mesh, distances de LOD** viennent toutes du Circuit 1 (`-ag` + le
+  `.gc` du modèle) et se comportent normalement dès que les deux circuits sont là.
+- **Alternatives :**
+  - `custom_assets/jak2/merc_replacements/<ctrl>.glb` — *remplacer* un merc existant.
+  - `custom_assets/jak2/models/<niveau|common>/<nom>.glb` — *ajouter* un merc depuis un
+    GLB (scan de dossier automatique, sans config ; nécessite le GLB, qui perd un peu
+    de fidélité de matériaux). `extra_art_groups_by_dgo` est la variante sans
+    aller-retour GLB pour les modèles natifs du jeu.
+  - un **borrow** runtime du niveau d'origine du modèle — pas de re-extraction, mais
+    ça consomme un des deux slots de borrow de `ctywide` pour la durée du borrow.
 
 ---

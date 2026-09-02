@@ -9,5 +9,7 @@
   "citizen-norm-rider-ag.go"
   "crimson-bike-ag.go"
   "bikea-ag.go"
+  "tpage-2869.go"
+  "transport-ag.go"
   "lwideb.go"
  ))

@@ -307,7 +307,7 @@
       (send-event gp-0 'deactivate-by-type (traffic-type crimson-guard-1))
       (send-event gp-0 'deactivate-by-type (traffic-type guard-bike))
       (send-event gp-0 'deactivate-by-type (traffic-type hellcat))
-      (send-event gp-0 'deactivate-by-type (traffic-type traffic-type-20))
+      (send-event gp-0 'deactivate-by-type (traffic-type transport-v))
       (send-event gp-0 'deactivate-by-type (traffic-type bikea))
       (send-event gp-0 'deactivate-by-type (traffic-type bikeb))
       (send-event gp-0 'deactivate-by-type (traffic-type bikec))

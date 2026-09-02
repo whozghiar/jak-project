@@ -36,6 +36,9 @@
   (evan-test-bike 8)
   (test-bike 9)
   (test-car 10)
+  ;; MOD (jak2/features/transport_v2): Crimson Guard Troop-Transport gunship,
+  ;; a vehicle-guard flying like the hellcat. See car.gc `transport-v`.
+  (transport-v 11)
   )
 
 

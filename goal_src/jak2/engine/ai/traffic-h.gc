@@ -50,7 +50,11 @@
   (tt17 17)
   (guard-bike 18)
   (hellcat 19)
-  (traffic-type-20 20)
+  ;; MOD (jak2/features/transport_v2): repurpose the spare vehicle slot 20 for the
+  ;; Crimson Guard Troop-Transport gunship in ambient air traffic. Slot 20 was
+  ;; already wired as a ctywide-level vehicle-tracker type (see traffic-engine
+  ;; reset-and-init-from-manager), it just had want-count 0 and no spawn handler.
+  (transport-v 20)
   (traffic-type-21 21)
   )
 ;; ---traffic-h:traffic-type

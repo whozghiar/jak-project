@@ -349,6 +349,10 @@
       (((traffic-type hellcat))
        (set! v0-0 (vehicle-spawn arg0 hellcat arg1))
        )
+      ;; MOD (jak2/features/transport_v2): Crimson Guard Troop-Transport gunship
+      (((traffic-type transport-v))
+       (set! v0-0 (vehicle-spawn arg0 transport-v arg1))
+       )
       (((traffic-type citizen-norm-1))
        (set! v0-0 (citizen-spawn arg0 citizen-norm arg1))
        )
@@ -407,6 +411,10 @@
     (((vehicle-type hellcat))
      hellcat
      )
+    ;; MOD (jak2/features/transport_v2)
+    (((vehicle-type transport-v))
+     transport-v
+     )
     (((vehicle-type evan-test-bike))
      evan-test-bike
      )
@@ -458,8 +466,11 @@
     (set! (-> traffic-want-counts 15) 7)
     (set! (-> traffic-want-counts 16) 7)
     (set! (-> traffic-want-counts 18) 4)
+    ;; hellcat (slot 19) left at the retail want-count 3.
     (set! (-> traffic-want-counts 19) 3)
-    (set! (-> traffic-want-counts 20) 0)
+    ;; MOD (jak2/features/transport_v2): slot 20 = (traffic-type transport-v).
+    ;; At most 2 troop transports navigating the loaded city at once.
+    (set! (-> traffic-want-counts 20) 2)
     (set! (-> traffic-want-counts 0) 15)
     (set! (-> traffic-want-counts 1) 15)
     (set! (-> traffic-want-counts 2) 14)

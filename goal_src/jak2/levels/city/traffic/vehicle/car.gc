@@ -1645,3 +1645,567 @@
   0
   (none)
   )
+
+;; ======================================================================
+;; MOD (jak2/features/transport_v2) — Crimson Guard Troop-Transport gunship
+;; as an ambient AIR-TRAFFIC vehicle.
+;;
+;; Design: `transport-v` is a `vehicle-guard` subtype exactly like `hellcat`
+;; (guard-piloted, red minimap dot via minimap-class `guard`=14, follows the
+;; city nav branches, flies at the traffic height-map altitude, hostile pursuit
+;; AI + player-boardable + player R1 turret fire — all inherited).  It reuses
+;; the `transport` art group (`transport-ag`, resident in LWIDEA/B/C) for the
+;; hull and spawns a `vehicle-turret` child for the visible chin gun.
+;;
+;; Wiring lives in:
+;;   - traffic-h.gc          : (traffic-type transport-v 20)
+;;   - vehicle-h.gc          : (vehicle-type  transport-v 11)
+;;   - traffic-manager.gc    : traffic-object-spawn / type-from-vehicle-type
+;;                             cases + want-count for slot 20
+;; ======================================================================
+
+;; A LOD table that never collapses to the empty `transport-lod2-mg` geometry
+;; (that far LOD is intentionally 0-vertex for the scripted drop-ship's fade-out,
+;; but an ambient traffic ship must stay visible at distance) — so the far slot
+;; reuses `transport-lod1-mg`.
+(defskelgroup skel-transport-v transport transport-lod0-jg transport-idle-ja
+              ((transport-lod0-mg (meters 25)) (transport-lod1-mg (meters 90)) (transport-lod1-mg (meters 999999)))
+              :bounds (static-spherem 0 5 0 17)
+              )
+
+;; Clone the hellcat's flight constants verbatim (so it *is* a hellcat in the
+;; air), then change ONLY things that do not touch the flight model: the type
+;; wiring, the collision-spec flag, the chase-camera framing, the engine-flame
+;; VFX and the seat positions.
+(define *transport-v-constants* (new 'static 'rigid-body-vehicle-constants))
+
+(mem-copy! (the-as pointer *transport-v-constants*)
+           (the-as pointer *hellcat-constants*)
+           (size-of rigid-body-vehicle-constants)
+           )
+
+;; --- transport-specific tuning on the cloned model -------------------------
+;;
+;; DESIGN NOTE (2026-09-01, fix #2 — "turtle flip"): the previous version pushed
+;; the centre of mass 5 m up (`cm-offset-joint` = (0, 5m, 0)) so the CoM would
+;; sit inside the visible hull.  That is what made the ship roll onto its back
+;; and stop responding: EVERY flight control point (`lift-thruster-array`,
+;; `stabilizer-array`, `roll-thruster-array`, `steering-thruster-array`,
+;; `engine-thrust-local-pos`, `brake-local-pos`) is stored in joint-0 space and
+;; was left at the hellcat's ~0.5 m height, so the whole flight model was
+;; suddenly applying its forces 4.5 m *below* the CoM  ->  inverted pendulum,
+;; positive-feedback roll/pitch, uncontrollable.
+;;
+;; The hull-alignment problem ("model stuck to an invisible vehicle") is fixed
+;; WITHOUT moving the CoM:
+;;   * the collision spheres and the seats live in joint-0 space at y ~= 5 m
+;;     (see `allocate-and-init-cshape` and `seat-array` below) so they wrap and
+;;     sit on the real hull, and
+;;   * the chase-camera head/foot offsets are raised ~5 m.
+;; The CoM stays where the hellcat clone put it (just above joint 0), the whole
+;; inherited flight model is therefore byte-for-byte the hellcat's  ->  "flies
+;; like a hellcat", and stably.  The ship pivots about a point near its belly,
+;; exactly as the hellcat pivots about a point near its own joint 0.
+(set! (-> *transport-v-constants* name) '*transport-v-constants*)
+;; `info object-type` = (traffic-type transport-v) = 20 = #x14; guard-type stays
+;; 5 (hellcat-turret) so the alert system reuses the hellcat turret settings.
+(set! (-> *transport-v-constants* object-type) #x14)
+;; Collision is sphere-only (the injected merc geometry carries no collide-mesh),
+;; so clear constants-flag bit 3.  `vehicle::alloc-and-init-rigid-body-control`
+;; then takes the guard-bike branch and writes `jak`/`player-list` into EVERY
+;; prim's `collide-with` (instead of the hellcat branch, where only a
+;; collide-mesh prim — which we do not have — collides with the player).  That
+;; is what restores "you pass through it".  Bits 2 (retaliate when shot) and
+;; 6 (flies / has aerial zones) are left set.
+(logclear! (-> *transport-v-constants* flags) 8)
+;; NOTE: mass, inertial-tensor, cm-offset-joint, max-engine-thrust, max-xz-speed,
+;; turning-accel are deliberately LEFT at the hellcat values.  Do not retune them
+;; here without also shifting every *-thruster-array / stabilizer-array /
+;; engine-thrust-local-pos / brake-local-pos entry to match — they are all
+;; CoM-relative through `cm-offset-joint`, and mismatching them is what caused
+;; the flip.
+;;
+;; chase-cam: pulled well back and up for the ~17 m hull.  Camera settings only,
+;; no physics.  Offsets are measured from `root trans` (= joint 0 = the belly);
+;; the hull centre is ~5 m above that.  The earlier 11/24 m boom still framed the
+;; ship too tight when piloting — a 17 m fuselage needs the camera ~20-36 m out
+;; to read as a whole vehicle, so the string length and height are bumped again.
+(set! (-> *transport-v-constants* camera-string-min-height) (meters 13))
+(set! (-> *transport-v-constants* camera-string-max-height) (meters 15))
+(set! (-> *transport-v-constants* camera-string-min-length) (meters 20))
+(set! (-> *transport-v-constants* camera-string-max-length) (meters 36))
+(set! (-> *transport-v-constants* camera-head-offset) (meters 10))
+(set! (-> *transport-v-constants* camera-foot-offset) (meters 2))
+;; bigger engine flames, at the rear of the hull (VFX only)
+(set! (-> *transport-v-constants* thruster-flame-width) (meters 1))
+(set! (-> *transport-v-constants* thruster-flame-length) (meters 3.5))
+(set-vector! (-> *transport-v-constants* thruster-local-pos 0) 10240.0 20480.0 -18022.4 1.0)
+(set-vector! (-> *transport-v-constants* thruster-local-pos 1) -10240.0 20480.0 -18022.4 1.0)
+;; The pilot is a SEATED Crimson Guard, not a handlebar rider.  The hellcat clone
+;; carries `rider-stance` = 1 (the jetski/handlebar grip, `crimson-guard` anim 36)
+;; which on a transport looks like a guard clinging to invisible bars.  0 selects
+;; the seated pose (`crimson-guard` anim 35) for both the AI pilot and the player
+;; when they take the controls — see `crimson-guard-rider::vehicle-rider-method-33`
+;; and `target-pilot` stance handling.
+(set! (-> *transport-v-constants* rider-stance) 0)
+;; seats in joint-0 space (y ~= hull centre ~5 m up): pilot front-centre (toward
+;; the nose), co-pilot beside, gunner rear.  TUNABLE against the real model — the
+;; `transport` skeleton is align/prejoint/main/hatch only so there is no cockpit
+;; joint to read; if the guard renders buried in the fuselage, raise/-Z these.
+;; The :w words carry the retail seat-flag bits (0x01 pilot / 0x02 / 0x04) — keep them.
+(set-vector! (-> *transport-v-constants* seat-array 0 position) 0.0 18022.4 22528.0 (the-as float #x10000))
+(set-vector! (-> *transport-v-constants* seat-array 1 position) 4096.0 18022.4 20480.0 (the-as float #x20000))
+(set-vector! (-> *transport-v-constants* seat-array 2 position) 0.0 21299.2 -10240.0 (the-as float #x40000))
+
+;; The visible chin gun is a `vehicle-turret` CHILD (retail model `vehicle-turret-ag`,
+;; baked into the always-resident `ctywide.fr3`).  It carries a real rotating gun
+;; joint.  `transport-v` AIMS it (write its `aim-rot`, the child's own `idle` state
+;; applies that to the joint) and FIRES it through `transport-v-fire-turret`:
+;;  - AI:     `vehicle-guard-method-153` (pursuit states, only with LOS to Jak)
+;;  - player: `vehicle-method-94` (hold R1 while piloting)
+;; The child's built-in self-fire (`idle` -> `turret-control-method-11`/`-17`) is
+;; never armed — its `target` handle is force-cleared every frame in
+;; `update-joint-mods` — because that path would `ignore-handle` only the child and
+;; let the round hit the hull.  The inherited `vehicle-guard` HULL turret-control is
+;; also left uninitialised (`(-> this turret info)` = 0) so `turret-control-method-11`
+;; skips it — no invisible shot from either gun.
+(deftype transport-v (vehicle-guard)
+  ((turret-proc           handle)      ;; the visible `vehicle-turret` chin-gun child
+   ;; --- troop-deployment state (see `vehicle-guard-method-154` override) ---
+   (deploying?            symbol)      ;; status flag: #t while descending/unloading
+   (next-guard-drop-time  time-frame)  ;; cadence gate for `transport-v-drop-guard`
+   (guards-dropped        int)         ;; guards dropped this traffic-life; at the cap
+                                       ;;   the ship stops deploying and climbs back.
+                                       ;;   reset by the `vehicle-method-128` override
+   (guard-spawn-side      int)         ;; 0/1 L-R alternation, mirrors retail transport
+   )
+  )
+
+;; --- deploy / turret tuning (all live-editable from the REPL) ----------------
+;; Time between guard drops while the ship hovers over a target zone.  Retail
+;; `transport-method-33` uses ~1-2 s; a traffic gunship that also keeps flying
+;; should drop far less often, so the player is pressured but not buried.
+(define *transport-v-drop-interval* (seconds 4))
+;; Guards deployed per traffic-life before the ship is done and climbs back to
+;; hunt Jak with the turret.  Reset when a pooled transport is re-activated
+;; (`vehicle-method-128` override).  Was 6.
+(define *transport-v-max-drop* 5)
+;; How much altitude the ship gives up while deploying.  Applied as a downward
+;; bias on `flight-level` (see the `vehicle-method-121` override) INSTEAD of the
+;; aerial-zone system — `switch-zone-low!`/`switch-zone-high!` called every frame
+;; ping-pong against the guard ai-hooks and loop the "bike-down" sound.
+(define *transport-v-deploy-descent* (meters 10))
+;; Per-frame angular momentum/velocity retention while deploying (0 = freeze
+;; rotation instantly, 1 = no damping).  Keeps the hull from yaw-spinning while
+;; it hovers to unload; released the moment the load is delivered.  NOTE this is
+;; applied by every `vehicle-method-121` call, and during a pursuit that method
+;; runs ~twice per frame (physics main loop + base `vehicle-guard-method-154`),
+;; so the effective retention is ~this squared.
+(define *transport-v-deploy-spin-damp* 0.9)
+;; Chin-gun rate of fire (AI pursuit fire and player R1 both gate on this).
+(define *transport-v-turret-fire-interval* (seconds 0.3))
+;; Muzzle offset down the barrel from turret joint 3, in metres*4096.  Pushed out
+;; past the turret child's own 1 m collide-sphere so a fresh `guard-shot` never
+;; starts inside it.
+(define *transport-v-turret-muzzle-z* 8192.0)
+
+(defmethod allocate-and-init-cshape ((this transport-v))
+  "Sphere-only moving collision sized for the ~17 m transport hull (no collide-mesh
+   dependency).  All prims are in joint-0 space, centred ~(0, 5m, 0) to wrap the
+   hull that floats 5 m above `root trans` — mirrors the retail `transport-method-31`
+   root sphere `(0, 20480, 0, 69632)`.  One prim carries the nav-sphere; the root
+   group is `rideable` so the player can board it like any traffic vehicle."
+  (let ((s5-0 (new 'process 'collide-shape-moving this (collide-list-enum usually-hit-by-player))))
+    (set! (-> s5-0 dynam) (copy *standard-dynamics* 'process))
+    (set! (-> s5-0 reaction) cshape-reaction-default)
+    (set! (-> s5-0 no-reaction)
+          (the-as (function collide-shape-moving collide-query vector vector object) nothing)
+          )
+    (set! (-> s5-0 penetrate-using) (penetrate vehicle))
+    (let ((s4-0 (new 'process 'collide-shape-prim-group s5-0 (the-as uint 6) 0)))
+      (set! (-> s5-0 total-prims) (the-as uint 7))
+      (set! (-> s4-0 prim-core action) (collide-action solid rideable))
+      (set-vector! (-> s4-0 local-sphere) 0.0 20480.0 0.0 69632.0)
+      (set! (-> s5-0 root-prim) s4-0)
+      )
+    (let ((v1-11 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 1))))
+      (set! (-> v1-11 prim-core action) (collide-action solid))
+      (set! (-> v1-11 transform-index) 0)
+      (set-vector! (-> v1-11 local-sphere) 0.0 18022.4 24576.0 16384.0)
+      )
+    (let ((v1-13 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 2))))
+      (set! (-> v1-13 prim-core action) (collide-action solid))
+      (set! (-> v1-13 transform-index) 0)
+      (set-vector! (-> v1-13 local-sphere) 0.0 22528.0 -20480.0 17408.0)
+      )
+    (let ((v1-15 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 0))))
+      (set! (-> v1-15 prim-core action) (collide-action solid nav-sphere))
+      (set! (-> v1-15 transform-index) 0)
+      (set-vector! (-> v1-15 local-sphere) 0.0 20480.0 0.0 20480.0)
+      (set! (-> v1-15 nav-radius) 32768.0)
+      )
+    (let ((v1-17 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 3))))
+      (set! (-> v1-17 prim-core action) (collide-action solid))
+      (set! (-> v1-17 transform-index) 0)
+      (set-vector! (-> v1-17 local-sphere) 20480.0 20480.0 0.0 14336.0)
+      )
+    (let ((v1-19 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 4))))
+      (set! (-> v1-19 prim-core action) (collide-action solid))
+      (set! (-> v1-19 transform-index) 0)
+      (set-vector! (-> v1-19 local-sphere) -20480.0 20480.0 0.0 14336.0)
+      )
+    (let ((v1-21 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 5))))
+      (set! (-> v1-21 prim-core action) (collide-action solid))
+      (set! (-> v1-21 transform-index) 0)
+      (set-vector! (-> v1-21 local-sphere) 0.0 28672.0 0.0 12288.0)
+      )
+    (set! (-> s5-0 nav-radius) 32768.0)
+    (let ((v1-24 (-> s5-0 root-prim)))
+      (set! (-> s5-0 backup-collide-as) (-> v1-24 prim-core collide-as))
+      (set! (-> s5-0 backup-collide-with) (-> v1-24 prim-core collide-with))
+      )
+    (set! (-> s5-0 nav-flags) (nav-flags has-child-spheres))
+    (set! (-> this root) s5-0)
+    )
+  0
+  (none)
+  )
+
+(defmethod init-skel-and-rigid-body ((this transport-v))
+  (initialize-skeleton
+    this
+    (the-as skeleton-group (art-group-get-by-name *level* "skel-transport-v" (the-as (pointer uint32) #f)))
+    (the-as pair 0)
+    )
+  (alloc-and-init-rigid-body-control this *transport-v-constants*)
+  ;; visible chin gun — spawned here (always runs) exactly like the retail drop-ship.
+  ;; It is a `:to this` child, so it dies with the ship automatically.
+  (set! (-> this turret-proc)
+        (ppointer->handle (process-spawn vehicle-turret *transport-turret-control-info* :to this))
+        )
+  ;; troop-deployment bookkeeping (symbol slot must be an explicit #f, not the
+  ;; zero-fill, or `(if (-> this deploying?) ...)` reads true)
+  (set! (-> this deploying?) #f)
+  (set! (-> this guards-dropped) 0)
+  (set! (-> this next-guard-drop-time) 0)
+  (set! (-> this guard-spawn-side) 0)
+  0
+  (none)
+  )
+
+(defun transport-v-over-solid-ground? ((this transport-v))
+  "#t when the ship may deploy troops from here: it is NOT over water and there
+   is a walkable nav-mesh under the drop point.  `water-height` is a large
+   negative sentinel (-4096000.0) whenever nothing watery is below the ship —
+   see `vehicle::rigid-body-object-method-51`, which refreshes it every physics
+   step while the guard is in pursuit."
+  (and (< (-> this water-height) -1000000.0)
+       (find-nearest-nav-mesh (-> this root trans) (the-as float #x7f800000))
+       )
+  )
+
+(defun transport-v-deploy-active? ((this transport-v))
+  "Live per-frame test: the ship should be actively deploying troops right now.
+   True while ALL of:
+     - an alert is up,
+     - it is hovering over solid walkable ground (not water),
+     - it still has troops left to drop this life (`guards-dropped` < cap).
+   Drives the altitude bias (`vehicle-method-121`), the spin-damping, and the
+   hatch (`update-joint-mods`) — computed fresh each frame so the ship releases
+   the descent / closes the hatch / re-stabilises the INSTANT the load is
+   delivered (or the alert ends, or it crosses water), even in states where
+   `vehicle-guard-method-154` no longer runs.  Once the cap is hit the ship
+   climbs back to the normal traffic lane and just guns for Jak."
+  (and (logtest? (-> this flags) (rigid-body-object-flag alert))
+       (< (-> this guards-dropped) *transport-v-max-drop*)
+       (transport-v-over-solid-ground? this)
+       )
+  )
+
+(defun transport-v-fire-turret ((this transport-v) (attacker handle))
+  "Spawn one `guard-shot` from the VISIBLE chin gun's real muzzle joint (joint 3
+   of the `vehicle-turret` child), travelling down the barrel.
+
+   Why not just call `turret-control-method-17`: that helper parents the
+   projectile to — and sets its `ignore-handle` to — whatever `vehicle` it is
+   handed.  For the chin gun that is the turret CHILD, so the round only ignores
+   the child and is free to detonate on the transport's own `vehicle-sphere`
+   collision prims that surround the muzzle (`guard-shot` collide-with includes
+   `vehicle-sphere`).  That is the \"the shot destroys the ship\" bug.
+
+   Here BOTH the parent and the `ignore-handle` are `this` (the hull), so
+   `projectile-move-fill-line-sphere` (the guard-shot's per-frame sweep) skips
+   every transport prim and the round leaves the gun cleanly.  `attacker` is the
+   damage-attribution owner only (the pilot guard for AI fire, `*target*` for the
+   player) — it does not affect collision."
+  (let ((child (handle->process (-> this turret-proc))))
+    (when child
+      (let ((params (new 'stack-no-clear 'projectile-init-by-other-params))
+            (muzzle-local (new 'stack-no-clear 'vector))
+            (muzzle-pos (new 'stack-no-clear 'vector))
+            (muzzle-dir (new 'stack-no-clear 'vector))
+            (barrel-mat (the-as matrix (-> (the-as process-drawable child) node-list data 3 bone transform)))
+            )
+        ;; muzzle = barrel joint * (0, -1433.6, muzzle-z) ; retail barrel local-pos
+        ;; is z=4096, we push it out to clear the turret child's own collide-sphere
+        (set-vector! muzzle-local 0.0 -1433.6 *transport-v-turret-muzzle-z* 1.0)
+        (vector-matrix*! muzzle-pos muzzle-local barrel-mat)
+        (vector-normalize-copy! muzzle-dir (-> barrel-mat vector 2) 1.0)
+        (set! (-> params ent) (-> this entity))
+        (set! (-> params charge) 1.0)
+        (set! (-> params options) (projectile-options))
+        (set! (-> params notify-handle) (process->handle this))
+        (set! (-> params owner-handle) attacker)
+        (set! (-> params ignore-handle) (process->handle this))
+        (let ((aid (+ (-> *game-info* attack-id) 1)))
+          (set! (-> *game-info* attack-id) aid)
+          (set! (-> params attack-id) aid)
+          )
+        (set! (-> params timeout) (seconds 4))
+        (set! (-> params pos quad) (-> muzzle-pos quad))
+        (vector-float*! (-> params vel) muzzle-dir (-> *transport-turret-control-info* shot-speed))
+        (spawn-projectile guard-shot params this *default-dead-pool*)
+        ;; shared rate-limit clock for AI + player fire
+        (set-time! (-> (the-as vehicle-turret child) turret shoot-time))
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+(defun transport-v-drop-guard ((this transport-v))
+  "Deploy one Crimson Guard directly under the ship, alternating the L/R spawn
+   side — a straight port of the retail drop-ship's `transport-method-33`.
+   Returns the spawned process, or #f if there was no ground / the traffic pool
+   had nothing free."
+  (let ((nm (find-nearest-nav-mesh (-> this root trans) (the-as float #x7f800000))))
+    (if (not nm)
+        #f
+        (let ((sp (new 'stack 'traffic-object-spawn-params)))
+          (set! (-> sp object-type) (traffic-type crimson-guard-1))
+          (set! (-> sp behavior) (the-as uint 6))     ;; 6 = "dropped from a transport"
+          (set! (-> sp id) (the-as uint 0))
+          (set! (-> sp nav-mesh) nm)
+          (set! (-> sp nav-branch) #f)
+          (set! (-> sp proc) #f)
+          (set! (-> sp handle) (process->handle this))
+          (set! (-> sp user-data) (the-as uint (-> this guard-spawn-side)))
+          (set! (-> sp flags) (traffic-spawn-flags))
+          (set! (-> sp guard-type) (the-as uint 7))
+          (vector-reset! (-> sp velocity))
+          (set! (-> sp position quad) (-> this root trans quad))
+          (+! (-> sp position y) 8192.0)
+          (quaternion-rotate-local-y! (-> sp rotation) (-> this root quat) 32768.0)
+          (send-event *traffic-manager* 'activate-object sp)
+          (when (-> sp proc)
+            (set! (-> this guard-spawn-side) (- 1 (-> this guard-spawn-side)))
+            )
+          (-> sp proc)
+          )
+        )
+    )
+  )
+
+(defmethod vehicle-guard-method-154 ((this transport-v))
+  "Per-frame pursuit tick (runs in the `hostile` / `stop-and-shoot` /
+   `slow-pursuit` states).  On top of the stock guard chase:
+
+   - While `transport-v-deploy-active?` (alert + over ground + troops left):
+     drop a Crimson Guard every `*transport-v-drop-interval*` and HOLD A STEADY
+     HEADING — the pursuit ai-hook's per-frame steering command is what makes
+     the ship yaw-spin while it hovers to unload, so we zero it here (and
+     `vehicle-method-121` bleeds any residual angular momentum).  The descent is
+     the `vehicle-method-121` altitude bias, NOT the aerial-zone switch (whose
+     per-frame `switch-zone-low!`/`switch-zone-high!` fight looped the
+     \"bike-down\" sound).
+
+   - Once the load is delivered (`guards-dropped` >= cap) `transport-v-deploy-active?`
+     goes false: the bias releases, the ship climbs back to the normal traffic
+     lane, and the stock guard chase + `vehicle-guard-method-153` turret fire
+     take over — it hunts Jak like a hellcat.
+
+   `guards-dropped` is NOT reset here (it is the per-life cap); it resets when a
+   pooled transport is re-activated into traffic — see the `vehicle-method-128`
+   override."
+  ((method-of-type vehicle-guard vehicle-guard-method-154) this)
+  (cond
+    ((transport-v-deploy-active? this)
+     (set! (-> this deploying?) #t)
+     ;; keep it from spinning on itself while it hovers to unload
+     (set! (-> this controls steering) 0.0)
+     (when (>= (current-time) (-> this next-guard-drop-time))
+       ;; only count a guard that actually spawned (traffic pool may be dry)
+       (if (transport-v-drop-guard this)
+           (+! (-> this guards-dropped) 1)
+           )
+       (set! (-> this next-guard-drop-time) (+ (current-time) *transport-v-drop-interval*))
+       )
+     )
+    (else
+     (set! (-> this deploying?) #f)
+     )
+    )
+  0
+  (none)
+  )
+
+(defmethod vehicle-guard-method-153 ((this transport-v) (arg0 target))
+  "AI turret control — called from the pursuit states only while Jak is in sight.
+   Aims the VISIBLE chin gun at Jak (updating the turret child's `aim-rot`, which
+   the child's own `idle` state applies to the gun joint) and fires it on cadence
+   via `transport-v-fire-turret` (correct ignore-handle → the round does not hit
+   the hull).  Deliberately does NOT chain to `vehicle-guard`'s version: that
+   drives the inherited hull `turret-control`, which is left uninitialised here
+   (`info` = 0) so it is a dead no-op anyway."
+  (let ((child (handle->process (-> this turret-proc))))
+    (when child
+      (let ((tc (-> (the-as vehicle-turret child) turret))
+            (tpos (new 'stack-no-clear 'vector))
+            )
+        (set! (-> tpos quad) (-> (get-trans arg0 3) quad))
+        (set! (-> tc inaccuracy) 0.0)
+        (turret-control-method-9 tc (the-as vehicle child) tpos (-> arg0 control transv))
+        ;; fire once the gun is on target (should-shoot) and the cadence allows
+        (when (and (logtest? (-> tc flags) (turret-flag should-shoot))
+                   (time-elapsed? (-> tc shoot-time) *transport-v-turret-fire-interval*)
+                   )
+          (transport-v-fire-turret this (process->handle arg0))
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+(defmethod update-joint-mods ((this transport-v))
+  "On-screen / camera-near per-frame cosmetic hook.
+
+   (1) It must NOT feed the chin-turret child a `target`.  With a target set the
+   child self-fires from its own `idle` state via `turret-control-method-17`,
+   whose projectile ignores the child (not the hull) and blows up on our
+   collision spheres.  ALL turret fire now goes through `transport-v-fire-turret`
+   (`vehicle-guard-method-153` for AI, `vehicle-method-94` for the player); the
+   child only ever aims its joint from the `aim-rot` those two write.
+
+   (2) Loading hatch: channel 0 plays `transport-hatch-open-ja` (art-elt 5);
+   `frame-num` seeks to the last frame while the ship is deploying troops and
+   back to 0 otherwise.  Cosmetic only — off-screen it just snaps on the next
+   near frame."
+  ;; belt-and-braces: keep the chin-turret child's self-fire path disarmed
+  (let ((child (handle->process (-> this turret-proc))))
+    (if child
+        (set! (-> (the-as vehicle-turret child) target) (the-as handle #f))
+        )
+    )
+  (let ((hatch-elt (-> this draw art-group data 5)))
+    (when (and (nonzero? (-> this skel))
+               (> (-> this skel active-channels) 0)
+               hatch-elt
+               (type? hatch-elt art-joint-anim)
+               )
+      (let ((ch (-> this skel root-channel 0))
+            (hatch-anim (the-as art-joint-anim hatch-elt))
+            )
+        (if (!= (-> ch frame-group) hatch-anim)
+            (joint-control-channel-group! ch hatch-anim num-func-identity)
+            )
+        (set! (-> ch num-func) num-func-identity)
+        (let* ((last-frame (the float (+ (-> hatch-anim frames num-frames) -1)))
+               (goal-frame (if (transport-v-deploy-active? this) last-frame 0.0))
+               )
+          (seek! (-> ch frame-num) goal-frame (* (fmax 1.0 last-frame) 0.75 (seconds-per-frame)))
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+(defmethod vehicle-method-94 ((this transport-v))
+  "Player turret: aim the visible chin gun ~20 m down the ship's nose and fire it
+   on R1 via `transport-v-fire-turret` — the rounds leave the real muzzle and
+   never hit the hull.  Chains to the base `vehicle` method for throttle /
+   steering / jump; does NOT chain to `vehicle-guard`'s R1 handler (that fires
+   the hull turret)."
+  (let ((child (handle->process (-> this turret-proc))))
+    (when child
+      (let ((tc (-> (the-as vehicle-turret child) turret))
+            (aim (new 'stack-no-clear 'vector))
+            (zero (new 'stack-no-clear 'vector))
+            )
+        (vector+float*! aim
+                        (-> this rbody state position)
+                        (-> this rbody state matrix vector 2)
+                        81920.0
+                        )
+        (vector-reset! zero)
+        (set! (-> tc inaccuracy) 0.0)
+        (turret-control-method-9 tc (the-as vehicle child) aim zero)
+        (when (and (cpad-hold? 0 r1)
+                   (time-elapsed? (-> tc shoot-time) *transport-v-turret-fire-interval*)
+                   )
+          (transport-v-fire-turret this (process->handle *target*))
+          )
+        )
+      )
+    )
+  ((method-of-type vehicle vehicle-method-94) this)
+  0
+  (none)
+  )
+
+(defmethod vehicle-method-121 ((this transport-v))
+  "Per-frame housekeeping (rider detection + `flight-level` refresh from the
+   traffic height-map).  While the ship is actively deploying troops
+   (`transport-v-deploy-active?`):
+     - bias the target flight level DOWN by `*transport-v-deploy-descent*` — a
+       silent descent that replaces the aerial-zone switch (whose per-frame
+       `switch-zone-low!`/`switch-zone-high!` fight looped the \"bike-down\"
+       sound).  Idempotent when called twice a frame: the base re-reads
+       `flight-level` from the height-map first, so the bias lands once.
+     - bleed angular momentum / velocity so the hull holds a steady attitude
+       over the drop zone instead of yaw-spinning (`vehicle-guard-method-154`
+       also zeroes the AI steering input for the same reason).
+   When the load is delivered the check goes false, the bias and the damping
+   release together, and the ship climbs back to the normal lane on its own."
+  ((method-of-type vehicle vehicle-method-121) this)
+  (when (transport-v-deploy-active? this)
+    (set! (-> this flight-level) (- (-> this flight-level) *transport-v-deploy-descent*))
+    (let ((rbs (-> this rbody state)))
+      (vector-float*! (-> rbs ang-momentum) (-> rbs ang-momentum) *transport-v-deploy-spin-damp*)
+      (vector-float*! (-> rbs ang-velocity) (-> rbs ang-velocity) *transport-v-deploy-spin-damp*)
+      )
+    )
+  0
+  (none)
+  )
+
+(defmethod vehicle-method-128 ((this transport-v))
+  "Traffic-activation hook (runs each time a pooled transport goes live in the
+   city — behavior 2 ambient or behavior 9 ambush).  Chain to `vehicle-guard`
+   (minimap red dot + `'traffic-on` to the hidden pilot rider), then clear the
+   per-life troop-deploy state so a recycled hull starts with a full load and
+   can descend + deploy again on its next alert."
+  ((method-of-type vehicle-guard vehicle-method-128) this)
+  (set! (-> this deploying?) #f)
+  (set! (-> this guards-dropped) 0)
+  (set! (-> this next-guard-drop-time) 0)
+  (set! (-> this guard-spawn-side) 0)
+  0
+  (none)
+  )
+
+(defmethod vehicle-method-129 ((this transport-v))
+  "Death hook: drop the chin turret."
+  (let ((tp (handle->process (-> this turret-proc))))
+    (if tp
+        (deactivate tp)
+        )
+    )
+  (set! (-> this turret-proc) (the-as handle #f))
+  ((method-of-type vehicle-guard vehicle-method-129) this)
+  (none)
+  )

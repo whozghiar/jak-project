@@ -1124,7 +1124,7 @@
           (set! (-> v1-64 frame-group) (the-as art-joint-anim (-> this draw art-group data 35)))
           )
         )
-       ((14 15 16 19)
+       ((14 15 16 19 20) ;; MOD (transport_v2): 20 = transport-v, use the car knock-off anim
         (logior! (-> this flags) (citizen-flag knocked-out-car))
         (let ((v1-70 (-> this skel root-channel 0)))
           (set! (-> v1-70 frame-group) (the-as art-joint-anim (-> this draw art-group data 36)))

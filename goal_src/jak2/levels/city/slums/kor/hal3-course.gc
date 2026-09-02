@@ -199,7 +199,7 @@
                            (send-event s3-0 'deactivate-by-type (traffic-type crimson-guard-1))
                            (send-event s3-0 'deactivate-by-type (traffic-type guard-bike))
                            (send-event s3-0 'deactivate-by-type (traffic-type hellcat))
-                           (send-event s3-0 'deactivate-by-type (traffic-type traffic-type-20))
+                           (send-event s3-0 'deactivate-by-type (traffic-type transport-v))
                            (send-event s3-0 'set-guard-target-level 0)
                            (send-event s3-0 'set-object-reserve-count (traffic-type crimson-guard-1) 14)
                            #f

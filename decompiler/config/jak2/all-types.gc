@@ -10984,7 +10984,7 @@ exactly the same size as the parent, so it's okay."
   (tt17 17)
   (guard-bike 18)
   (hellcat 19)
-  (traffic-type-20 20)
+  (transport-v 20) ;; MOD (jak2/features/transport_v2): guard troop-transport gunship in air traffic
   (traffic-type-21 21)
   )
 ;; ---traffic-h:traffic-type
@@ -51943,6 +51943,7 @@ Consists of a header and a list of [[merc-effect]]s."
   (evan-test-bike 8)
   (test-bike 9)
   (test-car 10)
+  (transport-v 11) ;; MOD (jak2/features/transport_v2)
   )
 ;; ---vehicle-h:vehicle-type
 

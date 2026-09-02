@@ -1516,7 +1516,7 @@
                             (send-event s5-0 'deactivate-by-type (traffic-type crimson-guard-1))
                             (send-event s5-0 'deactivate-by-type (traffic-type guard-bike))
                             (send-event s5-0 'deactivate-by-type (traffic-type hellcat))
-                            (send-event s5-0 'deactivate-by-type (traffic-type traffic-type-20))
+                            (send-event s5-0 'deactivate-by-type (traffic-type transport-v))
                             )
                           )
                         (when (and (not (logtest? (-> arg1 waypoint-bits) (waypoint-bits wabits-0)))

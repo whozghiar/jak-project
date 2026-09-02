@@ -14,5 +14,7 @@
   "bikec-ag.go"
   "bikeb-ag.go"
   "bikea-ag.go"
+  "tpage-2869.go"
+  "transport-ag.go"
   "lwidea.go"
  ))

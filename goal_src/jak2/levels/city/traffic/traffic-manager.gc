@@ -12,10 +12,12 @@
 (define *traffic-fast-spawn* #f)
 
 (deftype traffic-manager (process)
-  ((traffic-engine    traffic-engine)
-   (fast-spawn        symbol)
-   (dark-guard-ratio  int32)
-   (spawn-params      traffic-object-spawn-params  :inline)
+  ((traffic-engine              traffic-engine)
+   (fast-spawn                  symbol)
+   (dark-guard-ratio            int32)
+   (spawn-params                traffic-object-spawn-params  :inline)
+   (alert-transport             handle)
+   (alert-transport-next-check  time-frame)
    )
   (:state-methods
     idle
@@ -28,6 +30,7 @@
     (kill-all-inactive (_type_) none)
     (reset-and-init (_type_) none)
     (init-params (_type_) none)
+    (update-alert-transport (_type_) none)
     )
   )
 
@@ -277,6 +280,72 @@
   (none)
   )
 
+;; Alert drop-ship integration (V2: native .fr3-baked transport hull).
+;; While the city alert level is >= 1, spawn a scripted Crimson Guard Troop
+;; Transport (`transport`, retail `transport.gc`) around the player: it comes
+;; down, drops 8 guards, and leaves.  Rate is capped to ONE per minute — the
+;; 60 s cooldown is measured from the previous spawn, and a live transport
+;; blocks the next one regardless (case 1).  `transport-ag`'s hull is baked
+;; straight into the resident city .fr3 (LWIDEA/LWIDEB/LWIDEC.fr3), so no
+;; runtime `lprotect` level borrow is needed.
+(defmethod update-alert-transport ((this traffic-manager))
+  (when *target*
+    (cond
+      ;; --- 1. A transport is alive: do nothing else. ---
+      ((and (nonzero? (-> this alert-transport)) (handle->process (-> this alert-transport)))
+       )
+      ;; --- 2. City is peaceful: wait until alert rises. ---
+      ((< (-> this traffic-engine alert-state level) (the-as uint 1))
+       (set! (-> this alert-transport-next-check) (+ (current-time) (seconds 5)))
+       )
+      ;; --- 3. Still inside the 1-per-minute cooldown from the last spawn. ---
+      ((< (current-time) (-> this alert-transport-next-check))
+       )
+      ;; --- 4. Alert is active: spawn drop-ship directly. ---
+      (else
+        (let ((params (new 'stack 'transport-params))
+              (player-pos (target-pos 0))
+              (angle (rand-vu-float-range 0.0 65536.0))
+              (dist (rand-vu-float-range 40960.0 73728.0))
+              (landing-pos (new 'stack-no-clear 'vector))
+              )
+          (set! (-> landing-pos x) (+ (-> player-pos x) (* dist (cos angle))))
+          (set! (-> landing-pos y) (-> player-pos y))
+          (set! (-> landing-pos z) (+ (-> player-pos z) (* dist (sin angle))))
+          (set! (-> landing-pos w) 1.0)
+          (set! (-> params spawn-pos quad) (-> landing-pos quad))
+          (forward-up-nopitch->quaternion
+            (-> params quat)
+            (new 'static 'vector :z 1.0 :w 1.0)
+            (new 'static 'vector :y 1.0 :w 1.0)
+            )
+          (set! (-> params nav-mesh) (find-nearest-nav-mesh landing-pos (the-as float #x7f800000)))
+          (set! (-> params max-guard) (the-as uint 8))
+          (set! (-> params max-time) 0.0)
+          (set! (-> params turret?) #t)
+          (set! (-> params speeches?) #t)
+          (cond
+            ((not (-> params nav-mesh))
+             (set! (-> this alert-transport-next-check) (+ (current-time) (seconds 3)))
+             )
+            (else
+              (let ((proc (process-spawn transport params :to this)))
+                (set! (-> this alert-transport) (ppointer->handle proc))
+                ;; one drop per minute — cooldown measured from this spawn
+                (set! (-> this alert-transport-next-check) (+ (current-time) (seconds 60)))
+                (format 0 "AT: transport drop spawned (alert ~D, ~Mm from player): ~A~%"
+                        (-> this traffic-engine alert-state level) dist (ppointer->process proc))
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
 ;; WARN: Return type mismatch process vs process-drawable.
 (defun vehicle-spawn ((arg0 process) (arg1 type) (arg2 traffic-object-spawn-params))
   (let ((gp-0 (the-as process #f)))
@@ -426,6 +495,8 @@
   (set! (-> this traffic-engine) *traffic-engine*)
   (reset-and-init-from-manager (-> this traffic-engine) this)
   (restore-city-speeches)
+  (set! (-> this alert-transport) (the-as handle #f))
+  (set! (-> this alert-transport-next-check) (+ (current-time) (seconds 5)))
   0
   (none)
   )
@@ -740,6 +811,8 @@
   (ctywide-entity-hack)
   (init-params self)
   (add-setting! 'task-mask 'clear 0.0 (task-mask ctywide))
+  (set! (-> self alert-transport) (the-as handle #f))
+  (set! (-> self alert-transport-next-check) (+ (current-time) (seconds 5)))
   (set! (-> self event-hook) traffic-manager-event-handler)
   (rigid-body-queue-manager-spawn *traffic-rigid-body-queue* self)
   (go-virtual idle)
@@ -778,6 +851,7 @@
   :code sleep-code
   :post (behavior ()
     (update self)
+    (update-alert-transport self)
     )
   )
 

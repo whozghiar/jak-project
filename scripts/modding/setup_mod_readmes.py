@@ -637,8 +637,8 @@ def main():
     for branch, cfg in MODS_CONFIG.items():
         print(f"\n---> Processing branch: {branch}")
         
-        # Checkout branch
-        res = run_cmd(f"git checkout {branch}")
+        # Checkout branch and align with origin
+        res = run_cmd(f"git checkout -B {branch} origin/{branch}")
         if res.returncode != 0:
             print(f"Error checking out {branch}: {res.stderr}")
             continue

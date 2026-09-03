@@ -1730,10 +1730,16 @@
 ;; the hull centre is ~5 m above that.  The earlier 11/24 m boom still framed the
 ;; ship too tight when piloting — a 17 m fuselage needs the camera ~20-36 m out
 ;; to read as a whole vehicle, so the string length and height are bumped again.
-(set! (-> *transport-v-constants* camera-string-min-height) (meters 13))
-(set! (-> *transport-v-constants* camera-string-max-height) (meters 15))
-(set! (-> *transport-v-constants* camera-string-min-length) (meters 20))
-(set! (-> *transport-v-constants* camera-string-max-length) (meters 36))
+;; IMPORTANT: the base `vehicle-method-87` (piloting-camera setup) only pushes
+;; string-min/max-HEIGHT + head/foot-offset from these constants — it never
+;; touches the string LENGTH, so `camera-string-*-length` here had NO effect and
+;; the boom stayed at the engine default (~20 m), framing the 17 m hull far too
+;; close.  The `transport-v` `vehicle-method-87` override below now also pushes
+;; the two length values as `abs` settings, so these finally apply.
+(set! (-> *transport-v-constants* camera-string-min-height) (meters 14))
+(set! (-> *transport-v-constants* camera-string-max-height) (meters 17))
+(set! (-> *transport-v-constants* camera-string-min-length) (meters 26))
+(set! (-> *transport-v-constants* camera-string-max-length) (meters 46))
 (set! (-> *transport-v-constants* camera-head-offset) (meters 10))
 (set! (-> *transport-v-constants* camera-foot-offset) (meters 2))
 ;; bigger engine flames, at the rear of the hull (VFX only)
@@ -1802,8 +1808,15 @@
 ;; runs ~twice per frame (physics main loop + base `vehicle-guard-method-154`),
 ;; so the effective retention is ~this squared.
 (define *transport-v-deploy-spin-damp* 0.9)
-;; Chin-gun rate of fire (AI pursuit fire and player R1 both gate on this).
+;; Chin-gun rate of fire.  The PLAYER's R1 fire gates on this directly; the AI
+;; pursuit fire (`vehicle-guard-method-153`) uses `*transport-v-ai-turret-fire-interval*`
+;; below, which is deliberately much slower so an alert gunship pressures Jak
+;; without shredding him.
 (define *transport-v-turret-fire-interval* (seconds 0.3))
+;; AI-only chin-gun cadence while hunting Jak on alert.  Retail guard turrets
+;; fire ~3-4 rounds/s in bursts; a heavy transport hovering overhead at that
+;; rate is unfair, so space the AI shots way out.  Live-editable from the REPL.
+(define *transport-v-ai-turret-fire-interval* (seconds 1.25))
 ;; Muzzle offset down the barrel from turret joint 3, in metres*4096.  Pushed out
 ;; past the turret child's own 1 m collide-sphere so a fresh `guard-shot` never
 ;; starts inside it.
@@ -1907,6 +1920,9 @@
 (defun transport-v-deploy-active? ((this transport-v))
   "Live per-frame test: the ship should be actively deploying troops right now.
    True while ALL of:
+     - this ship is NOT the one Jak is currently piloting — a stolen transport
+       must fly exactly like the player commands it, never auto-descend or
+       auto-stabilise,
      - an alert is up,
      - it is hovering over solid walkable ground (not water),
      - it still has troops left to drop this life (`guards-dropped` < cap).
@@ -1916,7 +1932,8 @@
    delivered (or the alert ends, or it crosses water), even in states where
    `vehicle-guard-method-154` no longer runs.  Once the cap is hit the ship
    climbs back to the normal traffic lane and just guns for Jak."
-  (and (logtest? (-> this flags) (rigid-body-object-flag alert))
+  (and (not (logtest? (-> this flags) (rigid-body-object-flag player-driving)))
+       (logtest? (-> this flags) (rigid-body-object-flag alert))
        (< (-> this guards-dropped) *transport-v-max-drop*)
        (transport-v-over-solid-ground? this)
        )
@@ -2057,20 +2074,38 @@
    via `transport-v-fire-turret` (correct ignore-handle → the round does not hit
    the hull).  Deliberately does NOT chain to `vehicle-guard`'s version: that
    drives the inherited hull `turret-control`, which is left uninitialised here
-   (`info` = 0) so it is a dead no-op anyway."
+   (`info` = 0) so it is a dead no-op anyway.
+
+   ACCURACY: the earlier version forced `inaccuracy` to 0.0 → `turret-control-method-13`
+   produced a zero aim offset → pixel-perfect tracking of Jak, which felt like a
+   sniper.  We now feed the SAME inaccuracy the retail hull turret uses
+   (`turret-control-method-11`: scales with target speed), which then gets further
+   scaled by `guard-settings inaccuracy` * the alert-state `guard-inaccuracy-factor`
+   inside method-13.  `turret-control-method-13` is re-run on every shot so the
+   miss vector is re-rolled instead of being a fixed offset for the whole
+   engagement.
+
+   RATE: gates on `*transport-v-ai-turret-fire-interval*` (much slower than the
+   player's `*transport-v-turret-fire-interval*`)."
   (let ((child (handle->process (-> this turret-proc))))
     (when child
       (let ((tc (-> (the-as vehicle-turret child) turret))
             (tpos (new 'stack-no-clear 'vector))
             )
         (set! (-> tpos quad) (-> (get-trans arg0 3) quad))
-        (set! (-> tc inaccuracy) 0.0)
+        ;; retail formula (see turret-control-method-11): base spread + a term
+        ;; that grows with how fast the target is moving
+        (set! (-> tc inaccuracy)
+              (* 0.000012207031 (+ 20480.0 (vector-length (-> arg0 control transv))))
+              )
         (turret-control-method-9 tc (the-as vehicle child) tpos (-> arg0 control transv))
         ;; fire once the gun is on target (should-shoot) and the cadence allows
         (when (and (logtest? (-> tc flags) (turret-flag should-shoot))
-                   (time-elapsed? (-> tc shoot-time) *transport-v-turret-fire-interval*)
+                   (time-elapsed? (-> tc shoot-time) *transport-v-ai-turret-fire-interval*)
                    )
           (transport-v-fire-turret this (process->handle arg0))
+          ;; re-roll the aim scatter for the next round
+          (turret-control-method-13 tc)
           )
         )
       )
@@ -2117,6 +2152,46 @@
                )
           (seek! (-> ch frame-num) goal-frame (* (fmax 1.0 last-frame) 0.75 (seconds-per-frame)))
           )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+(defmethod vehicle-method-87 ((this transport-v))
+  "Piloting hooks that fire ONCE, the moment Jak takes the controls
+   (`player-control:enter` and `check-player-get-on` both call this).
+
+   (1) Camera: chain to the base `vehicle` version (it pushes string min/max
+       HEIGHT + head/foot offsets from the constants), then ALSO push the string
+       min/max LENGTH — the base method never touches length, so without this the
+       boom sits at the engine default and the 17 m hull is framed far too close.
+       `vehicle-method-88` already `remove-setting!`s both length keys on exit.
+
+   (2) Stealing a Crimson Guard gunship is a crime: raise the city alert to
+       level 2 (the threshold `vehicle-guard`'s `alert-begin` handler needs) so
+       the rest of the guard traffic turns hostile.  Guarded on the `target-jak`
+       alert flag so it only fires during normal free-roam, never inside a
+       scripted mission that hands the player a transport.
+
+   (3) Hide this ship's red minimap dot while Jak is aboard, using the same fade
+       the `vehicle-guard` teardown methods use.  If the hull is later recycled
+       into ambient traffic, `vehicle-method-128` re-adds the icon."
+  (let ((first-time (not (logtest? (-> this flags) (rigid-body-object-flag camera)))))
+    ((method-of-type vehicle vehicle-method-87) this)
+    (when first-time
+      ;; base method pushed height + head/foot; add the string LENGTH it skips
+      (set-setting! 'string-min-length 'abs (-> this info camera-string-min-length) 0)
+      (set-setting! 'string-max-length 'abs (-> this info camera-string-max-length) 0)
+      (let ((te (-> this controller traffic)))
+        (when (and te (logtest? (-> te alert-state flags) (traffic-alert-flag target-jak)))
+          (set-alert-level te 2)
+          )
+        )
+      (when (-> this minimap)
+        (logior! (-> this minimap flags) (minimap-flag fade-out))
+        (set! (-> this minimap) #f)
         )
       )
     )

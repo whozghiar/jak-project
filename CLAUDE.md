@@ -60,16 +60,27 @@ Before designing or modifying any code for Jak 1, Jak 2, or Jak 3, **strictly co
 ```
 jak[N°]/[type_of_mod]/[mod_name]
 ```
-*Examples:* `jak2/features/jak3-jetBoard`, `jak2/config/memory_increase`, `jak1/features/green-eco-glow`.
+* **Branch Creation Automation:** Always create mod branches using:
+  ```bash
+  python scripts/modding/create_mod_branch.py jak[N]/[type]/[name]
+  ```
+  This automatically branches from `master-dev` and replaces root `README.md` with the pre-filled template.
 
 ### 📝 Mandatory Mod Documentation (Root `README.md`)
-Every mod branch replaces the repository root `README.md` with its dedicated bilingual mod presentation:
+Every mod branch maintains a dedicated root `README.md` presenting:
+1. Installation Guide / Guide d'installation
+2. Mod Features / Fonctionnalités du mod
+3. Usage & Controls / Utilisation & Commandes
+4. Video Demo / Vidéo démonstrative (or gameplay screenshots)
 * **Template:** [`docs/modding/templates/MOD_README.template.md`](docs/modding/templates/MOD_README.template.md)
 * **GitHub Visibility:** GitHub automatically renders this root `README.md` when browsing the mod's branch.
-* **Bilingual Requirement (🇬🇧 EN & 🇫🇷 FR):** All mod readmes must feature complete English and French versions (Features, Controls, How to Test, Status, Notes).
-* **Updating Modding Docs On-Demand:** To update modding docs without creating unwanted commits or rebasing:
+* **Syncing Modding Docs On-Demand:** To pull latest tips from `master-dev` without rebasing:
   ```bash
   python scripts/modding/sync_docs_from_master.py
+  ```
+* **Branch Sync Dashboard:** Tracked live on `master-dev`'s `README.md` and [`docs/modding/branch_sync_status.md`](docs/modding/branch_sync_status.md). Routine updates via:
+  ```bash
+  python scripts/modding/sync_branches_with_master.py --push
   ```
 
 ### 🛡️ Code Architecture & Guardrails

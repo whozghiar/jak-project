@@ -31,10 +31,23 @@ Over 98% of the original trilogy was coded in GOAL, a custom LISP dialect develo
   - `jak3/features/city-behavior`
   - `jak3/config/memory_increase`
 
+* **Creating New Mod Branches Automatically:**
+  Always create new mod branches using the dedicated helper:
+  ```bash
+  python scripts/modding/create_mod_branch.py jak[N°]/[type_of_mod]/[mod_name]
+  ```
+  This command fetches `master-dev`, branches out, and automatically transforms the root `README.md` into the customized mod presentation template.
+
 * **Syncing Modding Docs On-Demand:**
   To update modding docs, tips, and guidelines on an active mod branch without rebasing or generating extraneous bot commits:
   ```bash
   python scripts/modding/sync_docs_from_master.py
+  ```
+
+* **Branch Synchronization Routine & Status Dashboard:**
+  The live sync status of all mod branches against `master` is tracked in `README.md` and [`docs/modding/branch_sync_status.md`](branch_sync_status.md). To test or push clean merges manually:
+  ```bash
+  python scripts/modding/sync_branches_with_master.py --push
   ```
 
 ---
@@ -63,20 +76,19 @@ When developing a mod for any game in the trilogy, the following documentation s
 * **Automated Aggregation via GitHub Action:** The GitHub Action workflow (`.github/workflows/sync-modding-docs.yaml`) automatically harvests all individual `.md` tip files for each game and aggregates them into `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md` on `master-dev`.
 
 ### 2. Dedicated Mod Readme (`README.md` at root)
-* Every mod branch must replace the repository root `README.md` with its dedicated bilingual mod presentation using the template at:
+* Every mod branch must replace the repository root `README.md` with its dedicated bilingual mod presentation.
+* **Automatic Initialization:** Created automatically when using `python scripts/modding/create_mod_branch.py <branch_name>` via the template at:
   ```
   docs/modding/templates/MOD_README.template.md
   ```
-* **GitHub Native Rendering:** Replacing root `README.md` allows GitHub to automatically display the mod's presentation directly when browsing that branch.
-* An archive copy may also be kept in `docs/modding/current_mod/[mod_name]_readme.md`.
-* **Bilingual Documentation (🇬🇧 EN & 🇫🇷 FR):** Every mod readme must be fully written in both English and French with structured sections:
-  1. Description & Features / Description & Fonctionnalités
-  2. Technical Architecture & Tooling / Architecture Technique & Outillage
-  3. How to Test & Play / Commandes & Procédure de Test
-  4. Current Status & Investigations / Statut Actuel & Investigations
-  5. Modding Changes Log / Journal des Modifications
-* **Consolidated Change Log:** All modification steps and traceability logs must be recorded directly in the **Modding Changes Log** table inside the mod's readme (format: `Date | Touched/Created Files | Technical Description | Objective`), eliminating loose changelog files at workspace root.
-* **Mod Merging & Combinations:** Keep mod readmes modular inside `docs/modding/current_mod/` and prefix custom symbols with the mod's identifier (e.g. `*my-mod-speed*`, `my-mod-activate!`) to prevent symbol collisions when fusing branches.
+* **GitHub Native Rendering:** Replacing root `README.md` allows GitHub to automatically display the mod's presentation directly when browsing that branch. (Original OpenGOAL port README is archived in `open-goal-original-readme.md`).
+* **Mandatory Mod Readme Contents (🇬🇧 EN & 🇫🇷 FR):** Every mod readme must feature:
+  1. **Installation & Build Guide:** Exact commands to set game, compile, and boot.
+  2. **Detailed Features List:** Precise explanation of behaviors, models, or configurations changed.
+  3. **Usage & Controls:** Keybindings, controller triggers, debug menus, or in-game activations.
+  4. **Demonstrative Video / Media:** Embedded demo video link (e.g. YouTube/WebP/MP4) or gameplay screenshots.
+  5. **Modding Changes Log:** Tracing files touched/created, technical rationale, and objectives.
+* **Mod Merging & Combinations:** Keep mod readmes modular and prefix custom symbols with the mod's identifier (e.g. `*my-mod-speed*`, `my-mod-activate!`) to prevent symbol collisions when fusing branches.
 
 ---
 
@@ -127,10 +139,23 @@ Plus de 98% de la trilogie d'origine a été programmée en GOAL, un dialecte LI
   - `jak3/features/city-behavior`
   - `jak3/config/memory_increase`
 
+* **Création Automatisée d'une Nouvelle Branche de Mod :**
+  Toujours initialiser une nouvelle branche via le script dédié :
+  ```bash
+  python scripts/modding/create_mod_branch.py jak[N°]/[type_de_mod]/[nom_du_mod]
+  ```
+  Ce script checkout `master-dev`, crée la branche et transforme automatiquement le `README.md` racine en template personnalisé du mod.
+
 * **Mise à Jour de la Documentation à la Demande :** 
   Pour synchroniser la documentation, les tips et les consignes de modding sur une branche de mod active sans rebase invasif ni commits polluants de bot :
   ```bash
   python scripts/modding/sync_docs_from_master.py
+  ```
+
+* **Routine de Synchronisation & Tableau de Bord des Conflits :**
+  L'état de synchronisation en direct des branches par rapport à `master` est suivi dans `README.md` et [`docs/modding/branch_sync_status.md`](branch_sync_status.md). Pour tester ou fusionner manuellement les branches propres :
+  ```bash
+  python scripts/modding/sync_branches_with_master.py --push
   ```
 
 ---
@@ -159,20 +184,19 @@ Lors du développement d'un mod pour n'importe quel jeu de la trilogie, la struc
 * **Agrégation Automatisée via GitHub Action :** La GitHub Action (`.github/workflows/sync-modding-docs.yaml`) récolte automatiquement les tips individuels des branches de mods et les agrège dans `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md` sur `master-dev`.
 
 ### 2. Readme Dédié au Mod (`README.md` à la racine)
-* Chaque branche de mod doit remplacer le fichier `README.md` à la racine du dépôt par la présentation de son mod en s'appuyant sur le modèle :
+* Chaque branche de mod doit remplacer le fichier `README.md` à la racine du dépôt par la présentation de son mod.
+* **Initialisation Automatisée :** Généré automatiquement via `python scripts/modding/create_mod_branch.py <nom_branche>` à partir du modèle :
   ```
   docs/modding/templates/MOD_README.template.md
   ```
-* **Affichage Natif sur GitHub :** Remplacer le `README.md` racine permet à GitHub d'afficher immédiatement la page de présentation du mod lorsque l'utilisateur navigue sur cette branche.
-* Une copie d'archive peut également être conservée dans `docs/modding/current_mod/[nom_du_mod]_readme.md`.
-* **Documentation Bilingue (🇬🇧 EN & 🇫🇷 FR) :** Chaque readme de mod doit être intégralement rédigé en anglais et en français avec la structure suivante :
-  1. Description & Features / Description & Fonctionnalités
-  2. Technical Architecture & Tooling / Architecture Technique & Outillage
-  3. How to Test & Play / Commandes & Procédure de Test
-  4. Current Status & Investigations / Statut Actuel & Investigations
-  5. Modding Changes Log / Journal des Modifications
-* **Journal des Modifications Consolidé :** Pour garder la racine propre, l'historique et la traçabilité doivent être consignés directement dans le tableau **Modding Changes Log** du readme du mod (format : `Date | Fichiers touchés/créés | Description technique | Objectif`).
-* **Fusion & Combinaisons de Mods :** Garder les fichiers `[nom_du_mod]_readme.md` modulaires et préfixer les symboles GOAL custom (ex : `*mon-mod-speed*`, `mon-mod-activate!`) pour éviter les conflits lors des fusions.
+* **Affichage Natif sur GitHub :** Remplacer le `README.md` racine permet à GitHub d'afficher immédiatement la page de présentation du mod lorsque l'utilisateur navigue sur cette branche. (Le README originel du port OpenGOAL est archivé dans `open-goal-original-readme.md`).
+* **Contenu Obligatoire du Readme de Mod (🇬🇧 EN & 🇫🇷 FR) :** Chaque readme de mod doit obligatoirement comprendre :
+  1. **Guide d'installation & de compilation :** Commandes exactes pour configurer le jeu cible, compiler et lancer.
+  2. **Fonctionnalités détaillées :** Description claire des comportements, modèles ou réglages modifiés.
+  3. **Utilisation & Commandes :** Touches manette, raccourcis clavier, menus de debug ou déclencheurs ingame.
+  4. **Vidéo Démonstrative / Médias :** Lien vers une vidéo de démonstration intégrée (YouTube / WebP / MP4) ou captures d'écran en jeu.
+  5. **Journal des Modifications (Modding Changes Log) :** Tableau de traçabilité des fichiers modifiés, justifications techniques et objectifs.
+* **Fusion & Combinaisons de Mods :** Garder les composants modulaires et préfixer les symboles GOAL custom (ex : `*mon-mod-speed*`, `mon-mod-activate!`) pour éviter les collisions de symboles lors des fusions de branches.
 
 ---
 

@@ -140,6 +140,36 @@ def generate_dashboard(results, source_ref, source_sha, updated_at):
     with open(DASHBOARD_FILE, "w", encoding="utf-8") as f:
         f.write("\n".join(md))
 
+    # Also update the dashboard table directly inside root README.md on master-dev
+    readme_file = os.path.join(REPO_ROOT, "README.md")
+    if os.path.isfile(readme_file):
+        with open(readme_file, "r", encoding="utf-8") as f:
+            readme_content = f.read()
+
+        table_lines = [
+            f"> **Dernière mise à jour :** `{updated_at}`  ",
+            f"> **Branche source :** `{source_ref}` (`{source_sha}`)  ",
+            f"> **Statut global :** {synced_count}/{total} synchronisées ({conflict_count} conflits)",
+            "",
+            "| Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |",
+            "| :--- | :---: | :--- | :--- | :--- |"
+        ]
+        for r in results:
+            branch_code = f"`{r['branch']}`"
+            status = r["status"]
+            last_commit = f"`{r['last_commit']}`"
+            conflicts_fmt = "<br>".join([f"• `{f}`" for f in r["conflicts"]]) if r["conflicts"] else r.get("details", "Aucun")
+            res_cmd = f"`git checkout {r['branch']} && git merge origin/{source_ref}`" if "Conflit" in status else "—"
+            table_lines.append(f"| {branch_code} | {status} | {last_commit} | {conflicts_fmt} | {res_cmd} |")
+
+        table_block = "\n".join(table_lines)
+        pattern = r"<!-- BRANCH_STATUS_START -->.*?<!-- BRANCH_STATUS_END -->"
+        replacement = f"<!-- BRANCH_STATUS_START -->\n{table_block}\n<!-- BRANCH_STATUS_END -->"
+        if re.search(pattern, readme_content, flags=re.DOTALL):
+            new_readme = re.sub(pattern, replacement, readme_content, flags=re.DOTALL)
+            with open(readme_file, "w", encoding="utf-8") as f:
+                f.write(new_readme)
+
 def main():
     parser = argparse.ArgumentParser(description="Synchronize modding branches with master and detect conflicts.")
     parser.add_argument("--source", default="master", help="Source branch to sync from (default: master).")

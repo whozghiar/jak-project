@@ -1,6 +1,6 @@
 # 📊 État de Synchronisation des Branches de Mods
 
-> **Dernière mise à jour :** `2026-09-03 17:45:43 UTC`  
+> **Dernière mise à jour :** `2026-09-03 18:01:18 UTC`  
 > **Branche source :** `master` (`65fc564c1`)  
 > **Statut global :** 13/16 synchronisées (3 conflits)
 
@@ -16,12 +16,12 @@
 | `jak2/features/merc-fr3-injection-poc` | ✅ À jour | `5427bdebd - chore: sync jak2/features/merc-fr3-injection-poc with latest origin/master (AI-assisted)` | Déjà à jour | — |
 | `jak2/features/paddy_wagon_v2` | ✅ À jour | `fdeb0ecf4 - chore: sync jak2/features/paddy_wagon_v2 with latest origin/master (AI-assisted)` | Déjà à jour | — |
 | `jak2/features/transport_v2` | ✅ À jour | `a7ab8c19f - chore: sync jak2/features/transport_v2 with latest origin/master (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/yakow_killable` | 🔄 Synchronisée | `07ed1641b - chore: sync jak2/features/yakow_killable with latest origin/master (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak2/features/yakow_killable` | ✅ À jour | `07ed1641b - chore: sync jak2/features/yakow_killable with latest origin/master (AI-assisted)` | Déjà à jour | — |
 | `jak3/config/memory_increase` | ✅ À jour | `93c8570b5 - chore: sync jak3/config/memory_increase with latest origin/master (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/city-behavior` | 🔄 Synchronisée | `d03da075b - chore: sync jak3/features/city-behavior with latest origin/master (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak3/features/city-behavior` | ✅ À jour | `d03da075b - chore: sync jak3/features/city-behavior with latest origin/master (AI-assisted)` | Déjà à jour | — |
 | `jak3/features/jak2_skin_secret` | ⚠️ Conflit | `2655e008a - docs: synchronize updated modding documentation from master (AI-assisted)` | • `goal_src/jak3/pc/progress/progress-draw-pc.gc` | `git checkout jak3/features/jak2_skin_secret && git merge origin/master` |
 | `jak3/features/mega_dark_jak` | ✅ À jour | `c92710916 - chore: sync jak3/features/mega_dark_jak with latest origin/master (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/redguard-entity` | 🔄 Synchronisée | `adb1e2741 - chore: sync jak3/features/redguard-entity with latest origin/master (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak3/features/redguard-entity` | ✅ À jour | `adb1e2741 - chore: sync jak3/features/redguard-entity with latest origin/master (AI-assisted)` | Déjà à jour | — |
 
 ---
 ### Guide de Résolution des Conflits

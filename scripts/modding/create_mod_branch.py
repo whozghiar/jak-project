@@ -109,7 +109,7 @@ def main():
         print(f"\nPushing {branch} to origin...")
         run_cmd(f"git push -u origin {branch}")
 
-    print(f"\n✨ Mod branch '{branch}' successfully created and initialized!")
+    print(f"\n[OK] Mod branch '{branch}' successfully created and initialized!")
     print(f"When browsing this branch on GitHub, your mod README will be displayed automatically on the root page.")
 
 if __name__ == "__main__":

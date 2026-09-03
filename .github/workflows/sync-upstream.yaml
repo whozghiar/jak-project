@@ -24,6 +24,11 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Configure Git Author
         run: |
           git config --global user.name "github-actions[bot]"
@@ -54,4 +59,15 @@ jobs:
             echo "::warning::Merge conflict detected while syncing master into master-dev. Aborting merge."
             git merge --abort
             exit 0
+          fi
+
+      - name: Sync Mod Branches & Update Conflict Dashboard
+        run: |
+          echo "Synchronizing clean mod branches with master and updating dashboard..."
+          python scripts/modding/sync_branches_with_master.py --push
+
+          if [ -n "$(git status --porcelain docs/modding/branch_sync_status.md)" ]; then
+            git add docs/modding/branch_sync_status.md
+            git commit -m "docs: update mod branches sync and conflict dashboard (AI-assisted)"
+            git push origin master-dev
           fi

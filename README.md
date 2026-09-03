@@ -114,7 +114,7 @@ Le dépôt sépare le code amont officiel et les branches de modding :
 *L'historique complet des fusions et résolutions est consultable dans [`docs/modding/branch_sync_history.log`](docs/modding/branch_sync_history.log).*
 
 <!-- BRANCH_STATUS_START -->
-> **Dernière mise à jour :** `2026-09-03 18:35:53 UTC`  
+> **Dernière mise à jour :** `2026-09-03 19:27:24 UTC`  
 > **Branche source :** `master` (`65fc564c1`)  
 > **Statut global :** 16/16 synchronisées (0 conflits)
 
@@ -125,11 +125,11 @@ Le dépôt sépare le code amont officiel et les branches de modding :
 | `jak2/config/memory_increase` | ✅ À jour | `bd0db3ec6 - docs: establish official bilingual mod README (AI-assisted)` | Déjà à jour | — |
 | `jak2/config/start_menu_wheel` | ✅ À jour | `55422fbc8 - docs: establish official bilingual mod README (AI-assisted)` | Déjà à jour | — |
 | `jak2/features/dark_jak_enhanced` | ✅ À jour | `7e14a749c - docs: establish official bilingual mod README (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/enhanced_city_traffic_v2` | ✅ À jour | `4023e0b2b - docs: establish official bilingual mod README (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/enhanced_city_traffic_v2` | ✅ À jour | `2c9314035 - docs: establish official bilingual mod README (AI-assisted)` | Déjà à jour | — |
 | `jak2/features/jak3-jetBoard` | ✅ À jour | `a11a7dfde - docs: establish official bilingual mod README (AI-assisted)` | Déjà à jour | — |
 | `jak2/features/merc-fr3-injection-poc` | ✅ À jour | `0b9bd8c20 - docs: establish official bilingual mod README (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/paddy_wagon_v2` | ✅ À jour | `abcf57835 - docs: establish official bilingual mod README (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/transport_v2` | ✅ À jour | `fa058da39 - docs: establish official bilingual mod README (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/paddy_wagon_v2` | ✅ À jour | `9276ce340 - docs: establish official bilingual mod README (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/transport_v2` | ✅ À jour | `e58aa288e - docs: establish official bilingual mod README (AI-assisted)` | Déjà à jour | — |
 | `jak2/features/yakow_killable` | ✅ À jour | `3ddee3040 - docs: establish official bilingual mod README (AI-assisted)` | Déjà à jour | — |
 | `jak3/config/memory_increase` | ✅ À jour | `961da8980 - docs: establish official bilingual mod README (AI-assisted)` | Déjà à jour | — |
 | `jak3/features/city-behavior` | ✅ À jour | `6f3e5d196 - docs: establish official bilingual mod README (AI-assisted)` | Déjà à jour | — |

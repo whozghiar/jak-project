@@ -1784,6 +1784,8 @@
                                        ;;   the ship stops deploying and climbs back.
                                        ;;   reset by the `vehicle-method-128` override
    (guard-spawn-side      int)         ;; 0/1 L-R alternation, mirrors retail transport
+   (freeze-pos            vector      :inline) ;; locked world position during deploy
+   (freeze-quat           quaternion  :inline) ;; locked orientation during deploy
    )
   )
 
@@ -1905,6 +1907,8 @@
   (set! (-> this guards-dropped) 0)
   (set! (-> this next-guard-drop-time) 0)
   (set! (-> this guard-spawn-side) 0)
+  (vector-reset! (-> this freeze-pos))
+  (quaternion-identity! (-> this freeze-quat))
   0
   (none)
   )
@@ -2027,20 +2031,65 @@
     )
   )
 
+(defun transport-v-hatch-ready? ((this transport-v))
+  "True when the rear hatch door has finished opening."
+  (let ((hatch-elt (-> this draw art-group data 5)))
+    (and (nonzero? (-> this skel))
+         (> (-> this skel active-channels) 0)
+         hatch-elt
+         (type? hatch-elt art-joint-anim)
+         (let* ((ch (-> this skel root-channel 0))
+                (hatch-anim (the-as art-joint-anim hatch-elt))
+                (last-frame (the float (+ (-> hatch-anim frames num-frames) -1)))
+                )
+           (and (= (-> ch frame-group) hatch-anim)
+                (>= (-> ch frame-num) (+ last-frame -0.5))
+                )
+           )
+         )
+    )
+  )
+
+(defun transport-v-update-hatch ((this transport-v))
+  "Drive the rear hatch door animation (channel 0, art-elt 5).
+   Seeks to the last frame while deploying troops, and back to 0.0 otherwise."
+  (let ((hatch-elt (-> this draw art-group data 5)))
+    (when (and (nonzero? (-> this skel))
+               (> (-> this skel active-channels) 0)
+               hatch-elt
+               (type? hatch-elt art-joint-anim)
+               )
+      (let ((ch (-> this skel root-channel 0))
+            (hatch-anim (the-as art-joint-anim hatch-elt))
+            )
+        (if (!= (-> ch frame-group) hatch-anim)
+            (joint-control-channel-group! ch hatch-anim num-func-identity)
+            )
+        (set! (-> ch num-func) num-func-identity)
+        (let* ((last-frame (the float (+ (-> hatch-anim frames num-frames) -1)))
+               (goal-frame (if (transport-v-deploy-active? this) last-frame 0.0))
+               )
+          (seek! (-> ch frame-num) goal-frame (* (fmax 1.0 last-frame) 0.75 (seconds-per-frame)))
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
 (defmethod vehicle-guard-method-154 ((this transport-v))
   "Per-frame pursuit tick (runs in the `hostile` / `stop-and-shoot` /
    `slow-pursuit` states).  On top of the stock guard chase:
 
    - While `transport-v-deploy-active?` (alert + over ground + troops left):
-     drop a Crimson Guard every `*transport-v-drop-interval*` and HOLD A STEADY
-     HEADING — the pursuit ai-hook's per-frame steering command is what makes
-     the ship yaw-spin while it hovers to unload, so we zero it here (and
-     `vehicle-method-121` bleeds any residual angular momentum).  The transport
-     stays at its base aerial flight level (`*transport-v-deploy-descent*` = 0)
-     to avoid collision bugs with city bridges and buildings.
+     drop a Crimson Guard every `*transport-v-drop-interval*` ONLY AFTER the
+     rear hatch door has finished opening.  Steering and throttle are kept
+     neutral and `vehicle-method-121` freezes the ship firmly in place so it
+     does not drift or get shoved around by traffic.
 
    - Once the load is delivered (`guards-dropped` >= cap) `transport-v-deploy-active?`
-     goes false: spin damping releases and the stock guard chase +
+     goes false: freeze releases, hatch closes, and the stock guard chase +
      `vehicle-guard-method-153` turret fire take over — it hunts Jak like a hellcat.
 
    `guards-dropped` is NOT reset here (it is the per-life cap); it resets when a
@@ -2049,10 +2098,13 @@
   ((method-of-type vehicle-guard vehicle-guard-method-154) this)
   (cond
     ((transport-v-deploy-active? this)
-     (set! (-> this deploying?) #t)
-     ;; keep it from spinning on itself while it hovers to unload
+     ;; keep controls neutral so the ship does not attempt to steer or accelerate
+     (set! (-> this controls throttle) 0.0)
      (set! (-> this controls steering) 0.0)
-     (when (>= (current-time) (-> this next-guard-drop-time))
+     (set! (-> this controls brake) 1.0)
+     (when (and (transport-v-hatch-ready? this)
+                (>= (current-time) (-> this next-guard-drop-time))
+                )
        ;; only count a guard that actually spawned (traffic pool may be dry)
        (if (transport-v-drop-guard this)
            (+! (-> this guards-dropped) 1)
@@ -2117,44 +2169,12 @@
 
 (defmethod update-joint-mods ((this transport-v))
   "On-screen / camera-near per-frame cosmetic hook.
-
-   (1) It must NOT feed the chin-turret child a `target`.  With a target set the
-   child self-fires from its own `idle` state via `turret-control-method-17`,
-   whose projectile ignores the child (not the hull) and blows up on our
-   collision spheres.  ALL turret fire now goes through `transport-v-fire-turret`
-   (`vehicle-guard-method-153` for AI, `vehicle-method-94` for the player); the
-   child only ever aims its joint from the `aim-rot` those two write.
-
-   (2) Loading hatch: channel 0 plays `transport-hatch-open-ja` (art-elt 5);
-   `frame-num` seeks to the last frame while the ship is deploying troops and
-   back to 0 otherwise.  Cosmetic only — off-screen it just snaps on the next
-   near frame."
-  ;; belt-and-braces: keep the chin-turret child's self-fire path disarmed
+   Belt-and-braces: keep the chin-turret child's self-fire path disarmed.
+   (The hatch animation is driven every frame by `vehicle-method-121`.)"
   (let ((child (handle->process (-> this turret-proc))))
     (if child
         (set! (-> (the-as vehicle-turret child) target) (the-as handle #f))
         )
-    )
-  (let ((hatch-elt (-> this draw art-group data 5)))
-    (when (and (nonzero? (-> this skel))
-               (> (-> this skel active-channels) 0)
-               hatch-elt
-               (type? hatch-elt art-joint-anim)
-               )
-      (let ((ch (-> this skel root-channel 0))
-            (hatch-anim (the-as art-joint-anim hatch-elt))
-            )
-        (if (!= (-> ch frame-group) hatch-anim)
-            (joint-control-channel-group! ch hatch-anim num-func-identity)
-            )
-        (set! (-> ch num-func) num-func-identity)
-        (let* ((last-frame (the float (+ (-> hatch-anim frames num-frames) -1)))
-               (goal-frame (if (transport-v-deploy-active? this) last-frame 0.0))
-               )
-          (seek! (-> ch frame-num) goal-frame (* (fmax 1.0 last-frame) 0.75 (seconds-per-frame)))
-          )
-        )
-      )
     )
   0
   (none)
@@ -2235,26 +2255,37 @@
 
 (defmethod vehicle-method-121 ((this transport-v))
   "Per-frame housekeeping (rider detection + `flight-level` refresh from the
-   traffic height-map).  While the ship is actively deploying troops
-   (`transport-v-deploy-active?`):
-     - bias the target flight level DOWN by `*transport-v-deploy-descent*`
-       (kept at 0 so it remains at its base aerial level without descending into
-       city obstacles).
-     - bleed angular momentum / velocity so the hull holds a steady attitude
-       over the drop zone instead of yaw-spinning (`vehicle-guard-method-154`
-       also zeroes the AI steering input for the same reason).
-   When the load is delivered the check goes false, the damping releases,
-   and the ship resumes normal pursuit."
+   traffic height-map).  While actively deploying troops:
+     - freeze the vehicle firmly in place (pin position and rotation, zero all
+       velocities and momentum) to avoid any drift or bump anomalies during guard drops.
+     - play door sounds on deploy enter/exit.
+     - update hatch opening/closing.
+   When the load is delivered, the lock releases and the ship resumes normal pursuit."
   ((method-of-type vehicle vehicle-method-121) this)
-  (when (transport-v-deploy-active? this)
-    (if (nonzero? *transport-v-deploy-descent*)
-        (set! (-> this flight-level) (- (-> this flight-level) *transport-v-deploy-descent*))
-        )
-    (let ((rbs (-> this rbody state)))
-      (vector-float*! (-> rbs ang-momentum) (-> rbs ang-momentum) *transport-v-deploy-spin-damp*)
-      (vector-float*! (-> rbs ang-velocity) (-> rbs ang-velocity) *transport-v-deploy-spin-damp*)
-      )
+  (cond
+    ((transport-v-deploy-active? this)
+     (when (not (-> this deploying?))
+       (set! (-> this deploying?) #t)
+       (set! (-> this freeze-pos quad) (-> this root trans quad))
+       (quaternion-copy! (-> this freeze-quat) (-> this root quat))
+       (sound-play "tran-door-open")
+       )
+     ;; freeze rigid body and root transform firmly in place
+     (rigid-body-method-26 (-> this rbody state) (-> this freeze-pos) (-> this freeze-quat))
+     (clear-momentum! (-> this rbody state))
+     (clear-force-torque! (-> this rbody state))
+     (set! (-> this root trans quad) (-> this freeze-pos quad))
+     (quaternion-copy! (-> this root quat) (-> this freeze-quat))
+     (vector-reset! (-> this root transv))
+     )
+    (else
+     (when (-> this deploying?)
+       (set! (-> this deploying?) #f)
+       (sound-play "tran-door-close")
+       )
+     )
     )
+  (transport-v-update-hatch this)
   0
   (none)
   )
@@ -2270,6 +2301,8 @@
   (set! (-> this guards-dropped) 0)
   (set! (-> this next-guard-drop-time) 0)
   (set! (-> this guard-spawn-side) 0)
+  (vector-reset! (-> this freeze-pos))
+  (quaternion-identity! (-> this freeze-quat))
   0
   (none)
   )
@@ -2284,4 +2317,16 @@
   (set! (-> this turret-proc) (the-as handle #f))
   ((method-of-type vehicle-guard vehicle-method-129) this)
   (none)
+  )
+
+(defmethod rigid-body-object-method-48 ((this transport-v) (arg0 process-focusable) (arg1 touching-shapes-entry))
+  "Transport collision: NEVER attack Crimson Guards.  The transport is their
+   dropship and deploys them beneath its hull.  Chains to base vehicle method
+   for all other processes."
+  (if (or (logtest? (process-mask guard) (-> arg0 mask))
+          (type? arg0 crimson-guard)
+          )
+      #f
+      ((method-of-type vehicle rigid-body-object-method-48) this arg0 arg1)
+      )
   )

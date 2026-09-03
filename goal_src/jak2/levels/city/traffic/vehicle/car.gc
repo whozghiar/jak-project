@@ -1927,19 +1927,27 @@
 (defun transport-v-deploy-active? ((this transport-v))
   "Live per-frame test: the ship should be actively deploying troops right now.
    True while ALL of:
+     - this ship is alive and undamaged (> 0 hit-points, not dead or crashing/exploding),
      - this ship is NOT the one Jak is currently piloting — a stolen transport
        must fly exactly like the player commands it, never auto-descend or
        auto-stabilise,
      - an alert is up,
      - it is hovering over solid walkable ground (not water),
      - it still has troops left to drop this life (`guards-dropped` < cap).
-   Drives the altitude bias (`vehicle-method-121`), the spin-damping, and the
-   hatch (`update-joint-mods`) — computed fresh each frame so the ship releases
-   the descent / closes the hatch / re-stabilises the INSTANT the load is
-   delivered (or the alert ends, or it crosses water), even in states where
-   `vehicle-guard-method-154` no longer runs.  Once the cap is hit the ship
-   climbs back to the normal traffic lane and just guns for Jak."
-  (and (not (logtest? (-> this flags) (rigid-body-object-flag player-driving)))
+   If the ship is destroyed or dying, deploy deactivates instantly so explosion
+   physics can tumble the wreck freely and no guards deploy."
+  (and (> (-> this hit-points) 0.0)
+       (not (focus-test? this dead inactive disable))
+       (not (logtest? (-> this flags) (rigid-body-object-flag player-driving dead)))
+       (not (and (-> this next-state) (let ((sname (-> this next-state name)))
+                                        (or (= sname 'crash)
+                                            (= sname 'explode)
+                                            (= sname 'die)
+                                            (= sname 'die-fast)
+                                            )
+                                        )
+                 )
+            )
        (logtest? (-> this flags) (rigid-body-object-flag alert))
        (< (-> this guards-dropped) *transport-v-max-drop*)
        (transport-v-over-solid-ground? this)
@@ -2260,7 +2268,8 @@
        velocities and momentum) to avoid any drift or bump anomalies during guard drops.
      - play door sounds on deploy enter/exit.
      - update hatch opening/closing.
-   When the load is delivered, the lock releases and the ship resumes normal pursuit."
+   When the load is delivered or the ship is destroyed, the lock releases immediately
+   so normal flight or explosion physics can take over."
   ((method-of-type vehicle vehicle-method-121) this)
   (cond
     ((transport-v-deploy-active? this)
@@ -2281,7 +2290,11 @@
     (else
      (when (-> this deploying?)
        (set! (-> this deploying?) #f)
-       (sound-play "tran-door-close")
+       (if (and (> (-> this hit-points) 0.0)
+                (not (focus-test? this dead inactive disable))
+                )
+           (sound-play "tran-door-close")
+           )
        )
      )
     )
@@ -2308,13 +2321,15 @@
   )
 
 (defmethod vehicle-method-129 ((this transport-v))
-  "Death hook: drop the chin turret."
+  "Death hook: drop the chin turret and shut down troop deployment immediately."
   (let ((tp (handle->process (-> this turret-proc))))
     (if tp
         (deactivate tp)
         )
     )
   (set! (-> this turret-proc) (the-as handle #f))
+  (set! (-> this deploying?) #f)
+  (set! (-> this guards-dropped) *transport-v-max-drop*)
   ((method-of-type vehicle-guard vehicle-method-129) this)
   (none)
   )

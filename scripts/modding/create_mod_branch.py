@@ -89,11 +89,16 @@ def main():
     # Customize template placeholders
     branch_encoded = urllib.parse.quote(branch, safe="")
     game_encoded = urllib.parse.quote(game_label, safe="")
+    mod_slug = mod_name.replace("-", "_")
 
-    custom_readme = template_content.replace("# [Mod Name] — [Jak 1 / Jak 2 / Jak 3]", f"# {mod_title} — {game_label}")
-    custom_readme = custom_readme.replace("Game-Jak%202-orange.svg", f"Game-{game_encoded}-orange.svg")
-    custom_readme = custom_readme.replace("Branch-jak2%2Ffeatures%2Fyour_mod-green.svg", f"Branch-{branch_encoded}-green.svg")
-    custom_readme = custom_readme.replace("task set-game-jak2", f"task set-game-jak{game_num}")
+    custom_readme = template_content
+    custom_readme = custom_readme.replace("{MOD_TITLE}", mod_title)
+    custom_readme = custom_readme.replace("{TARGET_GAME}", game_label)
+    custom_readme = custom_readme.replace("{GAME_BADGE}", game_encoded)
+    custom_readme = custom_readme.replace("{BRANCH_BADGE}", branch_encoded)
+    custom_readme = custom_readme.replace("{BRANCH_NAME}", branch)
+    custom_readme = custom_readme.replace("{TASK_SET_GAME}", f"task set-game-jak{game_num}")
+    custom_readme = custom_readme.replace("{MOD_SLUG}", mod_slug)
 
     # Write to root README.md
     print(f"Writing customized mod README to {README_PATH}...")

@@ -54,19 +54,34 @@ Before designing or modifying any code for Jak 1, Jak 2, or Jak 3, **strictly co
 * 📄 [`docs/modding/jak_modding_instructions.md`](docs/modding/jak_modding_instructions.md)
 
 ### 🌿 Git Branching Convention
-Every mod or experimental feature must reside on a dedicated branch following:
+* `master`: Clean mirror of `open-goal/jak-project:master`. Never commit directly to `master`.
+* `master-dev`: Integration and modding base branch. All new mod branches MUST branch from `master-dev`.
+* Mod branches: Dedicated branch per mod following:
 ```
 jak[N°]/[type_of_mod]/[mod_name]
 ```
-*Examples:* `jak2/features/jak3-jetBoard`, `jak2/config/memory_increase`, `jak1/features/green-eco-glow`.
+* **Branch Creation Automation:** Always create mod branches using:
+  ```bash
+  python scripts/modding/create_mod_branch.py jak[N]/[type]/[name]
+  ```
+  This automatically branches from `master-dev` and replaces root `README.md` with the pre-filled template.
 
-### 📝 Mandatory Mod Documentation (`current_mod`)
-Every mod branch must maintain its dedicated bilingual readme:
-```
-docs/modding/current_mod/[mod_name]_readme.md
-```
-* **Bilingual Requirement (🇬🇧 EN & 🇫🇷 FR):** All mod readmes must feature complete English and French versions with standard sections (Features, Architecture & Tooling, How to Test, Status, and Modding Changes Log).
-* **Consolidated Change Log:** All file touches, rationale, and modifications must be logged directly into the **Modding Changes Log** table inside the mod's readme.
+### 📝 Mandatory Mod Documentation (Root `README.md`)
+Every mod branch maintains a dedicated root `README.md` presenting:
+1. Installation Guide / Guide d'installation
+2. Mod Features / Fonctionnalités du mod
+3. Usage & Controls / Utilisation & Commandes
+4. Video Demo / Vidéo démonstrative (or gameplay screenshots)
+* **Template:** [`docs/modding/templates/MOD_README.template.md`](docs/modding/templates/MOD_README.template.md)
+* **GitHub Visibility:** GitHub automatically renders this root `README.md` when browsing the mod's branch.
+* **Syncing Modding Docs On-Demand:** To pull latest tips from `master-dev` without rebasing:
+  ```bash
+  python scripts/modding/sync_docs_from_master.py
+  ```
+* **Branch Sync Dashboard:** Tracked live on `master-dev`'s `README.md` and [`docs/modding/branch_sync_status.md`](docs/modding/branch_sync_status.md). Routine updates via:
+  ```bash
+  python scripts/modding/sync_branches_with_master.py --push
+  ```
 
 ### 🛡️ Code Architecture & Guardrails
 * **In-Code Comments Mandatory:** Every function, method, macro, state, hook, or type modification in `.gc` files **must be thoroughly commented** (intent, arguments, return values, side effects).

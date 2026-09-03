@@ -1796,11 +1796,11 @@
 ;; hunt Jak with the turret.  Reset when a pooled transport is re-activated
 ;; (`vehicle-method-128` override).  Was 6.
 (define *transport-v-max-drop* 5)
-;; How much altitude the ship gives up while deploying.  Applied as a downward
-;; bias on `flight-level` (see the `vehicle-method-121` override) INSTEAD of the
-;; aerial-zone system — `switch-zone-low!`/`switch-zone-high!` called every frame
-;; ping-pong against the guard ai-hooks and loop the "bike-down" sound.
-(define *transport-v-deploy-descent* (meters 10))
+;; How much altitude the ship gives up while deploying.  Kept at (meters 0) so
+;; the transport stays at its normal aerial traffic lane (`flight-level`) during
+;; the drop.  Descending while over city streets was a source of collision bugs
+;; with bridges, lampposts and buildings.  Live-editable from the REPL.
+(define *transport-v-deploy-descent* (meters 0))
 ;; Per-frame angular momentum/velocity retention while deploying (0 = freeze
 ;; rotation instantly, 1 = no damping).  Keeps the hull from yaw-spinning while
 ;; it hovers to unload; released the moment the load is delivered.  NOTE this is
@@ -1823,11 +1823,14 @@
 (define *transport-v-turret-muzzle-z* 8192.0)
 
 (defmethod allocate-and-init-cshape ((this transport-v))
-  "Sphere-only moving collision sized for the ~17 m transport hull (no collide-mesh
-   dependency).  All prims are in joint-0 space, centred ~(0, 5m, 0) to wrap the
-   hull that floats 5 m above `root trans` — mirrors the retail `transport-method-31`
-   root sphere `(0, 20480, 0, 69632)`.  One prim carries the nav-sphere; the root
-   group is `rideable` so the player can board it like any traffic vehicle."
+  "Sphere-only moving collision sized with Hellcat-equivalent wingspan and
+   nav-radius to navigate city corners cleanly without traffic pileups.
+   Lateral spheres reach X = +/-16384 (4 m each side = 8 m total wingspan,
+   matching hellcat); nav-radius matches hellcat (20480 root, 24576 nav-sphere).
+   Longitudinal/vertical prims remain in joint-0 space, centred ~(0, 5m, 0) to
+   wrap the ~17 m hull that floats 5 m above `root trans`.  One prim carries the
+   nav-sphere; the root group is `rideable` so the player can board it like any
+   traffic vehicle."
   (let ((s5-0 (new 'process 'collide-shape-moving this (collide-list-enum usually-hit-by-player))))
     (set! (-> s5-0 dynam) (copy *standard-dynamics* 'process))
     (set! (-> s5-0 reaction) cshape-reaction-default)
@@ -1838,7 +1841,7 @@
     (let ((s4-0 (new 'process 'collide-shape-prim-group s5-0 (the-as uint 6) 0)))
       (set! (-> s5-0 total-prims) (the-as uint 7))
       (set! (-> s4-0 prim-core action) (collide-action solid rideable))
-      (set-vector! (-> s4-0 local-sphere) 0.0 20480.0 0.0 69632.0)
+      (set-vector! (-> s4-0 local-sphere) 0.0 20480.0 0.0 45056.0)
       (set! (-> s5-0 root-prim) s4-0)
       )
     (let ((v1-11 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 1))))
@@ -1855,24 +1858,24 @@
       (set! (-> v1-15 prim-core action) (collide-action solid nav-sphere))
       (set! (-> v1-15 transform-index) 0)
       (set-vector! (-> v1-15 local-sphere) 0.0 20480.0 0.0 20480.0)
-      (set! (-> v1-15 nav-radius) 32768.0)
+      (set! (-> v1-15 nav-radius) 24576.0)
       )
     (let ((v1-17 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 3))))
       (set! (-> v1-17 prim-core action) (collide-action solid))
       (set! (-> v1-17 transform-index) 0)
-      (set-vector! (-> v1-17 local-sphere) 20480.0 20480.0 0.0 14336.0)
+      (set-vector! (-> v1-17 local-sphere) 10240.0 20480.0 0.0 6144.0)
       )
     (let ((v1-19 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 4))))
       (set! (-> v1-19 prim-core action) (collide-action solid))
       (set! (-> v1-19 transform-index) 0)
-      (set-vector! (-> v1-19 local-sphere) -20480.0 20480.0 0.0 14336.0)
+      (set-vector! (-> v1-19 local-sphere) -10240.0 20480.0 0.0 6144.0)
       )
     (let ((v1-21 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 5))))
       (set! (-> v1-21 prim-core action) (collide-action solid))
       (set! (-> v1-21 transform-index) 0)
       (set-vector! (-> v1-21 local-sphere) 0.0 28672.0 0.0 12288.0)
       )
-    (set! (-> s5-0 nav-radius) 32768.0)
+    (set! (-> s5-0 nav-radius) 20480.0)
     (let ((v1-24 (-> s5-0 root-prim)))
       (set! (-> s5-0 backup-collide-as) (-> v1-24 prim-core collide-as))
       (set! (-> s5-0 backup-collide-with) (-> v1-24 prim-core collide-with))
@@ -2032,15 +2035,13 @@
      drop a Crimson Guard every `*transport-v-drop-interval*` and HOLD A STEADY
      HEADING — the pursuit ai-hook's per-frame steering command is what makes
      the ship yaw-spin while it hovers to unload, so we zero it here (and
-     `vehicle-method-121` bleeds any residual angular momentum).  The descent is
-     the `vehicle-method-121` altitude bias, NOT the aerial-zone switch (whose
-     per-frame `switch-zone-low!`/`switch-zone-high!` fight looped the
-     \"bike-down\" sound).
+     `vehicle-method-121` bleeds any residual angular momentum).  The transport
+     stays at its base aerial flight level (`*transport-v-deploy-descent*` = 0)
+     to avoid collision bugs with city bridges and buildings.
 
    - Once the load is delivered (`guards-dropped` >= cap) `transport-v-deploy-active?`
-     goes false: the bias releases, the ship climbs back to the normal traffic
-     lane, and the stock guard chase + `vehicle-guard-method-153` turret fire
-     take over — it hunts Jak like a hellcat.
+     goes false: spin damping releases and the stock guard chase +
+     `vehicle-guard-method-153` turret fire take over — it hunts Jak like a hellcat.
 
    `guards-dropped` is NOT reset here (it is the per-life cap); it resets when a
    pooled transport is re-activated into traffic — see the `vehicle-method-128`
@@ -2236,19 +2237,19 @@
   "Per-frame housekeeping (rider detection + `flight-level` refresh from the
    traffic height-map).  While the ship is actively deploying troops
    (`transport-v-deploy-active?`):
-     - bias the target flight level DOWN by `*transport-v-deploy-descent*` — a
-       silent descent that replaces the aerial-zone switch (whose per-frame
-       `switch-zone-low!`/`switch-zone-high!` fight looped the \"bike-down\"
-       sound).  Idempotent when called twice a frame: the base re-reads
-       `flight-level` from the height-map first, so the bias lands once.
+     - bias the target flight level DOWN by `*transport-v-deploy-descent*`
+       (kept at 0 so it remains at its base aerial level without descending into
+       city obstacles).
      - bleed angular momentum / velocity so the hull holds a steady attitude
        over the drop zone instead of yaw-spinning (`vehicle-guard-method-154`
        also zeroes the AI steering input for the same reason).
-   When the load is delivered the check goes false, the bias and the damping
-   release together, and the ship climbs back to the normal lane on its own."
+   When the load is delivered the check goes false, the damping releases,
+   and the ship resumes normal pursuit."
   ((method-of-type vehicle vehicle-method-121) this)
   (when (transport-v-deploy-active? this)
-    (set! (-> this flight-level) (- (-> this flight-level) *transport-v-deploy-descent*))
+    (if (nonzero? *transport-v-deploy-descent*)
+        (set! (-> this flight-level) (- (-> this flight-level) *transport-v-deploy-descent*))
+        )
     (let ((rbs (-> this rbody state)))
       (vector-float*! (-> rbs ang-momentum) (-> rbs ang-momentum) *transport-v-deploy-spin-damp*)
       (vector-float*! (-> rbs ang-velocity) (-> rbs ang-velocity) *transport-v-deploy-spin-damp*)

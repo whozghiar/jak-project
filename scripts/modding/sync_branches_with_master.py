@@ -19,6 +19,43 @@ import sys
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DASHBOARD_FILE = os.path.join(REPO_ROOT, "docs", "modding", "branch_sync_status.md")
+HISTORY_LOG_FILE = os.path.join(REPO_ROOT, "docs", "modding", "branch_sync_history.md")
+
+def log_event(event_type, branch, details):
+    """Append a structured entry to the persistent sync history markdown file."""
+    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    os.makedirs(os.path.dirname(HISTORY_LOG_FILE), exist_ok=True)
+    if not os.path.isfile(HISTORY_LOG_FILE):
+        with open(HISTORY_LOG_FILE, "w", encoding="utf-8") as f:
+            f.write("# 📜 Historique des Synchronisations des Branches / Branch Sync History\n\n")
+            f.write("| Date (UTC) | Événement | Branche | Détails |\n")
+            f.write("| :--- | :---: | :--- | :--- |\n")
+
+    icon_map = {
+        "CONFLICT": "⚠️ Conflit",
+        "AUTO-MERGE": "🔄 Auto-fusion",
+        "RESOLVED": "✅ Conflit Résolu",
+        "ERROR": "❌ Erreur"
+    }
+    event_label = icon_map.get(event_type, event_type)
+    line = f"| `{timestamp}` | {event_label} | `{branch}` | {details} |"
+    print(f"  [LOG] {event_type} - {branch}: {details}")
+    with open(HISTORY_LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(line + "\n")
+
+def get_previous_statuses():
+    """Parse previous branch statuses from existing branch_sync_status.md if available."""
+    prev = {}
+    if os.path.isfile(DASHBOARD_FILE):
+        with open(DASHBOARD_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                m = re.match(r"^\|\s*`([^`]+)`\s*\|\s*([^|]+)\s*\|\s*`([^`]+)`", line)
+                if m:
+                    prev[m.group(1).strip()] = {
+                        "status": m.group(2).strip(),
+                        "commit": m.group(3).strip()
+                    }
+    return prev
 
 def run_cmd(cmd, check=False):
     res = subprocess.run(cmd, shell=True, text=True, capture_output=True, cwd=REPO_ROOT)
@@ -194,6 +231,7 @@ def main():
     branches = get_remote_branches()
     print(f"Found {len(branches)} mod branches to inspect.")
 
+    prev_statuses = get_previous_statuses()
     results = []
     now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
@@ -205,6 +243,8 @@ def main():
         # Check if already ancestor
         if check_ancestor(source_ref, branch_ref):
             print(f"  -> Already up to date.")
+            if branch in prev_statuses and "Conflit" in prev_statuses[branch].get("status", ""):
+                log_event("RESOLVED", branch, f"Conflit résolu manuellement. Synchronisée avec {source_ref} (`{last_commit}`)")
             results.append({
                 "branch": branch,
                 "status": "✅ À jour",
@@ -221,7 +261,13 @@ def main():
             if args.push:
                 print(f"  -> Merging and pushing to {branch}...")
                 success, msg = merge_and_push_branch(branch, source_ref)
-                status_text = "🔄 Synchronisée" if success else "⚠️ Erreur push"
+                if success:
+                    status_text = "🔄 Synchronisée"
+                    new_commit = get_commit_info(f"origin/{branch}")
+                    log_event("AUTO-MERGE", branch, f"Fusion automatique réussie avec {source_ref} (`{new_commit}`)")
+                else:
+                    status_text = "⚠️ Erreur push"
+                    log_event("ERROR", branch, f"Échec git push: {msg}")
                 results.append({
                     "branch": branch,
                     "status": status_text,
@@ -239,6 +285,8 @@ def main():
                 })
         else:
             print(f"  -> Conflicts detected in {len(conflicts)} file(s): {', '.join(conflicts)}")
+            confl_fmt = ", ".join([f"`{f}`" for f in conflicts])
+            log_event("CONFLICT", branch, f"Conflit détecté lors de la fusion avec {source_ref} dans: {confl_fmt}")
             results.append({
                 "branch": branch,
                 "status": "⚠️ Conflit",

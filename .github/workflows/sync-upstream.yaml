@@ -63,11 +63,11 @@ jobs:
 
       - name: Sync Mod Branches & Update Conflict Dashboard
         run: |
-          echo "Synchronizing clean mod branches with master and updating dashboard..."
+          echo "Synchronizing clean mod branches with master, logging history, and updating dashboard..."
           python scripts/modding/sync_branches_with_master.py --push
 
-          if [ -n "$(git status --porcelain docs/modding/branch_sync_status.md)" ]; then
-            git add docs/modding/branch_sync_status.md
-            git commit -m "docs: update mod branches sync and conflict dashboard (AI-assisted)"
+          if [ -n "$(git status --porcelain docs/modding/branch_sync_status.md docs/modding/branch_sync_history.log README.md)" ]; then
+            git add docs/modding/branch_sync_status.md docs/modding/branch_sync_history.log README.md
+            git commit -m "docs: update mod branches sync dashboard and history log (AI-assisted)"
             git push origin master-dev
           fi

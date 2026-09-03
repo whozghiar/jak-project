@@ -1763,18 +1763,113 @@
 (set-vector! (-> *transport-v-constants* seat-array 1 position) 4096.0 18022.4 20480.0 (the-as float #x20000))
 (set-vector! (-> *transport-v-constants* seat-array 2 position) 0.0 21299.2 -10240.0 (the-as float #x40000))
 
-;; The visible chin gun is a `vehicle-turret` CHILD (retail model `vehicle-turret-ag`,
-;; baked into the always-resident `ctywide.fr3`).  It carries a real rotating gun
-;; joint.  `transport-v` AIMS it (write its `aim-rot`, the child's own `idle` state
-;; applies that to the joint) and FIRES it through `transport-v-fire-turret`:
-;;  - AI:     `vehicle-guard-method-153` (pursuit states, only with LOS to Jak)
-;;  - player: `vehicle-method-94` (hold R1 while piloting)
-;; The child's built-in self-fire (`idle` -> `turret-control-method-11`/`-17`) is
-;; never armed — its `target` handle is force-cleared every frame in
-;; `update-joint-mods` — because that path would `ignore-handle` only the child and
-;; let the round hit the hull.  The inherited `vehicle-guard` HULL turret-control is
-;; also left uninitialised (`(-> this turret info)` = 0) so `turret-control-method-11`
-;; skips it — no invisible shot from either gun.
+;; The visible chin gun is a `transport-v-turret` CHILD (subclass of `vehicle-turret`,
+;; using model `vehicle-turret-ag`).
+;;
+;; LOD FIX: `skel-vehicle-turret` in retail Jak 2 uses an empty/invisible LOD2 beyond
+;; 40 meters, causing the cannon to disappear when the ship flies at normal traffic height
+;; or pulls away after a drop. `skel-vehicle-turret-v` keeps `vehicle-turret-lod1-mg`
+;; visible all the way to 999999 meters and broadens the cull bounds to 12 meters.
+;;
+;; POOLING & VOID FIX: When a transport is pooled or set to inactive with `no-draw`
+;; by the traffic engine, standard `vehicle-turret` would continue drawing in mid-air
+;; at its last position, producing a phantom cannon floating in the void.
+;; `transport-v-turret` checks its parent's vitality and visibility every frame:
+;;  - If parent is dead or gone: self-destruct immediately (no orphan turret in void).
+;;  - If parent is inactive or `no-draw`: hide mesh and disable collision.
+;;  - If parent is alive and visible: ensure drawn, restore collision, and sync position.
+
+(define-extern ctywide-entity-hack (function none))
+(declare-type transport-v vehicle-guard)
+
+(defskelgroup skel-vehicle-turret-v vehicle-turret vehicle-turret-lod0-jg vehicle-turret-idle-ja
+              ((vehicle-turret-lod0-mg (meters 40))
+               (vehicle-turret-lod1-mg (meters 120))
+               (vehicle-turret-lod1-mg (meters 999999))
+               )
+              :bounds (static-spherem 0 0 0 12)
+              )
+
+(deftype transport-v-turret (vehicle-turret)
+  ()
+  (:state-methods
+    idle
+    )
+  )
+
+(defstate idle (transport-v-turret)
+  :virtual #t
+  :trans (behavior ()
+    (let* ((parent-proc (ppointer->process (-> self parent)))
+           (parent-veh (if (and parent-proc (type? parent-proc transport-v))
+                           (the-as transport-v parent-proc)
+                           )
+                       )
+           )
+      (cond
+        ((or (not parent-veh)
+             (focus-test? parent-veh dead)
+             )
+         ;; Parent vehicle is destroyed, dead or gone -> deactivate immediately
+         (deactivate self)
+         )
+        ((or (focus-test? parent-veh inactive)
+             (logtest? (-> parent-veh draw status) (draw-control-status no-draw))
+             )
+         ;; Parent vehicle is pooled, inactive, or hidden by traffic -> hide turret and disable collision
+         (logior! (-> self draw status) (draw-control-status no-draw))
+         (when (-> self root)
+           (let ((prim (-> self root root-prim)))
+             (when prim
+               (set! (-> prim prim-core collide-as) (collide-spec))
+               (set! (-> prim prim-core collide-with) (collide-spec))
+               )
+             )
+           )
+         )
+        (else
+         ;; Parent vehicle is active and visible -> ensure visible, enable collision, sync transforms
+         (logclear! (-> self draw status) (draw-control-status no-draw))
+         (when (-> self root)
+           (let ((prim (-> self root root-prim)))
+             (when prim
+               (set! (-> prim prim-core collide-as) (collide-spec enemy))
+               (set! (-> prim prim-core collide-with) (collide-spec jak player-list))
+               )
+             )
+           )
+         (update-joint-mod (-> self turret) (the-as joint-mod-rotate-local (-> self turret-jm)))
+         (vehicle-turret-method-29 self)
+         )
+        )
+      )
+    )
+  :code sleep-code
+  :post transform-post
+  )
+
+(defbehavior transport-v-turret-init-by-other transport-v-turret ((arg0 turret-control-info))
+  (vehicle-turret-method-28 self)
+  (set-info (-> self turret) arg0)
+  (logior! (-> self turret flags) (turret-flag targetting-laser no-rot-y-clamp))
+  (vehicle-turret-method-29 self)
+  (vector-identity! (-> self root scale))
+  (vector-float*! (-> self root scale) (-> self root scale) 2.0)
+  (ctywide-entity-hack)
+  (initialize-skeleton
+    self
+    (the-as skeleton-group (or (art-group-get-by-name *level* "skel-vehicle-turret-v" (the-as (pointer uint32) #f))
+                               skel-vehicle-turret-v
+                               )
+            )
+    (the-as pair 0)
+    )
+  (vehicle-turret-method-30 self)
+  (set! (-> self turret guard-settings) *transport-turret-state-info*)
+  (go-virtual idle)
+  (none)
+  )
+
 (deftype transport-v (vehicle-guard)
   ((turret-proc           handle)      ;; the visible `vehicle-turret` chin-gun child
    ;; --- troop-deployment state (see `vehicle-guard-method-154` override) ---
@@ -1899,7 +1994,7 @@
   ;; visible chin gun — spawned here (always runs) exactly like the retail drop-ship.
   ;; It is a `:to this` child, so it dies with the ship automatically.
   (set! (-> this turret-proc)
-        (ppointer->handle (process-spawn vehicle-turret *transport-turret-control-info* :to this))
+        (ppointer->handle (process-spawn transport-v-turret *transport-turret-control-info* :init transport-v-turret-init-by-other :to this))
         )
   ;; troop-deployment bookkeeping (symbol slot must be an explicit #f, not the
   ;; zero-fill, or `(if (-> this deploying?) ...)` reads true)
@@ -2303,13 +2398,37 @@
   (none)
   )
 
+(defmethod vehicle-method-127 ((this transport-v))
+  "Traffic-deactivation hook: hide chin turret when ship enters traffic pool / inactive."
+  (let ((tp (handle->process (-> this turret-proc))))
+    (when tp
+      (logior! (-> (the-as process-drawable tp) draw status) (draw-control-status no-draw))
+      )
+    )
+  ((method-of-type vehicle-guard vehicle-method-127) this)
+  (none)
+  )
+
 (defmethod vehicle-method-128 ((this transport-v))
   "Traffic-activation hook (runs each time a pooled transport goes live in the
    city — behavior 2 ambient or behavior 9 ambush).  Chain to `vehicle-guard`
-   (minimap red dot + `'traffic-on` to the hidden pilot rider), then clear the
-   per-life troop-deploy state so a recycled hull starts with a full load and
-   can descend + deploy again on its next alert."
+   (minimap red dot + `'traffic-on` to the hidden pilot rider), ensure the
+   chin-turret is active and visible, then clear the per-life troop-deploy state
+   so a recycled hull starts with a full load and can descend + deploy again on
+   its next alert."
   ((method-of-type vehicle-guard vehicle-method-128) this)
+  (let ((tp (handle->process (-> this turret-proc))))
+    (cond
+      ((not tp)
+       (set! (-> this turret-proc)
+             (ppointer->handle (process-spawn transport-v-turret *transport-turret-control-info* :init transport-v-turret-init-by-other :to this))
+             )
+       )
+      (else
+       (logclear! (-> (the-as process-drawable tp) draw status) (draw-control-status no-draw))
+       )
+      )
+    )
   (set! (-> this deploying?) #f)
   (set! (-> this guards-dropped) 0)
   (set! (-> this next-guard-drop-time) 0)

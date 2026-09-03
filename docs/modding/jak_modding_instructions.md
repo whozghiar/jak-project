@@ -15,9 +15,12 @@ Over 98% of the original trilogy was coded in GOAL, a custom LISP dialect develo
 
 ---
 
-## 2. Git Workflow & Branching Strategy
+## 2. Git Branching Strategy & Architecture
 
-* **Dedicated Mod Branch:** Every mod or experimental feature must be created on a dedicated Git branch following this naming format:
+* **Repository Architecture:**
+  - `master`: Pure mirror of upstream OpenGOAL (`open-goal/jak-project:master`). Never commit directly to `master`.
+  - `master-dev`: Integration and modding base branch.
+* **Dedicated Branch per Mod:** Every mod or experimental feature MUST be branched from `master-dev` and follow:
   ```
   jak[N°]/[type_of_mod]/[mod_name]
   ```
@@ -28,8 +31,11 @@ Over 98% of the original trilogy was coded in GOAL, a custom LISP dialect develo
   - `jak3/features/city-behavior`
   - `jak3/config/memory_increase`
 
-* **Master Sync for Utilities:** 
-  The modding utilities directories `docs/modding/jak[N°]_modding_utilities/` (and their aggregated documents) must be maintained and regularly merged/cherry-picked back into the `master` branch so that all concurrent and future mod branches benefit from verified engine discoveries.
+* **Syncing Modding Docs On-Demand:**
+  To update modding docs, tips, and guidelines on an active mod branch without rebasing or generating extraneous bot commits:
+  ```bash
+  python scripts/modding/sync_docs_from_master.py
+  ```
 
 ---
 
@@ -46,7 +52,7 @@ When developing a mod for any game in the trilogy, the following documentation s
 * **⚠️ NEVER Edit Aggregated Files Directly:** Agents must **NEVER** edit or touch the consolidated files `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md` manually. Agents must exclusively create a new numbered `.md` file (or edit an existing individual tip file) according to the discovery. The aggregated document is maintained and regenerated exclusively by the automated CI aggregation script.
 * **Mandatory Provenance Metadata (Branch Traceability):** Every tip file must display at the top the origin Git branch where the discovery was made or implemented, as well as subsequent branches that modified or refined it:
   ```markdown
-  > - **Origin / Provenance:** `jak[x]/[type]/[name]` (or `master`)
+  > - **Origin / Provenance:** `jak[x]/[type]/[name]` (or `master-dev`)
   > - **Last Updated / Dernière modification:** `jak[x]/[type]/[name]`
   ```
 * **Bilingual Requirement & Strict Formalism (🇬🇧 EN & 🇫🇷 FR):** Each individual tip file must adhere strictly to the established bilingual standard:
@@ -54,14 +60,16 @@ When developing a mod for any game in the trilogy, the following documentation s
   - Identical level of technical depth, precision, and commentary across both languages.
   - Standardized structure: Title, Provenance, Context & Core Concepts, Technical Implementation, Concrete Annotated Code Examples, Known Pitfalls / Edge Cases, and Verification Steps.
 * **Factuality & Rigor:** Include only **verified, certain information** derived from source code analysis, decompiler outputs, or runtime tests. Tag unverified hypotheses with `[Hypothèse / Unverified]`.
-* **Automated Aggregation via GitHub Action:** This modular structure allows the GitHub Action workflow (`.github/workflows/sync-modding-docs.yaml`) to automatically aggregate all individual `.md` tip files for each game into a consolidated `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md` document.
+* **Automated Aggregation via GitHub Action:** The GitHub Action workflow (`.github/workflows/sync-modding-docs.yaml`) automatically harvests all individual `.md` tip files for each game and aggregates them into `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md` on `master-dev`.
 
-### 2. Dedicated Mod Readme (`docs/modding/current_mod/[mod_name]_readme.md`)
-* Every branch created for a mod must include its dedicated documentation file in `docs/modding/current_mod/`:
+### 2. Dedicated Mod Readme (`README.md` at root)
+* Every mod branch must replace the repository root `README.md` with its dedicated bilingual mod presentation using the template at:
   ```
-  docs/modding/current_mod/[mod_name]_readme.md
+  docs/modding/templates/MOD_README.template.md
   ```
-* **Bilingual Documentation (🇬🇧 EN & 🇫🇷 FR):** Every mod readme must be fully written in both English and French (identical to `docs/modding/current_mod/jak3-jetboard_readme.md`), with structured sections:
+* **GitHub Native Rendering:** Replacing root `README.md` allows GitHub to automatically display the mod's presentation directly when browsing that branch.
+* An archive copy may also be kept in `docs/modding/current_mod/[mod_name]_readme.md`.
+* **Bilingual Documentation (🇬🇧 EN & 🇫🇷 FR):** Every mod readme must be fully written in both English and French with structured sections:
   1. Description & Features / Description & Fonctionnalités
   2. Technical Architecture & Tooling / Architecture Technique & Outillage
   3. How to Test & Play / Commandes & Procédure de Test
@@ -105,7 +113,10 @@ Plus de 98% de la trilogie d'origine a été programmée en GOAL, un dialecte LI
 
 ## 2. Workflow Git & Stratégie de Branches
 
-* **Branche Dédiée par Mod :** Chaque mod ou fonctionnalité expérimentale doit être créé sur une branche Git dédiée respectant la nomenclature :
+* **Architecture du Dépôt :**
+  - `master` : Miroir strict d'OpenGOAL officiel (`open-goal/jak-project:master`). Ne jamais commiter directement sur `master`.
+  - `master-dev` : Branche d'intégration et base commune de modding.
+* **Branche Dédiée par Mod :** Chaque mod ou fonctionnalité expérimentale doit être obligatoirement dérivé de `master-dev` et respecter la nomenclature :
   ```
   jak[N°]/[type_de_mod]/[nom_du_mod]
   ```
@@ -116,8 +127,11 @@ Plus de 98% de la trilogie d'origine a été programmée en GOAL, un dialecte LI
   - `jak3/features/city-behavior`
   - `jak3/config/memory_increase`
 
-* **Synchronisation Master pour les Utilitaires :** 
-  Les répertoires d'utilitaires `docs/modding/jak[N°]_modding_utilities/` (et leurs documents agrégés) doivent être maintenus et régulièrement synchronisés / mergés sur la branche `master` afin que toutes les branches de mods bénéficient des découvertes moteur validées.
+* **Mise à Jour de la Documentation à la Demande :** 
+  Pour synchroniser la documentation, les tips et les consignes de modding sur une branche de mod active sans rebase invasif ni commits polluants de bot :
+  ```bash
+  python scripts/modding/sync_docs_from_master.py
+  ```
 
 ---
 
@@ -134,7 +148,7 @@ Lors du développement d'un mod pour n'importe quel jeu de la trilogie, la struc
 * **⚠️ Interdiction de Modifier les Fichiers Agrégés Directement :** Les agents ne doivent **JAMAIS** modifier manuellement les fichiers consolidés `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md`. Les agents doivent exclusivement créer un nouveau fichier `.md` numéroté (ou modifier le fichier individuel existant) selon le tip découvert. Le fichier agrégé est maintenu et régénéré exclusivement par le script d'agrégation automatique CI.
 * **Métadonnées de Traçabilité Obligatoires (Origine des Branches) :** Chaque fichier de tip doit obligatoirement afficher en en-tête la branche Git d'origine où la découverte/le code a été créé, ainsi que les branches ultérieures l'ayant modifié :
   ```markdown
-  > - **Origin / Provenance :** `jak[x]/[type]/[nom]` (ou `master`)
+  > - **Origin / Provenance :** `jak[x]/[type]/[nom]` (ou `master-dev`)
   > - **Last Updated / Dernière modification :** `jak[x]/[type]/[nom]`
   ```
 * **Exigence Bilingue & Formalisme Strict (🇬🇧 EN & 🇫🇷 FR) :** Chaque fichier de tip individuel doit respecter rigoureusement le formalisme bilingue établi :
@@ -142,14 +156,16 @@ Lors du développement d'un mod pour n'importe quel jeu de la trilogie, la struc
   - Même niveau de profondeur technique, de précision et de commentaires dans les deux langues.
   - Structure standardisée : Titre, Provenance, Contexte & Concepts Clés, Implémentation Technique, Exemples de Code annotés concrets, Pièges / Cas Particuliers et Procédure de Validation.
 * **Factualité & Rigueur :** N'inclure que des informations vérifiées et certaines issues de l'analyse du code source, de la décompilation ou des tests runtime. Taguer les hypothèses avec `[Hypothèse / Unverified]`.
-* **Agrégation Automatisée via GitHub Action :** Cette architecture modulaire permet à la GitHub Action (`.github/workflows/sync-modding-docs.yaml`) d'agréger automatiquement l'ensemble des fichiers `.md` de tips individuels de chaque jeu dans un document consolidé `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md`.
+* **Agrégation Automatisée via GitHub Action :** La GitHub Action (`.github/workflows/sync-modding-docs.yaml`) récolte automatiquement les tips individuels des branches de mods et les agrège dans `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md` sur `master-dev`.
 
-### 2. Readme Dédié au Mod (`docs/modding/current_mod/[nom_du_mod]_readme.md`)
-* Chaque branche de mod doit posséder son fichier de documentation dans `docs/modding/current_mod/` :
+### 2. Readme Dédié au Mod (`README.md` à la racine)
+* Chaque branche de mod doit remplacer le fichier `README.md` à la racine du dépôt par la présentation de son mod en s'appuyant sur le modèle :
   ```
-  docs/modding/current_mod/[nom_du_mod]_readme.md
+  docs/modding/templates/MOD_README.template.md
   ```
-* **Documentation Bilingue (🇬🇧 EN & 🇫🇷 FR) :** Chaque readme de mod doit être intégralement rédigé en anglais et en français (à l'image de `docs/modding/current_mod/jak3-jetboard_readme.md`), avec la structure suivante :
+* **Affichage Natif sur GitHub :** Remplacer le `README.md` racine permet à GitHub d'afficher immédiatement la page de présentation du mod lorsque l'utilisateur navigue sur cette branche.
+* Une copie d'archive peut également être conservée dans `docs/modding/current_mod/[nom_du_mod]_readme.md`.
+* **Documentation Bilingue (🇬🇧 EN & 🇫🇷 FR) :** Chaque readme de mod doit être intégralement rédigé en anglais et en français avec la structure suivante :
   1. Description & Features / Description & Fonctionnalités
   2. Technical Architecture & Tooling / Architecture Technique & Outillage
   3. How to Test & Play / Commandes & Procédure de Test

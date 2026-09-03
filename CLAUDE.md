@@ -54,19 +54,23 @@ Before designing or modifying any code for Jak 1, Jak 2, or Jak 3, **strictly co
 * 📄 [`docs/modding/jak_modding_instructions.md`](docs/modding/jak_modding_instructions.md)
 
 ### 🌿 Git Branching Convention
-Every mod or experimental feature must reside on a dedicated branch following:
+* `master`: Clean mirror of `open-goal/jak-project:master`. Never commit directly to `master`.
+* `master-dev`: Integration and modding base branch. All new mod branches MUST branch from `master-dev`.
+* Mod branches: Dedicated branch per mod following:
 ```
 jak[N°]/[type_of_mod]/[mod_name]
 ```
 *Examples:* `jak2/features/jak3-jetBoard`, `jak2/config/memory_increase`, `jak1/features/green-eco-glow`.
 
-### 📝 Mandatory Mod Documentation (`current_mod`)
-Every mod branch must maintain its dedicated bilingual readme:
-```
-docs/modding/current_mod/[mod_name]_readme.md
-```
-* **Bilingual Requirement (🇬🇧 EN & 🇫🇷 FR):** All mod readmes must feature complete English and French versions with standard sections (Features, Architecture & Tooling, How to Test, Status, and Modding Changes Log).
-* **Consolidated Change Log:** All file touches, rationale, and modifications must be logged directly into the **Modding Changes Log** table inside the mod's readme.
+### 📝 Mandatory Mod Documentation (Root `README.md`)
+Every mod branch replaces the repository root `README.md` with its dedicated bilingual mod presentation:
+* **Template:** [`docs/modding/templates/MOD_README.template.md`](docs/modding/templates/MOD_README.template.md)
+* **GitHub Visibility:** GitHub automatically renders this root `README.md` when browsing the mod's branch.
+* **Bilingual Requirement (🇬🇧 EN & 🇫🇷 FR):** All mod readmes must feature complete English and French versions (Features, Controls, How to Test, Status, Notes).
+* **Updating Modding Docs On-Demand:** To update modding docs without creating unwanted commits or rebasing:
+  ```bash
+  python scripts/modding/sync_docs_from_master.py
+  ```
 
 ### 🛡️ Code Architecture & Guardrails
 * **In-Code Comments Mandatory:** Every function, method, macro, state, hook, or type modification in `.gc` files **must be thoroughly commented** (intent, arguments, return values, side effects).

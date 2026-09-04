@@ -1,0 +1,73 @@
+name: Sync Upstream Mirror & Dev
+
+on:
+  schedule:
+    # Run daily at 04:00 UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync-upstream:
+    name: Sync Master with Upstream & Propagate to Master-Dev
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Configure Git Author
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync master with upstream/master (Fast-Forward)
+        run: |
+          echo "Fetching upstream official repository..."
+          git remote add upstream https://github.com/open-goal/jak-project.git || true
+          git fetch upstream master
+
+          echo "Fast-forwarding master branch..."
+          git checkout master
+          git merge --ff-only upstream/master
+          git push origin master
+
+      - name: Sync master-dev with master
+        id: sync_master_dev
+        run: |
+          echo "Checking out master-dev..."
+          git checkout master-dev
+
+          echo "Attempting to merge master into master-dev..."
+          if git merge master -m "chore: sync master-dev with upstream master (AI-assisted)"; then
+            git push origin master-dev
+            echo "master-dev successfully updated with latest upstream changes."
+          else
+            echo "::warning::Merge conflict detected while syncing master into master-dev. Aborting merge."
+            git merge --abort
+            exit 0
+          fi
+
+      - name: Sync Mod Branches & Update Conflict Dashboard
+        run: |
+          echo "Synchronizing clean mod branches with master, logging history, and updating dashboard..."
+          python scripts/modding/sync_branches_with_master.py --push
+
+          if [ -n "$(git status --porcelain docs/modding/branch_sync_status.md docs/modding/branch_sync_history.log README.md)" ]; then
+            git add docs/modding/branch_sync_status.md docs/modding/branch_sync_history.log README.md
+            git commit -m "docs: update mod branches sync dashboard and history log (AI-assisted)"
+            git push origin master-dev
+          fi

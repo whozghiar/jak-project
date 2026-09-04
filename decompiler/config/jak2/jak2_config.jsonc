@@ -123,6 +123,20 @@
 
   // turn this on to extract level background graphics data as .fr3 files in out/<game>/fr3
   "levels_extract": true,
+  // Bake the merc geometry of art groups that never shipped in a level into that
+  // level's resident .fr3, so the PC merc renderer can draw them there with no borrow.
+  // Key = target DGO (as in inputs.jsonc "levels_to_extract"); value = list of -ag base
+  // names (each must live in some DGO already listed in inputs.jsonc "dgo_names").
+  //   "CWI.DGO"                       -> ctywide.fr3            (resident all over Haven City)
+  //   "LWIDEA.DGO"/"LWIDEB.DGO"/...   -> lwidea.fr3/lwideb.fr3  (traffic-actor art, borrowed
+  //                                                             into ctywide slot 1 in free-roam)
+  //   "GAME.CGO"                      -> GAME.fr3               (resident in every level, global)
+  // Entry syntax: "<art-group>" or "<art-group>:<HOME.DGO>". <HOME.DGO> = the level
+  // the model shipped in; its texture-remap-table resolves the model's textures (a
+  // merc's texture ids are home-level-relative). Omitted -> first level DGO the art
+  // group shipped in is auto-picked (unreliable). Wrong/missing -> untextured model.
+  // Example: "LWIDEA.DGO": ["transport-ag:LPROTECT.DGO"]
+  "extra_art_groups_by_dgo": {},
   // turn this on if you want extracted levels to be saved out as .glb files in decompiler_out/<game>/levels
   "rip_levels": false,
   // should we also extract collision meshes to the .fr3 files?

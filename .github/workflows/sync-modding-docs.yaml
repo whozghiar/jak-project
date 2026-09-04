@@ -3,7 +3,7 @@ name: Sync & Aggregate Modding Documentation
 on:
   push:
     branches:
-      - 'master'
+      - 'master-dev'
       - 'jak*/**'
     paths:
       - 'docs/modding/**'
@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   sync-docs:
-    name: Aggregate & Propagate Modding Documentation
+    name: Aggregate Modding Documentation into Master-Dev
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -41,9 +41,9 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Harvest Tips from Mod Branches into Master
+      - name: Harvest Tips from Mod Branches into Master-Dev
         run: |
-          git checkout master
+          git checkout master-dev
           # List all remote branches matching jak*
           branches=$(git branch -r --list "origin/jak*" | sed 's/^[[:space:]]*origin\///' | grep -v 'HEAD' || true)
 
@@ -65,38 +65,15 @@ jobs:
         run: |
           python scripts/modding/aggregate_modding_utilities.py
 
-      - name: Commit & Push to Master
-        id: commit_master
+      - name: Commit & Push to Master-Dev
+        id: commit_master_dev
         run: |
           if [ -n "$(git status --porcelain docs/modding)" ]; then
             git add docs/modding/
             git commit -m "docs: aggregate modding utilities across all games (AI-assisted)"
-            git push origin master
-            echo "pushed_master=true" >> $GITHUB_OUTPUT
+            git push origin master-dev
+            echo "pushed_master_dev=true" >> $GITHUB_OUTPUT
           else
-            echo "No documentation changes detected on master."
-            echo "pushed_master=false" >> $GITHUB_OUTPUT
+            echo "No documentation changes detected on master-dev."
+            echo "pushed_master_dev=false" >> $GITHUB_OUTPUT
           fi
-
-      - name: Propagate Updated Documentation to Mod Branches
-        run: |
-          # Fetch latest master reference
-          git fetch origin master
-
-          branches=$(git branch -r --list "origin/jak*" | sed 's/^[[:space:]]*origin\///' | grep -v 'HEAD' || true)
-          for branch in $branches; do
-            echo "--- Syncing documentation down to branch: $branch ---"
-            git checkout -B "$branch" "origin/$branch"
-            
-            # Checkout latest docs/modding, AGENTS.md, and CLAUDE.md from master
-            git checkout origin/master -- docs/modding/ AGENTS.md CLAUDE.md
-            
-            if [ -n "$(git status --porcelain docs/modding AGENTS.md CLAUDE.md)" ]; then
-              git add docs/modding/ AGENTS.md CLAUDE.md
-              git commit -m "docs: synchronize updated modding documentation from master (AI-assisted)"
-              git push origin "$branch"
-              echo "Successfully pushed updated docs to $branch."
-            else
-              echo "Branch $branch is already in sync with master documentation."
-            fi
-          done

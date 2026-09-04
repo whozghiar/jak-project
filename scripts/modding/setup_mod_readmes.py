@@ -10,10 +10,20 @@ Deploys bilingual (EN/FR) official READMEs with:
 """
 
 import os
+import re
 import subprocess
 import sys
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+def extract_youtube_id(url):
+    """Extract 11-character YouTube video ID from various YouTube URL formats."""
+    if not url:
+        return None
+    match = re.search(r"(?:youtu\.be/|youtube\.com/(?:embed/|v/|watch\?v=|watch\?.+&v=))([\w-]{11})", url)
+    if match:
+        return match.group(1)
+    return url.strip()
 
 MODS_CONFIG = {
     "jak2/config/custom_animation_and_sound": {
@@ -296,36 +306,6 @@ MODS_CONFIG = {
         "tech_summary_en": "Hooks transport flight physics into `goal_src/jak2/levels/city/traffic/transport-v.gc` with native collision hull definitions.",
         "tech_summary_fr": "Intègre la physique de vol dans `goal_src/jak2/levels/city/traffic/transport-v.gc` avec définition de coque de collision native."
     },
-    "jak2/features/transport_traffic": {
-        "title_en": "Crimson Guard Air-Traffic Gunship",
-        "title_fr": "Canonnière du Trafic Aérien des Gardes",
-        "game": "Jak 2",
-        "game_task": "task set-game-jak2",
-        "desc_en": "Introduces `transport-v`, a fully operational Crimson Guard troop transport gunship into Haven City's ambient air traffic. Can be hijacked and piloted by Jak with a usable chin turret, joins city alert pursuits, and hovers to deploy squad drops over solid ground.",
-        "desc_fr": "Intègre `transport-v`, un véritable vaisseau de transport de troupes de la Garde Grenat dans le trafic aérien ambiant d'Abriville. Peut être abordé et piloté par Jak avec une tourelle de proue fonctionnelle, participe aux poursuites d'alerte, et se stabilise pour larguer des escouades au-dessus des rues.",
-        "features_en": [
-            "Ambient air-traffic presence with seated guard pilot and minimap icon.",
-            "Player hijacking with extended chase camera and manual chin-gun firing (R1).",
-            "Alert pursuit with stable hovering squad drops and synchronized rear hatch.",
-            "Persistent chin turret synchronized with traffic pool and instant destruction unfreeze."
-        ],
-        "features_fr": [
-            "Présence dans le trafic aérien ambiant avec pilote assis et icône minimap.",
-            "Détournement par le joueur avec caméra reculée et tir manuel à la tourelle (R1).",
-            "Poursuite d'alerte avec largage d'escouade en vol stationnaire et porte synchronisée.",
-            "Tourelle persistante synchronisée avec le pool de trafic et défigeage instantané à la destruction."
-        ],
-        "rebuild_binaries": False,
-        "binaries_reason_en": "Not required. Uses standard OpenGOAL game runtime and compiler.",
-        "binaries_reason_fr": "Non requise. S'exécute avec le compilateur et le runtime standard.",
-        "extract_assets": True,
-        "extract_reason_en": "Required once (`task extract`) to bake the injected `transport-ag` merc geometry into resident city .fr3 packages.",
-        "extract_reason_fr": "Requise une fois (`task extract`) pour cuire la géométrie merc `transport-ag` dans les packages .fr3 de la ville.",
-        "video_file": "docs/modding/current_mod/transport_traffic.mp4",
-        "doc_file": "docs/modding/current_mod/transport_traffic_readme.md",
-        "tech_summary_en": "Defines `transport-v` (subclass of `vehicle-guard`) in `car.gc` with cloned Hellcat flight model and `transport-v-turret` child process synchronized with traffic pooling lifecycle.",
-        "tech_summary_fr": "Définit `transport-v` (sous-classe de `vehicle-guard`) dans `car.gc` avec le modèle de vol Hellcat et l'enfant `transport-v-turret` synchronisé avec le cycle de vie du pool de trafic."
-    },
     "jak2/features/yakow_killable": {
         "title_en": "Interactive & Vulnerable Yakows",
         "title_fr": "Yakows Interactifs et Vulnérables",
@@ -507,8 +487,23 @@ def generate_mod_readme(branch, cfg):
     ext_status_en = "Required (`task extract`)" if cfg["extract_assets"] else "Standard extraction sufficient"
     ext_status_fr = "Requise (`task extract`)" if cfg["extract_assets"] else "Extraction standard suffisante"
 
-    encoded_branch = branch.replace('/', '%2F')
-    game_badge_color = "orange" if "Jak 2" in cfg["game"] else "red"
+    # YouTube Video Embed Block
+    yt_url = cfg.get("youtube_url")
+    if yt_url:
+        yt_id = extract_youtube_id(yt_url)
+        video_block_en = f"""[![Demonstration Video](https://img.youtube.com/vi/{yt_id}/maxresdefault.jpg)]({yt_url})
+
+▶️ **[Watch the demonstration video on YouTube]({yt_url})**"""
+        video_block_fr = f"""[![Vidéo de Démonstration](https://img.youtube.com/vi/{yt_id}/maxresdefault.jpg)]({yt_url})
+
+▶️ **[Visionner la vidéo de démonstration sur YouTube]({yt_url})**"""
+    else:
+        video_block_en = """> [!NOTE]
+> *Demonstration videos are hosted on YouTube to avoid repository bloat.*  
+> ▶️ Demonstration video coming soon on YouTube."""
+        video_block_fr = """> [!NOTE]
+> *Les vidéos de démonstration sont hébergées sur YouTube pour éviter d'alourdir le dépôt Git.*  
+> ▶️ Démonstration vidéo prochainement disponible sur YouTube."""
 
     content = f"""# {cfg["title_en"]} / {cfg["title_fr"]}
 
@@ -566,10 +561,7 @@ task boot-game
 *(Or launch via the OpenGOAL REPL using `task repl`, then compile and run with `(mi)` and `(r)`).*
 
 ## 🎥 Demonstration Video
-> [!NOTE]
-> **Video Demonstration:** Place or view the demonstration recording for this mod at:  
-> 📁 [`{cfg["video_file"]}`]({cfg["video_file"]})  
-> *(Drop an MP4 video file in this directory to showcase this mod in action).*
+{video_block_en}
 
 ## 🔍 Technical Details & Architecture
 <details>
@@ -627,10 +619,7 @@ task boot-game
 *(Ou via le REPL OpenGOAL avec `task repl`, puis `(mi)` et `(r)`).*
 
 ## 🎥 Encart Vidéo Démonstrative
-> [!NOTE]
-> **Vidéo de démonstration :** L'enregistrement vidéo de démonstration de ce mod est prévu dans :  
-> 📁 [`{cfg["video_file"]}`]({cfg["video_file"]})  
-> *(Déposez le fichier MP4 dans ce répertoire pour illustrer visuellement les fonctionnalités du mod).*
+{video_block_fr}
 
 ## 🔍 Détails Techniques & Documentation
 <details>

@@ -354,13 +354,13 @@ MODS_CONFIG = {
         "rebuild_binaries": False,
         "binaries_reason_en": "Not required. GOAL scripts handle the health and combat state transitions.",
         "binaries_reason_fr": "Non requise. Les scripts GOAL gèrent la vie et les transitions d'états de combat.",
-        "extract_assets": True,
-        "extract_reason_en": "Required (`task extract`) to process the custom Yakow 3D GLB model and collision data.",
-        "extract_reason_fr": "Requise (`task extract`) pour compiler le modèle 3D GLB et les collisions custom du Yakow.",
+        "extract_assets": False,
+        "extract_reason_en": "Standard extraction sufficient. Uses native in-game models, animations, and sound effects.",
+        "extract_reason_fr": "Extraction standard suffisante. Utilise les modèles, animations et bruitages natifs du jeu.",
         "video_file": "docs/modding/current_mod/yakow_killable.mp4",
         "doc_file": "docs/modding/current_mod/yakow_killable_readme.md",
-        "tech_summary_en": "Implements `:event` handlers and `yakow-die` states in `goal_src/jak2/levels/city/farm/yakow.gc` using `custom_assets/` GLB meshes.",
-        "tech_summary_fr": "Implémente les gestionnaires d'événements et l'état `yakow-die` dans `goal_src/jak2/levels/city/farm/yakow.gc` en s'appuyant sur les maillages GLB de `custom_assets/`."
+        "tech_summary_en": "Implements `:event` handlers, state machine transitions (`kicked`, `run-away`, `die`), and native sound/particle effects in `goal_src/jak2/levels/city/farm/yakow.gc`.",
+        "tech_summary_fr": "Implémente les gestionnaires d'événements, la machine à états (`kicked`, `run-away`, `die`) et les effets sonores/particules natifs dans `goal_src/jak2/levels/city/farm/yakow.gc`."
     },
     "jak3/config/memory_increase": {
         "title_en": "Jak 3 512 MB Main Memory Heap Expansion",

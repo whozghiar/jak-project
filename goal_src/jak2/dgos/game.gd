@@ -300,6 +300,9 @@
   "gun-part.o"
   "collide-reaction-target.o"
   "logic-target.o"
+  "mp-h.o" ;; added
+  "remote-player.o" ;; added
+  "mp-manager.o" ;; added
   "sidekick.o"
   "effect-control.o"
   "voicebox.o"

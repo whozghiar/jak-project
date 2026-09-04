@@ -1,0 +1,139 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: remote-player.gc
+;; name in dgo: remote-player
+;; dgos: GAME
+
+;; jak2/features/multiplayer (AI-assisted)
+;;
+;; A lightweight, non-interactive visual stand-in for one remote peer. Modeled directly on
+;; `minnow` (goal_src/jak2/levels/forest/fish.gc): a bare `process-drawable` with a `trsqv` root
+;; (no collide-shape, no AI, no interaction) that just holds a transform/anim/skin state and draws
+;; it. Per the mod's v1 scope, remote players are visual-only - see
+;; docs/modding/jak2_modding_utilities/22_minimal_networked_stub_process_pattern.md.
+;;
+;; Lifecycle (spawn/despawn) is entirely owned by `mp-manager` (mp-manager.gc) - this file only
+;; renders whatever state it is told about via `set-net-sample!`.
+
+;; The skeleton/art-group name for each selectable skin. `skel-crimson-guard-level` is used
+;; (rather than the citizen-only `skel-crimson-guard`) because it is resident in far more level
+;; DGOs (FOR, DG1, FRA, CAS, PAE, FEA, FDB) - see
+;; docs/modding/jak2_modding_utilities/21_live_reskinning_a_process_with_initialize-skeleton.md.
+(defun mp-skin-id->skel-name ((skin-id uint8))
+  "Look up the skeleton-group name for a given mp-skin-id. Defaults to Jak's own skeleton for any
+   unrecognized id, so a version-mismatched peer degrades gracefully instead of failing to spawn."
+  (case skin-id
+    (((mp-skin-id krimzon-guard)) "skel-crimson-guard-level")
+    (else "skel-jchar")))
+
+(deftype remote-player (process-drawable)
+  ((mp-player-id       int8) ;; which peer this stub represents
+   (net-skin-id        uint8) ;; last skin-id applied via initialize-skeleton-by-name
+   (net-anim-state     uint8) ;; last received coarse anim-state
+   (net-target-pos     vector :inline) ;; latest received world-space position (lerp target)
+   (net-target-quat    quaternion :inline) ;; latest received world-space orientation (slerp target)
+   (current-anim-group basic) ;; the art-joint-anim group currently looping, or #f
+   )
+  (:state-methods
+   idle)
+  (:methods
+   (set-net-sample! (_type_ float float float float float float float uint8 uint8) none)
+   (apply-skin! (_type_ uint8) none)))
+
+;; Applies (or re-applies) a skin by name via a live `initialize-skeleton-by-name` call - the same
+;; primitive already proven safe to call on an already-spawned object elsewhere in this codebase
+;; (goal_src/jak2/levels/tomb/widow-extras.gc, goal_src/jak2/levels/nest/boss/metalkor-setup.gc).
+;; Only actually re-binds the skeleton when the skin id changed, since this is somewhat expensive
+;; and only needs to happen on the rare frame a remote player changes their character selection.
+(defmethod apply-skin! ((this remote-player) (skin-id uint8))
+  (when (or (not (-> this skel)) (!= skin-id (-> this net-skin-id)))
+    (initialize-skeleton-by-name this (mp-skin-id->skel-name skin-id))
+    (set! (-> this net-skin-id) skin-id)
+    (set! (-> this current-anim-group) #f) ;; force the idle state to restart animation on the new skeleton
+    )
+  (none))
+
+;; Called by mp-manager once per frame for each live peer, with that peer's latest network sample.
+;; Just stores the data - the `idle` state below is what actually consumes it each frame.
+(defmethod set-net-sample! ((this remote-player) (px float) (py float) (pz float) (qx float) (qy float) (qz float) (qw float) (anim-state uint8) (skin-id uint8))
+  (set-vector! (-> this net-target-pos) px py pz 1.0)
+  (set! (-> this net-target-quat x) qx)
+  (set! (-> this net-target-quat y) qy)
+  (set! (-> this net-target-quat z) qz)
+  (set! (-> this net-target-quat w) qw)
+  (set! (-> this net-anim-state) anim-state)
+  (apply-skin! this skin-id)
+  (none))
+
+;; WARN: Return type mismatch object vs none.
+(defbehavior remote-player-init-by-other remote-player ((arg0 int) (arg1 uint8))
+  "arg0: mp-player-id this stub represents. arg1: initial mp-skin-id."
+  (set! (-> self mp-player-id) (the-as int8 arg0))
+  (set! (-> self root) (new 'process 'trsqv))
+  (set! (-> self root trans quad) (the-as uint128 0))
+  (quaternion-identity! (-> self root quat))
+  (vector-identity! (-> self root scale))
+  (set! (-> self net-target-pos quad) (the-as uint128 0))
+  (quaternion-identity! (-> self net-target-quat))
+  (set! (-> self current-anim-group) #f)
+  ;; net-skin-id starts at a value that never matches a real mp-skin-id, so the first apply-skin!
+  ;; call below is guaranteed to actually run initialize-skeleton-by-name.
+  (set! (-> self net-skin-id) (the-as uint8 255))
+  (apply-skin! self arg1)
+  (go-virtual idle)
+  (none))
+
+;; Coarse anim-state -> real `.ja` group lookup, split per skin since Jak and the Krimzon Guard use
+;; entirely different animation sets. All group names below are verified to exist in this
+;; codebase (grepped from goal_src/jak2/engine/target/target-anim.gc for Jak, and
+;; goal_src/jak2/levels/common/enemy/guards/crimson-guard-level.gc for the guard).
+;;
+;; !!! `-ja` identifiers are NOT plain global constants - the compiler expands each one relative
+;; to `self` (e.g. `crimson-guard-run-ja` compiles to `(-> self draw art-group data 6)`), indexing
+;; whatever art-group `self` is CURRENTLY bound to. That only resolves to the intended animation
+;; because apply-skin! (above) has already re-skinned `self` to match net-skin-id before this state
+;; runs - and it is exactly why this selection has to live inline here, in a behavior where `self`
+;; is bound, rather than in a standalone `defun` (a `defun` has no `self` at all, which is a real
+;; compile error, not just a style preference).
+;;
+;; [Unverified / Hypothèse] the guard has no distinct walk or fall/duck animation available in
+;; crimson-guard-level.gc, so those states intentionally fall back to its run/idle loop rather
+;; than referencing an invented (and therefore non-compiling) symbol name. Revisit if a better
+;; guard animation set is identified later.
+(defstate idle (remote-player)
+  :virtual #t
+  :code
+    (behavior ()
+      (until #f
+        (let ((desired-group
+                (case (-> self net-skin-id)
+                  (((mp-skin-id krimzon-guard))
+                   (case (-> self net-anim-state)
+                     (((mp-anim-state walk)) crimson-guard-run-ja)
+                     (((mp-anim-state run)) crimson-guard-run-ja)
+                     (((mp-anim-state jump)) crimson-guard-jump-right-ja)
+                     (((mp-anim-state fall)) crimson-guard-idle-ja)
+                     (((mp-anim-state duck)) crimson-guard-idle-ja)
+                     (else crimson-guard-idle-ja)))
+                  (else
+                   (case (-> self net-anim-state)
+                     (((mp-anim-state walk)) jakb-walk-ja)
+                     (((mp-anim-state run)) jakb-run-ja)
+                     (((mp-anim-state jump)) jakb-jump-ja)
+                     (((mp-anim-state fall)) jakb-generic-fall-ja)
+                     (((mp-anim-state duck)) jakb-duck-stance-ja)
+                     (else jakb-stance-ja))))))
+          (when (!= desired-group (-> self current-anim-group))
+            (set! (-> self current-anim-group) desired-group)
+            (ja-no-eval :group! (the-as art-joint-anim desired-group) :num! (seek! max 8.0) :frame-num 0.0)))
+        ;; Smooth toward the latest network sample rather than snapping - simple lerp/slerp is
+        ;; enough for v1 (no client-side prediction, see the mod's non-goals).
+        (vector-lerp! (-> self root trans) (-> self root trans) (-> self net-target-pos) 0.35)
+        (quaternion-slerp! (-> self root quat) (-> self root quat) (-> self net-target-quat) 0.35)
+        (suspend)
+        (ja :num! (seek! max 8.0))
+        (if (ja-done? 0)
+          (ja-no-eval :group! (the-as art-joint-anim (-> self current-anim-group)) :num! (seek! max 8.0) :frame-num 0.0)))
+      #f)
+  :post ja-post)

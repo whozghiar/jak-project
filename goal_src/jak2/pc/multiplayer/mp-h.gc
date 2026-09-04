@@ -1,0 +1,76 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: mp-h.gc
+;; name in dgo: mp-h
+;; dgos: GAME
+
+;; jak2/features/multiplayer (AI-assisted)
+;;
+;; Shared types for the local-network, presence-only multiplayer mod. See:
+;;   - docs/modding/jak2_modding_utilities/20_udp_networking_ffi_bridge.md
+;;   - docs/modding/jak2_modding_utilities/22_minimal_networked_stub_process_pattern.md
+
+;; +++mp-anim-state
+;; Coarse, presence-only animation state broadcast over the network. Deliberately NOT target's
+;; real state machine (see mp-manager.gc's `target-state->mp-anim-state` for the mapping) - just
+;; enough for a remote-player stub to pick a believable looped animation.
+(defenum mp-anim-state
+  :type uint8
+  :bitfield #f
+  (idle 0)
+  (walk 1)
+  (run 2)
+  (jump 3)
+  (fall 4)
+  (duck 5)
+  )
+;; ---mp-anim-state
+
+;; +++mp-skin-id
+;; Selectable local-player appearance, applied via a live `initialize-skeleton` re-skin of
+;; *target* - see docs/modding/jak2_modding_utilities/21_live_reskinning_a_process_with_initialize-skeleton.md
+(defenum mp-skin-id
+  :type uint8
+  :bitfield #f
+  (jak 0)
+  (krimzon-guard 1)
+  )
+;; ---mp-skin-id
+
+;; Number of simultaneous players supported in v1 (must match mp_net::MP_MAX_PLAYERS in
+;; common/network/multiplayer_protocol.h).
+(define MP-MAX-PLAYERS 4)
+
+;; One full state snapshot for one player - sent every local tick to every configured peer, and
+;; polled by the receiver every frame.
+;;
+;; !!! Field order and sizes here MUST exactly mirror mp_net::MpPlayerStatePacket in
+;; common/network/multiplayer_protocol.h - this struct is marshaled directly across the GOAL/C++
+;; FFI boundary as raw bytes (mp-send-local-state / mp-poll-recv, see kernel-defs.gc), and the same
+;; bytes are also what actually goes out over the UDP wire. Do not reorder or resize any field
+;; without updating the C++ struct (and its static_assert) to match, field-for-field.
+;;
+;; The field order below was chosen so every field already falls on its own natural alignment
+;; boundary (two uint32, then nine floats, then one uint16, then four uint8, then a 2-byte pad) -
+;; there is no gap anywhere in this layout, so it does not depend on any particular compiler's
+;; padding behavior to match the C++ side.
+(deftype mp-player-state (structure)
+  ((sequence         uint32)   ;; sender's per-packet counter, used to reject stale/out-of-order packets
+   (timestamp-ms     uint32)   ;; sender's local clock at send time
+   (pos-x            float)
+   (pos-y            float)
+   (pos-z            float)
+   (quat-x           float)
+   (quat-y           float)
+   (quat-z           float)
+   (quat-w           float)
+   (anim-phase       float)    ;; normalized 0..1 anim time
+   (protocol-version uint16)
+   (player-id        uint8)    ;; 0..MP-MAX-PLAYERS-1
+   (skin-id          uint8)    ;; mp-skin-id
+   (anim-state       uint8)    ;; mp-anim-state
+   (valid            uint8)    ;; only meaningful in mp-poll-recv's out-array, see mp-h.gc header comment
+   (pad              uint8 2)  ;; unused, keeps struct size a multiple of 4 - do not remove
+   )
+  )

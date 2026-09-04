@@ -3288,6 +3288,9 @@
   (set! (-> *setting-control* user-default region-mode) #f)
   (apply-settings *setting-control*)
   (stop arg0)
+  ;; jak2/features/multiplayer (AI-assisted): idempotent - see mp-manager-start's docstring for
+  ;; why this is safe to call on every (re)spawn instead of a single boot-only hook.
+  (mp-manager-start)
   (let ((v1-8 (process-spawn
                 target
                 :init target-init

@@ -37,6 +37,7 @@
 #include "game/kernel/jak2/kmalloc.h"
 #include "game/kernel/jak2/kscheme.h"
 #include "game/kernel/jak2/ksound.h"
+#include "game/system/multiplayer/mp_goal_bridge.h"
 #include "game/overlord/jak2/iso.h"
 #include "game/sce/deci2.h"
 #include "game/sce/libdma.h"
@@ -550,6 +551,15 @@ void InitMachine_PCPort() {
 
   // discord rich presence
   make_function_symbol_from_c("pc-discord-rpc-update", (void*)kmachine_extras::update_discord_rpc);
+
+  // jak2/features/multiplayer (AI-assisted): local-network presence-only multiplayer FFI bridge.
+  // See game/system/multiplayer/mp_goal_bridge.h for the marshaling contract of each function.
+  make_function_symbol_from_c("mp-init", (void*)mp_goal_bridge::mp_init);
+  make_function_symbol_from_c("mp-shutdown", (void*)mp_goal_bridge::mp_shutdown);
+  make_function_symbol_from_c("mp-send-local-state", (void*)mp_goal_bridge::mp_send_local_state);
+  make_function_symbol_from_c("mp-poll-recv", (void*)mp_goal_bridge::mp_poll_recv);
+  make_function_symbol_from_c("mp-get-local-player-id",
+                              (void*)mp_goal_bridge::mp_get_local_player_id);
 
   // debugging tools
   make_function_symbol_from_c("alloc-vagdir-names", (void*)kmachine_extras::alloc_vagdir_names);

@@ -89,15 +89,27 @@ tasks:
   build:
     desc: "Build the project using the generated CMake"
     cmds:
-      - "cmake {{.CMAKE_BUILD_DIR_DEBUG}} --parallel 8"
+      # --config is a no-op for single-config generators (Ninja, the project's default via
+      # gen-cmake-*) but is required for a multi-config generator (e.g. Visual Studio, if a build
+      # dir was configured that way instead) - without it, `cmake --build` silently defaults to a
+      # Debug build even under out/build/Release. Cheap to always pass, fixes that trap either way.
+      - "cmake {{.CMAKE_BUILD_DIR_DEBUG}} --config Debug --parallel 8"
   build-release:
     desc: "Build the project using the generated CMake"
     cmds:
-      - "cmake {{.CMAKE_BUILD_DIR_RELEASE}} --parallel 8"
+      - "cmake {{.CMAKE_BUILD_DIR_RELEASE}} --config Release --parallel 8"
   build-debug:
     desc: "Build the project using the generated CMake"
     cmds:
-      - "cmake {{.CMAKE_BUILD_DIR_DEBUG}} --parallel 8"
+      - "cmake {{.CMAKE_BUILD_DIR_DEBUG}} --config Debug --parallel 8"
+  build-release-game:
+    desc: "Build only the game runtime + compiler (gk, goalc) - much faster than build-release for mod iteration, skips lsp/decompiler/tools/tests/third-party binaries"
+    cmds:
+      - "cmake {{.CMAKE_BUILD_DIR_RELEASE}} --config Release --target gk --target goalc --parallel 8"
+  build-debug-game:
+    desc: "Build only the game runtime + compiler (gk, goalc) in Debug - see build-release-game"
+    cmds:
+      - "cmake {{.CMAKE_BUILD_DIR_DEBUG}} --config Debug --target gk --target goalc --parallel 8"
   repl:
     desc: "Start the REPL"
     preconditions:

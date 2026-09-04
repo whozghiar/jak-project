@@ -189,3 +189,30 @@ std::string address_to_string(const sockaddr_in& addr) {
   }
   return ip_str;
 }
+
+// jak2/features/multiplayer (AI-assisted): UDP primitives, additive - see XSocket.h.
+
+int bind_socket(int socket, sockaddr* addr, int nameLen) {
+  int result = bind(socket, addr, nameLen);
+  if (result < 0) {
+    lg::error("[XSocket:{}] Error binding socket", socket);
+  }
+  return result;
+}
+
+int send_to_socket(int socket, const char* buf, int len, const sockaddr_in& addr) {
+  int bytes_sent = sendto(socket, buf, len, 0, (const sockaddr*)&addr, sizeof(sockaddr_in));
+  if (bytes_sent < 0) {
+    lg::error("[XSocket:{}] Error sending to socket", socket);
+  }
+  return bytes_sent;
+}
+
+int recv_from_socket(int socket, char* buf, int len, sockaddr_in* from_addr) {
+#ifdef OS_POSIX
+  socklen_t from_len = sizeof(sockaddr_in);
+#elif _WIN32
+  int from_len = sizeof(sockaddr_in);
+#endif
+  return recvfrom(socket, buf, len, 0, (sockaddr*)from_addr, &from_len);
+}

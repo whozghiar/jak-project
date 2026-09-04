@@ -280,6 +280,29 @@
 
 (define-extern pc-encode-utf8-string (function string string none))
 
+;; jak2/features/multiplayer (AI-assisted): local-network presence-only multiplayer FFI bridge.
+;; `mp-player-state` is fully defined in goal_src/jak2/pc/multiplayer/mp-h.gc; its field layout
+;; must exactly mirror mp_net::MpPlayerStatePacket (common/network/multiplayer_protocol.h) -
+;; see that header's comment for why (shared struct used for both the GOAL/C++ FFI marshaling and
+;; the raw UDP wire format).
+(declare-type mp-player-state structure)
+;; Opens the UDP session (reads MP_PEERS/MP_LOCAL_PLAYER_ID/MP_LOCAL_PORT); returns #f if no
+;; multiplayer peers are configured, in which case every other mp-* call below is a safe no-op.
+(define-extern mp-init (function symbol))
+(define-extern mp-shutdown (function none))
+;; Fills in protocol/player-id/sequence/timestamp on `info` and sends it to every configured peer.
+;; Caller must have already set skin-id/pos-x../quat-x../anim-phase/anim-state on `info`.
+(define-extern mp-send-local-state (function mp-player-state none))
+;; Rewrites all MP_MAX_PLAYERS (4) entries of `out-array` (a stack/global array of mp-player-state,
+;; indexed by player-id) with the latest known state per peer, `valid` set accordingly. Returns the
+;; number of currently-live remote peers.
+(define-extern mp-poll-recv (function (pointer mp-player-state) int))
+(define-extern mp-get-local-player-id (function int))
+;; Forward declaration for logic-target.gc's `start` (goal_src/jak2/engine/target/logic-target.gc),
+;; which is compiled before mp-manager.gc (goal_src/jak2/pc/multiplayer/mp-manager.gc, where this
+;; is actually defined) in goal_src/jak2/dgos/game.gd's load order.
+(define-extern mp-manager-start (function none))
+
 ;; Jak 2 Specific Kernel Definitions
 (define *pc-waiting-on-rpc?* symbol)
 (define *pc-rpc-error?* symbol)

@@ -45,3 +45,12 @@ int write_to_socket(int socket, const char* buf, int len);
 int read_from_socket(int socket, char* buf, int len);
 bool socket_timed_out();
 std::string address_to_string(const sockaddr_in& addr);
+
+// jak2/features/multiplayer (AI-assisted): datagram (UDP) primitives, additive to the TCP-oriented
+// functions above. `bind_socket` is needed for UDP (there's no accept/connect handshake to imply a
+// local address), and `send_to_socket`/`recv_from_socket` are the UDP equivalents of
+// `write_to_socket`/`read_from_socket`, carrying the peer address explicitly since a UDP socket can
+// talk to many peers at once.
+int bind_socket(int socket, sockaddr* addr, int nameLen);
+int send_to_socket(int socket, const char* buf, int len, const sockaddr_in& addr);
+int recv_from_socket(int socket, char* buf, int len, sockaddr_in* from_addr);

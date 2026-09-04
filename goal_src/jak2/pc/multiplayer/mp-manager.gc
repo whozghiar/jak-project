@@ -1,0 +1,183 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: mp-manager.gc
+;; name in dgo: mp-manager
+;; dgos: GAME
+
+;; jak2/features/multiplayer (AI-assisted)
+;;
+;; The always-resident singleton that drives the local-network presence-only multiplayer mod.
+;; Every frame it: (a) samples *target*'s transform/coarse state and sends it to every configured
+;; peer via the FFI bridge (game/system/multiplayer/mp_goal_bridge.{h,cpp}), and (b) polls for
+;; incoming peer state and spawns/despawns/updates `remote-player` stubs (remote-player.gc) to
+;; match. All networking-lifecycle logic lives here, deliberately kept out of both
+;; logic-target.gc (only gets one additive spawn-call line, see mp-manager-start below) and
+;; remote-player.gc (which only ever renders whatever state it's told about).
+;;
+;; See docs/modding/jak2_modding_utilities/20_udp_networking_ffi_bridge.md for the FFI contract.
+
+;; Selected via the REPL command `(mp-toggle-skin!)` below; broadcast every tick as part of the
+;; local player's state. A plain global (rather than a field on mp-manager) so it can be flipped
+;; without needing a handle to the manager process.
+;;
+;; [Implementation note] The plan originally called for a pause-menu "Player Skin" toggle
+;; (goal_src/jak2/engine/ui/progress/progress.gc), matching the existing menu-on-off-option
+;; pattern. That turned out to need a new localized `text-id` label - the actual translated
+;; strings for every text-id are pulled from the retail game's text banks at `task extract` time
+;; and are not present anywhere in this source tree (there is no equivalent of
+;; custom_assets/jak2/texture_replacements/ for injecting new UI text), so a real menu entry isn't
+;; achievable from goal_src edits alone without adding a whole new asset-injection step. Shipping
+;; a menu entry with a blank/garbage label would be worse than not having one, so v1 exposes this
+;; via a REPL command instead: fully functional, zero asset dependency. A real pause-menu entry
+;; is a reasonable v1.1 follow-up once/if a text-injection pipeline exists.
+(define *mp-local-skin-id* (the-as uint8 0))
+
+;; Flips between Jak and Krimzon Guard and immediately re-skins the live *target* (in addition to
+;; being broadcast to peers on the next tick by mp-manager-send-local-state!). Call from the REPL:
+;; `(mp-toggle-skin!)`. Reuses remote-player.gc's mp-skin-id->skel-name so the local re-skin and
+;; the remote-stub re-skin always agree on which art-group name a given skin id means.
+;;
+;; !!! KNOWN UNVERIFIED RISK, test in-game before relying on this: `skel-crimson-guard-level`'s
+;; joint hierarchy (crimson-guard-lod0-jg) has not been confirmed to match skel-jchar's joint
+;; count/order. init-target (logic-target.gc) sets up several joint-mods (neck look-at, head
+;; flex-blend, upper-body gun-look-at, arm/leg IK, ...) against fixed joint indices on skel-jchar's
+;; node-list. If the guard skeleton's layout differs, those joint-mods may read the wrong joint (or
+;; go out of bounds) while playing as the guard. Applying this to `*target*` (as opposed to a
+;; `remote-player` stub, which has no joint-mods at all) is where that risk actually lands. If you
+;; see visual glitches or a crash after calling this, the fix is to gate target's joint-mod update
+;; calls behind a check on *mp-local-skin-id*, not to remove this feature - see
+;; docs/modding/jak2_modding_utilities/21_live_reskinning_a_process_with_initialize-skeleton.md.
+(defun mp-toggle-skin! ()
+  (set! *mp-local-skin-id* (the-as uint8 (if (zero? *mp-local-skin-id*) (mp-skin-id krimzon-guard) (mp-skin-id jak))))
+  (when *target*
+    (initialize-skeleton-by-name *target* (mp-skin-id->skel-name *mp-local-skin-id*)))
+  *mp-local-skin-id*)
+
+;; Approximate per-frame movement distance above which the local player's broadcast anim-state is
+;; "run" rather than "walk" - see target-state->mp-anim-state below. This is a presence-only
+;; cosmetic approximation for remote stubs, not a gameplay value, so it does not need to match any
+;; of target's own internal speed thresholds exactly.
+(define MP-RUN-SPEED-THRESHOLD (meters 0.12))
+
+(defun target-state->mp-anim-state ((frame-speed float))
+  "Coarsely map *target*'s current state (and, for target-walk, its recent per-frame movement
+   distance) down to an mp-anim-state. Intentionally approximate - target has dozens of real
+   states (combat, vehicles, grabs, ...) that all fall back to `idle` here for v1, per the mod's
+   presence-only, non-goals-documented scope."
+  (let ((state-name (-> *target* state name)))
+    (cond
+      ((or (= state-name 'target-jump)
+           (= state-name 'target-jump-forward)
+           (= state-name 'target-double-jump)
+           (= state-name 'target-high-jump))
+       (mp-anim-state jump))
+      ((= state-name 'target-falling) (mp-anim-state fall))
+      ((or (= state-name 'target-duck-stance) (= state-name 'target-duck-walk)) (mp-anim-state duck))
+      ((= state-name 'target-walk) (if (>= frame-speed MP-RUN-SPEED-THRESHOLD) (mp-anim-state run) (mp-anim-state walk)))
+      (else (mp-anim-state idle)))))
+
+(deftype mp-manager (process)
+  ((session-active? symbol) ;; result of the one-time mp-init call
+   (prev-target-pos vector :inline) ;; previous frame's *target* position, for the speed estimate above
+   (has-prev-pos?   symbol) ;; #f until the first frame with a live *target*
+   (remote-handles  handle 4 :inline) ;; one remote-player handle per mp player-id slot
+   )
+  (:state-methods
+   idle))
+
+;; Samples *target* (if alive) and sends its state to every configured peer. No-op if the session
+;; never activated (no MP_PEERS configured) or *target* isn't currently spawned.
+(defun mp-manager-send-local-state! ((this mp-manager))
+  (when (and (-> this session-active?) *target*)
+    (let ((info (new 'stack 'mp-player-state))
+          (cur-pos (-> *target* control trans))
+          (cur-quat (-> *target* control quat))
+          (frame-speed 0.0))
+      (when (-> this has-prev-pos?)
+        (set! frame-speed (vector-vector-distance cur-pos (-> this prev-target-pos))))
+      (set! (-> info skin-id) *mp-local-skin-id*)
+      (set! (-> info pos-x) (-> cur-pos x))
+      (set! (-> info pos-y) (-> cur-pos y))
+      (set! (-> info pos-z) (-> cur-pos z))
+      (set! (-> info quat-x) (-> cur-quat x))
+      (set! (-> info quat-y) (-> cur-quat y))
+      (set! (-> info quat-z) (-> cur-quat z))
+      (set! (-> info quat-w) (-> cur-quat w))
+      (set! (-> info anim-phase) 0.0)
+      (set! (-> info anim-state) (target-state->mp-anim-state frame-speed))
+      (mp-send-local-state info)
+      (set! (-> this prev-target-pos quad) (-> cur-pos quad))
+      (set! (-> this has-prev-pos?) #t)))
+  (none))
+
+;; Polls the FFI bridge for every peer's latest state, then reconciles `remote-player` processes
+;; against it: spawns one for a newly-seen player-id, feeds live ones their latest sample, and
+;; despawns any whose peer has gone away (timed out, per mp_session.h's peer-timeout logic).
+(defun mp-manager-poll-remote-players! ((this mp-manager))
+  (when (-> this session-active?)
+    (let ((in-array (new 'stack-no-clear 'array 'mp-player-state MP-MAX-PLAYERS)))
+      (mp-poll-recv in-array)
+      (dotimes (i MP-MAX-PLAYERS)
+        (let* ((entry (-> in-array i))
+               (existing (handle->process (-> this remote-handles i))))
+          (cond
+            ;; No live peer at this slot right now - despawn our stub for it, if any.
+            ((zero? (-> entry valid))
+             (when existing
+               (deactivate (the-as remote-player existing))
+               (set! (-> this remote-handles i) (the-as handle #f))))
+            ;; Live peer - spawn a stub for it if we don't have one yet, then feed it this frame's
+            ;; sample either way.
+            (else
+             (when (not existing)
+               (set! (-> this remote-handles i)
+                     (ppointer->handle (process-spawn remote-player i (-> entry skin-id) :to *active-pool*)))
+               (set! existing (handle->process (-> this remote-handles i))))
+             (when existing
+               (set-net-sample! (the-as remote-player existing)
+                                (-> entry pos-x)
+                                (-> entry pos-y)
+                                (-> entry pos-z)
+                                (-> entry quat-x)
+                                (-> entry quat-y)
+                                (-> entry quat-z)
+                                (-> entry quat-w)
+                                (-> entry anim-state)
+                                (-> entry skin-id)))))))))
+  (none))
+
+(defmethod deactivate ((this mp-manager))
+  "Close the UDP session and despawn any remaining remote-player stubs when the manager itself
+   goes away (should only happen at game shutdown - this is meant to be a boot-once singleton)."
+  (dotimes (i MP-MAX-PLAYERS)
+    (let ((existing (handle->process (-> this remote-handles i))))
+      (when existing
+        (deactivate (the-as remote-player existing)))))
+  (mp-shutdown)
+  (call-parent-method this)
+  (none))
+
+(defstate idle (mp-manager)
+  :virtual #t
+  :code
+    (behavior ()
+      (set! (-> self session-active?) (mp-init))
+      (until #f
+        (suspend)
+        (mp-manager-send-local-state! self)
+        (mp-manager-poll-remote-players! self))
+      #f))
+
+;; Global handle to the singleton manager process, so mp-manager-start (called from
+;; logic-target.gc's `start`) can tell whether one is already alive.
+(define *mp-manager-handle* (the-as handle #f))
+
+(defun mp-manager-start ()
+  "Idempotent: spawns the always-resident mp-manager singleton if one isn't already alive. `start`
+   in logic-target.gc runs on every target (re)spawn (level transitions, death, tobot mode, ...),
+   not just once at boot - guarding on *mp-manager-handle* here is what makes it safe to call from
+   there every time, rather than depending on finding one single true 'runs once at boot' hook."
+  (unless (handle->process *mp-manager-handle*)
+    (set! *mp-manager-handle* (ppointer->handle (process-spawn mp-manager :to *active-pool*))))
+  (none))

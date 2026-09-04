@@ -30,7 +30,7 @@ This mod enhances the Yakow animals located at the Hip Hog farm in Jak 2 by brin
 - **Modified Files:**
   - `goal_src/jak2/levels/city/farm/yakow.gc`: Added `run-away`, `graze`, `graze-kicked`, `kicked`, `die` states; new tracking fields (`grazing`, `walk-run-blend`, `walk-turn-blend`, `run-mode`, `home-base`); overrode `damage-amount-from-attack` and `general-event-handler`.
   - `decompiler/config/jak2/ntsc_v1/{joint-node-info.min.json, art-group-info.min.json, type_casts.jsonc}`: Skeleton/joint bindings and type-cast hints for the `yakow` skeleton and its `code`/`method` overrides, required for the decompiler to resolve the animation-driving code cleanly.
-  - Custom assets under `custom_assets/jak2/levels/cityfarmb/yakow-lod0_custom.glb`.
+  - *No custom external 3D models required:* Uses native in-game Jak 2 models, animations, and sound effects.
 - **Reused Engine Systems (no new engine code needed):**
   - `nav-enemy` / `enemy` base states and event dispatch (`goal_src/jak2/engine/nav/nav-enemy.gc`, `goal_src/jak2/engine/ai/enemy.gc`) — hit-point handling, `dying`, death-flag bookkeeping.
   - The generic merc death-dissolve effect (`goal_src/jak2/engine/gfx/foreground/merc/merc-death.gc`, `goal_src/jak2/engine/game/effect-control.gc`) via `(do-effect (-> self skel effect) 'death-default 0.0 -1)`.
@@ -91,7 +91,7 @@ Ce mod enrichit les Yakows présents à la ferme du Hip Hog dans Jak 2 en réint
 - **Fichiers Modifiés :**
   - `goal_src/jak2/levels/city/farm/yakow.gc` : Ajout des états `run-away`, `graze`, `graze-kicked`, `kicked`, `die` ; nouveaux champs de suivi (`grazing`, `walk-run-blend`, `walk-turn-blend`, `run-mode`, `home-base`) ; surcharge de `damage-amount-from-attack` et `general-event-handler`.
   - `decompiler/config/jak2/ntsc_v1/{joint-node-info.min.json, art-group-info.min.json, type_casts.jsonc}` : Liaisons de squelette/joints et indices de cast de types pour le squelette `yakow` et ses surcharges de `code`/`method`, nécessaires pour que le décompilateur résolve proprement le code pilotant les animations.
-  - Assets custom sous `custom_assets/jak2/levels/cityfarmb/yakow-lod0_custom.glb`.
+  - *Aucun modèle 3D externe requis :* S'appuie entièrement sur les modèles, animations et sons natifs du jeu de base Jak 2.
 - **Systèmes Moteur Réutilisés (aucun nouveau code moteur requis) :**
   - Les états et le dispatch d'événements de base `nav-enemy` / `enemy` (`goal_src/jak2/engine/nav/nav-enemy.gc`, `goal_src/jak2/engine/ai/enemy.gc`) — gestion des points de vie, `dying`, suivi des flags de mort.
   - L'effet générique de dissolution de mort merc (`goal_src/jak2/engine/gfx/foreground/merc/merc-death.gc`, `goal_src/jak2/engine/game/effect-control.gc`) via `(do-effect (-> self skel effect) 'death-default 0.0 -1)`.

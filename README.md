@@ -42,8 +42,8 @@ task build-release
 ```
 
 ### 3. Asset Extraction
-- **Status:** Required (`task extract`)
-- **Details:** Required (`task extract`) to process the custom Yakow 3D GLB model and collision data.
+- **Status:** Standard extraction sufficient
+- **Details:** Standard extraction sufficient. Uses native in-game models, animations, and sound effects.
 ```bash
 task extract
 ```
@@ -95,8 +95,8 @@ task build-release
 ```
 
 ### 3. Extraction des Données (Assets)
-- **Statut :** Requise (`task extract`)
-- **Détails :** Requise (`task extract`) pour compiler le modèle 3D GLB et les collisions custom du Yakow.
+- **Statut :** Extraction standard suffisante
+- **Détails :** Extraction standard suffisante. Utilise les modèles, animations et bruitages natifs du jeu.
 ```bash
 task extract
 ```

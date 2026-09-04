@@ -111,7 +111,8 @@ void extract_art_groups_from_level(const ObjectFileDB& db,
                                    const std::vector<level_tools::TextureRemap>& tex_remap,
                                    const std::string& dgo_name,
                                    tfrag3::Level& level_data,
-                                   std::map<std::string, level_tools::ArtData>& art_group_data) {
+                                   std::map<std::string, level_tools::ArtData>& art_group_data,
+                                   const Config& config) {
   if (db.obj_files_by_dgo.count(dgo_name)) {
     const auto& files = db.obj_files_by_dgo.at(dgo_name);
     MercSwapInfo swapped_info;
@@ -125,10 +126,79 @@ void extract_art_groups_from_level(const ObjectFileDB& db,
         swapped_info.add_to_swap_list(mdl.stem().string());
       }
     }
+    // the art groups that actually shipped in this DGO
+    std::set<std::string> ag_names_in_this_dgo;
     for (const auto& file : files) {
       if (file.name.length() > 3 && !file.name.compare(file.name.length() - 3, 3, "-ag")) {
+        ag_names_in_this_dgo.insert(file.name);
         const auto& ag_file = db.lookup_record(file);
         extract_merc(ag_file, tex_db, db.dts, tex_remap, level_data, false, db.version(),
+                     swapped_info);
+        extract_joint_group(ag_file, db.dts, db.version(), art_group_data);
+        extract_animations(ag_file, db.dts, db.version(), art_group_data);
+      }
+    }
+
+    // POC (jak2/features/merc-fr3-injection-poc):
+    // extra art groups requested for this DGO in config -- these were NOT part of the
+    // retail DGO, but we want their merc geometry (and joints/anims for the .glb rip)
+    // baked into this level's .fr3 so the PC merc renderer can resolve them by name
+    // while this level is resident. The -ag object itself is looked up globally in the
+    // object DB (it lives in some other level's retail DGO).
+    //
+    // Entry syntax in config: "<art-group>" or "<art-group>:<HOME.DGO>". The merc's
+    // texture ids are relative to the level it shipped in, so they must be resolved
+    // against THAT level's texture-remap-table, not this borrower level's (whose
+    // remap knows nothing about the injected model). <HOME.DGO> names the level whose
+    // remap to use; if omitted we auto-pick the first real level DGO the art group
+    // shipped in. Get this wrong and the model renders untextured / mis-textured.
+    auto extra_it = config.extra_art_groups_by_dgo.find(dgo_name);
+    if (extra_it != config.extra_art_groups_by_dgo.end()) {
+      for (const auto& raw_entry : extra_it->second) {
+        std::string ag_name = raw_entry;
+        std::string home_dgo;
+        auto colon = raw_entry.find(':');
+        if (colon != std::string::npos) {
+          ag_name = raw_entry.substr(0, colon);
+          home_dgo = raw_entry.substr(colon + 1);
+        }
+
+        if (ag_names_in_this_dgo.count(ag_name)) {
+          lg::warn("extra_art_groups_by_dgo: '{}' is already part of retail {}, skipping", ag_name,
+                   dgo_name);
+          continue;
+        }
+        auto by_name = db.obj_files_by_name.find(ag_name);
+        if (by_name == db.obj_files_by_name.end() || by_name->second.empty()) {
+          lg::warn("extra_art_groups_by_dgo: '{}' (for {}) not found in the object DB -- is its "
+                   "source DGO in inputs.jsonc \"dgo_names\"?",
+                   ag_name, dgo_name);
+          continue;
+        }
+        const auto& ag_file = by_name->second.at(0);
+
+        // pick the home level DGO whose texture-remap-table to use for this model
+        if (home_dgo.empty()) {
+          for (const auto& d : ag_file.dgo_names) {
+            if (d.size() > 4 && d.compare(d.size() - 4, 4, ".DGO") == 0 &&
+                db.obj_files_by_dgo.count(d) && get_bsp_file(db.obj_files_by_dgo.at(d), d)) {
+              home_dgo = d;
+              break;
+            }
+          }
+        }
+        std::vector<level_tools::TextureRemap> injected_remap;
+        if (!home_dgo.empty() && db.obj_files_by_dgo.count(home_dgo)) {
+          injected_remap = extract_tex_remap(db, home_dgo);
+          lg::info("extra_art_groups_by_dgo: '{}' textures remapped via {}", ag_name, home_dgo);
+        } else {
+          lg::warn("extra_art_groups_by_dgo: no home level DGO for '{}' -- textures may be wrong; "
+                   "add \"{}:<HOME.DGO>\" to the config",
+                   ag_name, ag_name);
+        }
+
+        lg::info("extra_art_groups_by_dgo: baking '{}' into {} (.fr3)", ag_name, dgo_name);
+        extract_merc(ag_file, tex_db, db.dts, injected_remap, level_data, false, db.version(),
                      swapped_info);
         extract_joint_group(ag_file, db.dts, db.version(), art_group_data);
         extract_animations(ag_file, db.dts, db.version(), art_group_data);
@@ -288,10 +358,10 @@ void extract_common(const ObjectFileDB& db,
   tfrag3::Level tfrag_level;
   std::map<std::string, level_tools::ArtData> art_group_data;
   add_all_textures_from_level(tfrag_level, dgo_name, tex_db);
-  extract_art_groups_from_level(db, tex_db, {}, dgo_name, tfrag_level, art_group_data);
+  extract_art_groups_from_level(db, tex_db, {}, dgo_name, tfrag_level, art_group_data, config);
 
   add_all_textures_from_level(tfrag_level, "ARTSPOOL", tex_db);
-  extract_art_groups_from_level(db, tex_db, {}, "ARTSPOOL", tfrag_level, art_group_data);
+  extract_art_groups_from_level(db, tex_db, {}, "ARTSPOOL", tfrag_level, art_group_data, config);
 
   std::set<std::string> textures_we_have;
   std::set<u32> textures_we_have_id;
@@ -368,7 +438,7 @@ void extract_from_level(const ObjectFileDB& db,
   // the bsp header file data
   auto bsp_header = extract_bsp_from_level(db, tex_db, dgo_name, config, level_data);
   extract_art_groups_from_level(db, tex_db, bsp_header.texture_remap_table, dgo_name, level_data,
-                                art_group_data);
+                                art_group_data, config);
 
   Serializer ser;
   level_data.serialize(ser);

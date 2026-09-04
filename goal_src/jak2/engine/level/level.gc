@@ -2261,7 +2261,10 @@ into 7 sections, which might explain the weird sizes in the center.
   (start-debug "play-boot about to switch stacks for calling play...~%")
   (process-spawn-function
     process
-    (lambda () (play #t #t) (none))
+    (lambda ()
+      (play #t #t)
+      (auto-save-command 'restore 0 0 *default-pool* #f)
+      (none))
     :from *4k-dead-pool*
     :stack *kernel-dram-stack*
     )

@@ -670,6 +670,11 @@ def main():
         for branch, cfg in MODS_CONFIG.items():
             print(f"\n---> Processing branch: {branch}")
             
+            gradle_dir = os.path.join(REPO_ROOT, "third-party", "fmt", "support", ".gradle")
+            if os.path.isdir(gradle_dir):
+                import shutil
+                shutil.rmtree(gradle_dir, ignore_errors=True)
+
             # Checkout branch: try local branch if exists, otherwise checkout -B from origin
             local_check = run_cmd(f"git rev-parse --verify {branch}")
             if local_check.returncode == 0:

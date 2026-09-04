@@ -36,15 +36,16 @@ task set-game-jak2
 ```
 
 ### 2. Binary Compilation
-- **Status:** Layer 3 (GOAL only) — Not required if standard binaries already exist
-- **Details:** Only GOAL scripts are modified. No C++ rebuild needed. For first-time build, use the fast targeted task:
+- **Status:** Required (Layer 1 & Layer 2 — Decompiler & Runtime)
+- **Details:** Compiles the runtime, compiler, and decompiler required for asset extraction:
 ```bash
 task build-release-game
+task build-release-decomp
 ```
 
 ### 3. Asset Extraction
-- **Status:** Standard extraction sufficient (once per setup)
-- **Details:** Standard extraction sufficient. Uses native in-game models, animations, and sound effects.
+- **Status:** Custom extraction required (Layer 2)
+- **Details:** Re-run extraction to process custom assets and modified decompiler configuration:
 ```bash
 task extract
 ```
@@ -90,15 +91,16 @@ task set-game-jak2
 ```
 
 ### 2. Compilation des Binaires
-- **Statut :** Couche 3 (GOAL uniquement) — Non requise si les binaires standards existent déjà
-- **Détails :** Seuls les scripts GOAL sont modifiés, aucune recompilation C++ n'est nécessaire. En cas de premier build machine, utilisez la tâche ciblée rapide :
+- **Statut :** Requise (Couche 1 & Couche 2 — Décompilateur & Runtime)
+- **Détails :** Compile le runtime, le compilateur et le décompilateur nécessaires à l'extraction des assets :
 ```bash
 task build-release-game
+task build-release-decomp
 ```
 
 ### 3. Extraction des Données (Assets)
-- **Statut :** Extraction standard suffisante (une seule fois à l'installation)
-- **Détails :** Extraction standard suffisante. Utilise les modèles, animations et bruitages natifs du jeu.
+- **Statut :** Extraction personnalisée requise (Couche 2)
+- **Détails :** Relancez l'extraction pour intégrer les assets modifiés et la configuration du décompilateur :
 ```bash
 task extract
 ```

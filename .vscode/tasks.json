@@ -1,0 +1,44 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build/Extract",
+            "type": "shell",
+            "command": "powershell -NoExit",
+            "isBackground": true,
+            "presentation": {
+                "group": "main-terminal",
+                "panel": "new"
+            },
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
+        },
+        {
+            "label": "REPL",
+            "type": "shell",
+            "command": "powershell -NoExit",
+            "isBackground": true,
+            "presentation": {
+                "group": "split-terminals",
+                "panel": "new"
+            },
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
+        },
+        {
+            "label": "Game",
+            "type": "shell",
+            "command": "powershell -NoExit",
+            "isBackground": true,
+            "presentation": {
+                "group": "split-terminals",
+                "panel": "shared"
+            },
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
+        }
+    ]
+}

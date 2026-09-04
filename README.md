@@ -35,15 +35,16 @@ task set-game-jak2
 ```
 
 ### 2. Binary Compilation
-- **Status:** Required (`task build-release`)
-- **Details:** Required. Modifies offline decompiler asset baking tools.
+- **Status:** Required (Layer 1 & Layer 2 — Decompiler & Runtime)
+- **Details:** Compiles the runtime, compiler, and decompiler required for asset extraction:
 ```bash
-task build-release
+task build-release-game
+task build-release-decomp
 ```
 
 ### 3. Asset Extraction
-- **Status:** Required (`task extract`)
-- **Details:** Required (`task extract`) to bake the injected merc models into the target level `.fr3` files.
+- **Status:** Custom extraction required (Layer 2)
+- **Details:** Re-run extraction to process custom assets and modified decompiler configuration:
 ```bash
 task extract
 ```
@@ -53,7 +54,7 @@ Run the game natively:
 ```bash
 task boot-game
 ```
-*(Or launch via the OpenGOAL REPL using `task repl`, then compile and run with `(mi)` and `(r)`).*
+*(Or iterate fast via the OpenGOAL REPL using `task repl`, then hot-reload with `(mi)` and `(r)`).*
 
 ## 🎥 Demonstration Video
 > [!NOTE]
@@ -88,15 +89,16 @@ task set-game-jak2
 ```
 
 ### 2. Compilation des Binaires
-- **Statut :** Requise (`task build-release`)
-- **Détails :** Requise. Modifie les outils d'assemblage d'assets du décompilateur hors-ligne.
+- **Statut :** Requise (Couche 1 & Couche 2 — Décompilateur & Runtime)
+- **Détails :** Compile le runtime, le compilateur et le décompilateur nécessaires à l'extraction des assets :
 ```bash
-task build-release
+task build-release-game
+task build-release-decomp
 ```
 
 ### 3. Extraction des Données (Assets)
-- **Statut :** Requise (`task extract`)
-- **Détails :** Requise (`task extract`) pour compiler et cuire les modèles injectés dans les fichiers `.fr3` des niveaux.
+- **Statut :** Extraction personnalisée requise (Couche 2)
+- **Détails :** Relancez l'extraction pour intégrer les assets modifiés et la configuration du décompilateur :
 ```bash
 task extract
 ```
@@ -106,7 +108,7 @@ Lancez le jeu nativement :
 ```bash
 task boot-game
 ```
-*(Ou via le REPL OpenGOAL avec `task repl`, puis `(mi)` et `(r)`).*
+*(Ou itérez rapidement via le REPL OpenGOAL avec `task repl`, puis rechargez à chaud avec `(mi)` et `(r)`).*
 
 ## 🎥 Encart Vidéo Démonstrative
 > [!NOTE]

@@ -64,18 +64,9 @@ task boot-game
 > [!NOTE]
 > *Demonstration videos must be hosted externally on YouTube to prevent repository bloating. Replace `{YOUTUBE_ID}` with the YouTube video ID (e.g. `MnqnybexhSA`) and `{YOUTUBE_URL}` with the video URL (e.g. `https://youtu.be/MnqnybexhSA`).*
 
-## 🔍 Technical Details & Architecture
-<details>
-<summary><b>Click to expand technical implementation details</b></summary>
-
-### Architecture Summary
-Technical summary of modified GOAL functions, state handlers, or C++ subsystems.
-
-### Detailed Documentation
-For the complete technical breakdown, memory architecture, and developer notes, refer to:
-- 📄 `docs/modding/current_mod/{MOD_SLUG}_readme.md`
-
-</details>
+## 📖 Technical Documentation
+For the complete technical breakdown, architecture, and developer notes, refer to:
+- 📄 [`docs/modding/current_mod/{MOD_SLUG}_readme.md`](docs/modding/current_mod/{MOD_SLUG}_readme.md)
 
 ---
 
@@ -130,18 +121,9 @@ task boot-game
 > [!NOTE]
 > *Les vidéos de démonstration doivent être hébergées sur YouTube pour éviter d'alourdir le dépôt Git. Remplacez `{YOUTUBE_ID}` par l'identifiant de la vidéo YouTube (ex : `MnqnybexhSA`) et `{YOUTUBE_URL}` par l'URL de la vidéo (ex : `https://youtu.be/MnqnybexhSA`).*
 
-## 🔍 Détails Techniques & Documentation
-<details>
-<summary><b>Cliquez pour dérouler les détails techniques d'implémentation</b></summary>
-
-### Résumé de l'Architecture
-Résumé technique des fonctions GOAL, machines à états ou sous-systèmes modifiés.
-
-### Documentation Complète
-Pour l'audit technique approfondi, les structures mémoire et l'historique complet, consultez :
-- 📄 `docs/modding/current_mod/{MOD_SLUG}_readme.md`
-
-</details>
+## 📖 Documentation Technique
+Pour l'audit technique approfondi, l'architecture et les détails d'implémentation, consultez :
+- 📄 [`docs/modding/current_mod/{MOD_SLUG}_readme.md`](docs/modding/current_mod/{MOD_SLUG}_readme.md)
 
 ---
 *(AI-assisted)*

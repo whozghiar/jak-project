@@ -306,6 +306,34 @@ MODS_CONFIG = {
         "tech_summary_en": "Hooks transport flight physics into `goal_src/jak2/levels/city/traffic/transport-v.gc` with native collision hull definitions.",
         "tech_summary_fr": "Intègre la physique de vol dans `goal_src/jak2/levels/city/traffic/transport-v.gc` avec définition de coque de collision native."
     },
+    "jak2/features/transport_traffic": {
+        "title_en": "Crimson Guard Transport Ship in Ambient Traffic",
+        "title_fr": "Vaisseau de Transport des Gardes dans le Trafic Aérien",
+        "game": "Jak 2",
+        "game_task": "task set-game-jak2",
+        "desc_en": "Integrates transport-v, an authentic Crimson Guard troop transport gunship into Haven City's ambient high-altitude traffic lanes, pilotable by Jak with a functional turret, chasing during alerts, and hovering to drop squads.",
+        "desc_fr": "Intègre transport-v, un véritable vaisseau de transport de troupes de la Garde Grenat dans le trafic aérien ambiant d'Abriville, pilotable par Jak avec tourelle fonctionnelle, poursuites d'alerte et largage de troupes.",
+        "features_en": [
+            "Ambient High-Altitude Gunship: Dual-hull troop transport navigating city flight lanes with seated pilot and minimap icon.",
+            "Player Hijacking & Turret Controls: Leap onto the hull to eject the guard, take the helm, and fire the nose turret (R1).",
+            "Alert Pursuits & Troop Drop: Pursues Jak during city alerts, locks altitude in place, opens rear hatch, and drops invulnerable guards.",
+            "Persistent Turret & Realistic Crash: Synchronized turret child process with LOD and unlocked tumble physics upon fatal damage."
+        ],
+        "features_fr": [
+            "Canonnière dans le Trafic Aérien : Vaisseau de transport à double coque naviguant dans les voies aériennes avec pilote assis et icône minimap.",
+            "Prise en Main & Tourelle Joueur : Sautez sur la carlingue pour éjecter le garde, prendre les commandes et tirer à la tourelle de proue (R1).",
+            "Poursuite d'Alerte & Déploiement : Traque Jak en alerte, se fige à altitude constante, ouvre la soute arrière et largue des gardes protégés.",
+            "Tourelle Persistante & Destruction Réaliste : Processus tourelle synchronisé au pool avec physique de culbutage naturelle en cas de destruction."
+        ],
+        "rebuild_binaries": False,
+        "binaries_reason_en": "Not required (standard binaries sufficient). The mod executes purely in high-level OpenGOAL scripts.",
+        "binaries_reason_fr": "Non requise (binaires standards suffisants). Le mod s'exécute entièrement dans les scripts de haut niveau OpenGOAL.",
+        "extract_assets": True,
+        "extract_reason_en": "Required once (`task extract`) to bake level packages with injected transport-ag merc geometry.",
+        "extract_reason_fr": "Requise une fois (`task extract`) pour compiler les packages de niveaux avec la géométrie merc injectée de transport-ag.",
+        "youtube_url": "https://youtu.be/MnqnybexhSA",
+        "doc_file": "docs/modding/current_mod/transport_traffic_readme.md"
+    },
     "jak2/features/yakow_killable": {
         "title_en": "Interactive & Vulnerable Yakows",
         "title_fr": "Yakows Interactifs et Vulnérables",
@@ -563,18 +591,9 @@ task boot-game
 ## 🎥 Demonstration Video
 {video_block_en}
 
-## 🔍 Technical Details & Architecture
-<details>
-<summary><b>Click to expand technical implementation details</b></summary>
-
-### Architecture Summary
-{cfg["tech_summary_en"]}
-
-### Detailed Documentation
-For the complete technical breakdown, memory architecture, and developer notes, refer to:
+## 📖 Technical Documentation
+For the complete technical breakdown, architecture, and developer notes, refer to:
 - 📄 [`{cfg["doc_file"]}`]({cfg["doc_file"]})
-
-</details>
 
 ---
 
@@ -621,18 +640,9 @@ task boot-game
 ## 🎥 Encart Vidéo Démonstrative
 {video_block_fr}
 
-## 🔍 Détails Techniques & Documentation
-<details>
-<summary><b>Cliquez pour dérouler les détails techniques d'implémentation</b></summary>
-
-### Résumé de l'Architecture
-{cfg["tech_summary_fr"]}
-
-### Documentation Complète
-Pour l'audit technique approfondi, les structures mémoire et l'historique complet, consultez :
+## 📖 Documentation Technique
+Pour l'audit technique approfondi, l'architecture et les détails d'implémentation, consultez :
 - 📄 [`{cfg["doc_file"]}`]({cfg["doc_file"]})
-
-</details>
 
 ---
 *(AI-assisted)*
@@ -644,7 +654,7 @@ def run_cmd(cmd):
     return res
 
 def main():
-    print("=== Deploying Official Mod READMEs to all 16 branches ===")
+    print(f"=== Deploying Simplified Mod READMEs to all {len(MODS_CONFIG)} branches ===")
     
     # Ensure working tree clean
     status = run_cmd("git status --porcelain").stdout.strip()
@@ -656,8 +666,12 @@ def main():
     for branch, cfg in MODS_CONFIG.items():
         print(f"\n---> Processing branch: {branch}")
         
-        # Checkout branch and align with origin
-        res = run_cmd(f"git checkout -B {branch} origin/{branch}")
+        # Checkout branch: try local branch if exists, otherwise checkout -B from origin
+        local_check = run_cmd(f"git rev-parse --verify {branch}")
+        if local_check.returncode == 0:
+            res = run_cmd(f"git checkout {branch}")
+        else:
+            res = run_cmd(f"git checkout -B {branch} origin/{branch}")
         if res.returncode != 0:
             print(f"Error checking out {branch}: {res.stderr}")
             continue
@@ -670,7 +684,7 @@ def main():
 
         # Commit and push
         run_cmd("git add README.md")
-        commit_res = run_cmd('git commit -m "docs: establish official bilingual mod README (AI-assisted)"')
+        commit_res = run_cmd('git commit -m "docs: simplify technical documentation link in root README (AI-assisted)"')
         if commit_res.returncode == 0:
             print(f"  [OK] Committed new README for {branch}")
             push_res = run_cmd(f"git push origin {branch}")

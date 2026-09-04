@@ -16,15 +16,15 @@
 # 🇬🇧 English Version
 
 ## 📖 Overview
-Makes the peaceful Yakow farm animals responsive to player actions and vulnerable to attacks, featuring custom hit reactions, death states, sound cues, and drops.
+Makes the peaceful Yakow farm animals killable and protected by Krimzon law. Striking a Yakow immediately triggers a Krimzon Guard alert ("Hands off the cow!"), while defeating it drops dark eco pills with authentic death VFX.
 
 - **Target Game:** Jak 2
 - **Active Branch:** `jak2/features/yakow_killable`
 
 ## ✨ Key Features
-- **Feature:** Yakows now react dynamically to kicks, punches, and weapon gunfire.
-- **Feature:** Custom death animations and comical sound effects upon defeat.
-- **Feature:** Health and Eco item drops upon defeat.
+- **Feature:** Yakows are now vulnerable and killable, taking damage from player attacks.
+- **Feature:** Striking a Yakow instantly triggers Krimzon Guard Alert Level 1 ("Hands off the cow!").
+- **Feature:** Purple dissolution death VFX and drops 6 Dark Eco pills upon defeat.
 
 ## 🚀 Step-by-Step Guide to Run the Mod
 
@@ -56,9 +56,9 @@ task boot-game
 *(Or launch via the OpenGOAL REPL using `task repl`, then compile and run with `(mi)` and `(r)`).*
 
 ## 🎥 Demonstration Video
-> [!NOTE]
-> *Demonstration videos are hosted on YouTube to avoid repository bloat.*  
-> ▶️ Demonstration video coming soon on YouTube.
+[![Demonstration Video](https://img.youtube.com/vi/njKxjCuEpcU/maxresdefault.jpg)](https://youtu.be/njKxjCuEpcU)
+
+▶️ **[Watch the demonstration video on YouTube](https://youtu.be/njKxjCuEpcU)**
 
 ## 📖 Technical Documentation
 For the complete technical breakdown, architecture, and developer notes, refer to:
@@ -69,15 +69,15 @@ For the complete technical breakdown, architecture, and developer notes, refer t
 # 🇫🇷 Version Française
 
 ## 📖 Présentation du Mod
-Rend les paisibles Yakows de la ferme réactifs aux actions de Jak et vulnérables aux coups, avec des réactions d'impact, un état de mort, des bruitages et du butin.
+Rend les paisibles Yakows de la ferme vulnérables et éliminables sous la protection des Grenadiers. Frapper un Yakow déclenche immédiatement l'alerte des Grenadiers Krimzon (« Pas touche à la vache ! »), tandis que son élimination octroie des pilules d'éco sombre avec un effet visuel de mort authentique.
 
 - **Jeu Ciblé :** Jak 2
 - **Branche Active :** `jak2/features/yakow_killable`
 
 ## ✨ Fonctionnalités Clés
-- **Fonctionnalité :** Les Yakows réagissent désormais dynamiquement aux coups de pied, poings et tirs d'armes.
-- **Fonctionnalité :** Animations de chute personnalisées et bruitages comiques lors de la défaite.
-- **Fonctionnalité :** Apparition de packs de vie ou d'éco après élimination.
+- **Fonctionnalité :** Les Yakows sont désormais vulnérables et éliminables (gestion des points de vie et des impacts).
+- **Fonctionnalité :** Frapper un Yakow déclenche instantanément l'alerte de niveau 1 des Grenadiers Krimzon (« Pas touche à la vache ! »).
+- **Fonctionnalité :** Effet de mort par dissolution violette et apparition de 6 pilules d'éco sombre lors de l'élimination.
 
 ## 🚀 Guide Pas à Pas pour Lancer le Mod
 
@@ -109,9 +109,10 @@ task boot-game
 *(Ou via le REPL OpenGOAL avec `task repl`, puis `(mi)` et `(r)`).*
 
 ## 🎥 Encart Vidéo Démonstrative
-> [!NOTE]
-> *Les vidéos de démonstration sont hébergées sur YouTube pour éviter d'alourdir le dépôt Git.*  
-> ▶️ Démonstration vidéo prochainement disponible sur YouTube.
+[![Vidéo de Démonstration](https://img.youtube.com/vi/njKxjCuEpcU/maxresdefault.jpg)](https://youtu.be/njKxjCuEpcU)
+
+▶️ **[Visionner la vidéo de démonstration sur YouTube](https://youtu.be/njKxjCuEpcU)**
+
 
 ## 📖 Documentation Technique
 Pour l'audit technique approfondi, l'architecture et les détails d'implémentation, consultez :

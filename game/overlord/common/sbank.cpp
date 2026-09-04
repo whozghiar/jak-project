@@ -102,6 +102,21 @@ SoundBank* AllocateBankName(const char* name) {
     return gBanks[0];
   }
 
+  // jak3 board port: "gun" and "board" (gBanks[1]/gBanks[2]) are pre-populated with their own
+  // dedicated slots in InitBanks below, exactly like "common" above - but until now nothing ever
+  // requested either by name, so this gap was never exercised. Without this, both names fall
+  // through to the level-rotation loop below, which only ever searches gLevelBanks (indices 3-5).
+  // Those 3 slots are always full during normal play (a level keeps its own bank rotation
+  // occupied), so the request always failed with "out of slots" - not because banks were actually
+  // full, but because gBanks[1]/gBanks[2] were structurally unreachable by name.
+  if (!strncmp(name, "gun", 16) && !gBanks[1]->in_use) {
+    return gBanks[1];
+  }
+
+  if (!strncmp(name, "board", 16) && !gBanks[2]->in_use) {
+    return gBanks[2];
+  }
+
   for (int i = 3; i < N_BANKS; i++) {
     if (!gBanks[i]->in_use) {
       gBanks[i]->bank_handle = 0;

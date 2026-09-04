@@ -35,15 +35,15 @@ task set-game-jak3
 ```
 
 ### 2. Binary Compilation
-- **Status:** Required (`task build-release`)
-- **Details:** Required. C++ memory layout configurations (`common/goal_constants.h`) must be recompiled.
+- **Status:** Required (Layer 1 — C++ Runtime & Compiler)
+- **Details:** Compiles the modified C++ runtime (`gk`) and compiler (`goalc`) using the fast targeted task:
 ```bash
-task build-release
+task build-release-game
 ```
 
 ### 3. Asset Extraction
-- **Status:** Standard extraction sufficient
-- **Details:** Not required. Operates seamlessly with existing Jak 3 game assets.
+- **Status:** Standard extraction sufficient (once per setup)
+- **Details:** Standard extraction sufficient. Uses native in-game models, animations, and sound effects.
 ```bash
 task extract
 ```
@@ -53,7 +53,7 @@ Run the game natively:
 ```bash
 task boot-game
 ```
-*(Or launch via the OpenGOAL REPL using `task repl`, then compile and run with `(mi)` and `(r)`).*
+*(Or iterate fast via the OpenGOAL REPL using `task repl`, then hot-reload with `(mi)` and `(r)`).*
 
 ## 🎥 Demonstration Video
 > [!NOTE]
@@ -88,15 +88,15 @@ task set-game-jak3
 ```
 
 ### 2. Compilation des Binaires
-- **Statut :** Requise (`task build-release`)
-- **Détails :** Requise. Les constantes de configuration de la mémoire en C++ (`common/goal_constants.h`) doivent être recompilées.
+- **Statut :** Requise (Couche 1 — Runtime C++ & Compilateur)
+- **Détails :** Compile le runtime C++ (`gk`) et le compilateur (`goalc`) modifiés grâce à la tâche ciblée rapide :
 ```bash
-task build-release
+task build-release-game
 ```
 
 ### 3. Extraction des Données (Assets)
-- **Statut :** Extraction standard suffisante
-- **Détails :** Non requise. Fonctionne immédiatement avec les assets existants de Jak 3.
+- **Statut :** Extraction standard suffisante (une seule fois à l'installation)
+- **Détails :** Extraction standard suffisante. Utilise les modèles, animations et bruitages natifs du jeu.
 ```bash
 task extract
 ```
@@ -106,7 +106,7 @@ Lancez le jeu nativement :
 ```bash
 task boot-game
 ```
-*(Ou via le REPL OpenGOAL avec `task repl`, puis `(mi)` et `(r)`).*
+*(Ou itérez rapidement via le REPL OpenGOAL avec `task repl`, puis rechargez à chaud avec `(mi)` et `(r)`).*
 
 ## 🎥 Encart Vidéo Démonstrative
 > [!NOTE]

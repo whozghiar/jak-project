@@ -45,7 +45,20 @@ Common commands that are useful.  We use https://taskfile.dev/ to make cross-pla
 
 When working on or creating mods for Jak 1, Jak 2, or Jak 3, all agents MUST strictly consult and follow:
 - **Modding Instructions & Rules:** [`docs/modding/jak_modding_instructions.md`](docs/modding/jak_modding_instructions.md)
-- **Git Branch Convention:** Dedicated branch per mod: `jak[N°]/[type_of_mod]/[mod_name]`
+- **Branch Architecture:**
+  - `master`: Clean mirror of `open-goal/jak-project:master`. Never commit directly to `master`.
+  - `master-dev`: Integration and modding base branch. All new mod branches MUST branch from `master-dev`.
+  - Mod branches: Dedicated branch per mod: `jak[N°]/[type_of_mod]/[mod_name]` (e.g. `jak2/features/blueguard`).
+- **Creating a New Mod Branch:** Always use the automation script:
+  `python scripts/modding/create_mod_branch.py jak[N]/[type]/[name]`
+  This automatically branches from `master-dev` and replaces the root `README.md` with the customized mod README template.
+- **Mod-Specific README:** On each mod branch, the root `README.md` presents the mod (installation, features, usage, embedded YouTube demo video). Heavy video files (`.mp4`) must NEVER be committed to the repository; demonstrations must be hosted on YouTube with clickable thumbnails in the README.
+- **Branch Synchronization & Status Dashboard:** The live sync state of all branches is tracked on `master-dev`'s `README.md` and [`docs/modding/branch_sync_status.md`](docs/modding/branch_sync_status.md). Routine testing and auto-merges are handled by:
+  `python scripts/modding/sync_branches_with_master.py --push`
+- **Syncing a Mod Branch with master-dev:** To synchronize the active mod branch with `master-dev`:
+  `python scripts/modding/sync_branch_with_master_dev.py` (safe `git merge` by default, or `--rebase` if linear history is explicitly desired)
+- **Syncing Documentation:** To update modding docs only on any active mod branch without rebasing or polluting history, run:
+  `python scripts/modding/sync_docs_from_master.py`
 - **Game-Specific Knowledge Bases & Modular Utilities:**
   - Jak 1: [`docs/modding/jak1_modding_utilities/`](docs/modding/jak1_modding_utilities/) ([`docs/modding/jak1_modding_utilities/jak1_modding_utilities.md`](docs/modding/jak1_modding_utilities/jak1_modding_utilities.md))
   - Jak 2: [`docs/modding/jak2_modding_utilities/`](docs/modding/jak2_modding_utilities/) ([`docs/modding/jak2_modding_utilities/jak2_modding_utilities.md`](docs/modding/jak2_modding_utilities/jak2_modding_utilities.md))

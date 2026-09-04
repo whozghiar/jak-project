@@ -1,4 +1,4 @@
-# Start Menu Radial Navigation Wheel / Menu Pause à Navigation Circulaire
+# Start Menu Wheel Fast Navigation / Navigation Rapide du Menu Circulaire — Jak 2
 
 <p align="center">
   <img src="https://img.shields.io/badge/OpenGOAL-Mod-blue.svg" alt="OpenGOAL Mod">
@@ -16,15 +16,14 @@
 # 🇬🇧 English Version
 
 ## 📖 Overview
-Implements an intuitive radial wheel navigation system inside the pause and options menu, allowing quick selection using directional inputs or analog sticks.
+This quality-of-life (QoL) mod modernizes the in-game Start / Pause menu wheel navigation in Jak 2 to match the fluidity and responsiveness of Jak 3.
 
 - **Target Game:** Jak 2
 - **Active Branch:** `jak2/config/start_menu_wheel`
 
 ## ✨ Key Features
-- **Feature:** Modern radial selection interface for menus.
-- **Feature:** Smooth analog and D-Pad responsiveness.
-- **Feature:** Seamless compatibility with standard pause menu options.
+- **Doubled Ring Rotation Speed:** In original Jak 2, menu ring rotation was capped at half the speed of Jak 3, locking new inputs until the animation finished. The seek speed is now doubled for instant response.
+- **Hold-to-Repeat Navigation:** Holding down directional inputs (D-Pad / analog sticks) smoothly cycles through options with a 0.175s throttle window, removing the need to mash buttons.
 
 ## 🚀 Step-by-Step Guide to Run the Mod
 
@@ -35,15 +34,15 @@ task set-game-jak2
 ```
 
 ### 2. Binary Compilation
-- **Status:** Layer 3 (GOAL only) — Not required if standard binaries already exist
-- **Details:** Only GOAL scripts are modified. No C++ rebuild needed. For first-time build, use the fast targeted task:
+- **Status:** Layer 3 (GOAL only) — Not required if standard binaries already exist.
+- **Details:** Only GOAL scripts are modified. No C++ rebuild needed. For a first-time build, use the fast targeted task:
 ```bash
 task build-release-game
 ```
 
 ### 3. Asset Extraction
-- **Status:** Standard extraction sufficient (once per setup)
-- **Details:** Standard extraction sufficient. Uses native in-game models, animations, and sound effects.
+- **Status:** Standard extraction sufficient (once per setup).
+- **Details:** Uses native in-game models, animations, and sound effects.
 ```bash
 task extract
 ```
@@ -56,9 +55,9 @@ task boot-game
 *(Or iterate fast via the OpenGOAL REPL using `task repl`, then hot-reload with `(mi)` and `(r)`).*
 
 ## 🎥 Demonstration Video
-> [!NOTE]
-> *Demonstration videos are hosted on YouTube to avoid repository bloat.*  
-> ▶️ Demonstration video coming soon on YouTube.
+[![Demonstration Video](https://img.youtube.com/vi/RwAhDn31hU4/maxresdefault.jpg)](https://youtu.be/RwAhDn31hU4)
+
+▶️ **[Watch the demonstration video on YouTube](https://youtu.be/RwAhDn31hU4)**
 
 ## 📖 Technical Documentation
 For the complete technical breakdown, architecture, and developer notes, refer to:
@@ -69,15 +68,14 @@ For the complete technical breakdown, architecture, and developer notes, refer t
 # 🇫🇷 Version Française
 
 ## 📖 Présentation du Mod
-Implémente un système de navigation circulaire intuitif dans le menu pause et options, permettant une sélection rapide à l'aide des sticks analogiques ou des touches directionnelles.
+Ce mod de confort (QoL) modernise la navigation dans le menu circulaire Start / Pause de Jak 2 pour lui apporter la réactivité et la fluidité de Jak 3.
 
 - **Jeu Ciblé :** Jak 2
 - **Branche Active :** `jak2/config/start_menu_wheel`
 
 ## ✨ Fonctionnalités Clés
-- **Fonctionnalité :** Interface de sélection circulaire moderne pour les menus.
-- **Fonctionnalité :** Réponse fluide au stick analogique et à la croix directionnelle.
-- **Fonctionnalité :** Compatibilité totale avec toutes les options classiques du menu pause.
+- **Vitesse de Rotation du Cercle Doublée :** Dans Jak 2 d'origine, la rotation du menu était deux fois plus lente que dans Jak 3 et bloquait les nouvelles entrées pendant l'animation. La vitesse est doublée pour un retour instantané.
+- **Navigation « Maintenir pour Répéter » :** Maintenir une direction (croix directionnelle / stick analogique) fait défiler les options en continu avec un throttle de 0,175s, évitant d'avoir à marteler les boutons.
 
 ## 🚀 Guide Pas à Pas pour Lancer le Mod
 
@@ -88,15 +86,15 @@ task set-game-jak2
 ```
 
 ### 2. Compilation des Binaires
-- **Statut :** Couche 3 (GOAL uniquement) — Non requise si les binaires standards existent déjà
+- **Statut :** Couche 3 (GOAL uniquement) — Non requise si les binaires standards existent déjà.
 - **Détails :** Seuls les scripts GOAL sont modifiés, aucune recompilation C++ n'est nécessaire. En cas de premier build machine, utilisez la tâche ciblée rapide :
 ```bash
 task build-release-game
 ```
 
 ### 3. Extraction des Données (Assets)
-- **Statut :** Extraction standard suffisante (une seule fois à l'installation)
-- **Détails :** Extraction standard suffisante. Utilise les modèles, animations et bruitages natifs du jeu.
+- **Statut :** Extraction standard suffisante (une seule fois à l'installation).
+- **Détails :** Utilise les modèles, animations et bruitages natifs du jeu.
 ```bash
 task extract
 ```
@@ -109,9 +107,9 @@ task boot-game
 *(Ou itérez rapidement via le REPL OpenGOAL avec `task repl`, puis rechargez à chaud avec `(mi)` et `(r)`).*
 
 ## 🎥 Encart Vidéo Démonstrative
-> [!NOTE]
-> *Les vidéos de démonstration sont hébergées sur YouTube pour éviter d'alourdir le dépôt Git.*  
-> ▶️ Démonstration vidéo prochainement disponible sur YouTube.
+[![Vidéo de Démonstration](https://img.youtube.com/vi/RwAhDn31hU4/maxresdefault.jpg)](https://youtu.be/RwAhDn31hU4)
+
+▶️ **[Visionner la vidéo de démonstration sur YouTube](https://youtu.be/RwAhDn31hU4)**
 
 ## 📖 Documentation Technique
 Pour l'audit technique approfondi, l'architecture et les détails d'implémentation, consultez :

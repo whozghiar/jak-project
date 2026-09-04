@@ -23,3 +23,19 @@ Ce document consigne l'historique complet des tentatives de fusions automatiques
 | `2026-09-03 18:13:35` | ✅ Conflit Résolu | `jak2/config/custom_animation_and_sound` | Conflit résolu manuellement dans `goalc/CMakeLists.txt`. Synchronisée avec origin/master (`200ef0e4c`) |
 | `2026-09-03 18:13:57` | ✅ Conflit Résolu | `jak2/features/jak3-jetBoard` | Conflit résolu manuellement dans `goalc/CMakeLists.txt`. Synchronisée avec origin/master (`5d71ff198`) |
 | `2026-09-03 18:14:55` | ✅ Conflit Résolu | `jak3/features/jak2_skin_secret` | Conflit résolu manuellement dans `goal_src/jak3/pc/progress/progress-draw-pc.gc`. Synchronisée avec origin/master (`77323bced`) |
+| `2026-09-04 00:25:59` | ⚠️ Conflit | `jak2/config/custom_animation_and_sound` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md` |
+| `2026-09-04 00:25:59` | ⚠️ Conflit | `jak2/config/enhanced_spawnrates` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md` |
+| `2026-09-04 00:26:00` | ⚠️ Conflit | `jak2/config/memory_increase` | Conflit détecté lors de la fusion avec origin/master-dev dans: `AGENTS.md`, `CLAUDE.md`, `README.md`, `docs/modding/jak_modding_instructions.md` |
+| `2026-09-04 00:26:00` | ⚠️ Conflit | `jak2/config/start_menu_wheel` | Conflit détecté lors de la fusion avec origin/master-dev dans: `AGENTS.md`, `CLAUDE.md`, `README.md`, `docs/modding/jak_modding_instructions.md` |
+| `2026-09-04 00:26:01` | ⚠️ Conflit | `jak2/features/dark_jak_enhanced` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md` |
+| `2026-09-04 00:26:01` | ⚠️ Conflit | `jak2/features/enhanced_city_traffic_v2` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md` |
+| `2026-09-04 00:26:02` | ⚠️ Conflit | `jak2/features/jak3-jetBoard` | Conflit détecté lors de la fusion avec origin/master-dev dans: `AGENTS.md`, `CLAUDE.md`, `README.md`, `decompiler/config/jak3/jak3_config.jsonc`, `docs/modding/jak_modding_instructions.md` |
+| `2026-09-04 00:26:02` | ⚠️ Conflit | `jak2/features/merc-fr3-injection-poc` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `decompiler/config/jak2/jak2_config.jsonc` |
+| `2026-09-04 00:26:02` | ⚠️ Conflit | `jak2/features/paddy_wagon_v2` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md` |
+| `2026-09-04 00:26:03` | ⚠️ Conflit | `jak2/features/transport_v2` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md` |
+| `2026-09-04 00:26:03` | ⚠️ Conflit | `jak2/features/yakow_killable` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md` |
+| `2026-09-04 00:26:04` | ⚠️ Conflit | `jak3/config/memory_increase` | Conflit détecté lors de la fusion avec origin/master-dev dans: `AGENTS.md`, `CLAUDE.md`, `README.md`, `docs/modding/jak_modding_instructions.md` |
+| `2026-09-04 00:26:04` | ⚠️ Conflit | `jak3/features/city-behavior` | Conflit détecté lors de la fusion avec origin/master-dev dans: `AGENTS.md`, `CLAUDE.md`, `README.md`, `docs/modding/jak_modding_instructions.md` |
+| `2026-09-04 00:26:05` | ⚠️ Conflit | `jak3/features/jak2_skin_secret` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md` |
+| `2026-09-04 00:26:05` | ⚠️ Conflit | `jak3/features/mega_dark_jak` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md` |
+| `2026-09-04 00:26:06` | ⚠️ Conflit | `jak3/features/redguard-entity` | Conflit détecté lors de la fusion avec origin/master-dev dans: `AGENTS.md`, `CLAUDE.md`, `README.md`, `docs/modding/jak_modding_instructions.md` |

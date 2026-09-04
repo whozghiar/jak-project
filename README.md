@@ -36,15 +36,15 @@ task set-game-jak2
 ```
 
 ### 2. Binary Compilation
-- **Status:** Not required (standard binaries sufficient)
-- **Details:** Not required (standard binaries sufficient). The mod executes purely in high-level OpenGOAL scripts.
+- **Status:** Layer 3 (GOAL only) — Not required if standard binaries already exist
+- **Details:** Only GOAL scripts are modified. No C++ rebuild needed. For first-time build, use the fast targeted task:
 ```bash
-task build-release
+task build-release-game
 ```
 
 ### 3. Asset Extraction
-- **Status:** Required (`task extract`)
-- **Details:** Required once (`task extract`) to bake level packages with injected transport-ag merc geometry.
+- **Status:** Standard extraction sufficient (once per setup)
+- **Details:** Standard extraction sufficient. Uses native in-game models, animations, and sound effects.
 ```bash
 task extract
 ```
@@ -54,7 +54,7 @@ Run the game natively:
 ```bash
 task boot-game
 ```
-*(Or launch via the OpenGOAL REPL using `task repl`, then compile and run with `(mi)` and `(r)`).*
+*(Or iterate fast via the OpenGOAL REPL using `task repl`, then hot-reload with `(mi)` and `(r)`).*
 
 ## 🎥 Demonstration Video
 [![Demonstration Video](https://img.youtube.com/vi/MnqnybexhSA/maxresdefault.jpg)](https://youtu.be/MnqnybexhSA)
@@ -90,15 +90,15 @@ task set-game-jak2
 ```
 
 ### 2. Compilation des Binaires
-- **Statut :** Non requise (binaires standards suffisants)
-- **Détails :** Non requise (binaires standards suffisants). Le mod s'exécute entièrement dans les scripts de haut niveau OpenGOAL.
+- **Statut :** Couche 3 (GOAL uniquement) — Non requise si les binaires standards existent déjà
+- **Détails :** Seuls les scripts GOAL sont modifiés, aucune recompilation C++ n'est nécessaire. En cas de premier build machine, utilisez la tâche ciblée rapide :
 ```bash
-task build-release
+task build-release-game
 ```
 
 ### 3. Extraction des Données (Assets)
-- **Statut :** Requise (`task extract`)
-- **Détails :** Requise une fois (`task extract`) pour compiler les packages de niveaux avec la géométrie merc injectée de transport-ag.
+- **Statut :** Extraction standard suffisante (une seule fois à l'installation)
+- **Détails :** Extraction standard suffisante. Utilise les modèles, animations et bruitages natifs du jeu.
 ```bash
 task extract
 ```
@@ -108,7 +108,7 @@ Lancez le jeu nativement :
 ```bash
 task boot-game
 ```
-*(Ou via le REPL OpenGOAL avec `task repl`, puis `(mi)` et `(r)`).*
+*(Ou itérez rapidement via le REPL OpenGOAL avec `task repl`, puis rechargez à chaud avec `(mi)` et `(r)`).*
 
 ## 🎥 Encart Vidéo Démonstrative
 [![Vidéo de Démonstration](https://img.youtube.com/vi/MnqnybexhSA/maxresdefault.jpg)](https://youtu.be/MnqnybexhSA)

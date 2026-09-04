@@ -35,10 +35,14 @@ Make sure your environment is targeting {TARGET_GAME}:
 ```
 
 ### 2. Binary Compilation
-- **Status:** [Required (`task build-release`) / Not required (standard binaries sufficient)]
-- **Details:** [Specify if C++ engine or compiler files were modified]
+- **Status:** [Not required (GOAL-only mod, standard binaries sufficient) / `task build-release-game` (engine or compiler C++ changed) / `task build-release` + `task extract` (decompiler or decompiler/config changed)]
+- **Details:** [Specify which C++ layer was modified — see `docs/modding/build_and_iteration_workflow.md`]
 ```bash
-task build-release
+# GOAL-only mod: nothing to build — go straight to the REPL below.
+# Engine / compiler C++ changed:
+task build-release-game
+# Decompiler or decompiler/config changed (then step 3 is mandatory):
+task build-release-decomp
 ```
 
 ### 3. Asset Extraction
@@ -64,18 +68,9 @@ task boot-game
 > [!NOTE]
 > *Demonstration videos must be hosted externally on YouTube to prevent repository bloating. Replace `{YOUTUBE_ID}` with the YouTube video ID (e.g. `MnqnybexhSA`) and `{YOUTUBE_URL}` with the video URL (e.g. `https://youtu.be/MnqnybexhSA`).*
 
-## 🔍 Technical Details & Architecture
-<details>
-<summary><b>Click to expand technical implementation details</b></summary>
-
-### Architecture Summary
-Technical summary of modified GOAL functions, state handlers, or C++ subsystems.
-
-### Detailed Documentation
-For the complete technical breakdown, memory architecture, and developer notes, refer to:
-- 📄 `docs/modding/current_mod/{MOD_SLUG}_readme.md`
-
-</details>
+## 📖 Technical Documentation
+For the complete technical breakdown, architecture, and developer notes, refer to:
+- 📄 [`docs/modding/current_mod/{MOD_SLUG}_readme.md`](docs/modding/current_mod/{MOD_SLUG}_readme.md)
 
 ---
 
@@ -101,10 +96,14 @@ Assurez-vous que l'environnement cible {TARGET_GAME} :
 ```
 
 ### 2. Compilation des Binaires
-- **Statut :** [Requise (`task build-release`) / Non requise (binaires standards suffisants)]
-- **Détails :** [Précisez si le moteur ou le compilateur C++ a été modifié]
+- **Statut :** [Non requise (mod GOAL uniquement, binaires standards suffisants) / `task build-release-game` (C++ moteur ou compilateur modifié) / `task build-release` + `task extract` (décompilateur ou decompiler/config modifié)]
+- **Détails :** [Précisez quelle couche C++ a été modifiée — voir `docs/modding/build_and_iteration_workflow.md`]
 ```bash
-task build-release
+# Mod GOAL uniquement : rien à compiler — passez directement au REPL ci-dessous.
+# C++ moteur / compilateur modifié :
+task build-release-game
+# Décompilateur ou decompiler/config modifié (l'étape 3 devient obligatoire) :
+task build-release-decomp
 ```
 
 ### 3. Extraction des Données (Assets)
@@ -130,18 +129,9 @@ task boot-game
 > [!NOTE]
 > *Les vidéos de démonstration doivent être hébergées sur YouTube pour éviter d'alourdir le dépôt Git. Remplacez `{YOUTUBE_ID}` par l'identifiant de la vidéo YouTube (ex : `MnqnybexhSA`) et `{YOUTUBE_URL}` par l'URL de la vidéo (ex : `https://youtu.be/MnqnybexhSA`).*
 
-## 🔍 Détails Techniques & Documentation
-<details>
-<summary><b>Cliquez pour dérouler les détails techniques d'implémentation</b></summary>
-
-### Résumé de l'Architecture
-Résumé technique des fonctions GOAL, machines à états ou sous-systèmes modifiés.
-
-### Documentation Complète
-Pour l'audit technique approfondi, les structures mémoire et l'historique complet, consultez :
-- 📄 `docs/modding/current_mod/{MOD_SLUG}_readme.md`
-
-</details>
+## 📖 Documentation Technique
+Pour l'audit technique approfondi, l'architecture et les détails d'implémentation, consultez :
+- 📄 [`docs/modding/current_mod/{MOD_SLUG}_readme.md`](docs/modding/current_mod/{MOD_SLUG}_readme.md)
 
 ---
 *(AI-assisted)*

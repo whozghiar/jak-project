@@ -57,22 +57,12 @@ task boot-game
 
 ## 🎥 Demonstration Video
 > [!NOTE]
-> **Video Demonstration:** Place or view the demonstration recording for this mod at:  
-> 📁 [`docs/modding/current_mod/memory_increase.mp4`](docs/modding/current_mod/memory_increase.mp4)  
-> *(Drop an MP4 video file in this directory to showcase this mod in action).*
+> *Demonstration videos are hosted on YouTube to avoid repository bloat.*  
+> ▶️ Demonstration video coming soon on YouTube.
 
-## 🔍 Technical Details & Architecture
-<details>
-<summary><b>Click to expand technical implementation details</b></summary>
-
-### Architecture Summary
-Reconfigures `GLOBAL_HEAP_END` and `DEBUG_LEVEL_HEAP_MULT` in C++ runtime alongside GOAL kernel heap allocators.
-
-### Detailed Documentation
-For the complete technical breakdown, memory architecture, and developer notes, refer to:
+## 📖 Technical Documentation
+For the complete technical breakdown, architecture, and developer notes, refer to:
 - 📄 [`docs/modding/jak2_modding_utilities/02_memory_architecture.md`](docs/modding/jak2_modding_utilities/02_memory_architecture.md)
-
-</details>
 
 ---
 
@@ -120,22 +110,12 @@ task boot-game
 
 ## 🎥 Encart Vidéo Démonstrative
 > [!NOTE]
-> **Vidéo de démonstration :** L'enregistrement vidéo de démonstration de ce mod est prévu dans :  
-> 📁 [`docs/modding/current_mod/memory_increase.mp4`](docs/modding/current_mod/memory_increase.mp4)  
-> *(Déposez le fichier MP4 dans ce répertoire pour illustrer visuellement les fonctionnalités du mod).*
+> *Les vidéos de démonstration sont hébergées sur YouTube pour éviter d'alourdir le dépôt Git.*  
+> ▶️ Démonstration vidéo prochainement disponible sur YouTube.
 
-## 🔍 Détails Techniques & Documentation
-<details>
-<summary><b>Cliquez pour dérouler les détails techniques d'implémentation</b></summary>
-
-### Résumé de l'Architecture
-Reconfigure `GLOBAL_HEAP_END` et `DEBUG_LEVEL_HEAP_MULT` dans le runtime C++ ainsi que les allocateurs de heap du noyau GOAL.
-
-### Documentation Complète
-Pour l'audit technique approfondi, les structures mémoire et l'historique complet, consultez :
+## 📖 Documentation Technique
+Pour l'audit technique approfondi, l'architecture et les détails d'implémentation, consultez :
 - 📄 [`docs/modding/jak2_modding_utilities/02_memory_architecture.md`](docs/modding/jak2_modding_utilities/02_memory_architecture.md)
-
-</details>
 
 ---
 *(AI-assisted)*

@@ -59,9 +59,9 @@ task boot-game
 *(Or iterate fast via the OpenGOAL REPL using `task repl`, then hot-reload with `(mi)` and `(r)`).*
 
 ## 🎥 Demonstration Video
-[![Demonstration Video](https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg)](https://youtu.be/VIDEO_ID)
+[![Demonstration Video](https://img.youtube.com/vi/ojMdc_wdyZc/maxresdefault.jpg)](https://youtu.be/ojMdc_wdyZc)
 
-▶️ **[Watch the demonstration video on YouTube](https://youtu.be/VIDEO_ID)**
+▶️ **[Watch the demonstration video on YouTube](https://youtu.be/ojMdc_wdyZc)**
 
 ## 📖 Technical Documentation
 For the complete technical breakdown, architecture, and developer notes, refer to:
@@ -115,9 +115,9 @@ task boot-game
 *(Ou itérez rapidement via le REPL OpenGOAL avec `task repl`, puis rechargez à chaud avec `(mi)` et `(r)`).*
 
 ## 🎥 Encart Vidéo Démonstrative
-[![Vidéo de Démonstration](https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg)](https://youtu.be/VIDEO_ID)
+[![Vidéo de Démonstration](https://img.youtube.com/vi/ojMdc_wdyZc/maxresdefault.jpg)](https://youtu.be/ojMdc_wdyZc)
 
-▶️ **[Visionner la vidéo de démonstration sur YouTube](https://youtu.be/VIDEO_ID)**
+▶️ **[Visionner la vidéo de démonstration sur YouTube](https://youtu.be/ojMdc_wdyZc)**
 
 ## 📖 Documentation Technique
 Pour l'audit technique approfondi, l'architecture et les détails d'implémentation, consultez :

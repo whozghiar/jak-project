@@ -10,10 +10,20 @@ Deploys bilingual (EN/FR) official READMEs with:
 """
 
 import os
+import re
 import subprocess
 import sys
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+def extract_youtube_id(url):
+    """Extract 11-character YouTube video ID from various YouTube URL formats."""
+    if not url:
+        return None
+    match = re.search(r"(?:youtu\.be/|youtube\.com/(?:embed/|v/|watch\?v=|watch\?.+&v=))([\w-]{11})", url)
+    if match:
+        return match.group(1)
+    return url.strip()
 
 MODS_CONFIG = {
     "jak2/config/custom_animation_and_sound": {
@@ -477,8 +487,23 @@ def generate_mod_readme(branch, cfg):
     ext_status_en = "Required (`task extract`)" if cfg["extract_assets"] else "Standard extraction sufficient"
     ext_status_fr = "Requise (`task extract`)" if cfg["extract_assets"] else "Extraction standard suffisante"
 
-    encoded_branch = branch.replace('/', '%2F')
-    game_badge_color = "orange" if "Jak 2" in cfg["game"] else "red"
+    # YouTube Video Embed Block
+    yt_url = cfg.get("youtube_url")
+    if yt_url:
+        yt_id = extract_youtube_id(yt_url)
+        video_block_en = f"""[![Demonstration Video](https://img.youtube.com/vi/{yt_id}/maxresdefault.jpg)]({yt_url})
+
+▶️ **[Watch the demonstration video on YouTube]({yt_url})**"""
+        video_block_fr = f"""[![Vidéo de Démonstration](https://img.youtube.com/vi/{yt_id}/maxresdefault.jpg)]({yt_url})
+
+▶️ **[Visionner la vidéo de démonstration sur YouTube]({yt_url})**"""
+    else:
+        video_block_en = """> [!NOTE]
+> *Demonstration videos are hosted on YouTube to avoid repository bloat.*  
+> ▶️ Demonstration video coming soon on YouTube."""
+        video_block_fr = """> [!NOTE]
+> *Les vidéos de démonstration sont hébergées sur YouTube pour éviter d'alourdir le dépôt Git.*  
+> ▶️ Démonstration vidéo prochainement disponible sur YouTube."""
 
     content = f"""# {cfg["title_en"]} / {cfg["title_fr"]}
 
@@ -536,10 +561,7 @@ task boot-game
 *(Or launch via the OpenGOAL REPL using `task repl`, then compile and run with `(mi)` and `(r)`).*
 
 ## 🎥 Demonstration Video
-> [!NOTE]
-> **Video Demonstration:** Place or view the demonstration recording for this mod at:  
-> 📁 [`{cfg["video_file"]}`]({cfg["video_file"]})  
-> *(Drop an MP4 video file in this directory to showcase this mod in action).*
+{video_block_en}
 
 ## 🔍 Technical Details & Architecture
 <details>
@@ -597,10 +619,7 @@ task boot-game
 *(Ou via le REPL OpenGOAL avec `task repl`, puis `(mi)` et `(r)`).*
 
 ## 🎥 Encart Vidéo Démonstrative
-> [!NOTE]
-> **Vidéo de démonstration :** L'enregistrement vidéo de démonstration de ce mod est prévu dans :  
-> 📁 [`{cfg["video_file"]}`]({cfg["video_file"]})  
-> *(Déposez le fichier MP4 dans ce répertoire pour illustrer visuellement les fonctionnalités du mod).*
+{video_block_fr}
 
 ## 🔍 Détails Techniques & Documentation
 <details>

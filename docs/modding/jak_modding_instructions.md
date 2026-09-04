@@ -86,7 +86,7 @@ When developing a mod for any game in the trilogy, the following documentation s
   1. **Installation & Build Guide:** Exact commands to set game, compile, and boot.
   2. **Detailed Features List:** Precise explanation of behaviors, models, or configurations changed.
   3. **Usage & Controls:** Keybindings, controller triggers, debug menus, or in-game activations.
-  4. **Demonstrative Video / Media:** Embedded demo video link (e.g. YouTube/WebP/MP4) or gameplay screenshots.
+  4. **Demonstrative Video / Media:** Embedded YouTube video demonstration with clickable thumbnail and link. Storing heavy video files (`.mp4`) directly inside the Git repository is strictly prohibited to keep history lightweight.
   5. **Modding Changes Log:** Tracing files touched/created, technical rationale, and objectives.
 * **Mod Merging & Combinations:** Keep mod readmes modular and prefix custom symbols with the mod's identifier (e.g. `*my-mod-speed*`, `my-mod-activate!`) to prevent symbol collisions when fusing branches.
 
@@ -194,7 +194,7 @@ Lors du développement d'un mod pour n'importe quel jeu de la trilogie, la struc
   1. **Guide d'installation & de compilation :** Commandes exactes pour configurer le jeu cible, compiler et lancer.
   2. **Fonctionnalités détaillées :** Description claire des comportements, modèles ou réglages modifiés.
   3. **Utilisation & Commandes :** Touches manette, raccourcis clavier, menus de debug ou déclencheurs ingame.
-  4. **Vidéo Démonstrative / Médias :** Lien vers une vidéo de démonstration intégrée (YouTube / WebP / MP4) ou captures d'écran en jeu.
+  4. **Vidéo Démonstrative / Médias :** Vidéo de démonstration intégrée via YouTube avec miniature cliquable et lien direct. L'hébergement direct de fichiers vidéo lourds (`.mp4`) dans le dépôt Git est strictement proscrit afin de préserver la légèreté de l'historique.
   5. **Journal des Modifications (Modding Changes Log) :** Tableau de traçabilité des fichiers modifiés, justifications techniques et objectifs.
 * **Fusion & Combinaisons de Mods :** Garder les composants modulaires et préfixer les symboles GOAL custom (ex : `*mon-mod-speed*`, `mon-mod-activate!`) pour éviter les collisions de symboles lors des fusions de branches.
 

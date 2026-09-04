@@ -152,6 +152,9 @@ task build-release
 # Lancer le jeu directement / Boot game
 task boot-game
 
+# Mettre à jour la branche active avec master-dev / Sync active branch with master-dev
+python scripts/modding/sync_branch_with_master_dev.py
+
 # Mettre à jour la doc sur une branche sans rebase / Sync docs on active branch
 python scripts/modding/sync_docs_from_master.py
 

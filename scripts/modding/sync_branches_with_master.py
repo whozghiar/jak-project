@@ -208,8 +208,8 @@ def generate_dashboard(results, source_ref, source_sha, updated_at):
                 f.write(new_readme)
 
 def main():
-    parser = argparse.ArgumentParser(description="Synchronize modding branches with master and detect conflicts.")
-    parser.add_argument("--source", default="master", help="Source branch to sync from (default: master).")
+    parser = argparse.ArgumentParser(description="Synchronize modding branches with master-dev and detect conflicts.")
+    parser.add_argument("--source", default="master-dev", help="Source branch to sync from (default: master-dev).")
     parser.add_argument("--push", action="store_true", help="Perform merge and push for clean branches.")
     parser.add_argument("--output-only", action="store_true", help="Only generate markdown without merging.")
     args = parser.parse_args()

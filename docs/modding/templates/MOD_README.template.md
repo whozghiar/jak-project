@@ -56,10 +56,13 @@ task boot-game
 *(Or launch via the OpenGOAL REPL using `task repl`, then compile and run with `(mi)` and `(r)`).*
 
 ## 🎥 Demonstration Video
+
+[![Demonstration Video](https://img.youtube.com/vi/{YOUTUBE_ID}/maxresdefault.jpg)]({YOUTUBE_URL})
+
+▶️ **[Watch the demonstration video on YouTube]({YOUTUBE_URL})**
+
 > [!NOTE]
-> **Video Demonstration:** Place or view the demonstration recording for this mod at:  
-> 📁 `docs/modding/current_mod/{MOD_SLUG}.mp4`  
-> *(Drop an MP4 video file in this directory to showcase this mod in action).*
+> *Demonstration videos must be hosted externally on YouTube to prevent repository bloating. Replace `{YOUTUBE_ID}` with the YouTube video ID (e.g. `MnqnybexhSA`) and `{YOUTUBE_URL}` with the video URL (e.g. `https://youtu.be/MnqnybexhSA`).*
 
 ## 🔍 Technical Details & Architecture
 <details>
@@ -119,10 +122,13 @@ task boot-game
 *(Ou via le REPL OpenGOAL avec `task repl`, puis `(mi)` et `(r)`).*
 
 ## 🎥 Encart Vidéo Démonstrative
+
+[![Vidéo de Démonstration](https://img.youtube.com/vi/{YOUTUBE_ID}/maxresdefault.jpg)]({YOUTUBE_URL})
+
+▶️ **[Visionner la vidéo de démonstration sur YouTube]({YOUTUBE_URL})**
+
 > [!NOTE]
-> **Vidéo de démonstration :** L'enregistrement vidéo de démonstration de ce mod est prévu dans :  
-> 📁 `docs/modding/current_mod/{MOD_SLUG}.mp4`  
-> *(Déposez le fichier MP4 dans ce répertoire pour illustrer visuellement les fonctionnalités du mod).*
+> *Les vidéos de démonstration doivent être hébergées sur YouTube pour éviter d'alourdir le dépôt Git. Remplacez `{YOUTUBE_ID}` par l'identifiant de la vidéo YouTube (ex : `MnqnybexhSA`) et `{YOUTUBE_URL}` par l'URL de la vidéo (ex : `https://youtu.be/MnqnybexhSA`).*
 
 ## 🔍 Détails Techniques & Documentation
 <details>

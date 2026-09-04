@@ -35,9 +35,19 @@ def format_title(slug):
     words = re.split(r"[-_]+", slug)
     return " ".join(w.capitalize() for w in words if w)
 
+def extract_youtube_id(url):
+    """Extract 11-character YouTube video ID from various YouTube URL formats."""
+    if not url:
+        return None
+    match = re.search(r"(?:youtu\.be/|youtube\.com/(?:embed/|v/|watch\?v=|watch\?.+&v=))([\w-]{11})", url)
+    if match:
+        return match.group(1)
+    return url.strip()
+
 def main():
     parser = argparse.ArgumentParser(description="Create a new mod branch with an initialized root README.md.")
     parser.add_argument("branch_name", help="Branch name following jak[123]/[type]/[name] (e.g. jak2/features/hover-board)")
+    parser.add_argument("--youtube", help="YouTube demonstration video URL (e.g. https://youtu.be/MnqnybexhSA)")
     parser.add_argument("--no-commit", action="store_true", help="Do not create the initial commit automatically.")
     parser.add_argument("--push", action="store_true", help="Push the newly created branch to origin.")
     args = parser.parse_args()
@@ -86,10 +96,18 @@ def main():
     with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
         template_content = f.read()
 
+    # Parse YouTube video information
+    if args.youtube:
+        youtube_url = args.youtube.strip()
+        youtube_id = extract_youtube_id(youtube_url) or "YOUR_VIDEO_ID"
+    else:
+        youtube_url = "https://www.youtube.com/watch?v=YOUR_VIDEO_ID"
+        youtube_id = "YOUR_VIDEO_ID"
+
     # Customize template placeholders
     branch_encoded = urllib.parse.quote(branch, safe="")
     game_encoded = urllib.parse.quote(game_label, safe="")
-    mod_slug = mod_name.replace("-", "_")
+    mod_slug_clean = mod_slug.replace("-", "_")
 
     custom_readme = template_content
     custom_readme = custom_readme.replace("{MOD_TITLE}", mod_title)
@@ -98,7 +116,9 @@ def main():
     custom_readme = custom_readme.replace("{BRANCH_BADGE}", branch_encoded)
     custom_readme = custom_readme.replace("{BRANCH_NAME}", branch)
     custom_readme = custom_readme.replace("{TASK_SET_GAME}", f"task set-game-jak{game_num}")
-    custom_readme = custom_readme.replace("{MOD_SLUG}", mod_slug)
+    custom_readme = custom_readme.replace("{MOD_SLUG}", mod_slug_clean)
+    custom_readme = custom_readme.replace("{YOUTUBE_URL}", youtube_url)
+    custom_readme = custom_readme.replace("{YOUTUBE_ID}", youtube_id)
 
     # Write to root README.md
     print(f"Writing customized mod README to {README_PATH}...")

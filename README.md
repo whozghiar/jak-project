@@ -92,7 +92,7 @@ L'objectif de ce projet est d'utiliser l'IA pour créer des mods pour la trilogi
 * **Fiabilité du code :** Le code produit avec l'assistance d'agents IA n'est pas garanti fiable à 100%. L'accent est mis sur l'atteinte de l'objectif fixé pour chaque mod. La plupart des commits correspondants portent la mention `(AI-assisted)`.
 * **Documentation pour les développeurs :** Des consignes sont en place pour que les agents documentent leurs travaux, leurs recherches et leurs découvertes dans des bases de connaissances modulaires (`docs/modding/`). Cela permet à des développeurs de vérifier, reprendre ou adapter le code si besoin.
 * **README dédié par mod :** Chaque branche de mod dispose à sa racine d'un fichier `README.md` décrivant : le guide d'installation, les fonctionnalités du mod, son utilisation et une vidéo démonstrative.
-* **Contributions et retours :** Toute aide ou critique constructive sur ce dépôt est accueillie avec bienveillance, à la discrétion de la justesse des propos et des remarques.
+* **Contributions et retours :** Toute contribution ou suggestion est accueillie avec grand plaisir, tant qu'elle reste constructive et bienveillante.
 
 ---
 

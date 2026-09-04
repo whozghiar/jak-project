@@ -57,6 +57,12 @@ task boot-game
 ```
 *(Or iterate fast via the OpenGOAL REPL using `task repl`, then hot-reload with `(mi)` and `(r)`).*
 
+
+## 🎥 Demonstration Video
+[![Demonstration Video](https://img.youtube.com/vi/yF5ZNcgOR10 /maxresdefault.jpg)](https://youtu.be/yF5ZNcgOR10 )
+
+▶️ **[Watch the demonstration video on YouTube](https://youtu.be/yF5ZNcgOR10 )**
+
 ## 📖 Technical Documentation
 For the complete technical breakdown, architecture, and developer notes, refer to:
 - 📄 [`docs/modding/current_mod/transport_alert_readme.md`](docs/modding/current_mod/transport_alert_readme.md)
@@ -106,6 +112,12 @@ Lancez le jeu nativement :
 task boot-game
 ```
 *(Ou itérez rapidement via le REPL OpenGOAL avec `task repl`, puis rechargez à chaud avec `(mi)` et `(r)`).*
+
+## 🎥 Encart Vidéo Démonstrative
+[![Vidéo de Démonstration](https://img.youtube.com/vi/yF5ZNcgOR10 /maxresdefault.jpg)](https://youtu.be/yF5ZNcgOR10 )
+
+▶️ **[Visionner la vidéo de démonstration sur YouTube](https://youtu.be/yF5ZNcgOR10 )**
+
 
 ## 📖 Documentation Technique
 Pour l'audit technique approfondi, l'architecture et les détails d'implémentation, consultez :

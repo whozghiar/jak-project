@@ -57,10 +57,10 @@ task boot-game
 *(Or launch via the OpenGOAL REPL using `task repl`, then compile and run with `(mi)` and `(r)`).*
 
 ## 🎥 Demonstration Video
-> [!NOTE]
-> **Video Demonstration:** Place or view the demonstration recording for this mod at:  
-> 📁 [`docs/modding/current_mod/transport_traffic.mp4`](docs/modding/current_mod/transport_traffic.mp4)  
-> *(Drop an MP4 video file in this directory to showcase this mod in action).*
+
+[![Demonstration Video](https://img.youtube.com/vi/MnqnybexhSA/maxresdefault.jpg)](https://youtu.be/MnqnybexhSA)
+
+▶️ **[Watch the demonstration video on YouTube](https://youtu.be/MnqnybexhSA)**
 
 ## 🔍 Technical Details & Architecture
 <details>
@@ -125,10 +125,10 @@ task boot-game
 *(Ou via le REPL OpenGOAL avec `task repl`, puis `(mi)` et `(r)`).*
 
 ## 🎥 Encart Vidéo Démonstrative
-> [!NOTE]
-> **Vidéo de démonstration :** L'enregistrement vidéo de démonstration de ce mod est prévu dans :  
-> 📁 [`docs/modding/current_mod/transport_traffic.mp4`](docs/modding/current_mod/transport_traffic.mp4)  
-> *(Déposez le fichier MP4 dans ce répertoire pour illustrer visuellement les fonctionnalités du mod).*
+
+[![Vidéo de Démonstration](https://img.youtube.com/vi/MnqnybexhSA/maxresdefault.jpg)](https://youtu.be/MnqnybexhSA)
+
+▶️ **[Visionner la vidéo de démonstration sur YouTube](https://youtu.be/MnqnybexhSA)**
 
 ## 🔍 Détails Techniques & Documentation
 <details>

@@ -8,6 +8,7 @@
 #include "goalc/build_level/jak1/build_level.h"
 #include "goalc/build_level/jak2/build_level.h"
 #include "goalc/build_level/jak3/build_level.h"
+#include "goalc/build_sbk/build_sbk.h"
 #include "goalc/compiler/Compiler.h"
 #include "goalc/data_compiler/dir_tpages.h"
 #include "goalc/data_compiler/game_count.h"
@@ -456,4 +457,81 @@ bool BuildActor3Tool::run(const ToolInput& task, const PathMap& path_map) {
     params.joint_channel = std::stoi(task.input.at(7));
   }
   return jak3::run_build_actor(task.input.at(0), task.output.at(0), params);
+}
+
+namespace {
+// Parses a quoted GOOS list of symbol names, e.g. '(board-charge board-launch), from its
+// printed-string form. Used by build-sbk/append-sbk to read the (optional) list of sound
+// names that should be pulled out of metadata.txt - the same pattern BuildActorTool uses to
+// parse :master-ag-map. An empty result means "no filter" (use every sound in metadata.txt).
+std::vector<std::string> parse_name_list(goos::Reader& reader, const std::string& text) {
+  std::vector<std::string> names;
+  auto list = reader.read_from_string(text);
+  if (!list.as_pair()->cdr.is_empty_list()) {
+    goos::for_each_in_list(list.as_pair()->cdr.as_pair()->car, [&](const goos::Object& o) {
+      names.push_back(std::string(o.as_symbol().name_ptr));
+    });
+  }
+  return names;
+}
+}  // namespace
+
+BuildSbkTool::BuildSbkTool() : Tool("build-sbk") {}
+
+bool BuildSbkTool::needs_run(const ToolInput& task, const PathMap& path_map) {
+  if (task.input.empty()) {
+    throw std::runtime_error("[build-sbk] Expected at least 1 input (source dir)");
+  }
+  bool force = task.input.size() > 1 && task.input.at(1) == "#t";
+  std::vector<std::string> deps{task.input.at(0)};
+  return force || Tool::needs_run({deps, deps, task.output, task.arg}, path_map);
+}
+
+bool BuildSbkTool::run(const ToolInput& task, const PathMap&) {
+  if (task.input.empty()) {
+    throw std::runtime_error("[build-sbk] Expected at least 1 input (source dir)");
+  }
+
+  sbk::BuildOptions opts;
+  if (task.input.size() > 2) {
+    opts.bank_id = std::stoi(task.input.at(2));
+  }
+  if (task.input.size() > 3) {
+    opts.jak1_format = task.input.at(3) == "#t";
+  }
+  std::vector<std::string> only_names;
+  if (task.input.size() > 4) {
+    only_names = parse_name_list(m_reader, task.input.at(4));
+  }
+
+  sbk::create_sbk_from_dir(file_util::get_file_path({task.input.at(0)}),
+                           file_util::get_file_path({task.output.at(0)}), opts, only_names);
+  return true;
+}
+
+AppendSbkTool::AppendSbkTool() : Tool("append-sbk") {}
+
+bool AppendSbkTool::needs_run(const ToolInput& task, const PathMap& path_map) {
+  if (task.input.size() < 2) {
+    throw std::runtime_error("[append-sbk] Expected at least 2 inputs (base SBK + source dir)");
+  }
+  bool force = task.input.size() > 2 && task.input.at(2) == "#t";
+  std::vector<std::string> deps{task.input.at(0), task.input.at(1)};
+  return force || Tool::needs_run({deps, deps, task.output, task.arg}, path_map);
+}
+
+bool AppendSbkTool::run(const ToolInput& task, const PathMap&) {
+  if (task.input.size() < 2) {
+    throw std::runtime_error("[append-sbk] Expected at least 2 inputs (base SBK + source dir)");
+  }
+
+  std::vector<std::string> only_names;
+  if (task.input.size() > 3) {
+    only_names = parse_name_list(m_reader, task.input.at(3));
+  }
+
+  sbk::append_sbk_from_dir(file_util::get_file_path({task.input.at(0)}),
+                           file_util::get_file_path({task.input.at(1)}),
+                           file_util::get_file_path({task.output.at(0)}), only_names);
+  return true;
 }

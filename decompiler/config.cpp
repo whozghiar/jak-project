@@ -330,11 +330,23 @@ Config make_config_via_json(nlohmann::json& json) {
 
   config.levels_to_extract = inputs_json.at("levels_to_extract").get<std::vector<std::string>>();
   config.levels_extract = json.at("levels_extract").get<bool>();
+
+  // POC (jak2/features/merc-fr3-injection-poc): optional map of
+  //   { "<TARGET DGO>.DGO": ["<extra art group base name>", ...], ... }
+  // used to bake merc geometry of models into a resident level's .fr3.
+  if (json.contains("extra_art_groups_by_dgo")) {
+    config.extra_art_groups_by_dgo =
+        json.at("extra_art_groups_by_dgo")
+            .get<std::unordered_map<std::string, std::vector<std::string>>>();
+  }
   if (json.contains("save_texture_pngs")) {
     config.save_texture_pngs = json.at("save_texture_pngs").get<bool>();
   }
   if (json.contains("rip_streamed_audio")) {
     config.rip_streamed_audio = json.at("rip_streamed_audio").get<bool>();
+  }
+  if (json.contains("rip_sound_banks")) {
+    config.rip_sound_banks = json.at("rip_sound_banks").get<bool>();
   }
 
   if (inputs_json.contains("animated_textures")) {

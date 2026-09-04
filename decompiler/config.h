@@ -177,12 +177,24 @@ struct Config {
   bool levels_extract;
   bool save_texture_pngs = false;
   bool rip_streamed_audio = false;
+  bool rip_sound_banks = false;
 
   DecompileHacks hacks;
 
   std::unordered_map<std::string, std::string> art_group_type_remap;
   std::unordered_map<std::string, std::unordered_map<std::string, std::string>>
       art_group_file_override;
+
+  // POC (jak2/features/merc-fr3-injection-poc):
+  // Extra art groups (by base object name, e.g. "transport-ag") whose merc geometry,
+  // joints and animations are ALSO extracted into a given level's .fr3, even though
+  // that level's retail DGO never contained them. This is how a skeletal model is made
+  // drawable by the PC merc renderer (Merc2) in a level it was never shipped in, with
+  // no runtime "borrow". Keyed by the TARGET DGO name exactly as it appears in
+  // inputs.jsonc "levels_to_extract" -- e.g. "CWI.DGO" (-> ctywide.fr3, resident all
+  // over Haven City) or "GAME.CGO" (-> GAME.fr3, resident globally). Each listed -ag
+  // only has to be reachable from some DGO already in inputs.jsonc "dgo_names".
+  std::unordered_map<std::string, std::vector<std::string>> extra_art_groups_by_dgo;
   std::unordered_map<std::string, std::unordered_map<int, std::string>> art_group_info_dump;
   std::unordered_map<std::string, std::unordered_map<int, std::string>> jg_info_dump;
   std::unordered_map<u32, TexInfo> texture_info_dump;

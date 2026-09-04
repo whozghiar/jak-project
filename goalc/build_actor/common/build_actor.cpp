@@ -130,20 +130,22 @@ Joint convert_joint(const GltfJoint& joint,
   return Joint(joint.name, joint_index + prefix_joint_count, parent, fixed_matrix.transposed());
 }
 
-constexpr int kGltfToGameJointOffset = 1;
 /*!
  * Convert GTLF joint list to game joint list.
- * Currently, this inserts a single "align" joint and places the root joint of the GLTF as the
- * prejoint. However, we might want to change this, to allow GLTF files to specify "align" at some
- * point.
+ * If the GLTF already includes "align" as joint 0, use direct mapping without inserting
+ * a duplicate align joint. Otherwise, insert a synthetic "align" joint at index 0.
  */
 std::vector<Joint> convert_joints(const std::vector<GltfJoint>& gjoints) {
   std::vector<Joint> joints;
-  joints.emplace_back("align", 0, -1, math::Matrix4f::identity());
-  ASSERT(kGltfToGameJointOffset == joints.size());
+  const bool has_align = !gjoints.empty() && gjoints[0].name == "align";
+  const int prefix_count = has_align ? 0 : 1;
+
+  if (!has_align) {
+    joints.emplace_back("align", 0, -1, math::Matrix4f::identity());
+  }
+
   for (int gjoint_idx = 0; gjoint_idx < int(gjoints.size()); gjoint_idx++) {
-    // using -1 as the parent index since gltf's shouldn't be child of align.
-    joints.push_back(convert_joint(gjoints[gjoint_idx], gjoint_idx, kGltfToGameJointOffset, -1));
+    joints.push_back(convert_joint(gjoints[gjoint_idx], gjoint_idx, prefix_count, -1));
   }
 
   return joints;
@@ -159,9 +161,12 @@ std::vector<anim::CompressedAnim> process_anim(const tinygltf::Model& model,
     return {};
   }
 
+  const bool has_align = !gjoints.empty() && gjoints[0].name == "align";
+  const int prefix_count = has_align ? 0 : 1;
+
   std::map<int, int> node_to_joint;
   for (size_t i = 0; i < gjoints.size(); i++) {
-    node_to_joint[gjoints[i].gltf_node_index] = i + kGltfToGameJointOffset;
+    node_to_joint[gjoints[i].gltf_node_index] = (int)i + prefix_count;
   }
 
   std::vector<anim::CompressedAnim> ret;

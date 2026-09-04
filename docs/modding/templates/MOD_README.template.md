@@ -35,10 +35,14 @@ Make sure your environment is targeting {TARGET_GAME}:
 ```
 
 ### 2. Binary Compilation
-- **Status:** [Required (`task build-release`) / Not required (standard binaries sufficient)]
-- **Details:** [Specify if C++ engine or compiler files were modified]
+- **Status:** [Not required (GOAL-only mod, standard binaries sufficient) / `task build-release-game` (engine or compiler C++ changed) / `task build-release` + `task extract` (decompiler or decompiler/config changed)]
+- **Details:** [Specify which C++ layer was modified — see `docs/modding/build_and_iteration_workflow.md`]
 ```bash
-task build-release
+# GOAL-only mod: nothing to build — go straight to the REPL below.
+# Engine / compiler C++ changed:
+task build-release-game
+# Decompiler or decompiler/config changed (then step 3 is mandatory):
+task build-release-decomp
 ```
 
 ### 3. Asset Extraction
@@ -92,10 +96,14 @@ Assurez-vous que l'environnement cible {TARGET_GAME} :
 ```
 
 ### 2. Compilation des Binaires
-- **Statut :** [Requise (`task build-release`) / Non requise (binaires standards suffisants)]
-- **Détails :** [Précisez si le moteur ou le compilateur C++ a été modifié]
+- **Statut :** [Non requise (mod GOAL uniquement, binaires standards suffisants) / `task build-release-game` (C++ moteur ou compilateur modifié) / `task build-release` + `task extract` (décompilateur ou decompiler/config modifié)]
+- **Détails :** [Précisez quelle couche C++ a été modifiée — voir `docs/modding/build_and_iteration_workflow.md`]
 ```bash
-task build-release
+# Mod GOAL uniquement : rien à compiler — passez directement au REPL ci-dessous.
+# C++ moteur / compilateur modifié :
+task build-release-game
+# Décompilateur ou decompiler/config modifié (l'étape 3 devient obligatoire) :
+task build-release-decomp
 ```
 
 ### 3. Extraction des Données (Assets)

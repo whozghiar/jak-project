@@ -110,8 +110,20 @@ When developing a mod for any game in the trilogy, the following documentation s
 ### Reference Commands:
 1. **Set Active Game:** `task set-game-jak[x]` (e.g. `task set-game-jak2`)
 2. **Extract & Transfer Assets / Textures:** `task extract`
-3. **Compiler REPL & Hot Reload:** `task repl` -> `(mi)`
+3. **Compiler REPL & Hot Reload:** `task repl` -> `(mi)` — GOAL `.gc` edits need **no** C++ build
 4. **Boot Game:** `task boot-game`
+
+**Build tasks (pick the smallest one that covers your change):**
+- `task build-release-game` — rebuild only `gk` + `goalc`; use when you edit engine/compiler C++.
+- `task build-release-decomp` — rebuild only the `decompiler`; use when you edit `decompiler/` code
+  or `decompiler/config/**`, then **re-run `task extract`** (a decompiler change is inert until
+  re-extraction).
+- `task build-release` — full build of all ~20 binaries; first setup, or many layers changed at once.
+- First setup / after `task clean-cmake`: `task gen-cmake-release` (installs `sccache` wiring if
+  present — `scoop install sccache`).
+
+See [`build_and_iteration_workflow.md`](build_and_iteration_workflow.md) for the full three-layer
+model and the "what if my mod modifies the decompiler?" walkthrough.
 
 ---
 
@@ -218,5 +230,19 @@ Lors du développement d'un mod pour n'importe quel jeu de la trilogie, la struc
 ### Commandes de Référence :
 1. **Sélectionner le Jeu Actif :** `task set-game-jak[x]` (ex : `task set-game-jak2`)
 2. **Extraire & Transférer les Assets :** `task extract`
-3. **REPL & Hot Reload :** `task repl` -> `(mi)`
+3. **REPL & Hot Reload :** `task repl` -> `(mi)` — les modifs GOAL `.gc` ne nécessitent **aucun** build C++
 4. **Lancer le Jeu :** `task boot-game`
+
+**Tâches de build (choisir la plus petite qui couvre votre changement) :**
+- `task build-release-game` — reconstruit uniquement `gk` + `goalc` ; à utiliser si vous modifiez
+  du C++ moteur/compilateur.
+- `task build-release-decomp` — reconstruit uniquement le `decompiler` ; à utiliser si vous
+  modifiez le code `decompiler/` ou `decompiler/config/**`, puis **relancer `task extract`** (une
+  modif du décompilateur est inerte tant que l'extraction n'est pas refaite).
+- `task build-release` — build complet des ~20 binaires ; première install, ou plusieurs couches
+  modifiées à la fois.
+- Première install / après `task clean-cmake` : `task gen-cmake-release` (câble `sccache` s'il est
+  présent — `scoop install sccache`).
+
+Voir [`build_and_iteration_workflow.md`](build_and_iteration_workflow.md) pour le modèle complet à
+trois couches et le déroulé « et si mon mod modifie le décompilateur ? ».

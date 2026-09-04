@@ -28,11 +28,14 @@ task set-game-jak2          # Switch active target game to Jak 2
 task set-game-jak3          # Switch active target game to Jak 3
 
 # Building & Compilation
-task build-release          # Build release binaries (C++ runtime & compiler)
-task build-debug            # Build debug binaries
-task extract                # Extract assets and run decompiler
+task gen-cmake-release      # Configure the build (Ninja + clang); auto-wires sccache if installed
+task build-release          # Build ALL ~20 binaries (runtime, compiler, decompiler, tools, tests) — slow, first build / full check only
+task build-release-game     # Build ONLY gk + goalc — fast, use for engine/compiler C++ iteration
+task build-release-decomp   # Build ONLY the decompiler — use after changing decompiler/ code or decompiler/config/**
+task build-debug            # Debug equivalents: also build-debug-game / build-debug-decomp
+task extract                # Extract assets and run decompiler (re-run after any decompiler/config change)
 
-# Interactive REPL & Hot Reload
+# Interactive REPL & Hot Reload  — GOAL .gc edits need NO C++ build, use this
 task repl                   # Open interactive goalc compiler
 # In REPL:
 (mi)                        # Incremental compile & hot reload active project
@@ -45,6 +48,9 @@ task format                 # Format C++ and GOAL code
 
 > [!IMPORTANT]
 > **Task Command Policy:** Claude must **NEVER** run long-running build or runtime `task` commands silently in the background. Always clearly propose the exact command for the user to execute in their terminal.
+
+> [!NOTE]
+> **Build speed & when to rebuild what:** see [`docs/modding/build_and_iteration_workflow.md`](docs/modding/build_and_iteration_workflow.md) — the three-layer model (C++ runtime / decompiler / GOAL code), the `sccache` compiler cache, and the targeted build tasks. Most mods only edit GOAL code and never need a C++ build after setup.
 
 ---
 

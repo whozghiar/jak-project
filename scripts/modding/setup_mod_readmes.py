@@ -705,6 +705,11 @@ def main():
                 print(f"  [INFO] No changes to commit for {branch}")
     finally:
         print("\nReturning to master-dev...")
+        gradle_dir = os.path.join(REPO_ROOT, "third-party", "fmt", "support", ".gradle")
+        if os.path.isdir(gradle_dir):
+            import shutil
+            shutil.rmtree(gradle_dir, ignore_errors=True)
+        run_cmd("git reset --hard", check=False)
         run_cmd("git checkout master-dev")
         print("Returned to master-dev.")
 

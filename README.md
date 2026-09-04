@@ -35,15 +35,15 @@ task set-game-jak3
 ```
 
 ### 2. Binary Compilation
-- **Status:** Not required (standard binaries sufficient)
-- **Details:** Not required. Uses existing OpenGOAL game runtime.
+- **Status:** Layer 3 (GOAL only) — Not required if standard binaries already exist
+- **Details:** Only GOAL scripts are modified. No C++ rebuild needed. For first-time build, use the fast targeted task:
 ```bash
-task build-release
+task build-release-game
 ```
 
 ### 3. Asset Extraction
-- **Status:** Required (`task extract`)
-- **Details:** Required (`task extract`) to compile the custom Blender 3D models and textures into Jak 3 level packages.
+- **Status:** Standard extraction sufficient (once per setup)
+- **Details:** Standard extraction sufficient. Uses native in-game models, animations, and sound effects.
 ```bash
 task extract
 ```
@@ -53,7 +53,7 @@ Run the game natively:
 ```bash
 task boot-game
 ```
-*(Or launch via the OpenGOAL REPL using `task repl`, then compile and run with `(mi)` and `(r)`).*
+*(Or iterate fast via the OpenGOAL REPL using `task repl`, then hot-reload with `(mi)` and `(r)`).*
 
 ## 🎥 Demonstration Video
 > [!NOTE]
@@ -88,15 +88,15 @@ task set-game-jak3
 ```
 
 ### 2. Compilation des Binaires
-- **Statut :** Non requise (binaires standards suffisants)
-- **Détails :** Non requise. S'exécute sur le runtime OpenGOAL standard.
+- **Statut :** Couche 3 (GOAL uniquement) — Non requise si les binaires standards existent déjà
+- **Détails :** Seuls les scripts GOAL sont modifiés, aucune recompilation C++ n'est nécessaire. En cas de premier build machine, utilisez la tâche ciblée rapide :
 ```bash
-task build-release
+task build-release-game
 ```
 
 ### 3. Extraction des Données (Assets)
-- **Statut :** Requise (`task extract`)
-- **Détails :** Requise (`task extract`) pour compiler les modèles 3D Blender et les textures dans les packages de niveaux.
+- **Statut :** Extraction standard suffisante (une seule fois à l'installation)
+- **Détails :** Extraction standard suffisante. Utilise les modèles, animations et bruitages natifs du jeu.
 ```bash
 task extract
 ```
@@ -106,7 +106,7 @@ Lancez le jeu nativement :
 ```bash
 task boot-game
 ```
-*(Ou via le REPL OpenGOAL avec `task repl`, puis `(mi)` et `(r)`).*
+*(Ou itérez rapidement via le REPL OpenGOAL avec `task repl`, puis rechargez à chaud avec `(mi)` et `(r)`).*
 
 ## 🎥 Encart Vidéo Démonstrative
 > [!NOTE]

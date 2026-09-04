@@ -114,29 +114,32 @@ Le dépôt sépare le code amont officiel et les branches de modding :
 *L'historique complet des fusions et résolutions est consultable dans [`docs/modding/branch_sync_history.log`](docs/modding/branch_sync_history.log).*
 
 <!-- BRANCH_STATUS_START -->
-> **Dernière mise à jour :** `2026-09-04 00:25:58 UTC`  
-> **Branche source :** `master-dev` (`31769a3f9`)  
-> **Statut global :** 1/17 synchronisées (16 conflits)
+> **Dernière mise à jour :** `2026-09-04 10:18:42 UTC`  
+> **Branche source :** `master-dev` (`471b23aa6`)  
+> **Statut global :** 20/20 synchronisées (0 conflits)
 
 | Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |
 | :--- | :---: | :--- | :--- | :--- |
-| `jak2/config/custom_animation_and_sound` | ⚠️ Conflit | `af0a6a969 - docs: simplify technical documentation link in root README (AI-assisted)` | • `README.md` | `git checkout jak2/config/custom_animation_and_sound && git merge origin/master-dev` |
-| `jak2/config/enhanced_spawnrates` | ⚠️ Conflit | `f360074b6 - docs: simplify technical documentation link in root README (AI-assisted)` | • `README.md` | `git checkout jak2/config/enhanced_spawnrates && git merge origin/master-dev` |
-| `jak2/config/memory_increase` | ⚠️ Conflit | `46fb2f79c - docs: simplify technical documentation link in root README (AI-assisted)` | • `AGENTS.md`<br>• `CLAUDE.md`<br>• `README.md`<br>• `docs/modding/jak_modding_instructions.md` | `git checkout jak2/config/memory_increase && git merge origin/master-dev` |
-| `jak2/config/start_menu_wheel` | ⚠️ Conflit | `21a3c27e3 - docs: simplify technical documentation link in root README (AI-assisted)` | • `AGENTS.md`<br>• `CLAUDE.md`<br>• `README.md`<br>• `docs/modding/jak_modding_instructions.md` | `git checkout jak2/config/start_menu_wheel && git merge origin/master-dev` |
-| `jak2/features/dark_jak_enhanced` | ⚠️ Conflit | `362fba536 - docs: simplify technical documentation link in root README (AI-assisted)` | • `README.md` | `git checkout jak2/features/dark_jak_enhanced && git merge origin/master-dev` |
-| `jak2/features/enhanced_city_traffic_v2` | ⚠️ Conflit | `2019be371 - docs: simplify technical documentation link in root README (AI-assisted)` | • `README.md` | `git checkout jak2/features/enhanced_city_traffic_v2 && git merge origin/master-dev` |
-| `jak2/features/jak3-jetBoard` | ⚠️ Conflit | `1767295ea - docs: simplify technical documentation link in root README (AI-assisted)` | • `AGENTS.md`<br>• `CLAUDE.md`<br>• `README.md`<br>• `decompiler/config/jak3/jak3_config.jsonc`<br>• `docs/modding/jak_modding_instructions.md` | `git checkout jak2/features/jak3-jetBoard && git merge origin/master-dev` |
-| `jak2/features/merc-fr3-injection-poc` | ⚠️ Conflit | `8b50da673 - docs: simplify technical documentation link in root README (AI-assisted)` | • `README.md`<br>• `decompiler/config/jak2/jak2_config.jsonc` | `git checkout jak2/features/merc-fr3-injection-poc && git merge origin/master-dev` |
-| `jak2/features/paddy_wagon_v2` | ⚠️ Conflit | `180228bab - docs: simplify technical documentation link in root README (AI-assisted)` | • `README.md` | `git checkout jak2/features/paddy_wagon_v2 && git merge origin/master-dev` |
-| `jak2/features/transport_traffic` | ✅ À jour | `2960ddb8d - docs: simplify technical documentation link in root README (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/transport_v2` | ⚠️ Conflit | `2f6468aaf - docs: simplify technical documentation link in root README (AI-assisted)` | • `README.md` | `git checkout jak2/features/transport_v2 && git merge origin/master-dev` |
-| `jak2/features/yakow_killable` | ⚠️ Conflit | `3a922fe11 - docs: simplify technical documentation link in root README (AI-assisted)` | • `README.md` | `git checkout jak2/features/yakow_killable && git merge origin/master-dev` |
-| `jak3/config/memory_increase` | ⚠️ Conflit | `756d6aaef - docs: simplify technical documentation link in root README (AI-assisted)` | • `AGENTS.md`<br>• `CLAUDE.md`<br>• `README.md`<br>• `docs/modding/jak_modding_instructions.md` | `git checkout jak3/config/memory_increase && git merge origin/master-dev` |
-| `jak3/features/city-behavior` | ⚠️ Conflit | `e7b77da61 - docs: simplify technical documentation link in root README (AI-assisted)` | • `AGENTS.md`<br>• `CLAUDE.md`<br>• `README.md`<br>• `docs/modding/jak_modding_instructions.md` | `git checkout jak3/features/city-behavior && git merge origin/master-dev` |
-| `jak3/features/jak2_skin_secret` | ⚠️ Conflit | `fda2e0784 - docs: simplify technical documentation link in root README (AI-assisted)` | • `README.md` | `git checkout jak3/features/jak2_skin_secret && git merge origin/master-dev` |
-| `jak3/features/mega_dark_jak` | ⚠️ Conflit | `ac85d4806 - docs: simplify technical documentation link in root README (AI-assisted)` | • `README.md` | `git checkout jak3/features/mega_dark_jak && git merge origin/master-dev` |
-| `jak3/features/redguard-entity` | ⚠️ Conflit | `7ecbf97ab - docs: simplify technical documentation link in root README (AI-assisted)` | • `AGENTS.md`<br>• `CLAUDE.md`<br>• `README.md`<br>• `docs/modding/jak_modding_instructions.md` | `git checkout jak3/features/redguard-entity && git merge origin/master-dev` |
+| `jak2/config/custom_animation_and_sound` | ✅ À jour | `02efde7a7 - chore: merge master-dev build tooling and update README for LAYER_1_2 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/config/enhanced_spawnrates` | ✅ À jour | `d334b81e9 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/config/memory_increase` | ✅ À jour | `23a90b2d5 - chore: merge master-dev build tooling and update README for LAYER_1 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/config/start_menu_wheel` | ✅ À jour | `5abcb0c18 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/blueguard` | ✅ À jour | `265bc0c14 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/dark_jak_enhanced` | ✅ À jour | `d9c09817c - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/enhanced_city_traffic_v2` | ✅ À jour | `babbf6420 - chore: merge master-dev build tooling and update README for LAYER_2 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/jak3-jetBoard` | ✅ À jour | `0fbdcd148 - chore: merge master-dev build tooling and update README for LAYER_1_2 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/merc-fr3-injection-poc` | ✅ À jour | `e8f3a927e - chore: merge master-dev build tooling and update README for LAYER_2 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/multiplayer` | ✅ À jour | `2df03f7f5 - chore: merge master-dev build tooling and update README for LAYER_1 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/paddy_wagon_v2` | ✅ À jour | `1cf0c6d0b - chore: merge master-dev build tooling and update README for LAYER_2 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/transport_alert` | ✅ À jour | `60141c0ee - docs: establish mod README with Layer 1 & 2 build instructions (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/transport_traffic` | ✅ À jour | `d83fda313 - docs: update README build instructions for Layer 1 & 2 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/transport_v2` | ✅ À jour | `3f75566e2 - chore: merge master-dev build tooling and update README for LAYER_2 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/yakow_killable` | ✅ À jour | `e520aa06c - chore: merge master-dev build tooling and update README for Layer 3 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak3/config/memory_increase` | ✅ À jour | `2c0cadd28 - chore: merge master-dev build tooling and update README for LAYER_1 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak3/features/city-behavior` | ✅ À jour | `b49f9461e - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak3/features/jak2_skin_secret` | ✅ À jour | `63cd4c961 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak3/features/mega_dark_jak` | ✅ À jour | `fa58df047 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak3/features/redguard-entity` | ✅ À jour | `4177d0b5b - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
 <!-- BRANCH_STATUS_END -->
 
 ---

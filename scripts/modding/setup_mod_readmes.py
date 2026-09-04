@@ -533,6 +533,9 @@ def generate_mod_readme(branch, cfg):
 > *Les vidéos de démonstration sont hébergées sur YouTube pour éviter d'alourdir le dépôt Git.*  
 > ▶️ Démonstration vidéo prochainement disponible sur YouTube."""
 
+    encoded_branch = branch.replace('/', '%2F')
+    game_badge_color = "orange" if "Jak 2" in cfg["game"] else "red"
+
     content = f"""# {cfg["title_en"]} / {cfg["title_fr"]}
 
 <p align="center">
@@ -663,41 +666,42 @@ def main():
         print(status)
         sys.exit(1)
 
-    for branch, cfg in MODS_CONFIG.items():
-        print(f"\n---> Processing branch: {branch}")
-        
-        # Checkout branch: try local branch if exists, otherwise checkout -B from origin
-        local_check = run_cmd(f"git rev-parse --verify {branch}")
-        if local_check.returncode == 0:
-            res = run_cmd(f"git checkout {branch}")
-        else:
-            res = run_cmd(f"git checkout -B {branch} origin/{branch}")
-        if res.returncode != 0:
-            print(f"Error checking out {branch}: {res.stderr}")
-            continue
-
-        # Generate README
-        readme_path = os.path.join(REPO_ROOT, "README.md")
-        content = generate_mod_readme(branch, cfg)
-        with open(readme_path, "w", encoding="utf-8") as f:
-            f.write(content)
-
-        # Commit and push
-        run_cmd("git add README.md")
-        commit_res = run_cmd('git commit -m "docs: simplify technical documentation link in root README (AI-assisted)"')
-        if commit_res.returncode == 0:
-            print(f"  [OK] Committed new README for {branch}")
-            push_res = run_cmd(f"git push origin {branch}")
-            if push_res.returncode == 0:
-                print(f"  [OK] Pushed {branch} to origin")
+    try:
+        for branch, cfg in MODS_CONFIG.items():
+            print(f"\n---> Processing branch: {branch}")
+            
+            # Checkout branch: try local branch if exists, otherwise checkout -B from origin
+            local_check = run_cmd(f"git rev-parse --verify {branch}")
+            if local_check.returncode == 0:
+                res = run_cmd(f"git checkout {branch}")
             else:
-                print(f"  [ERROR] Push failed: {push_res.stderr}")
-        else:
-            print(f"  [INFO] No changes to commit for {branch}")
+                res = run_cmd(f"git checkout -B {branch} origin/{branch}")
+            if res.returncode != 0:
+                print(f"Error checking out {branch}: {res.stderr}")
+                continue
 
-    print("\nReturning to master-dev...")
-    run_cmd("git checkout master-dev")
-    print("All mod branches successfully processed!")
+            # Generate README
+            readme_path = os.path.join(REPO_ROOT, "README.md")
+            content = generate_mod_readme(branch, cfg)
+            with open(readme_path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+            # Commit and push
+            run_cmd("git add README.md")
+            commit_res = run_cmd('git commit -m "docs: simplify technical documentation link in root README (AI-assisted)"')
+            if commit_res.returncode == 0:
+                print(f"  [OK] Committed new README for {branch}")
+                push_res = run_cmd(f"git push origin {branch}")
+                if push_res.returncode == 0:
+                    print(f"  [OK] Pushed {branch} to origin")
+                else:
+                    print(f"  [ERROR] Push failed: {push_res.stderr}")
+            else:
+                print(f"  [INFO] No changes to commit for {branch}")
+    finally:
+        print("\nReturning to master-dev...")
+        run_cmd("git checkout master-dev")
+        print("Returned to master-dev.")
 
 if __name__ == "__main__":
     main()

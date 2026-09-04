@@ -109,9 +109,9 @@ task boot-game
 *(Ou via le REPL OpenGOAL avec `task repl`, puis `(mi)` et `(r)`).*
 
 ## 🎥 Encart Vidéo Démonstrative
-> [!NOTE]
-> *Les vidéos de démonstration sont hébergées sur YouTube pour éviter d'alourdir le dépôt Git.*  
-> ▶️ Démonstration vidéo prochainement disponible sur YouTube.
+[![Demonstration Video](https://img.youtube.com/vi/y-s5oj6Bimo/maxresdefault.jpg)](https://youtu.be/y-s5oj6Bimo)
+
+▶️ **[Watch the demonstration video on YouTube](https://youtu.be/y-s5oj6Bimo)**
 
 ## 📖 Documentation Technique
 Pour l'audit technique approfondi, l'architecture et les détails d'implémentation, consultez :

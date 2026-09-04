@@ -339,17 +339,17 @@ MODS_CONFIG = {
         "title_fr": "Yakows Interactifs et Vulnérables",
         "game": "Jak 2",
         "game_task": "task set-game-jak2",
-        "desc_en": "Makes the peaceful Yakow farm animals responsive to player actions and vulnerable to attacks, featuring custom hit reactions, death states, sound cues, and drops.",
-        "desc_fr": "Rend les paisibles Yakows de la ferme réactifs aux actions de Jak et vulnérables aux coups, avec des réactions d'impact, un état de mort, des bruitages et du butin.",
+        "desc_en": "Makes the peaceful Yakow farm animals killable and protected by Krimzon law. Striking a Yakow immediately triggers a Krimzon Guard alert (\"Hands off the cow!\"), while defeating it drops dark eco pills with authentic death VFX.",
+        "desc_fr": "Rend les paisibles Yakows de la ferme vulnérables et éliminables sous la protection des Grenadiers. Frapper un Yakow déclenche immédiatement l'alerte des Grenadiers Krimzon (« Pas touche à la vache ! »), tandis que son élimination octroie des pilules d'éco sombre avec un effet visuel de mort authentique.",
         "features_en": [
-            "Yakows now react dynamically to kicks, punches, and weapon gunfire.",
-            "Custom death animations and comical sound effects upon defeat.",
-            "Health and Eco item drops upon defeat."
+            "Yakows are now vulnerable and killable, taking damage from player attacks.",
+            "Striking a Yakow instantly triggers Krimzon Guard Alert Level 1 (\"Hands off the cow!\").",
+            "Purple dissolution death VFX and drops 6 Dark Eco pills upon defeat."
         ],
         "features_fr": [
-            "Les Yakows réagissent désormais dynamiquement aux coups de pied, poings et tirs d'armes.",
-            "Animations de chute personnalisées et bruitages comiques lors de la défaite.",
-            "Apparition de packs de vie ou d'éco après élimination."
+            "Les Yakows sont désormais vulnérables et éliminables (gestion des points de vie et des impacts).",
+            "Frapper un Yakow déclenche instantanément l'alerte de niveau 1 des Grenadiers Krimzon (« Pas touche à la vache ! »).",
+            "Effet de mort par dissolution violette et apparition de 6 pilules d'éco sombre lors de l'élimination."
         ],
         "rebuild_binaries": False,
         "binaries_reason_en": "Not required. GOAL scripts handle the health and combat state transitions.",

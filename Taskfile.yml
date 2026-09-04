@@ -7,6 +7,15 @@ dotenv:
   - ./scripts/tasks/.env
   - ./scripts/tasks/.env.default
 
+vars:
+  # Compiler cache: if `sccache` is on PATH (install it with `scoop install sccache` on Windows,
+  # or your package manager elsewhere), bake it in as the compiler launcher at CMake-generate time.
+  # This makes rebuilds after a branch switch / partial revert near-instant for unchanged files -
+  # the same trick the CI uses (see .github/workflows/windows-build-clang.yaml). No-op if sccache
+  # is not installed, so this stays safe on every platform.
+  SCCACHE_FLAGS:
+    sh: command -v sccache >/dev/null 2>&1 && echo "-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache" || true
+
 tasks:
   # SETTINGS / CONFIGURATION
   settings:
@@ -81,23 +90,36 @@ tasks:
   gen-cmake-release:
     desc: "Generate the CMake"
     cmds:
-      - "cmake {{.CMAKE_GEN_BUILD_DIR_RELEASE}} --preset={{.DEFAULT_CMAKE_RELEASE_PRESET}}"
+      - "cmake {{.CMAKE_GEN_BUILD_DIR_RELEASE}} --preset={{.DEFAULT_CMAKE_RELEASE_PRESET}} {{.SCCACHE_FLAGS}}"
   gen-cmake-debug:
     desc: "Generate the CMake"
     cmds:
-      - "cmake {{.CMAKE_GEN_BUILD_DIR_DEBUG}} --preset={{.DEFAULT_CMAKE_DEBUG_PRESET}}"
+      - "cmake {{.CMAKE_GEN_BUILD_DIR_DEBUG}} --preset={{.DEFAULT_CMAKE_DEBUG_PRESET}} {{.SCCACHE_FLAGS}}"
   build:
     desc: "Build the project using the generated CMake"
     cmds:
-      - "cmake {{.CMAKE_BUILD_DIR_DEBUG}} --parallel 8"
+      # --config is a no-op for single-config generators (Ninja, the project's default via
+      # gen-cmake-*) but is required for a multi-config generator (e.g. Visual Studio, if a build
+      # dir was configured that way instead) - without it, `cmake --build` silently defaults to a
+      # Debug build even under out/build/Release. Cheap to always pass, fixes that trap either way.
+      # --parallel with no number lets the generator use every core (was hard-capped at 8).
+      - "cmake {{.CMAKE_BUILD_DIR_DEBUG}} --config Debug --parallel"
   build-release:
     desc: "Build the project using the generated CMake"
     cmds:
-      - "cmake {{.CMAKE_BUILD_DIR_RELEASE}} --parallel 8"
+      - "cmake {{.CMAKE_BUILD_DIR_RELEASE}} --config Release --parallel"
   build-debug:
     desc: "Build the project using the generated CMake"
     cmds:
-      - "cmake {{.CMAKE_BUILD_DIR_DEBUG}} --parallel 8"
+      - "cmake {{.CMAKE_BUILD_DIR_DEBUG}} --config Debug --parallel"
+  build-release-game:
+    desc: "Build only the game runtime + compiler (gk, goalc) - much faster than build-release for mod iteration, skips lsp/decompiler/tools/tests/third-party binaries"
+    cmds:
+      - "cmake {{.CMAKE_BUILD_DIR_RELEASE}} --config Release --target gk --target goalc --parallel"
+  build-debug-game:
+    desc: "Build only the game runtime + compiler (gk, goalc) in Debug - see build-release-game"
+    cmds:
+      - "cmake {{.CMAKE_BUILD_DIR_DEBUG}} --config Debug --target gk --target goalc --parallel"
   repl:
     desc: "Start the REPL"
     preconditions:

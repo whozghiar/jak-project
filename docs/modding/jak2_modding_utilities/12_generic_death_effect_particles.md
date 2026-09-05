@@ -3,7 +3,7 @@
 > **Bilingual Knowledge Item / Base de Connaissances Bilingue**
 >
 > - **Origin / Provenance:** `jak2/features/yakow_killable`
-> - **Last Updated / Dernière modification:** `jak2/features/yakow_killable`
+> - **Last Updated / Dernière modification:** `jak2/features/blueguard`
 > - [🇬🇧 English Version](#-english-version)
 > - [🇫🇷 Version Française](#-version-française)
 
@@ -51,6 +51,16 @@ Applied identically to `yakow.gc`'s `die` state (`goal_src/jak2/levels/city/farm
 - **Sound is baked into the preset, not chosen per-call:** `death-default` always plays `"enemy-fizz"`. If an enemy needs its own signature death cry *in addition*, play it separately (e.g. via the base `enemy` method `dying`, which already calls `(play-damage-or-death-sound this 1)` = `enemy-info :sound-die`) — both sounds will layer naturally.
 - **Joint argument (`-1`) is not the spawn origin:** the last argument to `do-effect` selects an `'effect-joint` resource tag (defaults to joint 0/root when `-1` and no tag is declared) used only for the accompanying sound's 3D position — it has no effect on where the dissolve particles appear, since those are generated from mesh vertices in world space, not from a single joint.
 - **`death-seed` looks similar but is a different effect:** it is orange/yellow and semantically tied to the "life seed" death sequence, not a generic kill.
+- **Custom Actors (`build-actor`) — Crash in `generic_merc_death` (Exit Status 5 / Access Violation):**
+  Using `(do-effect (-> self skel effect) 'death-default 0.0 -1)` on custom actors compiled via `build-actor` (such as reskins or imported entities) causes an immediate game crash (`exit status 5`).
+  - **Root Cause:** `build-actor` (`goalc/build_actor/jak2/build_actor.cpp`) generates placeholder `gen_dummy_frag_geo` structures (~348 bytes) in custom art-groups. When `death-default` sets `death-timer > 0`, the engine routes the actor's rendering through the native C++ `generic_merc_death` function (`game/mips2c/jak2_functions/generic_merc.cpp:2470+`). This function dereferences vertex offset tables starting at byte offset `+448` and higher in `frag_geo`, triggering a segmentation fault / access violation.
+  - **Safe GOAL Solution for Custom Actors:** Do not call `do-effect 'death-default'` (avoid setting `death-timer`). Instead, implement the dissolution sequence directly in GOAL in the `die` state:
+    1. Play the `"enemy-fizz"` sound via `(sound-play "enemy-fizz")`.
+    2. In a time loop (~60 frames / 1s), spawn purple dissolve particles via `(merc-death-spawn 73 pos zero-vec)` sampled across skeleton joints (`vector<-cspace!`) with random jitter.
+    3. Hide the body mesh after a few frames (~frame 5) via `(logior! (-> self draw status) (draw-control-status no-draw))`.
+    4. Handle knockdown ground death: check `(when (not (-> self knocked-fatal?)) ...)` to prevent snapping back to the standing death animation if the actor was already knocked down.
+    5. Terminate the process cleanly via `(cleanup-for-death self)`.
+  This yields the exact visual and auditory purple dissolution effect without routing through the C++ `generic_merc_death` routine.
 
 ### Verification Steps
 1. `./goalc.exe --game jak2 -c "(mi)"` (or `task repl` → `(mi)`) — must build with `Successfully built all N targets`.
@@ -100,6 +110,34 @@ Appliqué à l'identique dans l'état `die` de `yakow.gc` (`goal_src/jak2/levels
 - **Le son est intégré au preset, pas choisi par appel :** `death-default` joue toujours `"enemy-fizz"`. Si un ennemi a besoin de son propre cri de mort *en plus*, le jouer séparément (ex : via la méthode de base `enemy` `dying`, qui appelle déjà `(play-damage-or-death-sound this 1)` = `enemy-info :sound-die`) — les deux sons se superposeront naturellement.
 - **L'argument joint (`-1`) n'est pas l'origine du spawn :** le dernier argument de `do-effect` sélectionne un resource-tag `'effect-joint` (par défaut joint 0/racine si `-1` et aucun tag déclaré) utilisé uniquement pour la position 3D du son accompagnant — il n'a aucun effet sur l'endroit où apparaissent les particules de dissolution, car elles sont générées à partir des vertices du maillage en espace monde, pas d'un joint unique.
 - **`death-seed` ressemble mais est un effet différent :** il est orange/jaune et lié sémantiquement à la séquence de mort "life seed", pas à une mort générique.
+- **Acteurs Custom créés avec `build-actor` — Crash dans `generic_merc_death` (Exit Status 5 / Violation d'Accès) :**
+  Appeler `(do-effect (-> self skel effect) 'death-default 0.0 -1)` sur un acteur custom généré par l'outil `build-actor` fait immédiatement crasher l'exécutable (`exit status 5`).
+  - **Cause racine :** `build-actor` génère des fragments de géométrie factices `gen_dummy_frag_geo` de ~348 octets. Dès que `death-timer > 0`, la fonction de rendu C++ `generic_merc_death` tente de lire des tables de sommets à l'offset `+448` et au-delà, provoquant un segfault.
+  - **Solution GOAL autonome :** Déclencher directement la boucle de particules en GOAL dans l'état `die` :
+    ```lisp
+    (sound-play "enemy-fizz")
+    (let ((node-cnt (-> self node-list length))
+          (pos (new 'stack-no-clear 'vector))
+          (zero-vec (new 'static 'vector)))
+      (dotimes (frame 60)
+        (when (= frame 5)
+          (logior! (-> self draw status) (draw-control-status no-draw))
+          )
+        (dotimes (j 8)
+          (let ((joint-idx (rand-vu-int-count node-cnt)))
+            (vector<-cspace! pos (-> self node-list data joint-idx))
+            (+! (-> pos x) (rnd-float-range self -819.2 819.2))
+            (+! (-> pos y) (rnd-float-range self -819.2 819.2))
+            (+! (-> pos z) (rnd-float-range self -819.2 819.2))
+            (merc-death-spawn 73 pos zero-vec)
+            )
+          )
+        (suspend)
+        )
+      )
+    (cleanup-for-death self)
+    ```
+  - **Mort au sol après projection (`knocked`) :** Ne jouer l'animation de mort debout (`die-anim`) que si `(not (-> self knocked-fatal?))`, pour laisser le cadavre au sol se dissoudre directement s'il a été tué pendant un knockdown.
 
 ### Procédure de Validation
 1. `./goalc.exe --game jak2 -c "(mi)"` (ou `task repl` → `(mi)`) — doit compiler avec `Successfully built all N targets`.

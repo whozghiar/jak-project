@@ -27,11 +27,13 @@
 - [15. Virtual States, Methods & Child Process Level Binding (Vtables & Multi-DGOs)](#15-virtual-states-methods-child-process-level-binding-vtables-multi-dgos)
 - [16. Vehicle Mechanics: Hijacking, Grab Rails, Weapons & Flight Levels](#16-vehicle-mechanics-hijacking-grab-rails-weapons-flight-levels)
 - [17. Traffic Engine: Spawn Rates, Alert Quotas, Distance Spheres & Nav-Mesh Limits](#17-traffic-engine-spawn-rates-alert-quotas-distance-spheres-nav-mesh-limits)
-<<<<<<< HEAD
-=======
 - [18. Merc Geometry, `.fr3` Residency & the Level Borrow System](#18-merc-geometry-fr3-residency-the-level-borrow-system)
 - [19. Injecting a Model into a Level it Never Shipped In](#19-injecting-a-model-into-a-level-it-never-shipped-in)
->>>>>>> master-dev
+- [20. 20_reskin_existing_character_native_anim_header.md](#20-20-reskin-existing-character-native-anim-headermd)
+- [21. A UDP Networking Bridge for GOAL](#21-a-udp-networking-bridge-for-goal)
+- [22. 21_add_new_entity_from_existing_skeleton.md](#22-21-add-new-entity-from-existing-skeletonmd)
+- [23. Live-Reskinning a Process with `initialize-skeleton`](#23-live-reskinning-a-process-with-initialize-skeleton)
+- [24. A Minimal Non-Interactive Stub Process](#24-a-minimal-non-interactive-stub-process)
 
 ---
 
@@ -929,8 +931,6 @@ This safely allocates `nav-control-array` and engine `user-list` for up to **128
 
 ---
 
-<<<<<<< HEAD
-=======
 ### 18. Merc Geometry, `.fr3` Residency & the Level Borrow System
 
 > **Origin / Provenance:** `jak2/features/guard_transport` | **Last Updated:** `jak2/features/guard_transport`
@@ -1280,7 +1280,485 @@ are stale, your decompiler config changes silently do nothing.
 
 ---
 
->>>>>>> master-dev
+### 20. 20_reskin_existing_character_native_anim_header.md
+
+> **Origin / Provenance:** `jak2/features/blueguard` | **Last Updated:** `jak2/features/blueguard`
+
+If you want a visual variant of an existing native character (e.g. a recolored NPC) as its **own
+separate GOAL type** — coexisting with the original, not replacing it globally — and that
+character's AI code references its animations by **raw numeric slot index** (common in decompiled
+enemy/NPC code: `(-> this draw art-group data 33)`, static tables like `:knocked-anim 8`), you
+need your new standalone art-group's slot layout to match the original's exactly, or those
+hardcoded indices will silently play the wrong clip.
+
+**The mismatch:** `build-actor` (`goalc/build_actor/<game>/build_actor.cpp`) normally emits a
+2-slot header (mesh, one dummy null slot) before animations, and orders animations by their order
+in the source `.glb`'s `animations` array — which Blender/glTF exporters sort alphabetically.
+Native art-groups instead use a 4-slot header (`jgeo`, `lod0-mg`, `lod2-mg`, `shadow-mg`) with
+animations in the *original authoring order* (see
+`decompiler/config/jak2/ntsc_v1/art-group-info.min.json` for any given art-group's real slot
+layout).
+
+**The fix, two additive pieces (jak2, added on `jak2/features/blueguard`):**
+
+1. `build-actor` gained an opt-in `:native-header #t` flag (threaded through
+   `goal_src/jak2/lib/project-lib.gp` → `goalc/make/Tools.cpp::BuildActor2Tool` →
+   `jak2::BuildActorParams2::native_anim_header` → `run_build_actor` in
+   `goalc/build_actor/jak2/build_actor.cpp`), which emits 2 extra null header slots so animations
+   start at slot 4 instead of 2. Default `#f`, zero effect on existing actors.
+2. Reorder the source `.glb`'s `animations` JSON array to match the target character's real slot
+   order before running `build-actor` — see
+   `scripts/modding/reorder_crimson_guard_glb_anims.py` for a worked example (adapt the
+   `CANONICAL_SUFFIXES` list to your character, pulled straight from `art-group-info.min.json`).
+
+With both in place, subtype the original GOAL type (`(deftype my-variant (original-type) ())`),
+declare its two real header elements with `def-art-elt`, write a `defskelgroup` pointing at the
+new art-group, and override only the one method that resolves the skeleton-group by name (usually
+`init-enemy!` or `init-from-entity!`) — every other inherited state/method keeps using the same
+numeric indices unmodified, since they now point at the same clips.
+
+**Full worked example:** `docs/modding/current_mod/blue_guard_reskin_readme.md` (blue
+`crimson-guard` variant, `crimson-blue-guard`).
+
+**Pitfall:** if you skip the reordering step, or your source `.glb` is missing/renames a clip the
+original had, indices silently drift — nothing errors at compile time, you only notice it as a
+wrong or T-posed animation playing at runtime (worst case: only in a rare code path like a
+vehicle-knockout reaction, easy to miss in testing).
+
+---
+---
+
+<a name="-version-française"></a>
+
+---
+
+### 21. A UDP Networking Bridge for GOAL
+
+> **Origin / Provenance:** `jak2/features/multiplayer` | **Last Updated:** `jak2/features/multiplayer`
+
+GOAL code cannot open a socket on its own — all I/O has to go through the C++ kernel. This
+project already has one networking stack: the DECI2 listener behind `task repl`
+(`game/system/Deci2Server.cpp`, `game/kernel/common/kdsnetm.cpp`, `game/kernel/jak2/klisten.cpp`).
+It is **not** a good fit for a gameplay feature that needs to send a small state update every
+frame: it is TCP, command/response shaped, and tightly coupled to the debugger protocol (framed
+messages, an event dispatch table). Bending it to carry "player moved to X" every tick would mean
+fighting its framing and blocking-`accept`-loop design.
+
+## 2. The pattern — a minimal, separate FFI bridge
+
+Instead, add a small, self-contained C++ module and expose a handful of plain functions to GOAL
+via `make_function_symbol_from_c` — the same mechanism every other PC-port extra already uses
+(`game/kernel/jak2/kmachine.cpp`'s `InitMachine_PCPort()`, e.g. `pc-discord-rpc-update`).
+
+Three pieces:
+
+1. **A shared wire-format header** (`common/network/multiplayer_protocol.h` in this mod) — one
+   fixed-size, naturally-aligned `struct`, no framing. One UDP packet == one `sizeof(...)` read.
+   A `static_assert` on its size catches accidental padding changes at compile time.
+2. **A session/socket module** (`game/system/multiplayer/mp_session.{h,cpp}`) — owns the actual
+   socket, using new UDP-specific primitives added to `common/cross_sockets/XSocket.h/.cpp`
+   (`bind_socket`, `send_to_socket`, `recv_from_socket` — the existing file only had TCP-shaped
+   `connect`/`accept`/`read`/`write`). Everything here is non-blocking; a game frame must never
+   stall on the network.
+3. **A GOAL bridge module** (`game/system/multiplayer/mp_goal_bridge.{h,cpp}`) — the actual
+   exposed functions. GOAL pointers arrive as `u32`/`u64` offsets; `game/kernel/common/Ptr.h`'s
+   `Ptr<T>(offset).c()` converts one to a real `T*` inside the emulated PS2 memory
+   (`g_ee_main_mem`). Marshal by defining a matching `deftype (structure)` on the GOAL side with
+   the *exact same field order and size* as the C++ struct (see `discord-info` in
+   `goal_src/jak2/pc/pckernel-impl.gc` / `DiscordInfo` in `kmachine_extras.h` for the established
+   precedent this follows) and passing it by reference: `(new 'stack 'my-struct)` allocates a
+   scratch instance on the GOAL stack, and passing it as a function argument implicitly passes its
+   pointer.
+
+## 3. Registering the bridge
+
+- Register the FFI functions in `InitMachine_PCPort()` (`game/kernel/jak2/kmachine.cpp`), next to
+  the other `pc-*` extras.
+- Forward-declare them for GOAL in `goal_src/jak2/kernel-defs.gc` with `define-extern` (see the
+  `mp-init`/`mp-send-local-state`/... block there) — this is the same file every other C-backed
+  PC-port function is declared in (`pc-discord-rpc-update`, etc.), and `declare-type` lets you
+  reference a `structure` type there before its full `deftype` is compiled elsewhere.
+- Add the new `.cpp` files to `game/CMakeLists.txt`'s explicit source list (this project does not
+  glob sources) and register the new GOAL `.gc` files' `.o` outputs in the relevant DGO's `.gd`
+  file (for an always-resident feature, that's `goal_src/jak2/dgos/game.gd` — **not** `game.gp`,
+  which only maps `$ISO`/`$DECOMP` paths and does not enumerate individual source files for this
+  project).
+
+## 4. Known pitfalls
+
+- **Struct layout drift.** If the C++ struct and the GOAL `deftype` ever get out of sync (a field
+  added to one but not the other, or reordered), the FFI silently reads garbage — there is no
+  runtime check. Order fields so every one already falls on its natural alignment boundary (put
+  all 4-byte fields first, then 2-byte, then 1-byte, with explicit padding fields for anything
+  left over) so the layout does not depend on guessing either compiler's padding rules; verify
+  with a `static_assert` on the C++ side.
+- **Blocking sockets stall the whole game.** Always set new sockets non-blocking
+  (`fcntl`/`O_NONBLOCK` on POSIX, `ioctlsocket`/`FIONBIO` on Windows) — `set_socket_timeout`'s
+  `SO_RCVTIMEO` is not the same thing and can still block up to its timeout.
+- **A GOAL boolean is not a C `bool`.** Returning `1`/`0` from a bridge function typed `symbol` in
+  GOAL will not compare correctly against `#t`/`#f`. Encode it as `s7.offset` (false) or
+  `s7.offset + true_symbol_offset(g_game_version)` (true) — see `bool_to_symbol` in
+  `game/kernel/jak2/kmachine_extras.cpp`, duplicated locally in `mp_goal_bridge.cpp` since it is a
+  one-line helper every such bridge file defines for itself.
+
+## 5. Verification steps
+
+1. Build (`task build-release`) and confirm the new `.cpp` files compile and link.
+2. From the REPL (`task repl`), call the exposed function directly, e.g. `(mp-init)`, and confirm
+   it returns `#t`/`#f` as expected rather than erroring or hanging.
+3. For a struct-marshaling bridge function, build the scratch struct in GOAL, call the function,
+   and read back a field you expect to have changed, to confirm the pointer arithmetic lines up on
+   both sides.
+
+---
+
+---
+
+### 22. 21_add_new_entity_from_existing_skeleton.md
+
+> **Origin / Provenance:** `jak2/features/blueguard` | **Last Updated:** `jak2/features/blueguard`
+
+This is the end-to-end recipe for turning a re-skinned `.glb` of an existing native character into
+a **new, standalone GOAL entity** — coexisting with the original, not replacing it — that keeps the
+original's animations/state machine but can have its own combat/faction behavior. Worked example
+throughout: `crimson-blue-guard`, a blue `crimson-guard` variant that is passive to Jak and fights
+red guards instead (full source: `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc`,
+full writeup: `docs/modding/current_mod/blue_guard_reskin_readme.md`).
+
+This tip is the map; two other tips have the deep detail for two of the steps — read them when you
+reach that step, not before:
+
+- **Circuit 1 (skeleton + animation slot indices):**
+  `20_reskin_existing_character_native_anim_header.md`
+- **Circuit 2 (actual drawable geometry + textures):**
+  `19_injecting_a_model_into_a_level.md`
+
+## 0. Prerequisites
+
+- A `.glb` of the character: same skeleton/joint names as the original (or close enough that the
+  original's animations retarget cleanly), re-skinned/re-textured, in
+  `custom_assets/jak2/models/custom_levels/<name>.glb`.
+- You've identified the original GOAL type you're subtyping (e.g. `crimson-guard`) and read enough
+  of its file to know: which method sets up its skeleton (`init-enemy!` or `init-from-entity!`,
+  usually), and roughly how big its state machine is (you will **not** be copying most of it).
+
+## 1. Circuit 1 — build the skeleton + animations art-group
+
+```lisp
+(build-actor "my-variant" :force-run #t :native-header #t)
+```
+
+`:native-header #t` is required whenever the original character's code references animations by
+raw numeric index anywhere (very common) — it makes your new art-group's slot layout match the
+original's exactly. See `20_reskin_existing_character_native_anim_header.md` for why, and for the
+`.glb` animation-array reordering step that has to go with it. If the original character's code
+only ever uses named/overridable animation fields (rare, worth actually checking rather than
+assuming), you can skip `:native-header` and reorder.
+
+Register the source file and residency exactly like any other new `.gc` file (see
+`jak_modding_instructions.md`): `(goal-src "path/to/my-variant.gc" "<owning-project-group>")` in
+`game.gp`, plus `.gd` entries for wherever the art-group and compiled code need to be resident.
+
+## 2. Define the type and point it at its own skeleton
+
+```lisp
+(deftype my-variant (original-type) ())
+
+(def-art-elt my-variant-ag my-variant-lod0-jg 0)
+(def-art-elt my-variant-ag my-variant-lod0-mg 1)
+
+(defskelgroup skel-my-variant my-variant my-variant-lod0-jg -1
+              ((my-variant-lod0-mg (meters 999999)))
+              :bounds (static-spherem 0 0 0 5)
+              :origin-joint-index 3)
+
+(defmethod init-enemy! ((this my-variant))
+  ;; copy the original's init-enemy! verbatim, then change only the
+  ;; art-group-get-by-name string to "skel-my-variant"
+  ...)
+```
+
+`(deftype my-variant (original-type) ())` with an empty field list is normal — you are not adding
+state, just getting a distinct type for polymorphic dispatch (`type-type?`, method overrides,
+`instance-of?`, minimap icons, whatever else keys off the concrete type). Every state/method you
+don't override is inherited and runs completely unmodified against your new type.
+
+`init-enemy!` (or whichever method resolves the skeleton by name) has to be a full copy with one
+string changed, because the `art-group-get-by-name` call is baked into the middle of the method
+body — there's no separate hook to override just that one line. Everything else in this tip is
+about **not** needing more copies like this one.
+
+## 3. Circuit 2 — make it actually visible
+
+Skeleton + animations alone get you a spawnable, animating, but **invisible** process. See
+`19_injecting_a_model_into_a_level.md` §9 "Alternatives" — for a from-scratch `.glb`-based actor
+like this one, the applicable mechanism is:
+
+```
+custom_assets/jak2/models/<level|common>/<name>-lod0.glb
+```
+
+Copy (don't move — `build-actor` needs its own copy at the `custom_levels/` path from step 1) the
+same `.glb`, renamed to `<art-group-name>-lod0.glb` (this must match the name `build-actor`'s
+dummy merc-ctrl was given — `ag.name + "-lod0"` in `build_actor.cpp`'s
+`generate_dummy_merc_ctrl`). Drop it in `models/common/` for something that must be visible
+everywhere, or `models/<level-name>/` for one specific level's `.fr3`. No config, no C++, no `.gd`
+edit — the decompiler auto-scans that folder. Then:
+
+```bash
+task extract
+```
+
+Check the log for `Adding custom model <name>-lod0 to <level>` and the absence of any
+`merc failed to find texture` line mentioning your model. This is the one step in the whole recipe
+that isn't a fast `(mi)` iteration — budget for it once you're about to actually look at the model
+in-game, not on every code tweak.
+
+## 4. Only now, give it its own behavior
+
+This is the part that's specific to *why* you're adding a new type instead of reusing the original
+directly: it needs to act differently. Two idioms make this cheap, and both are visible end-to-end
+in `crimson-blue-guard.gc`:
+
+**a) Override one method/state, keep the parent's behavior for everything you don't touch:**
+
+```lisp
+(defmethod general-event-handler ((this my-variant) (arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+  (case arg2
+    (('some-event)
+     ;; your new behavior for just this one case
+     )
+    (else
+      ((method-of-type original-type general-event-handler) this arg0 arg1 arg2 arg3)
+      )
+    )
+  )
+```
+
+`(method-of-type <parent-type> <method-name>)` looks up and returns the **parent's** implementation
+of a method as a callable, bypassing your own override (which would otherwise just call itself).
+This is the standard idiom all over the Jak 2 source for "handle a couple of cases myself, delegate
+the rest" — grep `general-event-handler` in `guard.gc`, `civilian.gc`, `ruf.gc`, etc. for more
+examples. The same idiom works for `defstate`'s individual handlers
+(`(-> (method-of-type original-type some-state) trans)`, called then extended — see
+`crimson-blue-guard`'s `active :trans` override) — you only ever need to write the handler(s) you're
+actually changing; every other state/event on the type is inherited and untouched.
+
+**b) Before writing custom AI, check whether the mechanism you need is already generic.** It's
+tempting to assume you'll need to touch a large chunk of the original's state machine (aiming,
+target tracking, attack selection...) to make a variant behave differently. Read it first — in
+`crimson-guard`'s case, the entire combat loop resolves its target through
+`(-> this focus handle)` / `traffic-target-status handle` with no hardcoded assumption that the
+target is Jak (see `docs/modding/current_mod/blue_guard_reskin_readme.md` §5 for the full trace).
+That meant making `crimson-blue-guard` fight *another guard* instead of Jak needed zero changes to
+the aiming/attack code — only to *which handle gets put in that field*, and *when*. Look for the
+same shape before assuming you need to duplicate a state: what field holds "current target", is it
+read generically, and is there an existing generic finder (`find-nearest-attackable`,
+`find-closest-to-with-collide-lists`, etc.) you can call instead of writing your own process-tree
+walk.
+
+## 5. Checklist
+
+1. `task extract` completed with no missing-texture error for your model (step 3).
+2. `(mi)` compiles clean (step 1-2, 4).
+3. Spawn one (ambient spawn ratio, a scripted spawn, or a REPL debug helper like
+   `spawn-crimson-blue-guard-debug` in `traffic-manager.gc` — cheap to write, invaluable for
+   iterating on behavior without waiting on the ambient spawn system).
+4. It's visible and textured (Circuit 2 actually landed).
+5. Its animations match the original 1:1, **including any rare/hardcoded-index path** (vehicle
+   knockout, elemental hit reactions, death) — this is where a missed `:native-header` or `.glb`
+   reorder step shows up, often only in one obscure path.
+6. Its new/different behavior (whatever you added in step 4) actually triggers, and doesn't leak
+   into the original type (spawn both side by side and confirm the original is unaffected).
+
+---
+---
+
+<a name="-version-française"></a>
+
+---
+
+### 23. Live-Reskinning a Process with `initialize-skeleton`
+
+> **Origin / Provenance:** `jak2/features/multiplayer` | **Last Updated:** `jak2/features/multiplayer`
+
+`initialize-skeleton` (declared on `process-drawable`/`draw-control`,
+`goal_src/jak2/engine/game/game-h.gc:151-152`) is what every `process-drawable` calls once, at
+init, to bind its mesh/skeleton/animations: `(initialize-skeleton obj skeleton-group pair)`. There
+is also `initialize-skeleton-by-name`, which takes a plain string instead of a resolved
+`skeleton-group` (skips the `art-group-get-by-name *level* "..."` step):
+`(initialize-skeleton-by-name obj "skel-some-name")`.
+
+Nothing about this method restricts it to being called only once, at spawn, on a brand-new object.
+Calling it again later, on an **already-live** process, rebinds its `skel`/`node-list`/`draw
+art-group` in place — the object keeps its process identity, its position, its event handlers,
+everything except its visible mesh and animation set. This codebase already proves it is safe to
+do this conditionally at runtime, just not on `target`:
+
+- `goal_src/jak2/levels/tomb/widow-extras.gc:380-467` picks one of 7 `skel-tomb-boss-catwalk-{a..g}`
+  skeletons via a `case` inside one init function, on objects that can be reconfigured.
+- `goal_src/jak2/levels/nest/boss/metalkor-setup.gc:608-1157` binds different Metal Kor
+  sub-objects to different named skeletons (`skel-metalkor-bomb`, `-wings`, `-legs`, ...).
+
+## 2. What it is *not*
+
+It is tempting to assume the game's own jumpsuit → normal-clothes transition early in Jak 2 is an
+example of this. It is not: that is a separate, pre-scripted `scene`/`scene-actor` cutscene system
+using its own cutscene-only skeletons (e.g. `"skel-jak-highres"` in
+`goal_src/jak2/levels/common/warp-gate.gc:1339-1349`) — a different renderable actor swapped into
+the cutscene, not a live reskin of the interactive `target` process. Similarly, Dark Jak
+(`goal_src/jak2/engine/target/target-darkjak.gc:102-160`) never calls `initialize-skeleton` — it
+keeps `skel-jchar` for its entire life and fakes its look purely via `control scale` and joint-mod
+trickery. So there was no in-base-game precedent for live-reskinning `target` itself before this
+mod added one (`(mp-toggle-skin!)` in `goal_src/jak2/pc/multiplayer/mp-manager.gc`).
+
+## 3. The real risk: joint layout mismatch
+
+`target`'s per-frame cosmetic code sets up several `joint-mod`s against **fixed joint indices** on
+`skel-jchar`'s `node-list` — neck look-at, head flex-blend, upper-body gun-look-at, arm/leg IK
+(all set up once in `init-target`, `goal_src/jak2/engine/target/logic-target.gc:3133-3190` or so,
+right after the `initialize-skeleton` call for `skel-jchar`). If you re-skin `target` to a
+different skeleton whose joint hierarchy differs — e.g. `skel-crimson-guard-level`
+(`crimson-guard-lod0-jg`, defined
+`goal_src/jak2/levels/common/enemy/guards/crimson-guard-level.gc:12-17`) — those joint-mods are
+still indexing into the *new* `node-list` by the *old* numbers. Depending on how the new skeleton's
+joint count/order compares, this can silently animate the wrong joint, or index out of bounds.
+
+This risk **only applies when re-skinning `target` itself** (which has all those joint-mods). A
+process with no joint-mods — like a purpose-built stub process that only calls `ja-no-eval`/
+`ja-post` — has nothing to desync, which is one more reason to keep any process that gets
+re-skinned as simple as possible (see
+[22_minimal_networked_stub_process_pattern.md](22_minimal_networked_stub_process_pattern.md)).
+
+**Mitigation, not yet exhaustively applied:** gate joint-index-dependent cosmetic updates (in
+`target`'s per-frame post-processing) behind a check of the currently-applied skin id, rather than
+trying to remap indices for a skeleton whose joint layout wasn't designed for them. Before writing
+that gating logic for a specific skeleton, dump and compare both skeletons' `node-list` joint
+counts from the REPL — do not assume they line up.
+
+## 4. Verification steps
+
+1. From the REPL, with `*target*` alive: `(-> *target* node-list length)` before and after calling
+   `(initialize-skeleton-by-name *target* "skel-crimson-guard-level")`, to see whether the joint
+   count actually changed.
+2. Watch the character in-game immediately after the swap for T-posing, snapped/stretched limbs,
+   or a crash — any of these indicate a joint-mod is now reading a joint that does not mean what it
+   used to.
+3. If re-skinning a non-`target` process with no joint-mods (e.g. `remote-player`), this class of
+   bug does not apply — verify visually that the mesh/animation swapped correctly, nothing more.
+
+---
+
+---
+
+### 24. A Minimal Non-Interactive Stub Process
+
+> **Origin / Provenance:** `jak2/features/multiplayer` | **Last Updated:** `jak2/features/multiplayer`
+
+Sometimes you need a process that is *visible* — has a position, plays an animation, gets drawn —
+but is not *interactive*: no collision, no AI, no combat, driven entirely by state that comes from
+somewhere else (network data, a script, a recording). Building this on top of `process-drawable`
+directly, skipping everything `target`/`nav-enemy`/etc. carry, keeps it cheap and simple to reason
+about.
+
+## 2. The template — `minnow`
+
+`goal_src/jak2/levels/forest/fish.gc:26-78` is close to the minimal possible `process-drawable`:
+
+```lisp
+(deftype minnow (process-drawable)
+  ()
+  (:state-methods idle)
+  )
+
+(defbehavior minnow-init-by-other minnow ((arg0 object) (arg1 fish-type))
+  (set! (-> self root) (new 'process 'trsqv))
+  (set! (-> self root trans quad) (the-as uint128 0))
+  (quaternion-identity! (-> self root quat))
+  (vector-identity! (-> self root scale))
+  (initialize-skeleton
+    self
+    (the-as skeleton-group (art-group-get-by-name *level* "skel-minnow" (the-as (pointer uint32) #f)))
+    (the-as pair 0)
+    )
+  ;; ...
+  (go-virtual idle)
+  (none)
+  )
+
+(defstate idle (minnow)
+  :virtual #t
+  :code (behavior ()
+    (until #f
+      (ja-no-eval :group! minnow-idle-ja :num! (seek! max 5.0) :frame-num 0.0)
+      (until (ja-done? 0)
+        (suspend)
+        (ja :num! (seek! max 5.0))
+        )
+      )
+    #f
+    )
+  :post ja-post
+  )
+  )
+```
+
+The essentials, in order:
+
+1. **A bare `trsqv` root** (`(new 'process 'trsqv)`), not a `collide-shape`/`collide-shape-moving`.
+   No collision setup at all — this object cannot be touched, pushed, or hit, and cannot touch
+   anything itself.
+2. **One `initialize-skeleton` call** at init, binding whatever skeleton it needs.
+3. **A single state** that loops an animation with `ja-no-eval`/`ja` and finishes with `:post
+   ja-post` — the standard "play this animation forever" idiom used throughout the codebase.
+
+## 3. Extending it for externally-driven state
+
+`goal_src/jak2/pc/multiplayer/remote-player.gc` (this mod) extends this exact template for a
+process whose transform/animation/skin come from network packets rather than being self-contained:
+
+- Extra fields hold the latest externally-supplied sample (`net-target-pos`, `net-target-quat`,
+  `net-anim-state`, `net-skin-id`).
+- A `set-net-sample!` method is the only way anything external touches the object - the owning
+  manager process calls it once per frame with fresh data; the object itself never reaches out to
+  fetch it. This keeps the stub process fully decoupled from *how* the state is produced (network,
+  replay file, script - it would not care).
+- The `idle` state, each frame, blends the current transform toward the latest sample
+  (`vector-lerp!`/`quaternion-slerp!`) rather than snapping, and re-picks its `ja-no-eval` group
+  only when the desired one actually changes (comparing against a stored `current-anim-group`
+  field), instead of restarting animation every single frame.
+- Re-skinning (see
+  [21_live_reskinning_a_process_with_initialize-skeleton.md](21_live_reskinning_a_process_with_initialize-skeleton.md))
+  only happens on the frame the skin id actually changes, guarded the same way.
+
+## 4. Known pitfalls
+
+- **No collide-shape means no `control` field access.** Code copy-pasted from a `target`/enemy
+  example that reads `(-> self control trans)` will not compile on a bare-`trsqv` stub - use `(->
+  self root trans)` instead (`root` is a `trsqv` on every `process-drawable`; `control` only
+  exists on types that overlay a `collide-shape`-derived type there, like `target`).
+- **`ja-no-eval :group!` takes an expression, not just a literal symbol** - it is fine to compute
+  the desired group in a variable and pass that, as long as the variable actually holds a
+  compiled `art-joint-anim` for a skeleton the object is currently bound to. Passing a group that
+  belongs to a *different* skeleton than the one currently bound will misbehave.
+- **Do not invent animation group names.** Every `-ja` symbol used must be a real, already-compiled
+  animation group for the exact skeleton in use - grep the skeleton's owning file for `ja-no-eval`
+  calls to find real ones rather than guessing a plausible-sounding name (which will fail to
+  compile).
+
+## 5. Verification steps
+
+1. Spawn the process and confirm it appears in the correct starting position with the right
+   skeleton bound (not T-posed).
+2. Feed it a changing sample each frame (or, for a hand test, hardcode a moving target) and confirm
+   the lerp/slerp tracks smoothly rather than snapping or jittering.
+3. Confirm nothing about the object registers as collidable in-game - walking through it should do
+   nothing.
+
+---
+
+---
+
 # 🇫🇷 Version Française
 
 ## Sommaire
@@ -1301,11 +1779,13 @@ are stale, your decompiler config changes silently do nothing.
 - [15. Résidence des États, Méthodes et Niveau des Processus Enfants](#15-résidence-des-états-méthodes-et-niveau-des-processus-enfants)
 - [16. Mécaniques des Véhicules : Détournement, Barres d'Accroche, Armes & Niveaux de Vol](#16-mécaniques-des-véhicules-détournement-barres-daccroche-armes-niveaux-de-vol)
 - [17. Moteur de Trafic : Taux d'Apparition, Quotas d'Alerte, Sphères de Distance & Limites de Nav-Mesh](#17-moteur-de-trafic-taux-dapparition-quotas-dalerte-sphères-de-distance-limites-de-nav-mesh)
-<<<<<<< HEAD
-=======
 - [18. Géométrie Merc, Résidence des `.fr3` et le Système d'Emprunt de Niveaux](#18-géométrie-merc-résidence-des-fr3-et-le-système-demprunt-de-niveaux)
 - [19. Injecter un Modèle dans un Niveau où il n'a Jamais Été Livré](#19-injecter-un-modèle-dans-un-niveau-où-il-na-jamais-été-livré)
->>>>>>> master-dev
+- [20. 20_reskin_existing_character_native_anim_header.md](#20-20-reskin-existing-character-native-anim-headermd)
+- [21. Un Pont Réseau UDP pour GOAL](#21-un-pont-réseau-udp-pour-goal)
+- [22. 21_add_new_entity_from_existing_skeleton.md](#22-21-add-new-entity-from-existing-skeletonmd)
+- [23. Reskin à Chaud d'un Processus avec `initialize-skeleton`](#23-reskin-à-chaud-dun-processus-avec-initialize-skeleton)
+- [24. Un Processus-Relais Minimal et Non-Interactif](#24-un-processus-relais-minimal-et-non-interactif)
 
 ---
 
@@ -2184,8 +2664,6 @@ Cela alloue en toute sécurité `nav-control-array` et le `user-list` moteur pou
 5. Vérifier la ligne de diagnostic console : la marge libre de `*default-dead-pool*` doit rester confortablement positive.
 
 ---
-<<<<<<< HEAD
-=======
 
 ### 18. Géométrie Merc, Résidence des `.fr3` et le Système d'Emprunt de Niveaux
 
@@ -2541,4 +3019,477 @@ sont périmés, tes changements de config décompilateur ne font rien, silencieu
     ça consomme un des deux slots de borrow de `ctywide` pour la durée du borrow.
 
 ---
->>>>>>> master-dev
+
+### 20. 20_reskin_existing_character_native_anim_header.md
+
+> **Origin / Provenance :** `jak2/features/blueguard` | **Dernière modification :** `jak2/features/blueguard`
+
+Si vous voulez une variante visuelle d'un personnage natif existant (ex : un PNJ recoloré) en tant
+qu'**entité GOAL séparée à part entière** — coexistant avec l'original, sans le remplacer
+globalement — et que le code IA de ce personnage référence ses animations par **indice numérique
+de slot brut** (courant dans le code d'ennemi/PNJ décompilé : `(-> this draw art-group data 33)`,
+des tables statiques comme `:knocked-anim 8`), il faut que la disposition de slots de votre
+nouvel art-group autonome corresponde exactement à celle de l'original, sinon ces indices en dur
+joueront silencieusement le mauvais clip.
+
+**Le décalage :** `build-actor` (`goalc/build_actor/<jeu>/build_actor.cpp`) émet normalement un
+header à 2 slots (mesh, un slot factice vide) avant les animations, et ordonne les animations
+selon leur ordre dans le tableau `animations` du `.glb` source — que les exporteurs Blender/glTF
+trient alphabétiquement. Les art-groups natifs utilisent au contraire un header à 4 slots (`jgeo`,
+`lod0-mg`, `lod2-mg`, `shadow-mg`) avec les animations dans *l'ordre d'origine* (voir
+`decompiler/config/jak2/ntsc_v1/art-group-info.min.json` pour la disposition réelle de n'importe
+quel art-group).
+
+**Le correctif, deux pièces additives (jak2, ajoutées sur `jak2/features/blueguard`) :**
+
+1. `build-actor` a reçu un flag optionnel `:native-header #t` (propagé via
+   `goal_src/jak2/lib/project-lib.gp` → `goalc/make/Tools.cpp::BuildActor2Tool` →
+   `jak2::BuildActorParams2::native_anim_header` → `run_build_actor` dans
+   `goalc/build_actor/jak2/build_actor.cpp`), qui émet 2 slots de header factices
+   supplémentaires pour que les animations commencent au slot 4 au lieu de 2. Par défaut `#f`,
+   aucun effet sur les acteurs existants.
+2. Réordonner le tableau JSON `animations` du `.glb` source pour correspondre à l'ordre de slot
+   réel du personnage cible avant de lancer `build-actor` — voir
+   `scripts/modding/reorder_crimson_guard_glb_anims.py` pour un exemple concret (adaptez la liste
+   `CANONICAL_SUFFIXES` à votre personnage, tirée directement de `art-group-info.min.json`).
+
+Avec les deux en place, sous-typez le type GOAL d'origine (`(deftype ma-variante (type-original)
+())`), déclarez ses deux vrais éléments de header avec `def-art-elt`, écrivez un `defskelgroup`
+pointant vers le nouvel art-group, et ne surchargez que la seule méthode qui résout le
+skeleton-group par nom (généralement `init-enemy!` ou `init-from-entity!`) — toutes les autres
+méthodes/états hérités continuent d'utiliser les mêmes indices numériques sans modification,
+puisqu'ils pointent maintenant vers les mêmes clips.
+
+**Exemple complet :** `docs/modding/current_mod/blue_guard_reskin_readme.md` (variante bleue de
+`crimson-guard`, `crimson-blue-guard`).
+
+**Piège :** si vous sautez l'étape de réordonnancement, ou que votre `.glb` source manque un clip
+qu'avait l'original (ou le renomme), les indices dérivent silencieusement — rien n'échoue à la
+compilation, vous ne le remarquez qu'à l'exécution via une animation fausse ou un mesh en T-pose
+(pire cas : uniquement dans un chemin de code rare comme une réaction d'éjection de véhicule,
+facile à manquer en test).
+
+---
+
+### 21. Un Pont Réseau UDP pour GOAL
+
+> **Origin / Provenance :** `jak2/features/multiplayer` | **Dernière modification :** `jak2/features/multiplayer`
+
+Le code GOAL ne peut pas ouvrir de socket seul — toutes les entrées/sorties passent par le noyau
+C++. Ce projet dispose déjà d'une pile réseau : le listener DECI2 derrière `task repl`
+(`game/system/Deci2Server.cpp`, `game/kernel/common/kdsnetm.cpp`,
+`game/kernel/jak2/klisten.cpp`). Elle **ne convient pas** à une fonctionnalité de gameplay qui doit
+envoyer une petite mise à jour d'état à chaque frame : c'est un protocole TCP, en
+requête/réponse, étroitement couplé au protocole du débogueur (messages encadrés, table de
+distribution d'événements). Le détourner pour transporter « joueur déplacé en X » à chaque tick
+reviendrait à lutter contre son système de trames et sa boucle `accept` bloquante.
+
+## 2. Le patron — un pont FFI minimal et séparé
+
+À la place, on ajoute un petit module C++ autonome et on expose une poignée de fonctions simples à
+GOAL via `make_function_symbol_from_c` — le même mécanisme que tous les autres ajouts PC-port
+(`game/kernel/jak2/kmachine.cpp`, fonction `InitMachine_PCPort()`, ex. `pc-discord-rpc-update`).
+
+Trois éléments :
+
+1. **Un en-tête de format d'échange partagé** (`common/network/multiplayer_protocol.h` dans ce
+   mod) — une `struct` de taille fixe et naturellement alignée, sans encadrement. Un paquet UDP =
+   une lecture `sizeof(...)`. Un `static_assert` sur sa taille détecte tout ajout de padding
+   accidentel à la compilation.
+2. **Un module de session/socket** (`game/system/multiplayer/mp_session.{h,cpp}`) — possède le
+   socket, via de nouvelles primitives UDP ajoutées à `common/cross_sockets/XSocket.h/.cpp`
+   (`bind_socket`, `send_to_socket`, `recv_from_socket` — le fichier existant n'avait que des
+   fonctions orientées TCP `connect`/`accept`/`read`/`write`). Tout y est non-bloquant ; une frame
+   de jeu ne doit jamais attendre le réseau.
+3. **Un module de pont GOAL** (`game/system/multiplayer/mp_goal_bridge.{h,cpp}`) — les fonctions
+   réellement exposées. Les pointeurs GOAL arrivent comme des offsets `u32`/`u64` ;
+   `game/kernel/common/Ptr.h` (`Ptr<T>(offset).c()`) les convertit en vrai `T*` dans la mémoire PS2
+   émulée (`g_ee_main_mem`). On effectue le marshaling en définissant côté GOAL un `deftype
+   (structure)` avec *exactement le même ordre et la même taille de champs* que la struct C++ (voir
+   `discord-info` dans `goal_src/jak2/pc/pckernel-impl.gc` / `DiscordInfo` dans
+   `kmachine_extras.h` pour le précédent établi suivi ici), passé par référence : `(new 'stack
+   'ma-struct)` alloue une instance temporaire sur la pile GOAL, et la passer en argument de
+   fonction transmet implicitement son pointeur.
+
+## 3. Enregistrer le pont
+
+- Enregistrer les fonctions FFI dans `InitMachine_PCPort()`
+  (`game/kernel/jak2/kmachine.cpp`), à côté des autres extras `pc-*`.
+- Les déclarer côté GOAL avec `define-extern` dans `goal_src/jak2/kernel-defs.gc` (voir le bloc
+  `mp-init`/`mp-send-local-state`/... à cet endroit) — c'est le même fichier où sont déclarées
+  toutes les autres fonctions PC-port adossées au C (`pc-discord-rpc-update`, etc.), et
+  `declare-type` permet d'y référencer un type `structure` avant que son `deftype` complet ne soit
+  compilé ailleurs.
+- Ajouter les nouveaux fichiers `.cpp` à la liste explicite de sources de `game/CMakeLists.txt`
+  (ce projet ne fait pas de glob des sources) et enregistrer les sorties `.o` des nouveaux
+  fichiers `.gc` dans le `.gd` du DGO concerné (pour une fonctionnalité toujours résidente, c'est
+  `goal_src/jak2/dgos/game.gd` — **pas** `game.gp`, qui ne fait que mapper les chemins
+  `$ISO`/`$DECOMP` et n'énumère pas les fichiers source individuels pour ce projet).
+
+## 4. Pièges connus
+
+- **Dérive du layout de la struct.** Si la struct C++ et le `deftype` GOAL se désynchronisent (un
+  champ ajouté d'un côté mais pas de l'autre, ou réordonné), le pont FFI lit silencieusement des
+  données incohérentes — aucune vérification à l'exécution. Ordonner les champs pour que chacun
+  tombe déjà sur sa frontière d'alignement naturelle (tous les champs de 4 octets d'abord, puis 2
+  octets, puis 1 octet, avec des champs de padding explicites pour le reste) afin que le layout ne
+  dépende pas des règles de padding devinées de l'un ou l'autre compilateur ; vérifier avec un
+  `static_assert` côté C++.
+- **Un socket bloquant fige tout le jeu.** Toujours rendre les nouveaux sockets non-bloquants
+  (`fcntl`/`O_NONBLOCK` sous POSIX, `ioctlsocket`/`FIONBIO` sous Windows) — `SO_RCVTIMEO` via
+  `set_socket_timeout` n'est pas équivalent et peut bloquer jusqu'à son délai.
+- **Un booléen GOAL n'est pas un `bool` C.** Renvoyer `1`/`0` depuis une fonction de pont typée
+  `symbol` côté GOAL ne se comparera pas correctement à `#t`/`#f`. L'encoder comme `s7.offset`
+  (faux) ou `s7.offset + true_symbol_offset(g_game_version)` (vrai) — voir `bool_to_symbol` dans
+  `game/kernel/jak2/kmachine_extras.cpp`, dupliqué localement dans `mp_goal_bridge.cpp` car c'est
+  un utilitaire d'une ligne que chaque fichier de pont redéfinit pour lui-même.
+
+## 5. Étapes de vérification
+
+1. Compiler (`task build-release`) et confirmer que les nouveaux fichiers `.cpp` compilent et sont
+   liés correctement.
+2. Depuis le REPL (`task repl`), appeler directement la fonction exposée, ex. `(mp-init)`, et
+   vérifier qu'elle renvoie `#t`/`#f` comme attendu plutôt que d'échouer ou de bloquer.
+3. Pour une fonction de pont avec marshaling de struct, construire la struct temporaire côté GOAL,
+   appeler la fonction, puis relire un champ censé avoir changé, afin de confirmer que
+   l'arithmétique de pointeurs concorde des deux côtés.
+
+---
+
+### 22. 21_add_new_entity_from_existing_skeleton.md
+
+> **Origin / Provenance :** `jak2/features/blueguard` | **Dernière modification :** `jak2/features/blueguard`
+
+Voici la recette de bout en bout pour transformer un `.glb` reskinné d'un personnage natif existant
+en une **nouvelle entité GOAL à part entière** — coexistant avec l'original, sans le remplacer —
+qui garde les animations/la machine à états de l'original mais peut avoir son propre comportement
+de combat/faction. Exemple fil rouge : `crimson-blue-guard`, une variante bleue de `crimson-guard`
+passive envers Jak qui combat les gardes rouges à la place (source complète :
+`goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc`, article complet :
+`docs/modding/current_mod/blue_guard_reskin_readme.md`).
+
+Ce tip est la carte ; deux autres tips ont le détail approfondi de deux des étapes — lisez-les
+quand vous y arrivez, pas avant :
+
+- **Circuit 1 (squelette + indices de slot d'animation) :**
+  `20_reskin_existing_character_native_anim_header.md`
+- **Circuit 2 (géométrie de rendu réelle + textures) :**
+  `19_injecting_a_model_into_a_level.md`
+
+## 0. Prérequis
+
+- Un `.glb` du personnage : mêmes noms de squelette/joints que l'original (ou assez proches pour
+  que les animations de l'original se retargent proprement), reskinné/retexturé, dans
+  `custom_assets/jak2/models/custom_levels/<nom>.glb`.
+- Vous avez identifié le type GOAL d'origine que vous sous-typez (ex. `crimson-guard`) et lu assez
+  de son fichier pour savoir : quelle méthode initialise son squelette (`init-enemy!` ou
+  `init-from-entity!`, en général), et grossièrement la taille de sa machine à états (vous n'allez
+  **pas** en copier la majeure partie).
+
+## 1. Circuit 1 — construire l'art-group squelette + animations
+
+```lisp
+(build-actor "ma-variante" :force-run #t :native-header #t)
+```
+
+`:native-header #t` est nécessaire dès que le code du personnage d'origine référence des animations
+par indice numérique brut quelque part (très courant) — ça fait correspondre exactement la
+disposition de slots de votre nouvel art-group à celle de l'original. Voir
+`20_reskin_existing_character_native_anim_header.md` pour le pourquoi, et pour l'étape de
+réordonnancement du tableau d'animations du `.glb` qui va avec. Si le code du personnage d'origine
+n'utilise que des champs d'animation nommés/surchargeables (rare, à vérifier plutôt qu'à supposer),
+vous pouvez sauter `:native-header` et le réordonnancement.
+
+Enregistrez le fichier source et sa résidence comme n'importe quel nouveau fichier `.gc` (voir
+`jak_modding_instructions.md`) : `(goal-src "chemin/vers/ma-variante.gc" "<groupe-projet>")` dans
+`game.gp`, plus les entrées `.gd` partout où l'art-group et le code compilé doivent être résidents.
+
+## 2. Définir le type et le faire pointer vers son propre squelette
+
+```lisp
+(deftype ma-variante (type-original) ())
+
+(def-art-elt ma-variante-ag ma-variante-lod0-jg 0)
+(def-art-elt ma-variante-ag ma-variante-lod0-mg 1)
+
+(defskelgroup skel-ma-variante ma-variante ma-variante-lod0-jg -1
+              ((ma-variante-lod0-mg (meters 999999)))
+              :bounds (static-spherem 0 0 0 5)
+              :origin-joint-index 3)
+
+(defmethod init-enemy! ((this ma-variante))
+  ;; copiez init-enemy! de l'original tel quel, puis changez seulement
+  ;; la chaîne de art-group-get-by-name en "skel-ma-variante"
+  ...)
+```
+
+`(deftype ma-variante (type-original) ())` avec une liste de champs vide est normal — vous n'ajoutez
+pas d'état, vous obtenez juste un type distinct pour le dispatch polymorphe (`type-type?`,
+surcharges de méthode, `instance-of?`, icônes de minimap, ou tout autre système qui se base sur le
+type concret). Chaque état/méthode que vous ne surchargez pas est hérité et tourne sans
+modification sur votre nouveau type.
+
+`init-enemy!` (ou la méthode qui résout le squelette par nom) doit être une copie complète avec une
+seule chaîne changée, car l'appel à `art-group-get-by-name` est codé en dur au milieu du corps de
+la méthode — il n'y a pas de hook séparé pour ne surcharger que cette ligne. Tout le reste de ce
+tip vise justement à **ne pas** avoir besoin d'autres copies comme celle-ci.
+
+## 3. Circuit 2 — le rendre réellement visible
+
+Squelette + animations seuls vous donnent un process qui apparaît, s'anime, mais est **invisible**.
+Voir `19_injecting_a_model_into_a_level.md` §9 « Alternatives » — pour un acteur basé sur un `.glb`
+neuf comme celui-ci, le mécanisme applicable est :
+
+```
+custom_assets/jak2/models/<niveau|common>/<nom>-lod0.glb
+```
+
+Copiez (ne déplacez pas — `build-actor` a besoin de sa propre copie au chemin `custom_levels/` de
+l'étape 1) le même `.glb`, renommé en `<nom-art-group>-lod0.glb` (doit correspondre au nom donné au
+merc-ctrl factice de `build-actor` — `ag.name + "-lod0"` dans `generate_dummy_merc_ctrl` de
+`build_actor.cpp`). Déposez-le dans `models/common/` pour quelque chose qui doit être visible
+partout, ou `models/<nom-niveau>/` pour le `.fr3` d'un niveau précis. Pas de config, pas de C++,
+pas d'édition de `.gd` — le décompilateur scanne ce dossier automatiquement. Puis :
+
+```bash
+task extract
+```
+
+Vérifiez dans le log la ligne `Adding custom model <nom>-lod0 to <niveau>` et l'absence de toute
+ligne `merc failed to find texture` mentionnant votre modèle. C'est la seule étape de toute la
+recette qui n'est pas une itération rapide en `(mi)` — prévoyez-la une fois prêt à regarder
+réellement le modèle en jeu, pas à chaque retouche de code.
+
+## 4. Seulement maintenant, donnez-lui son propre comportement
+
+C'est la partie spécifique à *pourquoi* vous ajoutez un nouveau type plutôt que de réutiliser
+l'original directement : il doit se comporter différemment. Deux idiomes rendent ça bon marché, et
+les deux sont visibles de bout en bout dans `crimson-blue-guard.gc` :
+
+**a) Surchargez une seule méthode/état, gardez le comportement du parent pour tout ce que vous ne
+touchez pas :**
+
+```lisp
+(defmethod general-event-handler ((this ma-variante) (arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+  (case arg2
+    (('un-evenement)
+     ;; votre nouveau comportement pour ce seul cas
+     )
+    (else
+      ((method-of-type type-original general-event-handler) this arg0 arg1 arg2 arg3)
+      )
+    )
+  )
+```
+
+`(method-of-type <type-parent> <nom-methode>)` récupère et retourne l'implémentation **du parent**
+d'une méthode sous forme d'appelable, en contournant votre propre surcharge (qui sinon s'appellerait
+elle-même). C'est l'idiome standard partout dans le code source de Jak 2 pour « gérer moi-même
+quelques cas, déléguer le reste » — cherchez `general-event-handler` dans `guard.gc`, `civilian.gc`,
+`ruf.gc`, etc. pour d'autres exemples. Le même idiome fonctionne pour les handlers individuels d'un
+`defstate` (`(-> (method-of-type type-original un-etat) trans)`, appelé puis étendu — voir la
+surcharge du `:trans` de `active` dans `crimson-blue-guard`) — vous n'avez besoin d'écrire que
+le(s) handler(s) que vous changez réellement ; tout autre état/événement du type est hérité et
+intact.
+
+**b) Avant d'écrire une IA custom, vérifiez si le mécanisme dont vous avez besoin est déjà
+générique.** Il est tentant de supposer qu'il faudra toucher une grosse partie de la machine à
+états de l'original (visée, suivi de cible, sélection d'attaque...) pour faire se comporter une
+variante différemment. Lisez-le d'abord — dans le cas de `crimson-guard`, toute la boucle de combat
+résout sa cible via `(-> this focus handle)` / `traffic-target-status handle` sans supposition codée
+en dur que la cible est Jak (voir §5 de `docs/modding/current_mod/blue_guard_reskin_readme.md` pour
+la trace complète). Ça a permis de faire combattre `crimson-blue-guard` contre *un autre garde* au
+lieu de Jak sans aucun changement au code de visée/attaque — seulement à *quel handle est mis dans
+ce champ*, et *quand*. Cherchez la même forme avant de supposer qu'il faut dupliquer un état :
+quel champ contient « la cible actuelle », est-il lu de façon générique, et existe-t-il déjà un
+chercheur générique (`find-nearest-attackable`, `find-closest-to-with-collide-lists`, etc.)
+utilisable plutôt que d'écrire votre propre parcours d'arbre de process.
+
+## 5. Checklist
+
+1. `task extract` terminé sans erreur de texture manquante pour votre modèle (étape 3).
+2. `(mi)` compile proprement (étapes 1-2, 4).
+3. Faites-en apparaître un (ratio de spawn ambiant, spawn scripté, ou un helper de debug REPL comme
+   `spawn-crimson-blue-guard-debug` dans `traffic-manager.gc` — bon marché à écrire, précieux pour
+   itérer sur le comportement sans attendre le système de spawn ambiant).
+4. Il est visible et texturé (le Circuit 2 est bien arrivé).
+5. Ses animations correspondent 1:1 à l'original, **y compris tout chemin rare/à indice codé en
+   dur** (éjection de véhicule, réactions de coup élémentaire, mort) — c'est là qu'une étape
+   `:native-header` ou de réordonnancement du `.glb` manquée se manifeste, souvent seulement dans
+   un chemin obscur.
+6. Son nouveau comportement / comportement différent (celui ajouté à l'étape 4) se déclenche bien,
+   et ne fuite pas vers le type d'origine (faites apparaître les deux côte à côte et vérifiez que
+   l'original n'est pas affecté).
+
+---
+*(AI-assisted)*
+
+---
+
+### 23. Reskin à Chaud d'un Processus avec `initialize-skeleton`
+
+> **Origin / Provenance :** `jak2/features/multiplayer` | **Dernière modification :** `jak2/features/multiplayer`
+
+`initialize-skeleton` (déclarée sur `process-drawable`/`draw-control`,
+`goal_src/jak2/engine/game/game-h.gc:151-152`) est ce que chaque `process-drawable` appelle une
+fois, à l'initialisation, pour lier son maillage/squelette/animations : `(initialize-skeleton obj
+skeleton-group pair)`. Il existe aussi `initialize-skeleton-by-name`, qui prend une simple chaîne
+au lieu d'un `skeleton-group` déjà résolu (évite l'étape `art-group-get-by-name *level* "..."`) :
+`(initialize-skeleton-by-name obj "skel-nom")`.
+
+Rien dans cette méthode ne restreint son appel à une seule fois, à la création, sur un objet neuf.
+L'appeler à nouveau plus tard, sur un processus **déjà vivant**, relie sur place son
+`skel`/`node-list`/`draw art-group` — l'objet conserve son identité de processus, sa position, ses
+gestionnaires d'événements, tout sauf son maillage visible et son jeu d'animations. Ce code source
+prouve déjà que c'est sûr à faire conditionnellement à l'exécution, simplement pas sur `target` :
+
+- `goal_src/jak2/levels/tomb/widow-extras.gc:380-467` choisit l'un des 7 squelettes
+  `skel-tomb-boss-catwalk-{a..g}` via un `case` dans une fonction d'initialisation, sur des objets
+  reconfigurables.
+- `goal_src/jak2/levels/nest/boss/metalkor-setup.gc:608-1157` relie différents sous-objets de Metal
+  Kor à différents squelettes nommés (`skel-metalkor-bomb`, `-wings`, `-legs`, ...).
+
+## 2. Ce que ce n'est *pas*
+
+Il est tentant de penser que le changement de la combinaison de prisonnier vers des vêtements
+normaux, au début de Jak 2, en est un exemple. Ce n'en est pas un : c'est un système de cutscene
+`scene`/`scene-actor` séparé et pré-scripté, utilisant ses propres squelettes réservés aux
+cutscenes (ex. `"skel-jak-highres"` dans
+`goal_src/jak2/levels/common/warp-gate.gc:1339-1349`) — un acteur affichable différent substitué
+dans la cutscene, pas un reskin à chaud du processus interactif `target`. De même, Dark Jak
+(`goal_src/jak2/engine/target/target-darkjak.gc:102-160`) n'appelle jamais `initialize-skeleton` —
+il garde `skel-jchar` toute sa vie et simule son apparence uniquement via `control scale` et des
+astuces de joint-mod. Il n'existait donc aucun précédent dans le jeu de base pour reskinner
+`target` lui-même à chaud avant que ce mod n'en ajoute un (`(mp-toggle-skin!)` dans
+`goal_src/jak2/pc/multiplayer/mp-manager.gc`).
+
+## 3. Le vrai risque : incompatibilité de la disposition des joints
+
+Le code cosmétique par frame de `target` configure plusieurs `joint-mod` sur des **indices de
+joint fixes** du `node-list` de `skel-jchar` — look-at du cou, flex-blend de la tête,
+gun-look-at du haut du corps, IK bras/jambes (tous configurés une fois dans `init-target`,
+`goal_src/jak2/engine/target/logic-target.gc:3133-3190` environ, juste après l'appel
+`initialize-skeleton` pour `skel-jchar`). Si l'on reskin `target` vers un squelette différent dont
+la hiérarchie de joints diffère — ex. `skel-crimson-guard-level` (`crimson-guard-lod0-jg`, défini
+`goal_src/jak2/levels/common/enemy/guards/crimson-guard-level.gc:12-17`) — ces joint-mods
+continuent d'indexer le *nouveau* `node-list` avec les *anciens* numéros. Selon la façon dont le
+nombre/l'ordre de joints du nouveau squelette se compare, cela peut animer silencieusement le
+mauvais joint, ou sortir des limites du tableau.
+
+Ce risque **ne s'applique qu'au reskin de `target` lui-même** (qui possède tous ces joint-mods).
+Un processus sans joint-mod — comme un processus-relais minimal qui ne fait qu'appeler
+`ja-no-eval`/`ja-post` — n'a rien à désynchroniser, ce qui est une raison de plus de garder tout
+processus reskinnable aussi simple que possible (voir
+[22_minimal_networked_stub_process_pattern.md](22_minimal_networked_stub_process_pattern.md)).
+
+**Mitigation, pas encore appliquée de façon exhaustive :** conditionner les mises à jour
+cosmétiques dépendantes des indices de joint (dans le post-traitement par frame de `target`) à une
+vérification du skin actuellement appliqué, plutôt que d'essayer de remapper des indices pour un
+squelette dont la disposition de joints n'a pas été conçue pour eux. Avant d'écrire cette logique
+de conditionnement pour un squelette donné, extraire et comparer depuis le REPL le nombre de
+joints des `node-list` des deux squelettes — ne pas supposer qu'ils correspondent.
+
+## 4. Étapes de vérification
+
+1. Depuis le REPL, avec `*target*` vivant : `(-> *target* node-list length)` avant et après
+   l'appel à `(initialize-skeleton-by-name *target* "skel-crimson-guard-level")`, pour voir si le
+   nombre de joints a réellement changé.
+2. Observer le personnage en jeu immédiatement après le changement : T-pose, membres étirés ou
+   déformés, ou crash — tout cela indique qu'un joint-mod lit désormais un joint qui ne signifie
+   plus ce qu'il signifiait avant.
+3. Lors du reskin d'un processus autre que `target`, sans joint-mod (ex. `remote-player`), cette
+   catégorie de bug ne s'applique pas — vérifier visuellement que le maillage/l'animation a bien
+   changé, rien de plus.
+
+---
+
+### 24. Un Processus-Relais Minimal et Non-Interactif
+
+> **Origin / Provenance :** `jak2/features/multiplayer` | **Dernière modification :** `jak2/features/multiplayer`
+
+Il arrive qu'on ait besoin d'un processus *visible* — avec une position, jouant une animation,
+affiché à l'écran — mais non *interactif* : pas de collision, pas d'IA, pas de combat, entièrement
+piloté par un état venant d'ailleurs (données réseau, script, enregistrement). Le construire
+directement sur `process-drawable`, en évitant tout ce que `target`/`nav-enemy`/etc. embarquent,
+le garde léger et simple à raisonner.
+
+## 2. Le patron — `minnow`
+
+`goal_src/jak2/levels/forest/fish.gc:26-78` est proche du `process-drawable` minimal possible :
+
+```lisp
+(deftype minnow (process-drawable)
+  ()
+  (:state-methods idle)
+  )
+
+(defbehavior minnow-init-by-other minnow ((arg0 object) (arg1 fish-type))
+  (set! (-> self root) (new 'process 'trsqv))
+  ;; ...
+  (initialize-skeleton
+    self
+    (the-as skeleton-group (art-group-get-by-name *level* "skel-minnow" (the-as (pointer uint32) #f)))
+    (the-as pair 0)
+    )
+  (go-virtual idle)
+  (none)
+  )
+```
+
+Les éléments essentiels, dans l'ordre :
+
+1. **Une racine `trsqv` nue** (`(new 'process 'trsqv)`), pas un `collide-shape`/
+   `collide-shape-moving`. Aucune configuration de collision — cet objet ne peut être touché,
+   poussé, ni frappé, et ne peut lui-même toucher quoi que ce soit.
+2. **Un seul appel `initialize-skeleton`** à l'initialisation, liant le squelette nécessaire.
+3. **Un unique état** qui boucle une animation via `ja-no-eval`/`ja` et se termine par `:post
+   ja-post` — l'idiome standard « jouer cette animation indéfiniment » utilisé dans tout le code
+   source.
+
+## 3. L'étendre pour un état piloté de l'extérieur
+
+`goal_src/jak2/pc/multiplayer/remote-player.gc` (ce mod) étend exactement ce patron pour un
+processus dont la transformation/animation/skin proviennent de paquets réseau plutôt que d'être
+autonomes :
+
+- Des champs supplémentaires stockent le dernier échantillon fourni de l'extérieur
+  (`net-target-pos`, `net-target-quat`, `net-anim-state`, `net-skin-id`).
+- Une méthode `set-net-sample!` est le seul moyen par lequel l'extérieur touche l'objet - le
+  processus gestionnaire l'appelle une fois par frame avec des données fraîches ; l'objet
+  lui-même ne va jamais les chercher. Cela garde le processus-relais totalement découplé de la
+  *façon* dont l'état est produit (réseau, fichier de replay, script - peu importe).
+- L'état `idle`, à chaque frame, interpole la transformation actuelle vers le dernier échantillon
+  (`vector-lerp!`/`quaternion-slerp!`) plutôt que de la faire sauter, et ne recalcule son groupe
+  `ja-no-eval` que lorsque celui désiré change réellement (comparaison avec un champ
+  `current-anim-group` stocké), plutôt que de relancer l'animation à chaque frame.
+- Le reskin (voir
+  [21_live_reskinning_a_process_with_initialize-skeleton.md](21_live_reskinning_a_process_with_initialize-skeleton.md))
+  ne se produit que sur la frame où l'id de skin change réellement, protégé de la même façon.
+
+## 4. Pièges connus
+
+- **Pas de `collide-shape` signifie pas d'accès au champ `control`.** Du code copié-collé depuis
+  un exemple `target`/ennemi qui lit `(-> self control trans)` ne compilera pas sur un relais à
+  `trsqv` nu - utiliser `(-> self root trans)` à la place (`root` est un `trsqv` sur tout
+  `process-drawable` ; `control` n'existe que sur les types qui y superposent un type dérivé de
+  `collide-shape`, comme `target`).
+- **`ja-no-eval :group!` accepte une expression, pas seulement un symbole littéral** - il est tout
+  à fait valide de calculer le groupe désiré dans une variable et de la passer, tant que cette
+  variable contient bien un `art-joint-anim` compilé pour un squelette actuellement lié à l'objet.
+  Passer un groupe appartenant à un squelette *différent* de celui actuellement lié se comportera
+  mal.
+- **Ne pas inventer de noms de groupe d'animation.** Chaque symbole `-ja` utilisé doit être un
+  groupe d'animation réel, déjà compilé, pour le squelette exact utilisé - grepper le fichier
+  propriétaire du squelette pour ses appels `ja-no-eval` afin d'en trouver de réels plutôt que de
+  deviner un nom plausible (qui échouera à la compilation).
+
+## 5. Étapes de vérification
+
+1. Instancier le processus et vérifier qu'il apparaît à la bonne position de départ avec le bon
+   squelette lié (pas en T-pose).
+2. Lui fournir un échantillon changeant à chaque frame (ou, pour un test manuel, coder en dur une
+   cible mobile) et vérifier que l'interpolation suit sans saut ni tremblement.
+3. Vérifier que rien chez cet objet ne s'enregistre comme collidable en jeu - marcher au travers
+   ne doit rien produire.
+
+---

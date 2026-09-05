@@ -246,7 +246,7 @@ new knob defaults to a value that reproduces the original behavior exactly (`nat
 9. **Death, collision, everything else:** kill a blue guard, get it hit by a vehicle, shocked
    (yellow hit), etc. It must look and behave identically to a red guard in every respect — same
    death animation, no different collision/attack range. Any difference here is a bug (most likely
-   an animation-index drift — see the native-header/reorder pitfall in tip 20).
+   an animation-index drift — see the native-header/reorder pitfall in tip 23).
 10. **Manual guard-vs-guard trigger:** `(define g (spawn-crimson-blue-guard-debug 0))` then
     `(crimson-blue-guard-attack-guards (the-as crimson-blue-guard g))` near a red guard — it should
     go hostile and fight. This combination has no native precedent (stock guards never fight each
@@ -491,7 +491,7 @@ Voir le tableau en anglais ci-dessus (section 6) — identique, fichier par fich
    choquer (yellow hit), etc. Il doit se comporter et avoir l'air identique à un garde rouge en
    tout point — même animation de mort, pas de différence de collision/portée d'attaque. Toute
    différence ici est un bug (le plus probable : une dérive d'indice d'animation — voir le piège
-   native-header/réordonnancement du tip 20).
+    native-header/réordonnancement du tip 23).
 10. **Déclencheur manuel garde-contre-garde :** `(define g (spawn-crimson-blue-guard-debug 0))`
     puis `(crimson-blue-guard-attack-guards (the-as crimson-blue-guard g))` près d'un garde rouge —
     il doit devenir hostile et se battre. Cette combinaison n'a aucun précédent natif (les gardes

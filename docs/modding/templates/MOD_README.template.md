@@ -36,7 +36,7 @@ Make sure your environment is targeting {TARGET_GAME}:
 
 ### 2. Binary Compilation
 - **Status:** [Not required (GOAL-only mod, standard binaries sufficient) / `task build-release-game` (engine or compiler C++ changed) / `task build-release` + `task extract` (decompiler or decompiler/config changed)]
-- **Details:** [Specify which C++ layer was modified — see `docs/modding/build_and_iteration_workflow.md`]
+- **Details:** [Specify which C++ layer was modified — see `docs/modding/tools/build_and_iteration_workflow.md`]
 ```bash
 # GOAL-only mod: nothing to build — go straight to the REPL below.
 # Engine / compiler C++ changed:
@@ -97,7 +97,7 @@ Assurez-vous que l'environnement cible {TARGET_GAME} :
 
 ### 2. Compilation des Binaires
 - **Statut :** [Non requise (mod GOAL uniquement, binaires standards suffisants) / `task build-release-game` (C++ moteur ou compilateur modifié) / `task build-release` + `task extract` (décompilateur ou decompiler/config modifié)]
-- **Détails :** [Précisez quelle couche C++ a été modifiée — voir `docs/modding/build_and_iteration_workflow.md`]
+- **Détails :** [Précisez quelle couche C++ a été modifiée — voir `docs/modding/tools/build_and_iteration_workflow.md`]
 ```bash
 # Mod GOAL uniquement : rien à compiler — passez directement au REPL ci-dessous.
 # C++ moteur / compilateur modifié :

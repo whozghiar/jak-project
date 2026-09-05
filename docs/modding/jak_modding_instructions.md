@@ -45,7 +45,7 @@ Over 98% of the original trilogy was coded in GOAL, a custom LISP dialect develo
   ```
 
 * **Branch Synchronization Routine & Status Dashboard:**
-  The live sync status of all mod branches against `master` is tracked in `README.md` and [`docs/modding/branch_sync_status.md`](branch_sync_status.md). To test or push clean merges manually:
+  The live sync status of all mod branches against `master` is tracked in `README.md` and [`docs/modding/tools/branch_sync_status.md`](tools/branch_sync_status.md). To test or push clean merges manually:
   ```bash
   python scripts/modding/sync_branches_with_master.py --push
   ```
@@ -122,7 +122,7 @@ When developing a mod for any game in the trilogy, the following documentation s
 - First setup / after `task clean-cmake`: `task gen-cmake-release` (installs `sccache` wiring if
   present — `scoop install sccache`).
 
-See [`build_and_iteration_workflow.md`](build_and_iteration_workflow.md) for the full three-layer
+See [`tools/build_and_iteration_workflow.md`](tools/build_and_iteration_workflow.md) for the full three-layer
 model and the "what if my mod modifies the decompiler?" walkthrough.
 
 ---
@@ -165,7 +165,7 @@ Plus de 98% de la trilogie d'origine a été programmée en GOAL, un dialecte LI
   ```
 
 * **Routine de Synchronisation & Tableau de Bord des Conflits :**
-  L'état de synchronisation en direct des branches par rapport à `master` est suivi dans `README.md` et [`docs/modding/branch_sync_status.md`](branch_sync_status.md). Pour tester ou fusionner manuellement les branches propres :
+  L'état de synchronisation en direct des branches par rapport à `master` est suivi dans `README.md` et [`docs/modding/tools/branch_sync_status.md`](tools/branch_sync_status.md). Pour tester ou fusionner manuellement les branches propres :
   ```bash
   python scripts/modding/sync_branches_with_master.py --push
   ```
@@ -244,5 +244,5 @@ Lors du développement d'un mod pour n'importe quel jeu de la trilogie, la struc
 - Première install / après `task clean-cmake` : `task gen-cmake-release` (câble `sccache` s'il est
   présent — `scoop install sccache`).
 
-Voir [`build_and_iteration_workflow.md`](build_and_iteration_workflow.md) pour le modèle complet à
+Voir [`tools/build_and_iteration_workflow.md`](tools/build_and_iteration_workflow.md) pour le modèle complet à
 trois couches et le déroulé « et si mon mod modifie le décompilateur ? ».

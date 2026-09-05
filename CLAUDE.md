@@ -50,7 +50,7 @@ task format                 # Format C++ and GOAL code
 > **Task Command Policy:** Claude must **NEVER** run long-running build or runtime `task` commands silently in the background. Always clearly propose the exact command for the user to execute in their terminal.
 
 > [!NOTE]
-> **Build speed & when to rebuild what:** see [`docs/modding/build_and_iteration_workflow.md`](docs/modding/build_and_iteration_workflow.md) — the three-layer model (C++ runtime / decompiler / GOAL code), the `sccache` compiler cache, and the targeted build tasks. Most mods only edit GOAL code and never need a C++ build after setup.
+> **Build speed & when to rebuild what:** see [`docs/modding/tools/build_and_iteration_workflow.md`](docs/modding/tools/build_and_iteration_workflow.md) — the three-layer model (C++ runtime / decompiler / GOAL code), the `sccache` compiler cache, and the targeted build tasks. Most mods only edit GOAL code and never need a C++ build after setup.
 
 ---
 
@@ -84,7 +84,7 @@ Every mod branch maintains a dedicated root `README.md` presenting:
   ```bash
   python scripts/modding/sync_docs_from_master.py
   ```
-* **Branch Sync Dashboard:** Tracked live on `master-dev`'s `README.md` and [`docs/modding/branch_sync_status.md`](docs/modding/branch_sync_status.md). Routine updates via:
+* **Branch Sync Dashboard:** Tracked live on `master-dev`'s `README.md` and [`docs/modding/tools/branch_sync_status.md`](docs/modding/tools/branch_sync_status.md). Routine updates via:
   ```bash
   python scripts/modding/sync_branches_with_master.py --push
   ```

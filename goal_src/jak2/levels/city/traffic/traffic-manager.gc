@@ -12,6 +12,8 @@
 ;; reference it regardless of file compile order -- same idiom as crimson-guard's own
 ;; (declare-type crimson-guard citizen) in traffic-engine.gc.
 (declare-type crimson-blue-guard crimson-guard)
+(define-extern crimson-blue-guard-setup-squad (function crimson-blue-guard crimson-blue-guard crimson-blue-guard none))
+(define-extern activate-inactive-crimson-blue-guard (function traffic-engine traffic-object-spawn-params crimson-blue-guard))
 
 (define *traffic-engine* (the-as traffic-engine #f))
 
@@ -21,7 +23,21 @@
 ;; levels/city/traffic/citizen/crimson-blue-guard.gc) instead of the stock one -- 1 in N spawns,
 ;; using the same "N sets a ratio" convention as traffic-manager's dark-guard-ratio field just
 ;; below. 0 disables it (always spawns the stock crimson-guard).
-(define *crimson-blue-guard-ratio* 8)
+(define *crimson-blue-guard-ratio* 2)
+
+;; Mod-wide mode flags, toggled from the debug menu's "Mods" tab (see default-menu-pc.gc) --
+;; mutually exclusive (enabling one clears the other from the menu's pick-funcs). Defined here
+;; rather than in the debug-gated menu file so gameplay code (crimson-blue-guard.gc and later
+;; the faction/zone logic) can read them unconditionally, regardless of *debug-segment*. Both
+;; default to #f: with neither set, blue guard behavior is exactly what it already is today.
+;; - city-peaceful: blue guards patrol as neutral 2-3 member squads; a squad member being
+;;   attacked makes the whole squad retaliate together, still without raising the city alert.
+;; - city-insurrection: blue guards and red/yellow guards become hostile to each other on sight
+;;   in contested zones, without alerting Jak.
+;; (Neither behavior is implemented yet -- these flags exist so the menu entries and their
+;; on/off state are wired up first; the logic that reads them comes next.)
+(define *mod-city-peaceful?* #f)
+(define *mod-city-insurrection?* #f)
 
 (deftype traffic-manager (process)
   ((traffic-engine    traffic-engine)
@@ -338,17 +354,17 @@
 ;; ambient traffic system entirely (calls citizen-spawn directly, exactly like
 ;; traffic-object-spawn does for a real ambient guard). Call from the REPL once booted into
 ;; any city level:
-;;   (spawn-crimson-blue-guard-debug 0)  ;; baton/taser guard (short-range `attack` state)
-;;   (spawn-crimson-blue-guard-debug 1)  ;; gun-equipped guard (`gun-shoot`, longer range,
-;;                                       ;; occasionally `grenade-attack` -- both already part
-;;                                       ;; of crimson-guard's stock repertoire, no new code
-;;                                       ;; needed for either loadout)
+;; Helper for debugging/testing crimson-blue-guard from the OpenGOAL REPL:
+;;   (spawn-crimson-blue-guard-debug 0)   ;; baton/taser guard (short-range `attack` state)
+;;   (spawn-crimson-blue-guard-debug 1)   ;; gun-equipped guard (`gun-shoot`, laser bolts)
+;;   (spawn-crimson-blue-guard-debug 2)   ;; grenade launcher guard (`gun-shoot`, vehicle-grenade)
+;;   (spawn-crimson-blue-guard-debug -1)  ;; random weapon among 0, 1, 2 (same as ambient traffic)
 (defun spawn-crimson-blue-guard-debug ((guard-type int))
   (let* ((params (new 'stack-no-clear 'traffic-object-spawn-params))
          (fwd (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> *target* root quat)))
          )
     (set! (-> params object-type) (traffic-type crimson-guard-1))
-    (set! (-> params behavior) (the-as uint 0))
+    (set! (-> params behavior) (the-as uint 2))
     (set! (-> params id) (the-as uint 0))
     (vector+float*! (-> params position) (target-pos 0) fwd 8192.0)
     ;; a real nav-mesh is required here -- citizen's 'traffic-activate handler only runs
@@ -360,26 +376,122 @@
     (set! (-> params velocity quad) (-> *null-vector* quad))
     (set! (-> params handle) (the-as handle #f))
     (set! (-> params guard-type) (the-as uint 0))
-    (set! (-> params user-data) (the-as uint 0))
+    (set! (-> params user-data) (the-as uint 2))
     (set! (-> params flags) (traffic-spawn-flags))
     (set! (-> params proc) #f)
-    (let ((proc (citizen-spawn *target* crimson-blue-guard params)))
-      ;; citizen-init-by-other always leaves a freshly spawned citizen in the `inactive` state
-      ;; (no-draw, asleep) until the traffic system's normal tracking sends it 'traffic-activate
-      ;; -- which never happens here since we bypassed that tracking. Send it ourselves so the
-      ;; guard actually becomes visible/active immediately.
+    (let ((proc (the-as process-drawable #f)))
+      (cond
+        (*traffic-engine*
+         (set! proc (activate-inactive-crimson-blue-guard *traffic-engine* params))
+         )
+        (else
+         (set! proc (citizen-spawn *target* crimson-blue-guard params))
+         (when proc
+           (send-event proc 'traffic-activate params *traffic-engine*)
+           )
+         )
+        )
       (when proc
-        (send-event proc 'traffic-activate params *traffic-engine*)
-        ;; citizen-init! (run synchronously inside 'traffic-activate above) always picks its
-        ;; own guard-type from the traffic-engine's shared setting
-        ;; (get-guard-type-for-traffic-obj), ignoring spawn-params guard-type entirely --
-        ;; force it explicitly afterward so this debug spawn can actually pick which loadout
-        ;; to test. Same method the traffic-engine itself uses to switch a guard's loadout
-        ;; live (guard.gc, hostile :trans).
-        (crimson-guard-method-225 (the-as crimson-guard proc) (the-as uint guard-type) #f)
+        ;; If a specific guard-type is requested (>= 0), force it explicitly.
+        ;; If guard-type is negative (-1), keep the random weapon rolled in citizen-init!.
+        (if (>= guard-type 0)
+            (crimson-guard-method-225 (the-as crimson-guard proc) (the-as uint guard-type) #f)
+            )
         )
       proc
       )
+    )
+  )
+
+;; Helper for debugging/testing crimson-blue-guard squads from the OpenGOAL REPL:
+;;   (spawn-crimson-blue-guard-squad-debug 2)  ;; 2-man squad (leader + 1 wingman)
+;;   (spawn-crimson-blue-guard-squad-debug 3)  ;; 3-man squad (leader + 2 wingmen in V-formation)
+(defun spawn-crimson-blue-guard-squad-debug ((count int))
+  "Spawns a coherent squad of 2 or 3 crimson-blue-guards in formation in front of Jak."
+  (when (< count 2)
+    (set! count 2)
+    )
+  (when (> count 3)
+    (set! count 3)
+    )
+  (let* ((leader (spawn-crimson-blue-guard-debug -1))
+         (f1 (the-as crimson-blue-guard #f))
+         (f2 (the-as crimson-blue-guard #f))
+         )
+    (when leader
+      (let* ((leader-proc (the-as crimson-blue-guard leader))
+             (lt (the-as int (-> leader-proc guard-type)))
+             ;; Guarantee distinct weapons across all squad members
+             (t1 (mod (+ lt 1 (rnd-int-count leader-proc 2)) 3))
+             (t2 (- 3 (+ lt t1)))
+             (right (vector-x-quaternion! (new 'stack-no-clear 'vector) (-> *target* root quat)))
+             (fwd (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> *target* root quat)))
+             (p1 (new 'stack-no-clear 'traffic-object-spawn-params))
+             (p2 (new 'stack-no-clear 'traffic-object-spawn-params))
+             )
+        (set! (-> p1 object-type) (traffic-type crimson-guard-1))
+        (set! (-> p1 behavior) (the-as uint 2))
+        (set! (-> p1 id) (the-as uint 0))
+        (quaternion-copy! (-> p1 rotation) (-> *target* root quat))
+        (set! (-> p1 velocity quad) (-> *null-vector* quad))
+        (set! (-> p1 handle) (the-as handle #f))
+        (set! (-> p1 guard-type) (the-as uint t1))
+        (set! (-> p1 user-data) (the-as uint 2))
+        (set! (-> p1 flags) (traffic-spawn-flags))
+        (set! (-> p1 proc) #f)
+        (if (= count 3)
+            (vector+float*! (-> p1 position) (-> leader root trans) right -10240.0)
+            (vector+float*! (-> p1 position) (-> leader root trans) right 10240.0)
+            )
+        (vector+float*! (-> p1 position) (-> p1 position) fwd -8192.0)
+        (set! (-> p1 nav-mesh) (find-nearest-nav-mesh (-> p1 position) (the-as float #x7f800000)))
+        (when (not (-> p1 nav-mesh))
+          (when (and (-> (the-as crimson-blue-guard leader) nav)
+                     (-> (the-as crimson-blue-guard leader) nav state))
+            (set! (-> p1 nav-mesh) (-> (the-as crimson-blue-guard leader) nav state mesh))
+            )
+          )
+        (set! (-> p1 nav-branch) #f)
+        (cond
+          (*traffic-engine*
+           (set! f1 (activate-inactive-crimson-blue-guard *traffic-engine* p1))
+           )
+          (else
+           (set! f1 (the-as crimson-blue-guard (citizen-spawn *target* crimson-blue-guard p1)))
+           (if f1 (send-event f1 'traffic-activate p1 *traffic-engine*))
+           )
+          )
+        (when f1
+          (when (= count 3)
+            (mem-copy! (the-as pointer p2) (the-as pointer p1) (size-of traffic-object-spawn-params))
+            (set! (-> p2 user-data) (the-as uint 2))
+            (set! (-> p2 guard-type) (the-as uint t2))
+            (set! (-> p2 proc) #f)
+            (vector+float*! (-> p2 position) (-> leader root trans) right 10240.0)
+            (vector+float*! (-> p2 position) (-> p2 position) fwd -8192.0)
+            (set! (-> p2 nav-mesh) (find-nearest-nav-mesh (-> p2 position) (the-as float #x7f800000)))
+            (when (not (-> p2 nav-mesh))
+              (when (and (-> (the-as crimson-blue-guard leader) nav)
+                         (-> (the-as crimson-blue-guard leader) nav state))
+                (set! (-> p2 nav-mesh) (-> (the-as crimson-blue-guard leader) nav state mesh))
+                )
+              )
+            (set! (-> p2 nav-branch) #f)
+            (cond
+              (*traffic-engine*
+               (set! f2 (activate-inactive-crimson-blue-guard *traffic-engine* p2))
+               )
+              (else
+               (set! f2 (the-as crimson-blue-guard (citizen-spawn *target* crimson-blue-guard p2)))
+               (if f2 (send-event f2 'traffic-activate p2 *traffic-engine*))
+               )
+              )
+            )
+          (crimson-blue-guard-setup-squad (the-as crimson-blue-guard leader) f1 f2)
+          )
+        )
+      )
+    leader
     )
   )
 
@@ -432,28 +544,28 @@
        (set! v0-0 (citizen-spawn arg0 metalhead-flitter arg1))
        )
       (((traffic-type crimson-guard-1))
-       (set! v0-0 (citizen-spawn
-                     arg0
-                     (if (and (> *crimson-blue-guard-ratio* 0)
-                              (zero? (mod (-> arg1 id) *crimson-blue-guard-ratio*))
-                              )
-                         crimson-blue-guard
-                         crimson-guard
-                         )
-                     arg1
-                     ))
+       (let ((spawn-blue? (and (> *crimson-blue-guard-ratio* 0)
+                               (zero? (mod (-> arg1 id) *crimson-blue-guard-ratio*))
+                               )
+                          ))
+         (set! v0-0 (citizen-spawn
+                       arg0
+                       (if spawn-blue? crimson-blue-guard crimson-guard)
+                       arg1
+                       ))
+         )
        )
       (((traffic-type crimson-guard-0))
-       (set! v0-0 (citizen-spawn
-                     arg0
-                     (if (and (> *crimson-blue-guard-ratio* 0)
-                              (zero? (mod (-> arg1 id) *crimson-blue-guard-ratio*))
-                              )
-                         crimson-blue-guard
-                         crimson-guard
-                         )
-                     arg1
-                     ))
+       (let ((spawn-blue? (and (> *crimson-blue-guard-ratio* 0)
+                               (zero? (mod (-> arg1 id) *crimson-blue-guard-ratio*))
+                               )
+                          ))
+         (set! v0-0 (citizen-spawn
+                       arg0
+                       (if spawn-blue? crimson-blue-guard crimson-guard)
+                       arg1
+                       ))
+         )
        )
       )
     v0-0

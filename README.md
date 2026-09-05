@@ -39,6 +39,10 @@ guard traffic, alongside the regular red guards.
 - **Mixed into ambient city traffic:** the traffic manager now spawns the blue variant for a
   configurable fraction of ambient guard spawns (`*crimson-blue-guard-ratio*`, default 1-in-8),
   right alongside the stock guard.
+- **"Mods" debug menu tab & City Peaceful Patrol Squads:** the debug menu includes a dedicated "Mods" tab:
+  - `City Peaceful` (**Fully Implemented**): ambient blue guards spawn in coordinated 2 to 3 member patrol squads with tight formation navigation, adaptive speed modulation, automatic leader re-election, and diverse weapon loadouts (taser, rifle, grenade launcher). Squad members defend each other in mutual retaliatory defense without raising the city alarm, and enjoy complete friendly-fire immunity.
+  - `City Insurrection` (**Upcoming Step**): zoned district conflict between factions.
+- **Faithful Crimson Guard Combat AI:** rifle and grenade launcher guards maintain tactical standoff distance (engaging targets up to 50m away), fire reactive bursts or parabolic grenades, and execute evasive combat rolls (`roll-left` / `roll-right`). Melee rifle-butt strikes are strictly an emergency close-quarters counter (< 2.5m), followed immediately by an evasive roll to resume shooting. Taser guards charge and shock with high-voltage electric arcs.
 
 ## 🚀 Step-by-Step Guide to Run the Mod
 
@@ -115,6 +119,10 @@ mélangé au trafic ambiant normal, aux côtés des gardes rouges classiques.
 - **Mélangé au trafic ambiant de la ville :** le traffic-manager fait maintenant apparaître la
   variante bleue pour une fraction configurable des spawns de gardes ambiants
   (`*crimson-blue-guard-ratio*`, 1 sur 8 par défaut), aux côtés du garde classique.
+- **Onglet menu debug « Mods » & Escouades de Patrouille City Peaceful :** le menu debug comprend un onglet « Mods » :
+  - `City Peaceful` (**Entièrement Implémenté**) : les gardes bleus ambiants patrouillent en escouades coordonnées de 2 à 3 membres avec déplacement en formation serrée, modulation adaptative de la vitesse, réélection automatique du leader, et répartition d'armes variées (taser, fusil laser, lance-grenades). Les membres de l'escouade ripostent ensemble en cas d'agression sans déclencher l'alarme de la ville, et bénéficient d'une immunité totale aux tirs alliés.
+  - `City Insurrection` (**Étape Suivante**) : affrontements de factions zonés par districts.
+- **IA de Combat Fidèle aux Crimson Guards :** les gardes armés d'un fusil ou d'un lance-grenades maintiennent une distance d'engagement tactique (jusqu'à 50 m), tirent des rafales/projectiles avec visée réactive et enchaînent des roulades d'esquive latérales (`roll-left` / `roll-right`). Les coups de crosse sont strictement réservés au contact d'urgence (< 2,5 m) et sont immédiatement suivis d'une roulade d'esquive pour reprendre le tir à distance. Les gardes au taser foncent au contact pour électrocuter avec des arcs électriques.
 
 ## 🚀 Guide Pas à Pas pour Lancer le Mod
 

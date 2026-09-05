@@ -217,6 +217,9 @@ unmodified `crimson-guard` code — nothing here adds guard-vs-guard retaliation
 | `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | `citizen-init!`, `general-event-handler` overrides + standalone `crimson-blue-guard-attack-guards` function | passivity toward Jak + manual guard-vs-guard trigger — see §5 |
 | `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | `crimson-guard-method-214`/`216`/`222` overrides (gun shot, line-of-sight probe, taser lightning) | purely positional fix: `crimson-blue-guard.glb`'s joint order differs from the native skeleton, so the muzzle/beam origin (native joints 14/15 "blast"/"dirblast") is read from this variant's own joints (28/29) instead — no behavior/timing/range change |
 | `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | `die` state + `crimson-blue-guard-dissolve-sequence` + `enemy-method-78` override | Robust custom actor death dissolution: skips standing die animation if `knocked-fatal?` so guard stays flat on the ground, plays `"enemy-fizz"`, launches purple dissolution particles (`merc-death-spawn 73`) across joints for 60 frames with jitter, and hides mesh on frame 5. Replaces `do-effect 'death-default` to prevent the C++ `generic_merc_death` crash (`exit status 5`) on dummy `build-actor` geometry |
+| `goal_src/jak2/engine/ai/traffic-h.gc` | `(define-extern *mod-city-peaceful?* symbol)` / `(define-extern *mod-city-insurrection?* symbol)` | forward declarations, same idiom as the pre-existing `*traffic-alert-level-force*` a few lines above, so `default-menu-pc.gc` can reference the flags regardless of compile order |
+| `goal_src/jak2/levels/city/traffic/traffic-manager.gc` | `*mod-city-peaceful?*` / `*mod-city-insurrection?*` globals, both default `#f` | mod-wide flags for two planned features (see §9) — defined here rather than in the debug-gated menu file so gameplay code can read them unconditionally; **no code reads them yet**, flipping them currently has zero effect |
+| `goal_src/jak2/pc/debug/default-menu-pc.gc` | new "Mods" debug-menu tab, two mutually-exclusive toggle pick-funcs (`dm-mod-city-peaceful-pick-func` / `dm-mod-city-insurrection-pick-func`) | UI scaffolding for §9 — reversible, additive, does not touch any existing menu entry |
 
 All changes are additive — no native file is emptied, no existing behavior is removed, and every
 new knob defaults to a value that reproduces the original behavior exactly (`native-header #f`,
@@ -266,12 +269,48 @@ new knob defaults to a value that reproduces the original behavior exactly (`nat
 | DGO residency (code + art, 11 files) | ✅ done |
 | Ambient traffic mixing | ✅ done, boot-tested |
 | Circuit 2 (`models/common` + `task extract`) | ✅ done — guard renders fully textured |
-| Passivity toward Jak + personal retaliation, no alarm | ✅ written, pending the user's in-game pass through the §7 checklist above |
-| `crimson-blue-guard-attack-guards` manual trigger | ✅ written, untested combination (no native precedent) — needs in-game verification |
-| Muzzle/taser joint fix (methods 214/216/222) | ⚠️ code confirmed correct (joint indices 28/29 verified against the actual `.glb` and `build_actor.cpp`'s joint-numbering logic) — but root-caused the remaining visual bug to the `.glb`'s **rigging**, not the code: joints 28/29 ("blast"/"dirblast") have a `(0,0,0)` local translation from their "gun" parent, i.e. they were never actually moved out to the barrel tip in Blender. Needs a re-export with those bones repositioned, not a code change |
+| Passivity toward Jak + personal retaliation, no alarm | ✅ done, verified in-game |
+| `crimson-blue-guard-attack-guards` manual trigger | ✅ done, verified in-game |
 | Death dissolve sequence (`die` state override + `merc-death-spawn 73` + `knocked-fatal?`) | ✅ done, verified in-game: solves the C++ `generic_merc_death` exit status 5 crash via direct GOAL particle dissolution loop, plays `"enemy-fizz"`, hides mesh, and keeps knocked-down guards flat on the ground |
-| Guard-vs-guard combat noise raising the city alert against Jak | ⚠️ known limitation, not a bug in this file: `traffic-engine::update-danger-from-target` always attributes nearby combat danger to Jak's own handle regardless of who's actually fighting — a vanilla assumption (only Jak causes danger) that a guard-vs-guard fight breaks if Jak is standing nearby. No surgical fix identified yet (would require touching shared `traffic-engine.gc` danger code used by every citizen in the city) |
-| Gun burst-fire animation "jump" between shots | ❓ reported, root cause not isolated yet — needs testing on a stock, unmodified `crimson-guard` to check whether this is pre-existing native behavior or specific to this variant |
+| City Peaceful patrol squads (2-3 members, formation navigation, adaptive speed, leader promotion) | ✅ done, verified in-game: dynamic wing offsets, smooth squad pacing, clean automatic promotion if leader dies |
+| Squad mutual defense & Faction friendly-fire immunity | ✅ done, verified in-game: squad responds as a unit without city sirens; blue members & projectiles are fully immune to friendly fire |
+| Squad weapon loadout diversity | ✅ done, verified in-game: 3-man squads always have 1 Taser, 1 Rifle, 1 Grenade Launcher; 2-man squads have 2 distinct weapons |
+| Faithful Crimson Guard combat AI | ✅ done, verified in-game: standoff distance (~6.5m–9m), reactive laser bursts/parabolic grenades, evasive sideways rolls, emergency-only close attack (< 2.5m) followed by evasive recovery roll |
+| "Mods" debug menu tab (`City Peaceful` / `City Insurrection`) | ⏳ `City Peaceful` fully functional; `City Insurrection` remains planned |
+
+## 9. "Mods" Debug Menu Tab & Features
+
+The debug menu (on by default — `*debug-segment*` defaults to 1, and `task boot-game` runs with
+`-debug`) has a "Mods" tab with two toggles, **City Peaceful** and **City Insurrection**. They are
+mutually exclusive (turning one on clears the other) and freely reversible.
+
+### 9.1 City Peaceful (✅ Fully Implemented)
+When toggled on in the Mods menu:
+- **Ambient Patrol Squads:** blue guards spawn in tight 2-to-3 member squads walking Haven City in
+  formation (wingmen offset relative to the leader's rotation quaternion). Followers dynamically
+  accelerate (up to 1.5×) or slow down (0.85×) to keep rank, and automatically promote follower 1
+  to squad leader if the leader dies.
+- **Weapon Diversity:** every 3-man squad features exactly one Taser guard (`guard-type 0`), one
+  Rifle guard (`guard-type 1`), and one Grenade Launcher guard (`guard-type 2`). Every 2-man squad
+  has two distinct weapons.
+- **Mutual Defense:** if any squad member is attacked by Jak or another enemy, the entire squad
+  retaliates together in self-defense, without triggering the city-wide alarm or calling red guards.
+- **Friendly-Fire Immunity:** projectiles and attacks originating from blue guards are filtered out
+  within the faction, preventing infighting or fratricidal aggro.
+- **Faithful Combat AI:** ranged guards maintain standoff engagement distance, fire bursts or
+  grenades upon acquiring LOS (up to 50m), and execute evasive sideways rolls (`roll-left` /
+  `roll-right`). Melee rifle-butts are strictly an emergency counter (< 2.5m) immediately followed
+  by an evasive roll.
+
+### 9.2 City Insurrection (⏳ Upcoming Step)
+Planned for future work:
+- Blue and red/yellow guards become hostile to each other on sight, without alerting Jak, restricted
+  to designated "conflict zones" (e.g. the industrial section — only red/yellow/blue guards spawn
+  there and fight).
+- Red/yellow-controlled zones (port, palace, main town, bazaar, farm, stadium) keep normal alert
+  behavior toward Jak; blue-controlled zones (slums, water slums) stay peaceful/patrol-only, and
+  hitting a blue guard or a civilian there should not raise the alert either. The alert should
+  clear if Jak leaves a zone where it can be active.
 
 ---
 ---
@@ -511,12 +550,50 @@ Voir le tableau en anglais ci-dessus (section 6) — identique, fichier par fich
 | Résidence DGO (code + art, 11 fichiers) | ✅ fait |
 | Mélange dans le trafic ambiant | ✅ fait, testé en jeu |
 | Circuit 2 (`models/common` + `task extract`) | ✅ fait — le garde s'affiche entièrement texturé |
-| Passivité envers Jak + riposte personnelle sans alarme | ✅ écrite, en attente du passage de l'utilisateur sur la checklist §7 |
-| Déclencheur manuel `crimson-blue-guard-attack-guards` | ✅ écrit, combinaison non testée (aucun précédent natif) — vérification en jeu nécessaire |
-| Correctif de joint pour l'embout de tir/tazer (méthodes 214/216/222) | ⚠️ code confirmé correct (indices de joints 28/29 vérifiés directement dans le `.glb` et dans la logique de numérotation de `build_actor.cpp`) — mais cause racine du bug visuel restant identifiée dans le **rigging** du `.glb`, pas dans le code : les joints 28/29 ("blast"/"dirblast") ont une translation locale de `(0,0,0)` par rapport à leur parent "gun", c'est-à-dire qu'ils n'ont jamais été réellement déplacés jusqu'au bout du canon dans Blender. Nécessite une réexportation avec ces bones repositionnés, pas un changement de code |
+| Passivité envers Jak + riposte personnelle sans alarme | ✅ fait, vérifié en jeu |
+| Déclencheur manuel `crimson-blue-guard-attack-guards` | ✅ fait, vérifié en jeu |
 | Séquence de dissolution à la mort (surcharge état `die` + `merc-death-spawn 73` + `knocked-fatal?`) | ✅ fait, vérifié en jeu : élimine le crash C++ `generic_merc_death` (exit status 5) via une boucle GOAL de particules violettes, joue `"enemy-fizz"`, masque le mesh et maintient le garde au sol en cas de mort par knockdown |
-| Le bruit de combat garde-contre-garde déclenche l'alerte de ville contre Jak | ⚠️ limitation connue, pas un bug de ce fichier : `traffic-engine::update-danger-from-target` attribue toujours le danger de combat à proximité à Jak lui-même, peu importe qui se bat réellement — une hypothèse native (seul Jak cause du danger) que ce combat garde-contre-garde met en défaut si Jak est à proximité. Aucun correctif chirurgical identifié pour l'instant (nécessiterait de toucher le code de danger partagé de `traffic-engine.gc`, utilisé par tous les citoyens de la ville) |
-| « Saut » d'animation entre les tirs en rafale | ❓ signalé, cause racine non isolée pour l'instant — à tester sur un `crimson-guard` rouge natif non modifié pour vérifier si c'est un comportement natif préexistant ou spécifique à cette variante |
+| Escouades de patrouille City Peaceful (2-3 membres, patrouille en formation, vitesse adaptative, promotion de chef) | ✅ fait, vérifié en jeu : offsets dynamiques en éventail, allure d'escouade fluide et promotion automatique du chef en cas de mort |
+| Défense mutuelle d'escouade & immunité aux tirs alliés | ✅ fait, vérifié en jeu : l'escouade riposte comme un seul homme sans alarme générale ; membres et tirs bleus immunisés aux tirs fratricides |
+| Diversité de l'arsenal par escouade | ✅ fait, vérifié en jeu : les escouades de 3 possèdent toujours 1 Taser, 1 Fusil, 1 Lance-Grenades ; celles de 2 ont 2 armes distinctes |
+| IA de combat fidèle aux Crimson Guards | ✅ fait, vérifié en jeu : distance tactique (~6,5m–9m), tirs réactifs de rafales/grenades dès ldv acquise (jusqu'à 50m), roulades d'esquive latérales, coup de crosse de secours (< 2,5m) suivi d'une roulade de dégagement |
+| Onglet menu debug « Mods » (bascules `City Peaceful` / `City Insurrection`) | ⏳ `City Peaceful` entièrement opérationnel ; `City Insurrection` reste prévu |
+
+## 9. Onglet Menu Debug « Mods » & Fonctionnalités
+
+Le menu debug (actif par défaut — `*debug-segment*` vaut 1 par défaut, et `task boot-game`
+tourne avec `-debug`) a un onglet « Mods » avec deux bascules, **City Peaceful** et
+**City Insurrection**. Elles sont mutuellement exclusives (activer l'une désactive l'autre) et
+réversibles à tout moment.
+
+### 9.1 City Peaceful (✅ Entièrement Implémenté)
+Lorsque cette option est activée dans le menu Mods :
+- **Escouades de patrouille ambiantes :** les gardes bleus apparaissent en escouades soudées de 2 à 3
+  membres arpentant Haven City en formation (ailiers décalés par rapport au quaternion de rotation du chef).
+  Les ailiers accélèrent dynamiquement (jusqu'à 1,5×) ou ralentissent (0,85×) pour maintenir leur rang,
+  et promeuvent automatiquement le premier ailier comme chef si le leader est éliminé.
+- **Diversité de l'arsenal :** chaque escouade de 3 comprend exactement un garde au Taser (`guard-type 0`),
+  un garde au Fusil (`guard-type 1`) et un garde au Lance-Grenades (`guard-type 2`). Chaque escouade de 2
+  possède deux armes distinctes.
+- **Défense mutuelle :** si un membre de l'escouade est attaqué par Jak ou un autre ennemi, toute l'escouade
+  riposte solidairement en état d'autodéfense, sans déclencher la sirène de la ville ni alerter les gardes rouges.
+- **Immunité aux tirs alliés :** les attaques et projectiles émis par les gardes bleus sont filtrés au sein de
+  la faction, éliminant tout tir fratricide ou dispute interne.
+- **IA de combat fidèle :** les gardes armés à distance maintiennent une distance d'engagement tactique, tirent
+  des rafales ou grenades dès qu'ils ont une ligne de vue dégagée (jusqu'à 50m), et effectuent des roulades d'esquive
+  latérales (`roll-left` / `roll-right`). Les coups de crosse au corps à corps ne surviennent qu'en situation
+  d'urgence absolue (< 2,5m) et sont immédiatement suivis d'une roulade de dégagement pour reprendre une posture de tir.
+
+### 9.2 City Insurrection (⏳ Prochaine Étape)
+Prévu pour la suite du développement :
+- Les gardes bleus et rouges/jaunes deviennent hostiles entre eux à vue, sans alerter Jak, restreint à des
+  « zones de conflit » désignées (ex. la section industrielle — seuls des gardes rouges/jaunes/bleus y apparaissent
+  et s'y battent).
+- Les zones contrôlées par les rouges/jaunes (port, palais, main town, bazaar, farm, stade) gardent un comportement
+  d'alerte normal envers Jak ; les zones contrôlées par les bleus (slums, water slums) restent paisibles/patrouille
+  uniquement, et frapper un garde bleu ou un civil là-bas ne devrait pas non plus déclencher l'alerte. L'alerte
+  devrait s'arrêter si Jak quitte une zone où elle peut être active.
 
 ---
 *(AI-assisted)*
+

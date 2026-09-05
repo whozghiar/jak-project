@@ -817,6 +817,37 @@
 
 (define *screen-shot-capture-profile* #f)
 
+;; ----------------------------------------------------------------------------------
+;; "Mods" debug menu tab -- see *mod-city-peaceful?*/*mod-city-insurrection?* in
+;; levels/city/traffic/traffic-manager.gc (defined there, not here, so gameplay code can read
+;; them without depending on this debug-gated file). The two modes are mutually exclusive:
+;; each pick-func clears the other flag when it turns its own flag on.
+;; ----------------------------------------------------------------------------------
+
+(defun dm-mod-city-peaceful-pick-func ((arg0 symbol) (arg1 debug-menu-msg))
+  "Debug-menu pick-func for the Mods tab: toggles *mod-city-peaceful?*, and turning it on
+   clears *mod-city-insurrection?* (the two modes are mutually exclusive)."
+  (when (= arg1 (debug-menu-msg press))
+    (set! *mod-city-peaceful?* (not *mod-city-peaceful?*))
+    (if *mod-city-peaceful?*
+        (set! *mod-city-insurrection?* #f)
+        )
+    )
+  *mod-city-peaceful?*
+  )
+
+(defun dm-mod-city-insurrection-pick-func ((arg0 symbol) (arg1 debug-menu-msg))
+  "Debug-menu pick-func for the Mods tab: toggles *mod-city-insurrection?*, and turning it on
+   clears *mod-city-peaceful?* (the two modes are mutually exclusive)."
+  (when (= arg1 (debug-menu-msg press))
+    (set! *mod-city-insurrection?* (not *mod-city-insurrection?*))
+    (if *mod-city-insurrection?*
+        (set! *mod-city-peaceful?* #f)
+        )
+    )
+  *mod-city-insurrection?*
+  )
+
 (when (-> *debug-menu-context* root-menu)
   ;; (debug-menu-append-item (-> *debug-menu-context* root-menu) (debug-menu-make-load-menu *debug-menu-context*))
   (debug-menu-append-item (-> *debug-menu-context* root-menu) (debug-menu-make-part-menu *debug-menu-context*))
@@ -1012,6 +1043,15 @@
           (flag "Entity Lights" *display-lights* dm-boolean-toggle-pick-func)
           (flag "Debug Font Auto-Scale" #f ,(dm-lambda-boolean-flag (-> *pc-settings* debug-font-scale-auto?)))
           (float-var "Debug Font Scale" #f ,(dm-lambda-float-var (-> *pc-settings* debug-font-scale)) 2 (new 'static 'bfloat :data 0.01) #t (new 'static 'bfloat :data 0.1) 2 0)
+          )
+      )
+    )
+
+  (debug-menu-append-item (-> *debug-menu-context* root-menu)
+    (debug-menu-make-from-template *debug-menu-context*
+      '(menu "Mods"
+          (flag "City Peaceful (blue guards neutral, patrol in squads)" #f dm-mod-city-peaceful-pick-func)
+          (flag "City Insurrection (blue vs red/yellow war, by zone)" #f dm-mod-city-insurrection-pick-func)
           )
       )
     )

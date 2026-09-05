@@ -79,6 +79,10 @@
 
 (define-extern *traffic-alert-level-force* symbol)
 
+;; NOTE - for default-menu-pc (Mods tab); defined in traffic-manager.gc
+(define-extern *mod-city-peaceful?* symbol)
+(define-extern *mod-city-insurrection?* symbol)
+
 (declare-type nav-mesh basic)
 (declare-type nav-branch structure)
 (declare-type traffic-manager process)

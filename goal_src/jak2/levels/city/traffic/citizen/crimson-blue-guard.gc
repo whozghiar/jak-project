@@ -50,6 +50,8 @@
    )
   )
 
+(define-extern crimson-blue-guard-attack-guards (function crimson-blue-guard none))
+
 (def-art-elt crimson-blue-guard-ag crimson-blue-guard-lod0-jg 0)
 (def-art-elt crimson-blue-guard-ag crimson-blue-guard-lod0-mg 1)
 
@@ -510,16 +512,26 @@
      (let* ((params (the-as traffic-object-spawn-params (-> arg3 param 0)))
             (is-ambient-leader? (and params (zero? (-> params user-data)))))
        ((method-of-type crimson-guard general-event-handler) this arg0 arg1 arg2 arg3)
-       (when (and is-ambient-leader?
-                  *mod-city-peaceful?*
-                  (not (focus-test? this inactive))
-                  (<= (-> this squad-count) 1)
-                  (= (-> this squad-index) 0)
-                  (-> this nav)
-                  (-> this nav state)
-                  (-> this nav state mesh)
-                  )
-         (spawn-crimson-blue-guard-squad-ambient this)
+       (cond
+         (*mod-city-insurrection?*
+          ;; In Insurrection mode: no squads, roam individually with randomized arsenal
+          (set! (-> this squad-count) 1)
+          (set! (-> this squad-index) 0)
+          (set! (-> this squad-leader) (the-as handle #f))
+          (crimson-guard-method-225 this (the-as uint (rand-vu-int-count 3)) #f)
+          )
+         (*mod-city-peaceful?*
+          (when (and is-ambient-leader?
+                     (not (focus-test? this inactive))
+                     (<= (-> this squad-count) 1)
+                     (= (-> this squad-index) 0)
+                     (-> this nav)
+                     (-> this nav state)
+                     (-> this nav state mesh)
+                     )
+            (spawn-crimson-blue-guard-squad-ambient this)
+            )
+          )
          )
        #t
        )
@@ -606,6 +618,14 @@
     (if (logtest? (-> self draw status) (draw-control-status on-screen))
         (speech-control-method-12 *speech-control* self (speech-type speech-type-1))
         )
+    ;; City Insurrection: individual blue guards scan for red guards in the conflict zone
+    (when (and *mod-city-insurrection?*
+               (time-elapsed? (-> self last-danger-time) (seconds 0.5))
+               (= (city-get-pos-zone (-> self root trans)) 'conflict)
+               )
+      (set-time! (-> self last-danger-time))
+      (crimson-blue-guard-attack-guards self)
+      )
     )
   :code (-> (method-of-type citizen active) code)
   :post (behavior ()
@@ -1017,31 +1037,16 @@
 (defun crimson-blue-guard-attack-guards ((this crimson-blue-guard))
   "Manually trigger this guard's normal combat behavior against the nearest other
    crimson-guard within ~40m, deliberately excluding crimson-blue-guard itself."
-  (let ((candidate (find-nearest-attackable
-                      (-> this root trans)
-                      (meters 40)
-                      (the-as uint (search-info-flag enemy))
-                      (the-as uint (search-info-flag enemy))
-                      (-> this root trans)
-                      (-> this root trans)
-                      65536.0
-                      )
-                    )
-        )
-    (when (and candidate
-               (type-type? (-> (the-as process-drawable candidate) type) crimson-guard)
-               (not (type-type? (-> (the-as process-drawable candidate) type) crimson-blue-guard))
+  (let ((target-proc (find-nearest-enemy-guard this #f (meters 40))))
+    (when target-proc
+      (set! (-> this traffic-target-status handle) (process->handle target-proc))
+      (try-update-focus (-> this focus) target-proc this)
+      (crimson-blue-guard-alert-squad this target-proc)
+      (if (and (not (and (-> this next-state) (= (-> this next-state name) 'jump)))
+               (not (and (-> this next-state) (= (-> this next-state name) 'exit-transport)))
                )
-      (let ((target-proc (the-as process-focusable candidate)))
-        (set! (-> this traffic-target-status handle) (process->handle target-proc))
-        (try-update-focus (-> this focus) target-proc this)
-        (crimson-blue-guard-alert-squad this target-proc)
-        (if (and (not (and (-> this next-state) (= (-> this next-state name) 'jump)))
-                 (not (and (-> this next-state) (= (-> this next-state name) 'exit-transport)))
-                 )
-            (go-hostile this)
-            )
-        )
+          (go-hostile this)
+          )
       )
     )
   (none)

@@ -546,7 +546,61 @@
     (set! (-> arg0 proc) #f)
     (let ((v1-2 (-> this traffic object-type-info-array gp-0)))
       (when (and (> (-> v1-2 inactive-count) 0) (> (-> v1-2 reserve-count) 0))
-        (let* ((sv-16 (get-from-inactive-by-type this gp-0))
+        (let* ((sv-16
+                 (cond
+                   ((or (= gp-0 (traffic-type crimson-guard-0))
+                        (= gp-0 (traffic-type crimson-guard-1)))
+                    (let ((want-blue? (the-as symbol #f)))
+                      (cond
+                        (*mod-city-insurrection?*
+                         (let ((zone (city-get-pos-zone (-> arg0 position))))
+                           (case zone
+                             (('blue) (set! want-blue? #t))
+                             (('conflict) (set! want-blue? (zero? (rand-vu-int-count 2))))
+                             (else (set! want-blue? #f))
+                             )
+                           )
+                         )
+                        (*mod-city-peaceful?*
+                         (set! want-blue? #t)
+                         )
+                        (else
+                         (set! want-blue? (and (> *crimson-blue-guard-ratio* 0)
+                                               (zero? (rand-vu-int-count *crimson-blue-guard-ratio*))))
+                         )
+                        )
+                      (let ((chosen-h (the-as handle #f)))
+                        (dotimes (i (the-as int (-> v1-2 inactive-count)))
+                          (let* ((h (-> v1-2 array i))
+                                 (p (handle->process h))
+                                 )
+                            (when p
+                              (let ((is-blue? (type-type? (-> p type) crimson-blue-guard)))
+                                (when (or (and want-blue? is-blue?)
+                                          (and (not want-blue?) (not is-blue?)))
+                                  (set! chosen-h h)
+                                  (set! i (the-as int (-> v1-2 inactive-count)))
+                                  )
+                                )
+                              )
+                            )
+                          )
+                        (if (handle->process chosen-h)
+                            (begin
+                              (get-from-inactive-by-handle this gp-0 chosen-h)
+                              (+! (-> v1-2 reserve-count) -1)
+                              chosen-h
+                              )
+                            (get-from-inactive-by-type this gp-0)
+                            )
+                        )
+                      )
+                    )
+                   (else
+                     (get-from-inactive-by-type this gp-0)
+                     )
+                   )
+                 )
                (s3-0 (handle->process sv-16))
                )
           (when s3-0

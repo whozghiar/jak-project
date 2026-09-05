@@ -82,10 +82,17 @@
 ;; NOTE - for default-menu-pc (Mods tab); defined in traffic-manager.gc
 (define-extern *mod-city-peaceful?* symbol)
 (define-extern *mod-city-insurrection?* symbol)
+(define-extern *crimson-blue-guard-ratio* int)
+(define-extern city-get-current-zone (function symbol))
+(define-extern city-get-pos-zone (function vector symbol))
+(define-extern find-nearest-enemy-guard (function process-focusable symbol float process-focusable))
 
 (declare-type nav-mesh basic)
+
 (declare-type nav-branch structure)
 (declare-type traffic-manager process)
+(declare-type crimson-guard process-focusable)
+(declare-type crimson-blue-guard crimson-guard)
 
 ;; DECOMP BEGINS
 

@@ -5,6 +5,8 @@
 ;; name in dgo: guard
 ;; dgos: CWI
 
+(declare-type crimson-blue-guard crimson-guard)
+
 ;; DECOMP BEGINS
 
 (defskelgroup skel-crimson-guard crimson-guard crimson-guard-lod0-jg -1
@@ -489,10 +491,21 @@
     (('hit 'hit-flinch 'hit-knocked)
      (speech-control-method-13 *speech-control* (the-as handle this))
      (logior! (-> this flags) (citizen-flag hostile))
-     (let ((s1-0 (the-as process (as-type (handle->process (-> this incoming attacker-handle)) process-focusable))))
+     (let ((s1-0 (the-as process-focusable (as-type (handle->process (-> this incoming attacker-handle)) process-focusable))))
        (when s1-0
-         (speech-control-method-12 *speech-control* this (speech-type speech-type-11))
-         (trigger-alert this 1 (the-as target s1-0))
+         (cond
+           ((type-type? (-> s1-0 type) crimson-blue-guard)
+            ;; Hit by blue rebel guard in inter-faction skirmish:
+            ;; Target the blue guard directly and retaliate WITHOUT triggering city alarm against Jak!
+            (set! (-> this traffic-target-status handle) (process->handle s1-0))
+            (try-update-focus (-> this focus) s1-0 this)
+            (go-hostile this)
+            )
+           (else
+            (speech-control-method-12 *speech-control* this (speech-type speech-type-11))
+            (trigger-alert this 1 (the-as target s1-0))
+            )
+           )
          )
        )
      ((method-of-type nav-enemy general-event-handler) this arg0 arg1 arg2 arg3)
@@ -1209,6 +1222,50 @@
   (none)
   )
 
+(defun find-nearest-enemy-guard ((from-guard process-focusable) (search-blue? symbol) (max-dist float))
+  "Find the nearest opposing guard within max-dist in ambient traffic.
+   If search-blue? is true, searches for a crimson-blue-guard.
+   If search-blue? is false, searches for a red crimson-guard."
+  (let ((best-proc (the-as process-focusable #f))
+        (best-dist max-dist)
+        (from-pos (-> from-guard root trans))
+        (engine (if (and from-guard (type-type? (-> from-guard type) citizen))
+                    (-> (the-as citizen from-guard) controller traffic)
+                    *traffic-engine*
+                    )
+                )
+        )
+    (when engine
+      (let ((tracker (-> engine citizen-tracker-array)))
+        (dotimes (i (the-as int (-> tracker active-object-count)))
+          (let ((proc (as-type (handle->process (-> tracker active-object-list i)) process-focusable)))
+            (when (and proc
+                       (!= proc from-guard)
+                       (not (focus-test? proc dead inactive disable))
+                       )
+              (let ((is-blue? (type-type? (-> proc type) crimson-blue-guard))
+                    (is-red? (and (type-type? (-> proc type) crimson-guard)
+                                  (not (type-type? (-> proc type) crimson-blue-guard))))
+                    )
+                (when (or (and search-blue? is-blue?)
+                          (and (not search-blue?) is-red?))
+                  (let ((d (vector-vector-distance from-pos (-> proc root trans))))
+                    (when (< d best-dist)
+                      (set! best-dist d)
+                      (set! best-proc proc)
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    best-proc
+    )
+  )
+
 (defstate active (crimson-guard)
   :virtual #t
   :enter (behavior ()
@@ -1238,6 +1295,19 @@
         (when gp-0
           (try-update-focus (-> self focus) gp-0 self)
           (set! (-> self traffic-target-status handle) (process->handle gp-0))
+          (go-hostile self)
+          )
+        )
+      )
+    ;; City Insurrection: scan for blue rebel guards in the conflict zone
+    (when (and *mod-city-insurrection?*
+               (time-elapsed? (-> self state-time) (seconds 0.5))
+               (= (city-get-pos-zone (-> self root trans)) 'conflict)
+               )
+      (let ((blue-enemy (find-nearest-enemy-guard self #t (meters 35))))
+        (when blue-enemy
+          (set! (-> self traffic-target-status handle) (process->handle blue-enemy))
+          (try-update-focus (-> self focus) blue-enemy self)
           (go-hostile self)
           )
         )
@@ -1452,7 +1522,14 @@
           (logclear! (-> this enemy-flags) (enemy-flag multi-focus))
           (let ((v1-21 (the-as process (as-type (handle->process (-> this traffic-target-status handle)) process-focusable)))
                 )
-            (if (and v1-21 (!= (-> v1-21 type) target))
+            (if (and v1-21
+                     (!= (-> v1-21 type) target)
+                     (not (and *mod-city-insurrection?*
+                               (or (type-type? (-> v1-21 type) crimson-guard)
+                                   (type-type? (-> v1-21 type) crimson-blue-guard))
+                               )
+                          )
+                     )
                 (set! (-> this traffic-target-status handle) (the-as handle #f))
                 )
             )
@@ -1777,8 +1854,11 @@
     (let* ((s5-0 (-> self traffic-target-status))
            (gp-0 (as-type (handle->process (-> s5-0 handle)) process-focusable))
            )
-      (if (or (focus-test? gp-0 inactive) (focus-test? gp-0 disable))
-          (set! gp-0 (the-as process-focusable #f))
+      (if (or (focus-test? gp-0 inactive) (focus-test? gp-0 disable) (focus-test? gp-0 dead))
+          (begin
+            (set! gp-0 (the-as process-focusable #f))
+            (set! (-> s5-0 handle) (the-as handle #f))
+            )
           )
       (cond
         ((not gp-0)

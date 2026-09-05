@@ -832,6 +832,10 @@
     (if *mod-city-peaceful?*
         (set! *mod-city-insurrection?* #f)
         )
+    (when *traffic-manager*
+      (send-event *traffic-manager* 'deactivate-by-type 18)
+      (send-event *traffic-manager* 'deactivate-by-type 19)
+      )
     )
   *mod-city-peaceful?*
   )
@@ -844,6 +848,10 @@
     (if *mod-city-insurrection?*
         (set! *mod-city-peaceful?* #f)
         )
+    (when *traffic-manager*
+      (send-event *traffic-manager* 'deactivate-by-type 18)
+      (send-event *traffic-manager* 'deactivate-by-type 19)
+      )
     )
   *mod-city-insurrection?*
   )

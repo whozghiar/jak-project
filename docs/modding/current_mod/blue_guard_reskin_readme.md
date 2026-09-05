@@ -276,7 +276,7 @@ new knob defaults to a value that reproduces the original behavior exactly (`nat
 | Squad mutual defense & Faction friendly-fire immunity | ✅ done, verified in-game: squad responds as a unit without city sirens; blue members & projectiles are fully immune to friendly fire |
 | Squad weapon loadout diversity | ✅ done, verified in-game: 3-man squads always have 1 Taser, 1 Rifle, 1 Grenade Launcher; 2-man squads have 2 distinct weapons |
 | Faithful Crimson Guard combat AI | ✅ done, verified in-game: standoff distance (~6.5m–9m), reactive laser bursts/parabolic grenades, evasive sideways rolls, emergency-only close attack (< 2.5m) followed by evasive recovery roll |
-| "Mods" debug menu tab (`City Peaceful` / `City Insurrection`) | ⏳ `City Peaceful` fully functional; `City Insurrection` remains planned |
+| "Mods" debug menu tab (`City Peaceful` / `City Insurrection`) | ⏳ `City Peaceful` fully verified; `City Insurrection` in progress (WIP) |
 
 ## 9. "Mods" Debug Menu Tab & Features
 
@@ -302,15 +302,29 @@ When toggled on in the Mods menu:
   `roll-right`). Melee rifle-butts are strictly an emergency counter (< 2.5m) immediately followed
   by an evasive roll.
 
-### 9.2 City Insurrection (⏳ Upcoming Step)
-Planned for future work:
-- Blue and red/yellow guards become hostile to each other on sight, without alerting Jak, restricted
-  to designated "conflict zones" (e.g. the industrial section — only red/yellow/blue guards spawn
-  there and fight).
-- Red/yellow-controlled zones (port, palace, main town, bazaar, farm, stadium) keep normal alert
-  behavior toward Jak; blue-controlled zones (slums, water slums) stay peaceful/patrol-only, and
-  hitting a blue guard or a civilian there should not raise the alert either. The alert should
-  clear if Jak leaves a zone where it can be active.
+### 9.2 City Insurrection (⏳ Work in Progress / WIP)
+Currently in active development and tuning (spawning distribution across city sectors and autonomous hostility between factions).
+
+When toggled on in the Mods menu:
+- **Territorial Zoned Spawning:**
+  - **Blue Rebel Stronghold (Slums — `ctysluma`, `ctyslumb`):** 100% of ambient guard spawns are blue
+    guards (`crimson-blue-guard`) roaming individually with random weapon loadouts (taser, rifle, grenade launcher). No squad formation is used in this mode. No loyalist red guards patrol here.
+  - **Loyalist Districts (Main Town, Port, Farm, Palace, Stadium):** 100% of ambient guard spawns are
+    native Crimson Guards (`crimson-guard`) maintaining standard police order.
+  - **Conflict Zone (Industrial Section — `ctyinda`, `ctyindb`):** 50/50 mixed spawning of individual blue
+    guards (with random loadouts) and red guards.
+- **Autonomous Inter-Faction Warfare:**
+  - In the Conflict Zone, individual blue guards and red guards actively scan for each other (< 35m).
+  - Upon spotting an opposing faction, combatants immediately engage and open fire (laser bursts, parabolic grenades,
+    taser shock charges) in open street skirmishes without raising the city alarm against Jak.
+  - When attacked by blue guards, loyalist red guards retaliate directly against their attacker without
+    calling a city alarm or triggering sirens against Jak.
+  - Memory-safe target cleanup: dead combatants are immediately dereferenced, preventing crashes or
+    targeting dead actors.
+- **Safe Haven in Slums:**
+  - Entering the Slums immediately drops any active police alert level down to 0 (`decrease-alert-level 4`).
+  - While in the Slums, city alert increases are blocked; hitting blue guards triggers their self-defense
+    personal retaliation without sounding city sirens or spawning red reinforcements.
 
 ---
 ---
@@ -557,7 +571,7 @@ Voir le tableau en anglais ci-dessus (section 6) — identique, fichier par fich
 | Défense mutuelle d'escouade & immunité aux tirs alliés | ✅ fait, vérifié en jeu : l'escouade riposte comme un seul homme sans alarme générale ; membres et tirs bleus immunisés aux tirs fratricides |
 | Diversité de l'arsenal par escouade | ✅ fait, vérifié en jeu : les escouades de 3 possèdent toujours 1 Taser, 1 Fusil, 1 Lance-Grenades ; celles de 2 ont 2 armes distinctes |
 | IA de combat fidèle aux Crimson Guards | ✅ fait, vérifié en jeu : distance tactique (~6,5m–9m), tirs réactifs de rafales/grenades dès ldv acquise (jusqu'à 50m), roulades d'esquive latérales, coup de crosse de secours (< 2,5m) suivi d'une roulade de dégagement |
-| Onglet menu debug « Mods » (bascules `City Peaceful` / `City Insurrection`) | ⏳ `City Peaceful` entièrement opérationnel ; `City Insurrection` reste prévu |
+| Onglet menu debug « Mods » (bascules `City Peaceful` / `City Insurrection`) | ⏳ `City Peaceful` entièrement vérifié ; `City Insurrection` en cours de développement (WIP) |
 
 ## 9. Onglet Menu Debug « Mods » & Fonctionnalités
 
@@ -584,15 +598,29 @@ Lorsque cette option est activée dans le menu Mods :
   latérales (`roll-left` / `roll-right`). Les coups de crosse au corps à corps ne surviennent qu'en situation
   d'urgence absolue (< 2,5m) et sont immédiatement suivis d'une roulade de dégagement pour reprendre une posture de tir.
 
-### 9.2 City Insurrection (⏳ Prochaine Étape)
-Prévu pour la suite du développement :
-- Les gardes bleus et rouges/jaunes deviennent hostiles entre eux à vue, sans alerter Jak, restreint à des
-  « zones de conflit » désignées (ex. la section industrielle — seuls des gardes rouges/jaunes/bleus y apparaissent
-  et s'y battent).
-- Les zones contrôlées par les rouges/jaunes (port, palais, main town, bazaar, farm, stade) gardent un comportement
-  d'alerte normal envers Jak ; les zones contrôlées par les bleus (slums, water slums) restent paisibles/patrouille
-  uniquement, et frapper un garde bleu ou un civil là-bas ne devrait pas non plus déclencher l'alerte. L'alerte
-  devrait s'arrêter si Jak quitte une zone où elle peut être active.
+### 9.2 City Insurrection (⏳ En cours de développement / WIP)
+Actuellement en cours de développement et d'ajustement (répartition des spawns par secteurs de la ville et hostilité autonome entre factions).
+
+Lorsque cette option est activée dans le menu Mods :
+- **Génération territoriale par zones :**
+  - **Bastion des Rebelles Bleus (Slums — `ctysluma`, `ctyslumb`) :** 100% des gardes ambiants générés sont
+    des gardes bleus (`crimson-blue-guard`) se déplaçant individuellement avec un arsenal aléatoire (taser, fusil, lance-grenades). La notion d'escouade est absente de ce mode. Aucun garde rouge loyaliste n'y apparaît.
+  - **Quartiers Loyalistes (Centre-ville, Port, Fermes, Palais, Stade) :** 100% des gardes générés sont des
+    Crimson Guards rouges (`crimson-guard`) assurant le maintien de l'ordre standard.
+  - **Zone de Conflit (Secteur Industriel — `ctyinda`, `ctyindb`) :** génération mixte 50/50 de gardes bleus
+    individuels (armement aléatoire) et de gardes rouges.
+- **Guerre autonome inter-factions :**
+  - Dans la Zone de Conflit, les gardes bleus et rouges se déplacent individuellement et se repèrent mutuellement (< 35m).
+  - Dès qu'une faction ennemie est détectée, les gardes ouvrent immédiatement le feu (rafales laser,
+    grenades paraboliques, ruées au taser) dans des combats de rue ouverts sans la notion d'escouade et sans alerter la ville contre Jak.
+  - S'ils sont pris pour cible par des gardes bleus, les gardes rouges ripostent directement contre leur agresseur
+    sans déclencher de sirène ni d'alerte générale contre Jak.
+  - Nettoyage sécurisé de la mémoire : dès qu'un combattant est éliminé, son handle est réinitialisé, évitant tout
+    plantage ou acharnement sur un cadavre.
+- **Zone Refuge des Slums :**
+  - Pénétrer dans les Slums dissipe immédiatement toute alerte de police active vers le niveau 0 (`decrease-alert-level 4`).
+  - Dans les Slums, toute tentative d'élévation de l'alerte de ville est bloquée ; frapper des gardes bleus déclenche
+    leur autodéfense personnelle sans faire retentir les alarmes de Haven City.
 
 ---
 *(AI-assisted)*

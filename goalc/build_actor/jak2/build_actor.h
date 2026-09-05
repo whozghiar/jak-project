@@ -120,7 +120,13 @@ struct CollideMesh {
   }
 };
 
-struct BuildActorParams2 : BuildActorParams {};
+struct BuildActorParams2 : BuildActorParams {
+  // when set, pad the art-group header to the same 4-slot layout native characters use
+  // (jgeo, lod0-mg, lod2-mg, shadow-mg) before the animations, instead of the tool's
+  // normal 2-slot header (jgeo, dummy). This lets a reskin of an existing native character
+  // reuse that character's original animation slot indices unchanged.
+  bool native_anim_header = false;
+};
 
 struct ArtJointGeo : ArtElement {
   std::vector<Joint> data;

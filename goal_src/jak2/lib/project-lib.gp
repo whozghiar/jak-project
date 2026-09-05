@@ -141,9 +141,13 @@
               :tool 'build-level2
               :out '(,(string-append "$OUT/obj/" name ".go")))))
 
-(defmacro build-actor (name &key (gen-mesh #f) &key (force-run #f) &key (texture-bucket 0) &key (framerate 60.0) &key (master-art-group #f) &key (master-ag-map ()) &key (joint-channel 6))
+;; :native-header #t pads the art-group header to the same 4-slot layout (jgeo, lod0-mg,
+;; lod2-mg, shadow-mg) native characters use, instead of the tool's normal 2-slot header.
+;; Use this when reskinning an existing character so its animation slot indices land at the
+;; SAME numbers as the original (see docs/modding/current_mod/blue_guard_reskin_readme.md).
+(defmacro build-actor (name &key (gen-mesh #f) &key (force-run #f) &key (texture-bucket 0) &key (framerate 60.0) &key (master-art-group #f) &key (master-ag-map ()) &key (joint-channel 6) &key (native-header #f))
   (let* ((path (string-append "custom_assets/jak2/models/custom_levels/" name ".glb")))
-    `(defstep :in '(,path ,gen-mesh ,force-run ,texture-bucket ,framerate ,master-art-group ,master-ag-map ,joint-channel)
+    `(defstep :in '(,path ,gen-mesh ,force-run ,texture-bucket ,framerate ,master-art-group ,master-ag-map ,joint-channel ,native-header)
               :tool 'build-actor2
               :out '(,(string-append "$OUT/obj/" name "-ag.go")))))
 

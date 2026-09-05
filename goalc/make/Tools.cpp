@@ -364,7 +364,7 @@ bool BuildActorTool::run(const ToolInput& task, const PathMap& path_map) {
 BuildActor2Tool::BuildActor2Tool() : Tool("build-actor2") {}
 
 bool BuildActor2Tool::needs_run(const ToolInput& task, const PathMap& path_map) {
-  if (task.input.size() > 8) {
+  if (task.input.size() > 9) {
     throw std::runtime_error(fmt::format("Invalid amount of inputs to {} tool", name()));
   }
   auto rerun = task.input.at(2) == "#t";
@@ -374,10 +374,11 @@ bool BuildActor2Tool::needs_run(const ToolInput& task, const PathMap& path_map) 
 
 bool BuildActor2Tool::run(const ToolInput& task, const PathMap& path_map) {
   (void)path_map;
-  if (task.input.size() > 8) {
+  if (task.input.size() > 9) {
     throw std::runtime_error(fmt::format("Invalid amount of inputs to {} tool", name()));
   }
   jak2::BuildActorParams2 params;
+  params.native_anim_header = task.input.size() > 8 && task.input.at(8) == "#t";
   params.gen_collide_mesh = task.input.at(1) == "#t";
   if (task.input.at(3) == "#f") {
     params.texture_bucket = -1;

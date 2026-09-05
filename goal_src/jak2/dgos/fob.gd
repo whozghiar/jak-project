@@ -9,6 +9,7 @@
   "youngsamos-highres-ag.go"
   "jak-highres-ag.go"
   "crimson-guard-ag.go"
+  "crimson-blue-guard-ag.go"
   "crimson-guard-hover-ag.go"
   "transport-ag.go"
   "life-seed-ag.go"

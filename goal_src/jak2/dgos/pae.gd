@@ -11,6 +11,7 @@
   "tpage-3170.go"
   "tpage-3168.go"
   "crimson-guard-ag.go"
+  "crimson-blue-guard-ag.go"
   "palent-turret-ag.go"
   "pal-breakable-window-ag.go"
   "com-airlock-outer-ag.go"

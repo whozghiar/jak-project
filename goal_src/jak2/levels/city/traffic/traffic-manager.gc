@@ -7,9 +7,21 @@
 
 ;; DECOMP BEGINS
 
+;; forward-declare the blue crimson-guard variant (custom mod entity, defined in
+;; levels/city/traffic/citizen/crimson-blue-guard.gc) so traffic-object-spawn below can
+;; reference it regardless of file compile order -- same idiom as crimson-guard's own
+;; (declare-type crimson-guard citizen) in traffic-engine.gc.
+(declare-type crimson-blue-guard crimson-guard)
+
 (define *traffic-engine* (the-as traffic-engine #f))
 
 (define *traffic-fast-spawn* #f)
+
+;; how often ambient traffic spawns the blue crimson-guard variant (crimson-blue-guard, see
+;; levels/city/traffic/citizen/crimson-blue-guard.gc) instead of the stock one -- 1 in N spawns,
+;; using the same "N sets a ratio" convention as traffic-manager's dark-guard-ratio field just
+;; below. 0 disables it (always spawns the stock crimson-guard).
+(define *crimson-blue-guard-ratio* 8)
 
 (deftype traffic-manager (process)
   ((traffic-engine    traffic-engine)
@@ -322,6 +334,55 @@
     )
   )
 
+;; DEBUG: spawn a crimson-blue-guard a few meters in front of the player, bypassing the
+;; ambient traffic system entirely (calls citizen-spawn directly, exactly like
+;; traffic-object-spawn does for a real ambient guard). Call from the REPL once booted into
+;; any city level:
+;;   (spawn-crimson-blue-guard-debug 0)  ;; baton/taser guard (short-range `attack` state)
+;;   (spawn-crimson-blue-guard-debug 1)  ;; gun-equipped guard (`gun-shoot`, longer range,
+;;                                       ;; occasionally `grenade-attack` -- both already part
+;;                                       ;; of crimson-guard's stock repertoire, no new code
+;;                                       ;; needed for either loadout)
+(defun spawn-crimson-blue-guard-debug ((guard-type int))
+  (let* ((params (new 'stack-no-clear 'traffic-object-spawn-params))
+         (fwd (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> *target* root quat)))
+         )
+    (set! (-> params object-type) (traffic-type crimson-guard-1))
+    (set! (-> params behavior) (the-as uint 0))
+    (set! (-> params id) (the-as uint 0))
+    (vector+float*! (-> params position) (target-pos 0) fwd 8192.0)
+    ;; a real nav-mesh is required here -- citizen's 'traffic-activate handler only runs
+    ;; citizen-init!/set-behavior! (the calls that actually make it visible and behave) when
+    ;; spawn-params nav-mesh is non-#f. Same lookup ctywide-obs.gc uses for a real spawn point.
+    (set! (-> params nav-mesh) (find-nearest-nav-mesh (-> params position) (the-as float #x7f800000)))
+    (set! (-> params nav-branch) #f)
+    (quaternion-copy! (-> params rotation) (-> *target* root quat))
+    (set! (-> params velocity quad) (-> *null-vector* quad))
+    (set! (-> params handle) (the-as handle #f))
+    (set! (-> params guard-type) (the-as uint 0))
+    (set! (-> params user-data) (the-as uint 0))
+    (set! (-> params flags) (traffic-spawn-flags))
+    (set! (-> params proc) #f)
+    (let ((proc (citizen-spawn *target* crimson-blue-guard params)))
+      ;; citizen-init-by-other always leaves a freshly spawned citizen in the `inactive` state
+      ;; (no-draw, asleep) until the traffic system's normal tracking sends it 'traffic-activate
+      ;; -- which never happens here since we bypassed that tracking. Send it ourselves so the
+      ;; guard actually becomes visible/active immediately.
+      (when proc
+        (send-event proc 'traffic-activate params *traffic-engine*)
+        ;; citizen-init! (run synchronously inside 'traffic-activate above) always picks its
+        ;; own guard-type from the traffic-engine's shared setting
+        ;; (get-guard-type-for-traffic-obj), ignoring spawn-params guard-type entirely --
+        ;; force it explicitly afterward so this debug spawn can actually pick which loadout
+        ;; to test. Same method the traffic-engine itself uses to switch a guard's loadout
+        ;; live (guard.gc, hostile :trans).
+        (crimson-guard-method-225 (the-as crimson-guard proc) (the-as uint guard-type) #f)
+        )
+      proc
+      )
+    )
+  )
+
 (defun traffic-object-spawn ((arg0 process) (arg1 traffic-object-spawn-params))
   (let ((v0-0 (the-as process-drawable #f)))
     (case (-> arg1 object-type)
@@ -371,10 +432,28 @@
        (set! v0-0 (citizen-spawn arg0 metalhead-flitter arg1))
        )
       (((traffic-type crimson-guard-1))
-       (set! v0-0 (citizen-spawn arg0 crimson-guard arg1))
+       (set! v0-0 (citizen-spawn
+                     arg0
+                     (if (and (> *crimson-blue-guard-ratio* 0)
+                              (zero? (mod (-> arg1 id) *crimson-blue-guard-ratio*))
+                              )
+                         crimson-blue-guard
+                         crimson-guard
+                         )
+                     arg1
+                     ))
        )
       (((traffic-type crimson-guard-0))
-       (set! v0-0 (citizen-spawn arg0 crimson-guard arg1))
+       (set! v0-0 (citizen-spawn
+                     arg0
+                     (if (and (> *crimson-blue-guard-ratio* 0)
+                              (zero? (mod (-> arg1 id) *crimson-blue-guard-ratio*))
+                              )
+                         crimson-blue-guard
+                         crimson-guard
+                         )
+                     arg1
+                     ))
        )
       )
     v0-0

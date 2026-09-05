@@ -538,6 +538,13 @@ std::vector<u8> ArtGroup::save_object_file() const {
     }
 
     for (size_t i = 2; i < elts.size(); i++) {
+      if (!elts.at(i)) {
+        // native-header padding slot (lod2-mg / shadow-mg equivalent) with no real data.
+        // Must be a real link to the #f symbol (like res-lump above) -- an unlinked raw zero
+        // word is not a valid GOAL object reference and crashes anything that dereferences it.
+        gen.link_word_to_symbol("#f", (32 + i * 4) / 4);
+        continue;
+      }
       auto ja = (ArtJointAnim*)elts.at(i).get();
       gen.link_word_to_byte((32 + i * 4) / 4, ja->generate(gen));
     }
@@ -620,6 +627,12 @@ bool run_build_actor(const std::string& mdl_name,
   ag.elts.emplace_back(jgeo);
   // dummy merc-ctrl
   ag.elts.emplace_back(nullptr);
+  if (params.native_anim_header) {
+    // pad out to the 4-slot header (jgeo, lod0-mg, lod2-mg, shadow-mg) native characters
+    // use, so animation slot N here lines up with animation slot N in the original.
+    ag.elts.emplace_back(nullptr);
+    ag.elts.emplace_back(nullptr);
+  }
 
   if (!user_anims.empty()) {
     for (auto& anim : user_anims) {

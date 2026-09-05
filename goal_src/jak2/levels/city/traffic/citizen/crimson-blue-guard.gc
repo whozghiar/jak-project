@@ -1,0 +1,270 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: crimson-blue-guard.gc
+;; Blue-recolored Crimson Guard variant (custom mod entity, not part of the original game).
+;;
+;; ARCHITECTURE & ASSETS:
+;; - Visuals & Skeleton: The 3D model geometry and textures are compiled via build-actor:
+;;   - custom_assets/jak2/models/custom_levels/crimson-blue-guard.glb (Circuit 1, actor art-group)
+;;   - custom_assets/jak2/models/common/crimson-blue-guard-lod0.glb (Circuit 2, PC FR3 renderer)
+;;   Both share the pristine 38-bone skeleton with native joint indices:
+;;   Joint 14: "blast" (at gun barrel tip)
+;;   Joint 15: "dirblast" (forward direction vector from gun barrel)
+;;   This guarantees gunshots and taser lightning fire exactly from the muzzle.
+;;
+;; - Animation Alignment:
+;;   Built with :native-header #t, padding slots 2 & 3 so animation slots 4..43 align 1:1
+;;   with crimson-guard-ag.
+;;
+;; - Death Animation & Dissolution (inspired by yakow_killable):
+;;   Because custom actors built via build-actor use dummy merc-ctrl geometry, setting death-timer
+;;   would invoke Generic Merc C++ routines that access uninitialized fragment memory and crash.
+;;   Instead, die state directly replicates the death dissolution behavior:
+;;   1. Plays the "enemy-fizz" sound.
+;;   2. Spawns the authentic purple death particles (*part-id-table* 73) via merc-death-spawn /
+;;      sp-launch-particles-death across the guard's 38 bones over 1 second (~60 frames).
+;;   3. Hides the mesh after 5 frames (draw-control-status no-draw) so it dissolves into purple mist.
+;;   4. For knockdown death, knocked-fatal? prevents re-playing die-anim so the guard dissolves
+;;      directly on the ground just like the native crimson-guard.
+;;
+;; - Faction & Behavior:
+;;   Inherited from crimson-guard, with passive alert handling toward Jak:
+;;   - citizen-init! keeps the non-Jak-targeting spec so it does not attack Jak during city alerts.
+;;   - general-event-handler makes it personally hostile toward Jak only if Jak attacks it.
+;;   - crimson-blue-guard-attack-guards allows manually provoking a fight against red guards.
+
+(define-extern merc-death-spawn (function int vector vector none))
+(define-extern sp-launch-particles-death (function sparticle-system sparticle-launcher vector none))
+
+(deftype crimson-blue-guard (crimson-guard)
+  ((knocked-fatal?  symbol)
+   )
+  )
+
+(def-art-elt crimson-blue-guard-ag crimson-blue-guard-lod0-jg 0)
+(def-art-elt crimson-blue-guard-ag crimson-blue-guard-lod0-mg 1)
+
+(defskelgroup skel-crimson-blue-guard crimson-blue-guard crimson-blue-guard-lod0-jg -1
+              ((crimson-blue-guard-lod0-mg (meters 999999)))
+              :bounds (static-spherem 0 0 0 5)
+              :origin-joint-index 3
+              )
+
+(defmethod init-enemy! ((this crimson-blue-guard))
+  "Identical to crimson-guard's init-enemy!, except it binds skel-crimson-blue-guard."
+  (initialize-skeleton
+    this
+    (the-as skeleton-group (art-group-get-by-name *level* "skel-crimson-blue-guard" (the-as (pointer uint32) #f)))
+    (the-as pair 0)
+    )
+  (set! (-> this joint) (new 'process 'joint-mod (joint-mod-mode joint-set*-world) this 4))
+  (set! (-> this info) *crimson-guard-global-info*)
+  (init-enemy-behaviour-and-stats! this *crimson-guard-nav-enemy-info*)
+  (let ((v1-7 (-> this nav)))
+    (set! (-> v1-7 speed-scale) 1.0)
+    )
+  0
+  (set! (-> this draw lod-set lod 0 dist) 143360.0)
+  (set! (-> this draw lod-set lod 1 dist) 491520.0)
+  (set! (-> this anim-shuffle) 5)
+  (set! (-> this anim-walk) 5)
+  (set! (-> this speed-walk) 12288.0)
+  (set! (-> this dist-walk-anim) 12288.0)
+  (set! (-> this dist-run-anim) 34078.72)
+  (set! (-> this anim-run) 6)
+  (set! (-> this speed-run) 49152.0)
+  (set! (-> this anim-get-up-front) 33)
+  (set! (-> this anim-get-up-back) 34)
+  (set! (-> this l-control) (new 'process 'lightning-control (-> *lightning-spec-id-table* 13) this 0.0))
+  (set! (-> this l-control state points-to-draw) 0)
+  (set! (-> this water-anim) -1)
+  (set! (-> this minimap) #f)
+  (set! (-> this knocked-fatal?) #f)
+  0
+  (none)
+  )
+
+(defmethod citizen-init! ((this crimson-blue-guard))
+  "Same as crimson-guard's citizen-init!, except this variant never opportunistically
+   targets Jak on its own."
+  ((method-of-type crimson-guard citizen-init!) this)
+  (reset-to-collide-spec (-> this focus) (collide-spec enemy hit-by-others-list bot-targetable))
+  (none)
+  )
+
+(defbehavior crimson-blue-guard-dissolve-sequence crimson-blue-guard ()
+  "Plays the fizz sound and emits purple death particles (preset 73) across the skeleton
+   over 1 second (matching the yakow_killable pattern), while dissolving the body mesh."
+  (sound-play "enemy-fizz")
+  (let ((node-cnt (-> self node-list length))
+        (pos (new 'stack-no-clear 'vector))
+        (zero-vec (new 'static 'vector)))
+    (dotimes (frame 60)
+      ;; After 5 frames (~0.08s), hide the body mesh so it has dissolved into purple mist
+      (when (= frame 5)
+        (logior! (-> self draw status) (draw-control-status no-draw))
+        )
+      ;; Emit 8 purple death sparks each frame across random joints with spatial jitter
+      (dotimes (j 8)
+        (let ((joint-idx (rand-vu-int-count node-cnt)))
+          (vector<-cspace! pos (-> self node-list data joint-idx))
+          (+! (-> pos x) (rnd-float-range self -819.2 819.2))
+          (+! (-> pos y) (rnd-float-range self -819.2 819.2))
+          (+! (-> pos z) (rnd-float-range self -819.2 819.2))
+          (merc-death-spawn 73 pos zero-vec)
+          )
+        )
+      (suspend)
+      )
+    )
+  (send-event self 'death-end)
+  (while (-> self child)
+    (suspend)
+    )
+  (cleanup-for-death self)
+  (none)
+  )
+
+(defstate die (crimson-blue-guard)
+  :virtual #t
+  :event enemy-event-handler
+  :enter (behavior ()
+    (dying self)
+    (let ((v1-3 (-> self root root-prim)))
+      (set! (-> v1-3 prim-core collide-as) (collide-spec))
+      (set! (-> v1-3 prim-core collide-with) (collide-spec))
+      )
+    0
+    (set-time! (-> self state-time))
+    (set! (-> self hit-points) 0)
+    (enemy-method-103 self)
+    )
+  :code (behavior ()
+    ;; If the guard died while standing, play the standing death collapse animation first.
+    ;; If the guard was knocked down, knocked-fatal? is #t so he stays lying on the ground.
+    (when (not (-> self knocked-fatal?))
+      (ja-channel-push! 1 (seconds 0.075))
+      (let ((f30-0 (rnd-float-range self 0.8 1.2)))
+        (ja-no-eval :group! (-> self draw art-group data (-> self enemy-info die-anim))
+                    :num! (seek! max f30-0)
+                    :frame-num 0.0
+                    )
+        (until (ja-done? 0)
+          (suspend)
+          (ja :num! (seek! max f30-0))
+          )
+        )
+      )
+    ;; Run the purple dissolution sequence (inspired by yakow_killable)
+    (crimson-blue-guard-dissolve-sequence)
+    )
+  :post enemy-simple-post
+  )
+
+(defmethod general-event-handler ((this crimson-blue-guard) (arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+  "The only behavioral difference from crimson-guard: this variant never becomes hostile
+   toward Jak from a general city alert, only from being personally hit/shot/shot-near by
+   him -- and even then, without ever raising the city-wide alert."
+  (case arg2
+    (('hit 'hit-flinch 'hit-knocked)
+     (logior! (-> this flags) (citizen-flag hostile))
+     (let ((attacker (the-as process-focusable (as-type (handle->process (-> this incoming attacker-handle)) process-focusable))))
+       (when attacker
+         (speech-control-method-12 *speech-control* this (speech-type speech-type-11))
+         (if (logtest? (-> attacker mask) (process-mask target))
+             (begin
+               (set! (-> this traffic-target-status handle) (process->handle attacker))
+               (try-update-focus (-> this focus) attacker this)
+               )
+             (trigger-alert this 1 (the-as target attacker))
+             )
+         )
+       )
+     ((method-of-type nav-enemy general-event-handler) this arg0 arg1 arg2 arg3)
+     )
+    (('panic)
+     (set-time! (-> this last-danger-time))
+     (let ((danger-info (the-as traffic-danger-info (-> arg3 param 0))))
+       (case (-> danger-info danger-type)
+         (((traffic-danger-type tdt7))
+          (set! (-> this cp-factor) 20.0)
+          (let ((source (the-as process-focusable (as-type (handle->process (-> danger-info handle)) process-focusable))))
+            (if (not (and source (logtest? (-> source mask) (process-mask target))))
+                (trigger-alert this 1 (the-as target source))
+                )
+            )
+          )
+         )
+       )
+     )
+    (('clear-path)
+     (set-time! (-> this last-danger-time))
+     (let ((v1-44 (the-as traffic-danger-info (-> arg3 param 0))))
+       (set! (-> this cp-valid?) #t)
+       (set! (-> this cp-sphere quad) (-> v1-44 sphere quad))
+       (set! (-> this cp-vec quad) (-> v1-44 velocity quad))
+       )
+     (let ((s5-2 (-> this cp-plane)))
+       (set! (-> s5-2 quad) (-> this cp-vec quad))
+       (set! (-> s5-2 y) 0.0)
+       (vector-rotate90-around-y! s5-2 s5-2)
+       (vector-normalize! s5-2 1.0)
+       (set! (-> s5-2 w) (- (vector-dot (the-as vector s5-2) (the-as vector (-> this cp-sphere)))))
+       )
+     (set! (-> this cp-exit-time) (the-as time-frame (+ (current-time) (seconds 1))))
+     )
+    (('alert-begin)
+     ;; deliberately a no-op: stock crimson-guard's 'alert-begin targets whoever
+     ;; triggered the alert (almost always Jak) and goes hostile toward them.
+     )
+    (('event-death)
+     ;; Event death is safely handled by the die state sequence.
+     #f
+     )
+    (else
+      ((method-of-type crimson-guard general-event-handler) this arg0 arg1 arg2 arg3)
+      )
+    )
+  )
+
+(defmethod enemy-method-78 ((this crimson-blue-guard) (arg0 enemy-knocked-info))
+  "Handles fatal knockdown: records knocked-fatal? so the guard stays on the ground,
+   and delegates to crimson-guard to play the knocked-land animation without setting death-start."
+  (when (<= (-> this hit-points) 0)
+    (set! (-> this knocked-fatal?) #t)
+    )
+  ((method-of-type crimson-guard enemy-method-78) this arg0)
+  )
+
+(defun crimson-blue-guard-attack-guards ((this crimson-blue-guard))
+  "Manually trigger this guard's normal combat behavior against the nearest other
+   crimson-guard within ~40m, deliberately excluding crimson-blue-guard itself."
+  (let ((candidate (find-nearest-attackable
+                      (-> this root trans)
+                      (meters 40)
+                      (the-as uint (search-info-flag enemy))
+                      (the-as uint (search-info-flag enemy))
+                      (-> this root trans)
+                      (-> this root trans)
+                      65536.0
+                      )
+                    )
+        )
+    (when (and candidate
+               (type-type? (-> (the-as process-drawable candidate) type) crimson-guard)
+               (not (type-type? (-> (the-as process-drawable candidate) type) crimson-blue-guard))
+               )
+      (let ((target-proc (the-as process-focusable candidate)))
+        (set! (-> this traffic-target-status handle) (process->handle target-proc))
+        (try-update-focus (-> this focus) target-proc this)
+        (if (and (not (and (-> this next-state) (= (-> this next-state name) 'jump)))
+                 (not (and (-> this next-state) (= (-> this next-state name) 'exit-transport)))
+                 )
+            (go-hostile this)
+            )
+        )
+      )
+    )
+  (none)
+  )

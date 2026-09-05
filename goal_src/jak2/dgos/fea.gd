@@ -9,6 +9,7 @@
   "tpage-1583.go"
   "tpage-1581.go"
   "crimson-guard-ag.go"
+  "crimson-blue-guard-ag.go"
   "fort-lift-plat-ag.go"
   "forexita-vis.go"
  ))

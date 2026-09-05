@@ -20,6 +20,7 @@
   "tpage-2844.go"
   "dig-digger-ag.go"
   "crimson-guard-ag.go"
+  "crimson-blue-guard-ag.go"
   "dig-bomb-crate-ag.go"
   "dig-conveyor-ag.go"
   "dig-clasp-ag.go"

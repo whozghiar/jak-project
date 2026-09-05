@@ -18,8 +18,8 @@ import subprocess
 import sys
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-DASHBOARD_FILE = os.path.join(REPO_ROOT, "docs", "modding", "branch_sync_status.md")
-HISTORY_LOG_FILE = os.path.join(REPO_ROOT, "docs", "modding", "branch_sync_history.md")
+DASHBOARD_FILE = os.path.join(REPO_ROOT, "docs", "modding", "tools", "branch_sync_status.md")
+HISTORY_LOG_FILE = os.path.join(REPO_ROOT, "docs", "modding", "tools", "branch_sync_history.md")
 
 def log_event(event_type, branch, details):
     """Append a structured entry to the persistent sync history markdown file."""

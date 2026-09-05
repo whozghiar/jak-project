@@ -11,6 +11,7 @@
   "tpage-1593.go"
   "fort-plat-orbit-ag.go"
   "crimson-guard-ag.go"
+  "crimson-blue-guard-ag.go"
   "fort-floor-spike-c-ag.go"
   "fort-floor-spike-b-ag.go"
   "fort-trap-door-ag.go"

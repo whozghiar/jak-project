@@ -13,6 +13,7 @@
   "tpage-2970.go"
   "roboguard-ag.go"
   "crimson-guard-ag.go"
+  "crimson-blue-guard-ag.go"
   "com-airlock-outer-ag.go"
   "cas-rot-bridge-ag.go"
   "cas-electric-fence-ag.go"

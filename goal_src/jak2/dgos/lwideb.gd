@@ -3,6 +3,7 @@
   "grunt-ag.go"
   "citizen-norm-ag.go"
   "crimson-guard-ag.go"
+  "crimson-blue-guard-ag.go"
   "predator-ag.go"
   "flitter-ag.go"
   "cara-ag.go"

@@ -90,6 +90,10 @@
   :out '("$OUT/obj/dir-tpages.go")
   )
 (hash-table-set! *file-entry-map* "dir-tpages.go" #f)
+;; crimson-blue-guard-ag.go / crimson-blue-guard.o are built explicitly below (build-actor / goal-src),
+;; not decompiled or auto-discovered -- pre-mark them so cgo-file doesn't generate conflicting second build steps.
+(hash-table-set! *file-entry-map* "crimson-blue-guard-ag.go" #f)
+(hash-table-set! *file-entry-map* "crimson-blue-guard.o" #f)
 
 (cgo-file "game.gd" '("$OUT/obj/gcommon.o" "$OUT/obj/gstate.o" "$OUT/obj/gstring.o" "$OUT/obj/gkernel.o"))
 
@@ -324,6 +328,11 @@
 ;; - joint-channel: how many joint channels the actor should have. defaults to 6.
 ;; more complicated actors like jak that make a lot of use of animation blending can have 24+ channels.
 (build-actor "test-actor" :force-run #t :gen-mesh #t)
+
+;; blue-recolored crimson-guard variant (custom mod entity, see
+;; levels/city/traffic/citizen/crimson-blue-guard.gc).
+(build-actor "crimson-blue-guard" :force-run #t :native-header #t)
+(goal-src "levels/city/traffic/citizen/crimson-blue-guard.gc" "guard")
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; ANIMATIONS

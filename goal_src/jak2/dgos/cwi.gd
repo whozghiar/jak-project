@@ -25,6 +25,7 @@
   "citizen.o"
   "civilian.o"
   "guard.o"
+  "crimson-blue-guard.o"
   "citizen-norm.o"
   "citizen-fat.o"
   "citizen-chick.o"

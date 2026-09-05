@@ -4,6 +4,7 @@
   "roboguard-ag.go"
   "citizen-norm-ag.go"
   "crimson-guard-ag.go"
+  "crimson-blue-guard-ag.go"
   "citizen-chick-ag.go"
   "hellcat-ag.go"
   "carc-ag.go"

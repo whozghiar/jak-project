@@ -21,6 +21,7 @@
   "tpage-3192.go"
   "tpage-3191.go"
   "crimson-guard-ag.go"
+  "crimson-blue-guard-ag.go"
   "crimson-guard-hover-ag.go"
   "fort-entry-gate-ag.go"
   "cty-guard-turret-button-ag.go"

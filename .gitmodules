@@ -1,0 +1,3 @@
+[submodule "docs/modding/tools/open-goal-glb-reskin-tool"]
+	path = docs/modding/tools/open-goal-glb-reskin-tool
+	url = https://github.com/whozghiar/open-goal-glb-reskin-tool.git

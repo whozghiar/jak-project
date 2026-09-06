@@ -105,7 +105,11 @@
 
 (defmethod citizen-init! ((this crimson-blue-guard))
   "Same as crimson-guard's citizen-init!, except this variant never opportunistically
-   targets Jak on its own, has 4 HP, and rolls a random weapon loadout (tazer, rifle, grenade)."
+   targets Jak on its own, has 4 HP, rolls a random weapon loadout (tazer, rifle, grenade),
+   and registers its own blue minimap frustum icon (minimap-class blue-guard-frustum)."
+  (if (not (-> this minimap))
+      (set! (-> this minimap) (add-icon! *minimap* this (the-as uint (minimap-class blue-guard-frustum)) (the-as int #f) (the-as vector #t) 0))
+      )
   ((method-of-type crimson-guard citizen-init!) this)
   (reset-to-collide-spec (-> this focus) (collide-spec enemy hit-by-others-list bot-targetable))
   (set! (-> this hit-points) 4)
@@ -222,6 +226,10 @@
   :virtual #t
   :event enemy-event-handler
   :enter (behavior ()
+    (when (-> self minimap)
+      (logior! (-> self minimap flags) (minimap-flag fade-out))
+      (set! (-> self minimap) #f)
+      )
     (dying self)
     (let ((v1-3 (-> self root root-prim)))
       (set! (-> v1-3 prim-core collide-as) (collide-spec))

@@ -97,9 +97,12 @@
 ;; symbols exist on every branch (defined in mod-city-hooks.gc, default #f).
 (define-extern *mod-city-peaceful?* symbol)
 (define-extern *mod-city-insurrection?* symbol)
-;; City Insurrection war-zone district ('industrial default; see mod-city-insurrection.gc). Only
-;; the insurrection library defines it; only the debug menu's war-zone picker reads it.
+;; City Insurrection war-zone district configuration (see mod-city-insurrection.gc).
 (define-extern *mod-city-conflict-district* symbol)
+(define-extern *mod-city-conflict-mask* int)
+(define-extern *mod-city-war-music* symbol)
+(define-extern city-district->mask (function symbol int))
+(define-extern mod-city-war-music-stop (function none))
 
 (declare-type nav-mesh basic)
 
@@ -119,6 +122,8 @@
 (define-extern *mod-city-alert-blocked-hook* (function symbol))
 ;; crimson-blue-guard 'traffic-activate: the hook adds mode behaviour after stock activation (args: this, params)
 (define-extern *mod-city-blue-activated-hook* (function crimson-blue-guard object symbol))
+;; crimson-guard 'traffic-activate: general guard activation (e.g. randomize weapon in war zones)
+(define-extern *mod-city-guard-activated-hook* (function crimson-guard object symbol))
 ;; per-frame active-state scan (guard.gc + crimson-blue-guard.gc active:trans)
 (define-extern *mod-city-guard-active-trans-hook* (function crimson-guard none))
 ;; per-frame search-state scan (guard.gc search:trans): 'engaged = re-acquired a foe,

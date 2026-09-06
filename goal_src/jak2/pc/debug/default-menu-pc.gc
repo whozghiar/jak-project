@@ -840,21 +840,44 @@
   "Debug-menu pick-func for the Mods tab: toggles *mod-city-insurrection?*."
   (when (= arg1 (debug-menu-msg press))
     (set! *mod-city-insurrection?* (not *mod-city-insurrection?*))
+    (when (not *mod-city-insurrection?*)
+      (mod-city-war-music-stop)
+      )
     (dm-mod-city-flush-guards)
     )
   *mod-city-insurrection?*
   )
 
-(defun dm-mod-city-conflict-district-pick-func ((arg0 symbol) (arg1 debug-menu-msg))
-  "Radio-style Mods-tab picker: choose which Haven City district is the City Insurrection war
-   zone. arg0 is the district tag baked into the menu template ('industrial / 'port / 'bazaar /
-   'farm / 'market -- see city-district-of-level). On press: point *mod-city-conflict-district* at
-   that district and flush the guards so the new zoning takes hold live."
-  (when (= arg1 (debug-menu-msg press))
-    (set! *mod-city-conflict-district* arg0)
-    (dm-mod-city-flush-guards)
+(defun dm-mod-city-conflict-district-toggle-func ((arg0 symbol) (arg1 debug-menu-msg))
+  "Toggle a district in/out of the conflict mask. If 'all, toggle full city war."
+  (let ((mask (city-district->mask arg0)))
+    (when (= arg1 (debug-menu-msg press))
+      (cond
+        ((= arg0 'all)
+         (if (= *mod-city-conflict-mask* 255)
+             (set! *mod-city-conflict-mask* 0)
+             (set! *mod-city-conflict-mask* 255)
+             )
+         )
+        (else
+          (logxor! *mod-city-conflict-mask* mask)
+          )
+        )
+      (dm-mod-city-flush-guards)
+      )
+    (if (= arg0 'all)
+        (= *mod-city-conflict-mask* 255)
+        (logtest? *mod-city-conflict-mask* mask)
+        )
     )
-  (= *mod-city-conflict-district* arg0)
+  )
+
+(defun dm-mod-city-war-music-pick-func ((arg0 symbol) (arg1 debug-menu-msg))
+  "Pick which battle music plays in armed conflict zones."
+  (when (= arg1 (debug-menu-msg press))
+    (set! *mod-city-war-music* arg0)
+    )
+  (= *mod-city-war-music* arg0)
   )
 
 (when (-> *debug-menu-context* root-menu)
@@ -1059,13 +1082,26 @@
   (debug-menu-append-item (-> *debug-menu-context* root-menu)
     (debug-menu-make-from-template *debug-menu-context*
       '(menu "Mods"
-          (flag "City Insurrection (blue vs red/yellow war, by zone)" #f dm-mod-city-insurrection-pick-func)
-          (menu "Insurrection war zone"
-            (flag "Industrial (default)" industrial dm-mod-city-conflict-district-pick-func)
-            (flag "Port" port dm-mod-city-conflict-district-pick-func)
-            (flag "Bazaar / Main Town" bazaar dm-mod-city-conflict-district-pick-func)
-            (flag "Farmland" farm dm-mod-city-conflict-district-pick-func)
-            (flag "Market" market dm-mod-city-conflict-district-pick-func)
+          (flag "City Insurrection (blue vs red/yellow war)" #f dm-mod-city-insurrection-pick-func)
+          (menu "Insurrection war zones"
+            (flag "All City in Conflict (Full War)" all dm-mod-city-conflict-district-toggle-func)
+            (flag "Slums" slums dm-mod-city-conflict-district-toggle-func)
+            (flag "Water Slums" water-slums dm-mod-city-conflict-district-toggle-func)
+            (flag "Industrial Section (default)" industrial dm-mod-city-conflict-district-toggle-func)
+            (flag "Port" port dm-mod-city-conflict-district-toggle-func)
+            (flag "Bazaars (Est & Ouest)" bazaars dm-mod-city-conflict-district-toggle-func)
+            (flag "Gardens (Nord & Sud)" gardens dm-mod-city-conflict-district-toggle-func)
+            (flag "Quartier residentiel (Main Town)" main-town dm-mod-city-conflict-district-toggle-func)
+            (flag "Le stade" stadium dm-mod-city-conflict-district-toggle-func)
+            )
+          (menu "War Music"
+            (flag "Danger 9 (City Combat - Default)" danger9 dm-mod-city-war-music-pick-func)
+            (flag "Danger 1 (Canyon Battle)" danger1 dm-mod-city-war-music-pick-func)
+            (flag "Battle" battle dm-mod-city-war-music-pick-func)
+            (flag "Danger 10 (Drill Mech)" danger10 dm-mod-city-war-music-pick-func)
+            (flag "Danger 11 (Fortress Dump)" danger11 dm-mod-city-war-music-pick-func)
+            (flag "Danger 3 (Onin Minigame)" danger3 dm-mod-city-war-music-pick-func)
+            (flag "None / Disabled" none dm-mod-city-war-music-pick-func)
             )
           )
       )

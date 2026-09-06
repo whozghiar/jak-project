@@ -465,8 +465,8 @@
          )
        )
       (((traffic-type crimson-guard-0))
-       ;; Secondary stock pool -- id-parity blue/red mix.
-       (let ((spawn-blue? (logtest? (-> arg1 id) 1)))
+       ;; Secondary stock pool.
+       (let ((spawn-blue? (*mod-city-guard-spawn-blue-hook* arg1)))
          (set! v0-0 (citizen-spawn
                        arg0
                        (if spawn-blue? crimson-blue-guard crimson-guard)

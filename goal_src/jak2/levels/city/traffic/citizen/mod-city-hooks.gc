@@ -26,12 +26,13 @@
 (define-extern mod-ins-guard-active-trans (function crimson-guard none))
 (define-extern mod-ins-guard-search-trans (function crimson-guard symbol))
 (define-extern mod-ins-keep-guard-target? (function process-focusable symbol))
+(define-extern mod-ins-guard-activated? (function crimson-guard traffic-object-spawn-params symbol))
 
 ;; --- no-op / stock defaults ---------------------------------------------------------------------
 
 (defun mod-city-hook-guard-spawn-blue? ((params traffic-object-spawn-params))
-  "default *mod-city-guard-spawn-blue-hook*: stock id-parity blue/red mix."
-  (logtest? (-> params id) 1)
+  "default *mod-city-guard-spawn-blue-hook*: stock -> no blue guards."
+  #f
   )
 
 (defun mod-city-hook-guard-activate ((this traffic-tracker) (ttype traffic-type))
@@ -46,7 +47,7 @@
 (defun mod-city-ins-guard-spawn-blue? ((params traffic-object-spawn-params))
   (if *mod-city-insurrection?*
       (mod-ins-guard-spawn-blue? params)
-      (logtest? (-> params id) 1)
+      #f
       )
   )
 
@@ -57,6 +58,13 @@
 (defun mod-city-ins-blue-activated? ((this crimson-blue-guard) (params traffic-object-spawn-params))
   (if *mod-city-insurrection?*
       (mod-ins-blue-activated? this params)
+      #f
+      )
+  )
+
+(defun mod-city-ins-guard-activated? ((this crimson-guard) (params traffic-object-spawn-params))
+  (if *mod-city-insurrection?*
+      (mod-ins-guard-activated? this params)
       #f
       )
   )
@@ -83,6 +91,7 @@
 (define *mod-city-guard-activate-hook* (the-as (function object traffic-type handle) mod-city-hook-guard-activate))
 (define *mod-city-alert-blocked-hook* mod-city-ins-alert-blocked?)
 (define *mod-city-blue-activated-hook* (the-as (function crimson-blue-guard object symbol) mod-city-ins-blue-activated?))
+(define *mod-city-guard-activated-hook* (the-as (function crimson-guard object symbol) mod-city-ins-guard-activated?))
 (define *mod-city-guard-active-trans-hook* mod-city-ins-guard-active-trans)
 (define *mod-city-guard-search-trans-hook* mod-city-ins-guard-search-trans)
 (define *mod-city-keep-guard-target-hook* mod-city-ins-keep-guard-target?)

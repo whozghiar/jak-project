@@ -510,6 +510,13 @@
        )
      ((method-of-type nav-enemy general-event-handler) this arg0 arg1 arg2 arg3)
      )
+    (('traffic-activate)
+     (let ((params (the-as traffic-object-spawn-params (-> arg3 param 0))))
+       ((method-of-type citizen general-event-handler) this arg0 arg1 arg2 arg3)
+       (*mod-city-guard-activated-hook* this params)
+       )
+     #t
+     )
     (('event-death)
      (if (zero? (-> this hit-points))
          (do-effect (-> this skel effect) 'death-default 0.0 -1)

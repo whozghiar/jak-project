@@ -22,7 +22,19 @@ sounds, only with a re-textured mesh. It appears in Haven City mixed into the no
 guard traffic, alongside the regular red guards.
 
 - **Target Game:** Jak 2
-- **Active Branch:** `jak2/features/blueguard`
+- **Active Branch:** `jak2/features/blueguard` — the **combined** branch: base blue-guard traffic
+  plus **both** City Peaceful and City Insurrection (mutually exclusive at runtime).
+
+### Branch family
+The mod is split into a layered family of local branches so each piece can be built and demoed
+on its own. The shared traffic/guard engine files are byte-identical across all four.
+
+| Branch | Contents |
+|---|---|
+| `jak2/features/blueguard-traffic` | base: `crimson-blue-guard` entity + faithful combat AI + ambient city-traffic spawning + the `*mod-city-*-hook*` extension layer |
+| `jak2/features/city-peaceful` | base + **City Peaceful** — neutral blue patrol squads |
+| `jak2/features/city-insurrection` | base + **City Insurrection** — three-front territorial civil war, debug-menu war-zone picker |
+| **`jak2/features/blueguard`** *(this one)* | base + **both** modes |
 
 ## ✨ Key Features
 - **New standalone entity:** `crimson-blue-guard` is a real GOAL type (subtype of
@@ -37,7 +49,7 @@ guard traffic, alongside the regular red guards.
   that makes it go hostile toward the nearest red `crimson-guard` — never automatic, called
   explicitly (REPL or code).
 - **Mixed into ambient city traffic:** the traffic manager now spawns the blue variant for a
-  configurable fraction of ambient guard spawns (`*crimson-blue-guard-ratio*`, default 1-in-8),
+  configurable fraction of ambient guard spawns (`*crimson-blue-guard-ratio*`, default 1-in-2 of the id-parity pool),
   right alongside the stock guard.
 - **"Mods" debug menu tab (City Peaceful & City Insurrection):** the debug menu includes a dedicated "Mods" tab:
   - `City Peaceful` (**Fully Implemented & Verified**): ambient blue guards spawn in coordinated 2 to 3 member patrol squads with tight formation navigation, adaptive speed modulation, automatic leader re-election, and diverse weapon loadouts (taser, rifle, grenade launcher). Squad members defend each other in mutual retaliatory defense without raising the city alarm, and enjoy complete friendly-fire immunity.
@@ -80,9 +92,9 @@ Run the game natively:
 task boot-game
 ```
 *(Or launch via the OpenGOAL REPL using `task repl`, then compile and run with `(mi)` and `(r)`).*
-Roughly 1 in 8 ambient guard spawns in Haven City will be blue. To see it faster while testing,
+Roughly half of ambient guard spawns in Haven City will be blue. To see it faster while testing,
 set `(set! *crimson-blue-guard-ratio* 1)` at the REPL once booted — every ambient guard spawn
-becomes blue until you reset it back to `8` (or any N you like). You can also spawn one right in
+becomes blue until you reset it back to `2` (or any N you like). You can also spawn one right in
 front of you regardless of the ratio with `(spawn-crimson-blue-guard-debug 0)` (baton guard) or
 `(spawn-crimson-blue-guard-debug 1)` (gun-equipped guard).
 
@@ -118,7 +130,7 @@ mélangé au trafic ambiant normal, aux côtés des gardes rouges classiques.
   jamais automatique, appelée explicitement (REPL ou code).
 - **Mélangé au trafic ambiant de la ville :** le traffic-manager fait maintenant apparaître la
   variante bleue pour une fraction configurable des spawns de gardes ambiants
-  (`*crimson-blue-guard-ratio*`, 1 sur 8 par défaut), aux côtés du garde classique.
+  (`*crimson-blue-guard-ratio*`, 1 sur 2 du pool parité-id par défaut), aux côtés du garde classique.
 - **Onglet menu debug « Mods » (City Peaceful & City Insurrection) :** le menu debug comprend un onglet « Mods » :
   - `City Peaceful` (**Entièrement Implémenté & Vérifié**) : les gardes bleus ambiants patrouillent en escouades coordonnées de 2 à 3 membres avec déplacement en formation serrée, modulation adaptative de la vitesse, réélection automatique du leader, et répartition d'armes variées (taser, fusil laser, lance-grenades). Les membres de l'escouade ripostent ensemble en cas d'agression sans déclencher l'alarme de la ville, et bénéficient d'une immunité totale aux tirs alliés.
   - `City Insurrection` (**Entièrement Implémenté**) : une guerre civile territoriale à trois fronts dans Haven City, les quartiers étant classés par le nom du niveau de ville chargé (jamais de coordonnées codées en dur). Le pool de gardes ambiants de la ville est peuplé de la faction qui contrôle le quartier où se trouve Jak, donc les quartiers sont strictement territoriaux sans aucun slot de spawn gaspillé. **Slums** (`ctysluma`/`b`/`c`) — bastion des rebelles bleus : strictement 100% de gardes bleus solitaires à arsenal aléatoire, et zone refuge sans alerte (tout niveau de recherche retombe à 0 à l'entrée et ne peut plus monter ; frapper un garde bleu ne déclenche que son autodéfense personnelle). **Quartiers loyalistes** (tout le reste) — strictement 100% de gardes rouges/jaunes classiques, avec une densité et un comportement de police strictement d'origine envers Jak. **Zone de Guerre** — un quartier configurable (`Debug ▸ Mods ▸ Insurrection war zone` : **Industriel** `ctyinda`/`b` par défaut, ou Port / Bazar / Fermes / Marché) : ~30 gardes en 50/50 bleus vs rouges (deux pools de gardes, tous les civils/têtes-de-métal/véhicules retirés, spawn plus serré), et les deux factions se repèrent et ouvrent le feu mutuellement à vue (rafales, grenades, charges au taser) avec une portée d'acquisition de ~60 m — une bataille de fond vivante qui ne fait jamais monter le niveau de recherche de Jak (frapper un garde rouge ici ne déclenche rien non plus ; seuls les quartiers loyalistes appliquent le système de recherche). Basculer le mode ou le quartier de guerre re-tire les gardes immédiatement ; franchir une frontière de quartier les fait faire un fondu sur ~1-2 secondes.

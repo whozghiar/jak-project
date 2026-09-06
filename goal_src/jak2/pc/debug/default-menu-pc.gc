@@ -818,10 +818,44 @@
 (define *screen-shot-capture-profile* #f)
 
 ;; ----------------------------------------------------------------------------------
-;; Blue Crimson Guard mod: this branch (blueguard-traffic) has no "Mods" tab -- there is no
-;; City Peaceful / City Insurrection mode to toggle. The feature branches (jak2/features/city-*)
-;; ship their own "Mods" block here.
+;; "Mods" debug menu tab -- City Insurrection (this branch: jak2/features/city-insurrection).
 ;; ----------------------------------------------------------------------------------
+
+(defun dm-mod-city-flush-guards ()
+  "Park every ambient city guard so they respawn (within a second or two) under whichever war-zone
+   district / mode is now active. The crimson-guard traffic pools (4, 6, 7) hold red AND blue
+   processes, so deactivating them re-rolls each guard's faction / weapon; the guard vehicles
+   (18, 19) are flushed too since City Insurrection keeps them out of the Slums & war zone."
+  (when *traffic-manager*
+    (send-event *traffic-manager* 'deactivate-by-type 4)
+    (send-event *traffic-manager* 'deactivate-by-type 6)
+    (send-event *traffic-manager* 'deactivate-by-type 7)
+    (send-event *traffic-manager* 'deactivate-by-type 18)
+    (send-event *traffic-manager* 'deactivate-by-type 19)
+    )
+  (none)
+  )
+
+(defun dm-mod-city-insurrection-pick-func ((arg0 symbol) (arg1 debug-menu-msg))
+  "Debug-menu pick-func for the Mods tab: toggles *mod-city-insurrection?*."
+  (when (= arg1 (debug-menu-msg press))
+    (set! *mod-city-insurrection?* (not *mod-city-insurrection?*))
+    (dm-mod-city-flush-guards)
+    )
+  *mod-city-insurrection?*
+  )
+
+(defun dm-mod-city-conflict-district-pick-func ((arg0 symbol) (arg1 debug-menu-msg))
+  "Radio-style Mods-tab picker: choose which Haven City district is the City Insurrection war
+   zone. arg0 is the district tag baked into the menu template ('industrial / 'port / 'bazaar /
+   'farm / 'market -- see city-district-of-level). On press: point *mod-city-conflict-district* at
+   that district and flush the guards so the new zoning takes hold live."
+  (when (= arg1 (debug-menu-msg press))
+    (set! *mod-city-conflict-district* arg0)
+    (dm-mod-city-flush-guards)
+    )
+  (= *mod-city-conflict-district* arg0)
+  )
 
 (when (-> *debug-menu-context* root-menu)
   ;; (debug-menu-append-item (-> *debug-menu-context* root-menu) (debug-menu-make-load-menu *debug-menu-context*))
@@ -1018,6 +1052,21 @@
           (flag "Entity Lights" *display-lights* dm-boolean-toggle-pick-func)
           (flag "Debug Font Auto-Scale" #f ,(dm-lambda-boolean-flag (-> *pc-settings* debug-font-scale-auto?)))
           (float-var "Debug Font Scale" #f ,(dm-lambda-float-var (-> *pc-settings* debug-font-scale)) 2 (new 'static 'bfloat :data 0.01) #t (new 'static 'bfloat :data 0.1) 2 0)
+          )
+      )
+    )
+
+  (debug-menu-append-item (-> *debug-menu-context* root-menu)
+    (debug-menu-make-from-template *debug-menu-context*
+      '(menu "Mods"
+          (flag "City Insurrection (blue vs red/yellow war, by zone)" #f dm-mod-city-insurrection-pick-func)
+          (menu "Insurrection war zone"
+            (flag "Industrial (default)" industrial dm-mod-city-conflict-district-pick-func)
+            (flag "Port" port dm-mod-city-conflict-district-pick-func)
+            (flag "Bazaar / Main Town" bazaar dm-mod-city-conflict-district-pick-func)
+            (flag "Farmland" farm dm-mod-city-conflict-district-pick-func)
+            (flag "Market" market dm-mod-city-conflict-district-pick-func)
+            )
           )
       )
     )

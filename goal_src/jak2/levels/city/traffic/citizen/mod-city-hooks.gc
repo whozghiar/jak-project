@@ -6,31 +6,31 @@
 ;; dgos: CWI
 
 ;; ================================================================================================
-;; Blue Crimson Guard mod -- "city mode" wiring manifest (BASE variant, blueguard-traffic branch).
+;; Blue Crimson Guard mod -- "city mode" wiring manifest (CITY INSURRECTION variant).
 ;;
 ;; The shared traffic / guard engine files call the *mod-city-*-hook* function pointers declared
 ;; in engine/ai/traffic-h.gc. THIS file is the only place a branch legitimately differs: it
-;; defines the two mode flags and points each hook var at a no-op / stock default. On this base
-;; branch there is no City Peaceful / City Insurrection library, so every hook stays at its
-;; default and the blue guard is simply a faithful-combat ambient traffic entity spawned at
-;; *crimson-blue-guard-ratio*.
+;; defines the two mode flags and points each hook var at a no-op / stock default OR, when City
+;; Insurrection is toggled on, at a mod-city-insurrection.gc function.
 ;; ================================================================================================
 
-;; Both flags exist on every branch so a debug-menu pick-func could always clear the other one.
+;; Both flags exist on every branch so the debug-menu pick-funcs can always clear the other one.
 (define *mod-city-peaceful?* #f)
 (define *mod-city-insurrection?* #f)
 
+;; hook implementations pulled from mod-city-insurrection.gc (registered before this file in game.gp)
+(define-extern mod-city-insurrection-update-traffic (function traffic-manager none))
+(define-extern mod-ins-guard-spawn-blue? (function traffic-object-spawn-params symbol))
+(define-extern mod-ins-alert-blocked? (function symbol))
+(define-extern mod-ins-blue-activated? (function crimson-blue-guard traffic-object-spawn-params symbol))
+(define-extern mod-ins-guard-active-trans (function crimson-guard none))
+(define-extern mod-ins-guard-search-trans (function crimson-guard symbol))
+(define-extern mod-ins-keep-guard-target? (function process-focusable symbol))
+
 ;; --- no-op / stock defaults ---------------------------------------------------------------------
 
-(defun mod-city-hook-traffic-update ((this traffic-manager))
-  "default *mod-city-traffic-update-hook*: nothing to shape."
-  this
-  (none)
-  )
-
 (defun mod-city-hook-guard-spawn-blue? ((params traffic-object-spawn-params))
-  "default *mod-city-guard-spawn-blue-hook*: stock id-parity blue/red mix (every other spawn blue,
-   which at *crimson-blue-guard-ratio* 2 is the intended 1-in-2)."
+  "default *mod-city-guard-spawn-blue-hook*: stock id-parity blue/red mix."
   (logtest? (-> params id) 1)
   )
 
@@ -39,43 +39,50 @@
   (get-from-inactive-by-type this ttype)
   )
 
-(defun mod-city-hook-alert-blocked? ()
-  "default *mod-city-alert-blocked-hook*: alerts rise normally everywhere."
-  #f
+;; --- City Insurrection dispatch (flag-guarded so a toggle-off is exactly the stock behaviour) --
+;; mod-city-insurrection-update-traffic already checks *mod-city-insurrection?* internally (and
+;; owns the one-shot restore path when it turns off), so it is wired directly.
+
+(defun mod-city-ins-guard-spawn-blue? ((params traffic-object-spawn-params))
+  (if *mod-city-insurrection?*
+      (mod-ins-guard-spawn-blue? params)
+      (logtest? (-> params id) 1)
+      )
   )
 
-(defun mod-city-hook-blue-activated? ((this crimson-blue-guard) (params traffic-object-spawn-params))
-  "default *mod-city-blue-activated-hook*: nothing extra on activation."
-  this
-  params
-  #f
+(defun mod-city-ins-alert-blocked? ()
+  (and *mod-city-insurrection?* (mod-ins-alert-blocked?))
   )
 
-(defun mod-city-hook-guard-active-trans ((this crimson-guard))
-  "default *mod-city-guard-active-trans-hook*: no per-frame active-state scan."
-  this
+(defun mod-city-ins-blue-activated? ((this crimson-blue-guard) (params traffic-object-spawn-params))
+  (if *mod-city-insurrection?*
+      (mod-ins-blue-activated? this params)
+      #f
+      )
+  )
+
+(defun mod-city-ins-guard-active-trans ((this crimson-guard))
+  (when *mod-city-insurrection?*
+    (mod-ins-guard-active-trans this)
+    )
   (none)
   )
 
-(defun mod-city-hook-guard-search-trans ((this crimson-guard))
-  "default *mod-city-guard-search-trans-hook*: no per-frame search-state scan."
-  this
-  #f
+(defun mod-city-ins-guard-search-trans ((this crimson-guard))
+  (and *mod-city-insurrection?* (mod-ins-guard-search-trans this))
   )
 
-(defun mod-city-hook-keep-guard-target? ((p process-focusable))
-  "default *mod-city-keep-guard-target-hook*: no special guard-vs-guard target retention."
-  p
-  #f
+(defun mod-city-ins-keep-guard-target? ((p process-focusable))
+  (and *mod-city-insurrection?* (mod-ins-keep-guard-target? p))
   )
 
 ;; --- install -----------------------------------------------------------------------------------
 
-(define *mod-city-traffic-update-hook* mod-city-hook-traffic-update)
-(define *mod-city-guard-spawn-blue-hook* (the-as (function object symbol) mod-city-hook-guard-spawn-blue?))
+(define *mod-city-traffic-update-hook* mod-city-insurrection-update-traffic)
+(define *mod-city-guard-spawn-blue-hook* (the-as (function object symbol) mod-city-ins-guard-spawn-blue?))
 (define *mod-city-guard-activate-hook* (the-as (function object traffic-type handle) mod-city-hook-guard-activate))
-(define *mod-city-alert-blocked-hook* mod-city-hook-alert-blocked?)
-(define *mod-city-blue-activated-hook* (the-as (function crimson-blue-guard object symbol) mod-city-hook-blue-activated?))
-(define *mod-city-guard-active-trans-hook* mod-city-hook-guard-active-trans)
-(define *mod-city-guard-search-trans-hook* mod-city-hook-guard-search-trans)
-(define *mod-city-keep-guard-target-hook* mod-city-hook-keep-guard-target?)
+(define *mod-city-alert-blocked-hook* mod-city-ins-alert-blocked?)
+(define *mod-city-blue-activated-hook* (the-as (function crimson-blue-guard object symbol) mod-city-ins-blue-activated?))
+(define *mod-city-guard-active-trans-hook* mod-city-ins-guard-active-trans)
+(define *mod-city-guard-search-trans-hook* mod-city-ins-guard-search-trans)
+(define *mod-city-keep-guard-target-hook* mod-city-ins-keep-guard-target?)

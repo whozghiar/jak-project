@@ -90,7 +90,7 @@
   (set! (-> this l-control state points-to-draw) 0)
   (set! (-> this water-anim) -1)
   (set! (-> this minimap) #f)
-  (set! (-> this hit-points) 4)
+  (set! (-> this hit-points) 8)
   (set! (-> this knocked-fatal?) #f)
   (set! (-> this squad-count) 1)
   (set! (-> this squad-index) 0)
@@ -99,22 +99,26 @@
   (set! (-> this squad-members 1) (the-as handle #f))
   (set! (-> this squad-members 2) (the-as handle #f))
   (vector-reset! (-> this squad-offset))
-  0
   (none)
   )
 
 (defmethod citizen-init! ((this crimson-blue-guard))
   "Same as crimson-guard's citizen-init!, except this variant never opportunistically
-   targets Jak on its own, has 4 HP, rolls a random weapon loadout (tazer, rifle, grenade),
-   and registers its own blue minimap frustum icon (minimap-class blue-guard-frustum)."
+   targets Jak on its own, has 8 HP (matching yellow elite dark-guards), rolls a random
+   weapon loadout (tazer, rifle, grenade), and registers its own blue minimap frustum icon."
   (if (not (-> this minimap))
       (set! (-> this minimap) (add-icon! *minimap* this (the-as uint (minimap-class blue-guard-frustum)) (the-as int #f) (the-as vector #t) 0))
       )
   ((method-of-type crimson-guard citizen-init!) this)
   (reset-to-collide-spec (-> this focus) (collide-spec enemy hit-by-others-list bot-targetable))
-  (set! (-> this hit-points) 4)
-  ;; Roll random weapon between 0 (taser), 1 (rifle), and 2 (grenade launcher)
-  (let ((weapon-type (rand-vu-int-count 3)))
+  (when (-> this root)
+    (set! (-> this root event-self) 'touched)
+    )
+  (set! (-> this hit-points) 8)
+  ;; Roll random weapon: in insurrection mode, 0% taser (rifle or grenade launcher); otherwise 0, 1 or 2
+  (let ((weapon-type (if *mod-city-insurrection?*
+                         (+ 1 (rand-vu-int-count 2))
+                         (rand-vu-int-count 3))))
     (crimson-guard-method-225 this (the-as uint weapon-type) #f)
     )
   (logior! (-> this flags) (citizen-flag sticky-weapon))
@@ -700,16 +704,18 @@
                   (cond
                     ;; Ranged Guards: Rifle (guard-type 1) & Grenade Launcher (guard-type 2)
                     ((or (= v1-78 1) (= v1-78 2))
-                     ;; Only rifle butt if Jak gets into point-blank (< 2.5m = 10240.0)
-                     (if (and (< (-> self target-self-xz-dist) 10240.0)
+                     ;; Only rifle butt if Jak gets into point-blank (< 2.5m = 10240.0) outside insurrection
+                     (if (and (not *mod-city-insurrection?*)
+                              (< (-> self target-self-xz-dist) 10240.0)
                               (< (fabs (-> self target-y-angle)) 7281.778)
                               target-alive
                               has-los
                               )
                          (go-virtual close-attack)
                          )
-                     ;; Ranged attack: shoot weapon anywhere between 2.5m and 50m (204800.0)
-                     (when (and (>= (-> self target-self-xz-dist) 10240.0)
+                     ;; Ranged attack: shoot weapon anywhere up to 50m (204800.0)
+                     (when (and (or (< (-> self target-self-xz-dist) 204800.0) *mod-city-insurrection?*)
+                                (or (>= (-> self target-self-xz-dist) 10240.0) *mod-city-insurrection?*)
                                 (< (-> self target-self-xz-dist) 204800.0)
                                 has-los
                                 (time-elapsed? (-> self state-time) (seconds 0.2))
@@ -766,7 +772,12 @@
 (defstate close-attack (crimson-blue-guard)
   :virtual #t
   :event enemy-event-handler
-  :enter (-> (method-of-type crimson-guard close-attack) enter)
+  :enter (behavior ()
+    (when *mod-city-insurrection?*
+      (go-virtual gun-shoot)
+      )
+    ((-> (method-of-type crimson-guard close-attack) enter))
+    )
   :exit (-> (method-of-type crimson-guard close-attack) exit)
   :trans (-> (method-of-type crimson-guard close-attack) trans)
   :code (behavior ()
@@ -802,12 +813,14 @@
     (crimson-guard-method-220 self)
     (let ((gp-0 (handle->process (-> self focus handle))))
       (when gp-0
-        (if (and (< (-> self target-self-xz-dist) 10240.0)
-                 (< (fabs (-> self target-y-angle)) 7281.778)
-                 (not (logtest? (-> (the-as process-focusable gp-0) focus-status) (focus-status disable dead ignore grabbed)))
-                 )
-            (go-virtual close-attack)
-            )
+        (when (not *mod-city-insurrection?*)
+          (if (and (< (-> self target-self-xz-dist) 10240.0)
+                   (< (fabs (-> self target-y-angle)) 7281.778)
+                   (not (logtest? (-> (the-as process-focusable gp-0) focus-status) (focus-status disable dead ignore grabbed)))
+                   )
+              (go-virtual close-attack)
+              )
+          )
         )
       )
     )

@@ -822,17 +822,18 @@
 ;; ----------------------------------------------------------------------------------
 
 (defun dm-mod-city-flush-guards ()
-  "Park every ambient city guard so they respawn (within a second or two) under whichever war-zone
-   district / mode is now active. The crimson-guard traffic pools (4, 6, 7) hold red AND blue
-   processes, so deactivating them re-rolls each guard's faction / weapon; the guard vehicles
-   (18, 19) are flushed too since City Insurrection keeps them out of the Slums & war zone."
-  (when *traffic-manager*
-    (send-event *traffic-manager* 'deactivate-by-type 4)
-    (send-event *traffic-manager* 'deactivate-by-type 6)
-    (send-event *traffic-manager* 'deactivate-by-type 7)
-    (send-event *traffic-manager* 'deactivate-by-type 18)
-    (send-event *traffic-manager* 'deactivate-by-type 19)
-    )
+  "Flush ambient city traffic under City Insurrection. If in a war zone, purge all non-combatants
+   (civilians and vehicles) so the street is cleared and memory is freed for blue and red guards."
+  (if (and *traffic-manager* (= (city-get-current-zone) 'conflict))
+      (mod-city-flush-conflict-traffic)
+      (when *traffic-manager*
+        (send-event *traffic-manager* 'deactivate-by-type 4)
+        (send-event *traffic-manager* 'deactivate-by-type 6)
+        (send-event *traffic-manager* 'deactivate-by-type 7)
+        (send-event *traffic-manager* 'deactivate-by-type 18)
+        (send-event *traffic-manager* 'deactivate-by-type 19)
+        )
+      )
   (none)
   )
 
@@ -854,9 +855,9 @@
     (when (= arg1 (debug-menu-msg press))
       (cond
         ((= arg0 'all)
-         (if (= *mod-city-conflict-mask* 255)
+         (if (= *mod-city-conflict-mask* 511)
              (set! *mod-city-conflict-mask* 0)
-             (set! *mod-city-conflict-mask* 255)
+             (set! *mod-city-conflict-mask* 511)
              )
          )
         (else
@@ -866,7 +867,7 @@
       (dm-mod-city-flush-guards)
       )
     (if (= arg0 'all)
-        (= *mod-city-conflict-mask* 255)
+        (= *mod-city-conflict-mask* 511)
         (logtest? *mod-city-conflict-mask* mask)
         )
     )
@@ -1093,6 +1094,7 @@
             (flag "Gardens (Nord & Sud)" gardens dm-mod-city-conflict-district-toggle-func)
             (flag "Quartier residentiel (Main Town)" main-town dm-mod-city-conflict-district-toggle-func)
             (flag "Le stade" stadium dm-mod-city-conflict-district-toggle-func)
+            (flag "Palais (Plaza & abords)" palace dm-mod-city-conflict-district-toggle-func)
             )
           (menu "War Music"
             (flag "Danger 9 (City Combat - Default)" danger9 dm-mod-city-war-music-pick-func)

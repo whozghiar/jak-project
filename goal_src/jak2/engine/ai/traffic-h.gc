@@ -102,7 +102,10 @@
 (define-extern *mod-city-conflict-mask* int)
 (define-extern *mod-city-war-music* symbol)
 (define-extern city-district->mask (function symbol int))
+(define-extern city-get-current-zone (function symbol))
 (define-extern mod-city-war-music-stop (function none))
+(define-extern mod-city-flush-conflict-traffic (function none))
+(define-extern *nk-dead-pool* dead-pool-heap)
 
 (declare-type nav-mesh basic)
 

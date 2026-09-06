@@ -33,7 +33,6 @@
 ;; ------------------------------------------------------------------------------------------------
 
 ;; MOD CONFIG: which Haven City districts are in armed conflict.
-;; Bitmask constants for each district group (see city-district-of-level):
 (defconstant MOD_CITY_DISTRICT_SLUMS          1)   ;; Slums (ctysluma, ctyslumb)
 (defconstant MOD_CITY_DISTRICT_WATER_SLUMS    2)   ;; Water Slums (ctyslumc)
 (defconstant MOD_CITY_DISTRICT_INDUSTRIAL     4)   ;; Industrial Section (ctyinda, ctyindb)
@@ -42,7 +41,8 @@
 (defconstant MOD_CITY_DISTRICT_GARDENS       32)   ;; Gardens Nord & Sud (ctyfarma, ctyfarmb)
 (defconstant MOD_CITY_DISTRICT_MAIN_TOWN     64)   ;; Quartier residentiel (ctygena, ctygenb, ctygenc)
 (defconstant MOD_CITY_DISTRICT_STADIUM      128)   ;; Le stade (stadium, stadiumb, stadiumc, stadiumd, stadblmp, stadocc)
-(defconstant MOD_CITY_DISTRICT_ALL          255)   ;; All 8 districts
+(defconstant MOD_CITY_DISTRICT_PALACE       256)   ;; Palais (ctypal, palcab, palroof, palshaft, palent, throne, palboss)
+(defconstant MOD_CITY_DISTRICT_ALL          511)   ;; All 9 districts (full city war)
 
 ;; Backward-compatibility symbol for scripts reading single district:
 (define *mod-city-conflict-district* 'industrial)
@@ -62,6 +62,7 @@
     (('gardens 'garden 'farm) MOD_CITY_DISTRICT_GARDENS)
     (('main-town 'residential) MOD_CITY_DISTRICT_MAIN_TOWN)
     (('stadium) MOD_CITY_DISTRICT_STADIUM)
+    (('palace 'ctypal) MOD_CITY_DISTRICT_PALACE)
     (('all) MOD_CITY_DISTRICT_ALL)
     (else 0)
     )
@@ -76,7 +77,7 @@
 
 (defun city-district-of-level ((lev-name symbol))
   "Map a Haven City level `name` symbol to its district-group tag.
-   Anything not in a recognised district group (palace, Onin's, dead-town, ctywide, #f) -> 'other."
+   Anything not in a recognised district group (Onin's, dead-town, ctywide, #f) -> 'other."
   (case lev-name
     (('ctysluma 'ctyslumb) 'slums)
     (('ctyslumc) 'water-slums)
@@ -86,6 +87,7 @@
     (('ctyfarma 'ctyfarmb) 'gardens)
     (('ctygena 'ctygenb 'ctygenc) 'main-town)
     (('stadium 'stadiumb 'stadiumc 'stadiumd 'stadblmp 'stadocc) 'stadium)
+    (('ctypal 'palcab 'palroof 'palshaft 'palent 'throne 'palboss 'palace) 'palace)
     (else 'other)
     )
   )
@@ -187,7 +189,11 @@
         )
       )
     )
-  'red
+  ;; If full city war is active, default fallback is 'conflict, not 'red!
+  (if (city-district-in-conflict? 'all)
+      'conflict
+      'red
+      )
   )
 
 (defun city-get-current-zone ()
@@ -195,7 +201,9 @@
    based on Jak's position; falls back to the visibility nickname when *target* is gone."
   (if *target*
       (city-get-pos-zone (-> *target* root trans))
-      (or (city-zone-from-level-name (-> *load-state* vis-nick)) 'red)
+      (or (city-zone-from-level-name (-> *load-state* vis-nick))
+          (if (city-district-in-conflict? 'all) 'conflict 'red)
+          )
       )
   )
 
@@ -220,34 +228,21 @@
 
 (defun mod-city-insurrection-shape-guard-pools ((engine traffic-engine) (zone symbol))
   "Size the ambient crimson-guard pools for Jak's current `zone` under City Insurrection.
-
-   Two traffic types carry ambient guards here: `crimson-guard-1` (6, the stock street pool) and
-   `crimson-guard-2` (7). Type 7 is a fully-wired but unused pool in stock jak2 -- reserved and
-   alert-flagged in restore-default-settings, just never given a want-count / target-count / a
-   traffic-object-spawn case. We drive BOTH in the war zone for a dense battle. `crimson-guard-0`
-   (4) is dead weight -- restore-default-settings clears its trtflags-2 so activate-by-type can
-   never promote it -- it stays disabled.
-
-   Faction is chosen per spawn by district (mod-ins-guard-spawn-blue?). A district change does NOT
-   flush the pools in one frame (that raced level teardown and crashed) -- mod-city-guard-pool-reconcile
-   retires the departing faction a couple of guards per frame while spawn-all refills.
-
-   want-count sizes a pool; kill-excess-once drains a surplus, spawn-all tops it up. Guard traffic
-   types are alert-managed, so update-alert-state rewrites their target-count every frame (down to
-   ~5 at peace). This runs AFTER update-alert-state, so the value forced here is what
-   activate-by-type sees next frame. In loyalist districts we touch NEITHER lever on the stock
-   pool -- vanilla police density, byte-for-byte. War-zone counts stay well under the stock 64
-    nav-user ceiling (all non-guards suppressed there)."
-  (set! (-> engine object-type-info-array 4 want-count) 0)
+   In conflict zones, BOTH Pool 6 (crimson-guard-1) and Pool 4 (crimson-guard-0) are mobilized
+   with reduced spawn spacing (inv-density-factor 0.5) for a massive, packed battlefield."
   (case zone
     (('conflict)
-     ;; Selected war zone: Pool 6 carries the battle with up to 20 guards (~10 blues vs ~10 reds).
-     ;; Pool 7 remains off (0) to avoid any unlinked-level traffic-engine issues.
-     ;; No civilians (0..3), no metalheads (8..10), no vehicles/gunships (11..19) -- guards only.
+     ;; Selected war zone: Maximum possible armed conflict density.
+     ;; All three guard pools: Pool 4 (crimson-guard-0), Pool 6 (crimson-guard-1), and Pool 7 (crimson-guard-2)
+     ;; are mobilized at full slice capacity (20 each = 60 combatants), target-count 20.
+     (logior! (-> engine object-type-info-array 4 flags) (traffic-type-flags trtflags-1 trtflags-2))
+     (logior! (-> engine object-type-info-array 7 flags) (traffic-type-flags trtflags-1 trtflags-2))
+     (set! (-> engine object-type-info-array 4 want-count) 20)
+     (set! (-> engine object-type-info-array 4 target-count) 20)
      (set! (-> engine object-type-info-array 6 want-count) 20)
-     (set! (-> engine object-type-info-array 6 target-count) 18)
-     (set! (-> engine object-type-info-array 7 want-count) 0)
-     (set! (-> engine object-type-info-array 7 target-count) 0)
+     (set! (-> engine object-type-info-array 6 target-count) 20)
+     (set! (-> engine object-type-info-array 7 want-count) 20)
+     (set! (-> engine object-type-info-array 7 target-count) 20)
      (dotimes (i 4)
        (set! (-> engine object-type-info-array i want-count) 0)
        )
@@ -257,11 +252,14 @@
      (dotimes (i 9)
        (set! (-> engine object-type-info-array (+ i 11) want-count) 0)
        )
-     ;; Pack the combatants into the on-screen slice instead of spreading them thin.
-     (set! (-> engine inv-density-factor) 1.8)
+     ;; Maximum spawn density: minimum spawn spacing between combatants (0.1 vs stock 5.0)
+     (set! (-> engine inv-density-factor) 0.1)
      )
     (('blue)
      ;; Slums / Water Slums = Bastion Rebelle: lone blue rebels, stock pool only, no loyalist gunships.
+     (logclear! (-> engine object-type-info-array 4 flags) (traffic-type-flags trtflags-2))
+     (set! (-> engine object-type-info-array 4 want-count) 0)
+     (set! (-> engine object-type-info-array 4 target-count) 0)
      (set! (-> engine object-type-info-array 6 want-count) 10)
      (set! (-> engine object-type-info-array 6 target-count) 7)
      (set! (-> engine object-type-info-array 7 want-count) 0)
@@ -271,7 +269,10 @@
      (set! (-> engine inv-density-factor) 5.0)
      )
     (else
-     ;; Loyalist districts: stock red police -- pool 6 left fully vanilla; pool 7 off; stock density.
+     ;; Loyalist districts: stock red police -- pool 6 left fully vanilla; pool 4/7 off; stock density.
+     (logclear! (-> engine object-type-info-array 4 flags) (traffic-type-flags trtflags-2))
+     (set! (-> engine object-type-info-array 4 want-count) 0)
+     (set! (-> engine object-type-info-array 4 target-count) 0)
      (set! (-> engine object-type-info-array 7 want-count) 0)
      (set! (-> engine object-type-info-array 7 target-count) 0)
      (set! (-> engine inv-density-factor) 5.0)
@@ -338,19 +339,133 @@
     )
   )
 
+(defun mod-city-count-total-blue ()
+  "Count all active and inactive blue rebel guards across guard pools (4, 6, 7)."
+  (+ (mod-city-count-pool-blue (traffic-type crimson-guard-0))
+     (mod-city-count-pool-blue (traffic-type crimson-guard-1))
+     (mod-city-count-pool-blue (traffic-type crimson-guard-2)))
+  )
+
+(defun mod-city-count-total-red ()
+  "Count all active and inactive red loyalist guards across guard pools (4, 6, 7)."
+  (+ (mod-city-count-pool-red (traffic-type crimson-guard-0))
+     (mod-city-count-pool-red (traffic-type crimson-guard-1))
+     (mod-city-count-pool-red (traffic-type crimson-guard-2)))
+  )
+
+(defun mod-city-count-active-blue ()
+  "Count currently active blue rebel guards on the street."
+  (let* ((engine *traffic-engine*)
+         (cnt 0))
+    (when engine
+      (dotimes (tk 2)
+        (let ((tracker (-> engine tracker-array tk)))
+          (dotimes (i (the-as int (-> tracker active-object-count)))
+            (let ((p (handle->process (-> tracker active-object-list i))))
+              (when (and p (type-type? (-> p type) crimson-blue-guard))
+                (+! cnt 1)
+                )
+              )
+            )
+          )
+        )
+      )
+    cnt
+    )
+  )
+
+(defun mod-city-count-active-red ()
+  "Count currently active loyalist (red and yellow) guards on the street."
+  (let* ((engine *traffic-engine*)
+         (cnt 0))
+    (when engine
+      (dotimes (tk 2)
+        (let ((tracker (-> engine tracker-array tk)))
+          (dotimes (i (the-as int (-> tracker active-object-count)))
+            (let ((p (handle->process (-> tracker active-object-list i))))
+              (when (and p (type-type? (-> p type) crimson-guard) (not (type-type? (-> p type) crimson-blue-guard)))
+                (+! cnt 1)
+                )
+              )
+            )
+          )
+        )
+      )
+    cnt
+    )
+  )
+
+(defun mod-city-get-from-inactive-by-faction ((this traffic-tracker) (ttype traffic-type) (want-blue? symbol))
+  "Find an inactive guard of type `ttype` matching `want-blue?`. If found, pull it and decrement
+   reserve-count and inactive-count, exactly like get-from-inactive-by-type. If none of the preferred
+   faction is found, fall back to stock get-from-inactive-by-type."
+  (let* ((engine (-> this traffic))
+         (info (-> engine object-type-info-array ttype)))
+    (dotimes (i (-> info inactive-count))
+      (let* ((h (-> info array i))
+             (p (handle->process h)))
+        (when (and p
+                   (if want-blue?
+                       (type-type? (-> p type) crimson-blue-guard)
+                       (and (type-type? (-> p type) crimson-guard)
+                            (not (type-type? (-> p type) crimson-blue-guard)))
+                       )
+                   )
+          (let ((last-idx (+ (-> info inactive-count) -1)))
+            (set! (-> info array i) (-> info array last-idx))
+            (+! (-> info inactive-count) -1)
+            (+! (-> info reserve-count) -1)
+            (+! (-> this inactive-object-count) -1)
+            (return h)
+            )
+          )
+        )
+      )
+    ;; Fallback: if no guard of the wanted faction was available in inactive pool, take whatever is next
+    (get-from-inactive-by-type this ttype)
+    )
+  )
+
+(defun mod-ins-guard-activate ((this traffic-tracker) (ttype traffic-type))
+  "Picks the next inactive guard of type `ttype`, dynamically selecting faction
+   (blue rebel vs red/yellow loyalist) based on Jak's current zone and active street counts."
+  (let ((zone (city-get-current-zone)))
+    (case zone
+      (('conflict)
+       ;; War zone: balance active combatants on the street: 70% loyalists / 30% rebels
+       (let ((act-blue (mod-city-count-active-blue))
+             (act-red  (mod-city-count-active-red)))
+         (cond
+           ((< (* 7 act-blue) (* 3 act-red))
+            (mod-city-get-from-inactive-by-faction this ttype #t)
+            )
+           ((> (* 7 act-blue) (* 3 act-red))
+            (mod-city-get-from-inactive-by-faction this ttype #f)
+            )
+           (else
+            (mod-city-get-from-inactive-by-faction this ttype (< (rand-vu-int-count 10) 3))
+            )
+           )
+         )
+       )
+      (('blue)
+       (mod-city-get-from-inactive-by-faction this ttype #t)
+       )
+      (else
+       (mod-city-get-from-inactive-by-faction this ttype #f)
+       )
+      )
+    )
+  )
+
 (defun mod-city-guard-faction-ok? ((p process) (zone symbol))
   "Is process `p`'s faction acceptable for `zone` under City Insurrection?
-   - In 'conflict: blue guards are always welcome. Red guards are retired if red exceeds 9 in Pool 6.
+   - In 'conflict: both blue rebels and red/yellow loyalists are welcome.
    - In 'blue (Slums / Water Slums): blue rebels only.
    - Anything else (loyalist): red loyalists only."
   (let ((blue? (type-type? (-> p type) crimson-blue-guard)))
     (case zone
-      (('conflict)
-       (if blue?
-           #t
-           (<= (mod-city-count-pool-red (traffic-type crimson-guard-1)) 9)
-           )
-       )
+      (('conflict) #t)
       (('blue) blue?)
       (else (not blue?))
       )
@@ -380,10 +495,14 @@
                (p (handle->process h))
                )
           (cond
-            ((and p (not (mod-city-guard-faction-ok? p zone)))
+            ((or (not p) (not (mod-city-guard-faction-ok? p zone)))
              (get-from-inactive-by-handle tracker ttype h)
-             (+! (-> info reserve-count) -1) ;; get-from-inactive-by-handle drops inactive-count but not reserve
-             (deactivate p)
+             (when (> (-> info reserve-count) 0)
+               (+! (-> info reserve-count) -1)
+               )
+             (when p
+               (deactivate p)
+               )
              (+! retired 1)
              )
             (else
@@ -497,6 +616,145 @@
   (none)
   )
 
+(defun mod-city-flush-conflict-traffic ()
+  "Completely purge civilians and civilian vehicles when entering or resetting an armed conflict zone,
+   freeing memory and clearing the streets so only blue and red guards wage war."
+  (when *traffic-manager*
+    (let ((engine (-> *traffic-manager* traffic-engine)))
+      (when engine
+        ;; 1. Deactivate active civilian pedestrians (0..3) and metalheads (8..10)
+        (dotimes (i 4)
+          (deactivate-by-type engine (the-as traffic-type i))
+          )
+        (dotimes (i 3)
+          (deactivate-by-type engine (the-as traffic-type (+ i 8)))
+          )
+        ;; 2. Deactivate active vehicles (11..19), preserving the player's vehicle if piloting
+        (let ((player-veh (the-as process #f)))
+          (when (and *target* (focus-test? *target* pilot) (nonzero? (-> *target* pilot)))
+            (set! player-veh (handle->process (-> *target* pilot vehicle)))
+            )
+          (dotimes (i 9)
+            (let ((ttype (the-as traffic-type (+ i 11))))
+              (let* ((info (-> engine object-type-info-array ttype))
+                     (tracker (-> engine tracker-array (-> info tracker-index))))
+                (countdown (k (the-as int (-> tracker active-object-count)))
+                  (when (= (-> tracker active-object-type-list k) ttype)
+                    (let ((p (handle->process (-> tracker active-object-list k))))
+                      (when (and p (!= p player-veh))
+                        (deactivate-object tracker (the-as int k) #t)
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        ;; 3. Flush guards (4, 6, 7) so they respawn under war-zone ratios
+        (deactivate-by-type engine (traffic-type crimson-guard-0))
+        (deactivate-by-type engine (traffic-type crimson-guard-1))
+        (deactivate-by-type engine (traffic-type crimson-guard-2))
+
+        ;; 4. Kill all inactive non-combatants immediately to free *default-dead-pool* memory
+        (dotimes (i 21)
+          (when (or (< i 4) (and (>= i 8) (< i 11)) (>= i 11))
+            (let ((info (-> engine object-type-info-array i)))
+              (while (> (-> info inactive-count) 0)
+                (let* ((h (get-from-inactive-by-type
+                            (-> engine tracker-array (-> info tracker-index))
+                            (the-as traffic-type i)
+                            ))
+                       (p (handle->process h))
+                       )
+                  (when (and p
+                             (not (and *target*
+                                       (focus-test? *target* pilot)
+                                       (nonzero? (-> *target* pilot))
+                                       (= p (handle->process (-> *target* pilot vehicle)))
+                                       )
+                                  )
+                             )
+                    (deactivate p)
+                    )
+                  )
+                )
+              )
+            )
+          )
+
+        ;; 5. Top up guard pools and request ONE immediate spawn burst
+        (set! (-> engine object-type-info-array 4 reserve-count) (the-as uint #x7d00))
+        (set! (-> engine object-type-info-array 6 reserve-count) (the-as uint #x7d00))
+        (set! (-> engine object-type-info-array 7 reserve-count) (the-as uint #x7d00))
+        (set! (-> *traffic-manager* fast-spawn) #t)
+        )
+      )
+    )
+  (none)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; 2c. Real-time Memory & Process Slot Health Telemetry (Terminal Logs)
+;; ------------------------------------------------------------------------------------------------
+
+(define *mod-city-last-metrics-log-time* (the-as time-frame 0))
+
+(defun mod-city-insurrection-log-metrics ()
+  "Logs periodic health metrics (heap memory, alive/free process slots, combatant counts)
+   to the terminal every 5 seconds (~300 frames) while Insurrection is active."
+  (when *mod-city-insurrection?*
+    (when (time-elapsed? *mod-city-last-metrics-log-time* (seconds 5))
+      (set-time! *mod-city-last-metrics-log-time*)
+      (let* ((dp *nk-dead-pool*)
+             (mem-used (the int (/ (memory-used dp) 1024)))
+             (mem-total (the int (/ (memory-total dp) 1024)))
+             (mem-free (the int (/ (memory-free dp) 1024)))
+             (mem-pct (the int (* 100.0 (-> dp fill-percent))))
+             (total-slots (-> dp allocated-length))
+             (alive-slots 0)
+             (free-slots 0)
+             )
+        ;; Count alive slots (bounded by total-slots)
+        (let ((rec (-> dp alive-list next)))
+          (while (and rec (< alive-slots total-slots))
+            (when (-> rec process)
+              (+! alive-slots 1)
+              )
+            (set! rec (-> rec next))
+            )
+          )
+        ;; Count free slots (bounded by total-slots)
+        (let ((rec (-> dp dead-list next)))
+          (while (and rec (< free-slots total-slots))
+            (+! free-slots 1)
+            (set! rec (-> rec next))
+            )
+          )
+        (let ((engine *traffic-engine*))
+          (format #t "[INS-METRICS] Heap: ~D/~D KB (~D%) Free: ~D KB" mem-used mem-total mem-pct mem-free)
+          (format #t " | Slots: ~D/~D (free: ~D)" alive-slots total-slots free-slots)
+          (format #t " | Combatants (act/tot): ~DB/~DR (~DB/~DR)"
+                  (mod-city-count-active-blue) (mod-city-count-active-red)
+                  (mod-city-count-total-blue) (mod-city-count-total-red))
+          (when engine
+            (let* ((info4 (-> engine object-type-info-array 4))
+                   (info6 (-> engine object-type-info-array 6))
+                   (info7 (-> engine object-type-info-array 7)))
+              (format #t " | P4(~D/~D) P6(~D/~D) P7(~D/~D)"
+                      (-> info4 active-count) (-> info4 inactive-count)
+                      (-> info6 active-count) (-> info6 inactive-count)
+                      (-> info7 active-count) (-> info7 inactive-count))
+              )
+            )
+          (format #t " | Zone: ~A~%" (city-get-current-zone))
+          )
+        )
+      )
+    )
+  (none)
+  )
+
 (defun mod-city-insurrection-update-traffic ((this traffic-manager))
   "*mod-city-traffic-update-hook* impl -- per-frame City Insurrection traffic shaping, from
    traffic-manager::update BEFORE kill-excess-once / spawn-all.
@@ -505,7 +763,8 @@
    transition.
 
    - Every frame: reset the 21 want-counts to *traffic-want-count-base*, shape this district's
-     pools, retire up to 2 wrong-faction guards per pool (mod-city-guard-pool-reconcile).
+     pools, retire up to 2 wrong-faction guards per pool (mod-city-guard-pool-reconcile) in peacetime.
+     In conflict zones, reconcile is bypassed to keep active battle combatants alive without process churn.
      kill-excess-once drains the want-0 civilian / gunship pools 1/frame; spawn-all refills the
      guard pools 1/frame with the right faction. Net: ~1-2 s crossfade.
    - Slums (blue) + war zone (conflict): snap the police alert to 0 -- neither runs the wanted
@@ -515,20 +774,55 @@
     (when engine
       (cond
         (*mod-city-insurrection?*
-(dotimes (i 21)
-           (set! (-> engine object-type-info-array i want-count) (-> *traffic-want-count-base* i))
-           )
-         (set! *mod-traffic-shaped?* #t)
-         (let ((zone (city-get-current-zone)))
+          (dotimes (i 21)
+            (set! (-> engine object-type-info-array i want-count) (-> *traffic-want-count-base* i))
+            )
+          (set! *mod-traffic-shaped?* #t)
+          (let ((zone (city-get-current-zone)))
             (mod-city-insurrection-shape-guard-pools engine zone)
-            (mod-city-guard-pool-reconcile this (traffic-type crimson-guard-1) zone 4)
+            (when (!= zone 'conflict)
+              (mod-city-guard-pool-reconcile this (traffic-type crimson-guard-1) zone 2)
+              (mod-city-guard-pool-reconcile this (traffic-type crimson-guard-0) zone 2)
+              )
+            (when (= zone 'conflict)
+              (set! (-> this fast-spawn) #t)
+              )
             (when (!= zone *mod-city-guard-zone*)
-              ;; district border crossed -- just record it; the reconcile + kill-excess + spawn
-              ;; passes do the turnover gradually. Top up the war-zone pools' spawn budget
-              ;; (reconcile spends reserve-count as it retires wrong-faction guards).
               (set! *mod-city-guard-zone* zone)
-              (when (= zone 'conflict)
-                (set! (-> engine object-type-info-array 6 reserve-count) (the-as uint #x2000))
+              (cond
+                ((= zone 'conflict)
+                 (mod-city-flush-conflict-traffic)
+                 )
+                (else
+                 ;; Exiting war zone back to peace: flush secondary pools 4 & 7 and trigger single fast-spawn
+                 (deactivate-by-type engine (traffic-type crimson-guard-0))
+                 (let ((info4 (-> engine object-type-info-array (traffic-type crimson-guard-0))))
+                   (while (> (-> info4 inactive-count) 0)
+                     (let* ((h (get-from-inactive-by-type
+                                 (-> engine tracker-array (-> info4 tracker-index))
+                                 (traffic-type crimson-guard-0)
+                                 ))
+                            (p (handle->process h))
+                            )
+                       (when p (deactivate p))
+                       )
+                     )
+                   )
+                 (deactivate-by-type engine (traffic-type crimson-guard-2))
+                 (let ((info7 (-> engine object-type-info-array (traffic-type crimson-guard-2))))
+                   (while (> (-> info7 inactive-count) 0)
+                     (let* ((h (get-from-inactive-by-type
+                                 (-> engine tracker-array (-> info7 tracker-index))
+                                 (traffic-type crimson-guard-2)
+                                 ))
+                            (p (handle->process h))
+                            )
+                       (when p (deactivate p))
+                       )
+                     )
+                   )
+                 (set! (-> this fast-spawn) #t)
+                 )
                 )
               )
             (if (and (or (= zone 'blue) (= zone 'conflict)) (> (get-alert-level engine) 0))
@@ -536,17 +830,49 @@
                 )
             )
           (mod-city-war-music-update)
+          (mod-city-insurrection-log-metrics)
           )
         (*mod-traffic-shaped?*
          (mod-city-war-music-stop)
          (dotimes (i 21)
            (set! (-> engine object-type-info-array i want-count) (-> *traffic-want-count-base* i))
            )
+         (logclear! (-> engine object-type-info-array 4 flags) (traffic-type-flags trtflags-2))
+         (set! (-> engine object-type-info-array 4 want-count) 0)
+         (set! (-> engine object-type-info-array 4 target-count) 0)
+         (logclear! (-> engine object-type-info-array 7 flags) (traffic-type-flags trtflags-2))
          (set! (-> engine object-type-info-array 7 want-count) 0)
          (set! (-> engine object-type-info-array 7 target-count) 0)
          (set! (-> engine inv-density-factor) 5.0)
          (set! *mod-traffic-shaped?* #f)
          (set! *mod-city-guard-zone* 'none)
+         (deactivate-by-type engine (traffic-type crimson-guard-0))
+         (let ((info4 (-> engine object-type-info-array (traffic-type crimson-guard-0))))
+           (while (> (-> info4 inactive-count) 0)
+             (let* ((h (get-from-inactive-by-type
+                         (-> engine tracker-array (-> info4 tracker-index))
+                         (traffic-type crimson-guard-0)
+                         ))
+                    (p (handle->process h))
+                    )
+               (when p (deactivate p))
+               )
+             )
+           )
+         (deactivate-by-type engine (traffic-type crimson-guard-2))
+         (let ((info7 (-> engine object-type-info-array (traffic-type crimson-guard-2))))
+           (while (> (-> info7 inactive-count) 0)
+             (let* ((h (get-from-inactive-by-type
+                         (-> engine tracker-array (-> info7 tracker-index))
+                         (traffic-type crimson-guard-2)
+                         ))
+                    (p (handle->process h))
+                    )
+               (when p (deactivate p))
+               )
+             )
+           )
+         (set! (-> this fast-spawn) #t)
          )
         )
       )
@@ -569,10 +895,10 @@
     (when (and *mod-city-insurrection?*
                (= (city-get-pos-zone (-> this root trans)) 'conflict)
                )
-      ;; In conflict zone: if a red guard still has a taser (guard-type 0), give them a random combat weapon (rifle or grenade)
-      (when (and (zero? (-> this guard-type))
-                 (not (type-type? (-> this type) crimson-blue-guard)))
+      ;; In insurrection: if any guard has a taser (guard-type 0), give them a combat ranged weapon (rifle or grenade)
+      (when (zero? (-> this guard-type))
         (crimson-guard-method-225 this (the-as uint (+ 1 (rand-vu-int-count 2))) #f)
+        (logior! (-> this flags) (citizen-flag sticky-weapon))
         )
       ;; search-blue? is #t for a red guard (hunts blue), #f for a blue guard (hunts red).
       (let ((foe (find-nearest-enemy-guard this (not (type-type? (-> this type) crimson-blue-guard)) (meters 150))))
@@ -601,20 +927,19 @@
 (defun mod-ins-guard-spawn-blue? ((params traffic-object-spawn-params))
   "*mod-city-guard-spawn-blue-hook* under Insurrection:
    - Slums / Water Slums ('blue): 100% blue rebels.
-   - War zone ('conflict): dynamically balance factions so blue rebels always equal or slightly outnumber red loyalists.
+   - War zone ('conflict): dynamically balance factions for 70% loyalists / 30% blue rebels.
    - Loyalist districts: 100% red loyalists."
   params
   (let ((zone (city-get-current-zone)))
     (case zone
       (('blue) #t)
       (('conflict)
-       (let ((n-blue (mod-city-count-pool-blue (traffic-type crimson-guard-1)))
-             (n-red  (mod-city-count-pool-red  (traffic-type crimson-guard-1))))
+       (let ((n-blue (mod-city-count-total-blue))
+             (n-red  (mod-city-count-total-red)))
          (cond
-           ((< n-blue 9) #t)
-           ((< n-blue n-red) #t)
-           ((> n-blue (+ n-red 1)) #f)
-           (else (zero? (rand-vu-int-count 2)))
+           ((< (* 7 n-blue) (* 3 n-red)) #t)
+           ((> (* 7 n-blue) (* 3 n-red)) #f)
+           (else (< (rand-vu-int-count 10) 3))
            )
          )
        )
@@ -632,25 +957,42 @@
   )
 
 (defun mod-ins-guard-activated? ((this crimson-guard) (params traffic-object-spawn-params))
-  "*mod-city-guard-activated-hook* under Insurrection: randomize weapon (baton, rifle, grenade launcher)
-   for red loyalist guards in the conflict zone so they don't only spawn with tasers."
+  "*mod-city-guard-activated-hook* under Insurrection: randomize weapon (rifle or grenade launcher, 0% taser)
+   and spawn both yellow elite guards (dark-guard, 1 in 5, ~20%) and red guards (4 in 5, ~80%)."
   params
   (when (and *mod-city-insurrection?*
-             (not (type-type? (-> this type) crimson-blue-guard))
-             (= (city-get-pos-zone (-> this root trans)) 'conflict))
-    (crimson-guard-method-225 this (the-as uint (rand-vu-int-count 3)) #f)
+             (not (type-type? (-> this type) crimson-blue-guard)))
+    (let ((yellow? (zero? (rand-vu-int-count 5))))
+      (if yellow?
+          (begin
+            (logior! (-> this flags) (citizen-flag dark-guard))
+            (set! (-> this hit-points) (the int (* 2.0 (the float (-> this enemy-info default-hit-points)))))
+            )
+          (begin
+            (logclear! (-> this flags) (citizen-flag dark-guard))
+            (set! (-> this hit-points) (-> this enemy-info default-hit-points))
+            )
+          )
+      ;; 0% taser: randomly choose between 1 (rifle) and 2 (grenade launcher)
+      (crimson-guard-method-225 this (the-as uint (+ 1 (rand-vu-int-count 2))) #f)
+      (logior! (-> this flags) (citizen-flag sticky-weapon))
+      )
     )
   #t
   )
 
 (defun mod-ins-blue-activated? ((this crimson-blue-guard) (params traffic-object-spawn-params))
   "*mod-city-blue-activated-hook* under Insurrection: blue rebels roam individually with a
-   randomized weapon (no squads). Returns #f so the stock lone-guard activation still runs."
+   randomized ranged weapon (rifle or grenade launcher, 0% taser, no squads), with 8 HP matching yellow guards.
+   Returns #f so the stock lone-guard activation still runs."
   params
   (set! (-> this squad-count) 1)
   (set! (-> this squad-index) 0)
   (set! (-> this squad-leader) (the-as handle #f))
-  (crimson-guard-method-225 this (the-as uint (rand-vu-int-count 3)) #f)
+  (set! (-> this hit-points) 8)
+  ;; 0% taser: randomly choose between 1 (rifle) and 2 (grenade launcher)
+  (crimson-guard-method-225 this (the-as uint (+ 1 (rand-vu-int-count 2))) #f)
+  (logior! (-> this flags) (citizen-flag sticky-weapon))
   #f
   )
 
@@ -703,7 +1045,7 @@
     (when engine
       (format #t "  guard zone shaped for = ~A (spawns ~A here)  inv-density=~f~%"
               *mod-city-guard-zone*
-              (case *mod-city-guard-zone* (('blue) "blue") (('conflict) "50/50") (else "red"))
+              (case *mod-city-guard-zone* (('blue) "blue") (('conflict) "70/30 (loyalist/rebel)") (else "red"))
               (-> engine inv-density-factor))
       (format #t "  crimson-guard-1 / t6 (guard pool A): want=~D target=~D active=~D inactive=~D~%"
               (-> engine object-type-info-array 6 want-count)

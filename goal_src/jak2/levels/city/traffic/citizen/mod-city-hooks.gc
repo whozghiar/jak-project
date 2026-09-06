@@ -27,6 +27,7 @@
 (define-extern mod-ins-guard-search-trans (function crimson-guard symbol))
 (define-extern mod-ins-keep-guard-target? (function process-focusable symbol))
 (define-extern mod-ins-guard-activated? (function crimson-guard traffic-object-spawn-params symbol))
+(define-extern mod-ins-guard-activate (function traffic-tracker traffic-type handle))
 
 ;; --- no-op / stock defaults ---------------------------------------------------------------------
 
@@ -48,6 +49,13 @@
   (if *mod-city-insurrection?*
       (mod-ins-guard-spawn-blue? params)
       #f
+      )
+  )
+
+(defun mod-city-ins-guard-activate ((this traffic-tracker) (ttype traffic-type))
+  (if *mod-city-insurrection?*
+      (mod-ins-guard-activate this ttype)
+      (mod-city-hook-guard-activate this ttype)
       )
   )
 
@@ -88,7 +96,7 @@
 
 (define *mod-city-traffic-update-hook* mod-city-insurrection-update-traffic)
 (define *mod-city-guard-spawn-blue-hook* (the-as (function object symbol) mod-city-ins-guard-spawn-blue?))
-(define *mod-city-guard-activate-hook* (the-as (function object traffic-type handle) mod-city-hook-guard-activate))
+(define *mod-city-guard-activate-hook* (the-as (function object traffic-type handle) mod-city-ins-guard-activate))
 (define *mod-city-alert-blocked-hook* mod-city-ins-alert-blocked?)
 (define *mod-city-blue-activated-hook* (the-as (function crimson-blue-guard object symbol) mod-city-ins-blue-activated?))
 (define *mod-city-guard-activated-hook* (the-as (function crimson-guard object symbol) mod-city-ins-guard-activated?))

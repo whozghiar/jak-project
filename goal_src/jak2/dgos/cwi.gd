@@ -37,6 +37,7 @@
   "trail-graph.o"
   "trail.o"
   "traffic-manager.o"
+  "mod-city-peaceful.o"
   "mod-city-hooks.o"
   "ctywide-texture.o"
   "ctywide-part.o"

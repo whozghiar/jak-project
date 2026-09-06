@@ -549,54 +549,13 @@
         (let* ((sv-16
                  (cond
                    ((or (= gp-0 (traffic-type crimson-guard-0))
-                        (= gp-0 (traffic-type crimson-guard-1)))
-                    (cond
-                      (*mod-city-insurrection?*
-                       ;; City Insurrection splits the two guard pools by faction at spawn time
-                       ;; (traffic-object-spawn): crimson-guard-1 = red, crimson-guard-0 = blue.
-                       ;; Each pool is therefore single-faction -- no per-activation choice to
-                       ;; make, just take the next inactive process of this type.
-                       (get-from-inactive-by-type this gp-0)
-                       )
-                      (else
-                       ;; Stock / City Peaceful: this pool is an id-parity blue+red mix. Pull the
-                       ;; wanted faction out of it -- every guard blue for City Peaceful, else
-                       ;; 1-in-*crimson-blue-guard-ratio* blue (stock ambient behaviour). If the
-                       ;; wanted faction is momentarily not in the inactive list, fall back to
-                       ;; whatever is there rather than stalling the spawner.
-                       (let ((want-blue? (cond (*mod-city-peaceful?* #t)
-                                               (else (and (> *crimson-blue-guard-ratio* 0)
-                                                          (zero? (rand-vu-int-count *crimson-blue-guard-ratio*))))
-                                               )
-                                         )
-                             (chosen-h (the-as handle #f))
-                             )
-                         (dotimes (i (the-as int (-> v1-2 inactive-count)))
-                           (let* ((h (-> v1-2 array i))
-                                  (p (handle->process h))
-                                  )
-                             (when p
-                               (let ((is-blue? (type-type? (-> p type) crimson-blue-guard)))
-                                 (when (or (and want-blue? is-blue?)
-                                           (and (not want-blue?) (not is-blue?)))
-                                   (set! chosen-h h)
-                                   (set! i (the-as int (-> v1-2 inactive-count)))
-                                   )
-                                 )
-                               )
-                             )
-                           )
-                         (if (handle->process chosen-h)
-                             (begin
-                               (get-from-inactive-by-handle this gp-0 chosen-h)
-                               (+! (-> v1-2 reserve-count) -1)
-                               chosen-h
-                               )
-                             (get-from-inactive-by-type this gp-0)
-                             )
-                         )
-                       )
-                      )
+                        (= gp-0 (traffic-type crimson-guard-1))
+                        (= gp-0 (traffic-type crimson-guard-2)))
+                    ;; Blue Crimson Guard mod: an optional city-mode library may want a specific
+                    ;; faction out of the id-parity guard pool (all-blue for City Peaceful; City
+                    ;; Insurrection bakes faction at spawn so it just takes the next). Default is
+                    ;; the stock plain pull.
+                    (*mod-city-guard-activate-hook* this gp-0)
                     )
                    (else
                      (get-from-inactive-by-type this gp-0)
@@ -1859,16 +1818,11 @@
   )
 
 (defmethod increase-alert-level ((this traffic-engine) (arg0 int) (arg1 target))
-  ;; City Insurrection mod: only the loyalist ('red) districts run the wanted system. Block EVERY
-  ;; alert rise while Jak is in the Slums rebel haven ('blue) OR the faction war zone ('conflict) --
-  ;; whatever the source (traffic-manager 'increase-alert-level event, citizen::trigger-alert
-  ;; calling us directly, or the kill-count escalation in update-alert-state). This is the single
-  ;; choke point for the alert level going up, so hitting a red guard in the war zone raises nothing.
-  (when (not (and *mod-city-insurrection?*
-                  (let ((z (city-get-current-zone)))
-                    (or (= z 'blue) (= z 'conflict))
-                    )
-                  ))
+  ;; Blue Crimson Guard mod: this is the single choke point for the alert level going up (menu
+  ;; event, citizen::trigger-alert direct call, kill-count escalation). An optional city-mode
+  ;; library can veto a rise this frame -- City Insurrection uses it to make the Slums and the
+  ;; faction war zone alert-free. Default hook returns #f (alerts rise normally).
+  (when (not (*mod-city-alert-blocked-hook*))
     (when (and (logtest? (-> this alert-state flags) (traffic-alert-flag target-jak))
                (logtest? (-> arg1 mask) (process-mask target))
                )

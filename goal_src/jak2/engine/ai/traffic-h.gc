@@ -79,16 +79,27 @@
 
 (define-extern *traffic-alert-level-force* symbol)
 
-;; NOTE - for default-menu-pc (Mods tab); defined in traffic-manager.gc
+(define-extern *crimson-blue-guard-ratio* int)
+(define-extern find-nearest-enemy-guard (function process-focusable symbol float process-focusable))
+
+;; ------------------------------------------------------------------------------------------------
+;; Blue Crimson Guard mod -- optional "city mode" hook layer.
+;;
+;; The shared traffic / guard engine files (traffic-engine.gc, traffic-manager.gc, guard.gc,
+;; crimson-blue-guard.gc) call these function-pointer globals instead of testing mode flags inline.
+;; A small per-branch wiring file, mod-city-hooks.gc (present on every branch), (define)s them --
+;; to no-op / stock defaults on the base `blueguard-traffic` branch, or to functions pulled from
+;; mod-city-peaceful.gc / mod-city-insurrection.gc on a feature branch. The engine files therefore
+;; stay byte-identical across the whole mod family; only the set of registered mode libraries and
+;; the contents of mod-city-hooks.gc differ per branch.
+;;
+;; The two mode flags stay too -- the debug-menu pick-funcs need to clear the other one, so both
+;; symbols exist on every branch (defined in mod-city-hooks.gc, default #f).
 (define-extern *mod-city-peaceful?* symbol)
 (define-extern *mod-city-insurrection?* symbol)
-;; District group selected as the City Insurrection war zone ('industrial default; also 'port,
-;; 'bazaar, 'farm, 'market). Read by the city zoning helpers, set from the Mods debug menu.
+;; City Insurrection war-zone district ('industrial default; see mod-city-insurrection.gc). Only
+;; the insurrection library defines it; only the debug menu's war-zone picker reads it.
 (define-extern *mod-city-conflict-district* symbol)
-(define-extern *crimson-blue-guard-ratio* int)
-(define-extern city-get-current-zone (function symbol))
-(define-extern city-get-pos-zone (function vector symbol))
-(define-extern find-nearest-enemy-guard (function process-focusable symbol float process-focusable))
 
 (declare-type nav-mesh basic)
 
@@ -96,6 +107,25 @@
 (declare-type traffic-manager process)
 (declare-type crimson-guard process-focusable)
 (declare-type crimson-blue-guard crimson-guard)
+
+;; the *mod-city-*-hook* function pointers (need the forward-declared types above)
+;; per-frame traffic shaping, called from traffic-manager::update (arg: traffic-manager)
+(define-extern *mod-city-traffic-update-hook* (function traffic-manager none))
+;; faction pick for one ambient city-guard spawn -- #t = blue (arg: traffic-object-spawn-params)
+(define-extern *mod-city-guard-spawn-blue-hook* (function object symbol))
+;; pull a process to activate from a guard pool's inactive list (args: traffic-tracker, traffic-type)
+(define-extern *mod-city-guard-activate-hook* (function object traffic-type handle))
+;; #t => block this frame's alert-level rise (Slums / war-zone safe havens)
+(define-extern *mod-city-alert-blocked-hook* (function symbol))
+;; crimson-blue-guard 'traffic-activate: the hook adds mode behaviour after stock activation (args: this, params)
+(define-extern *mod-city-blue-activated-hook* (function crimson-blue-guard object symbol))
+;; per-frame active-state scan (guard.gc + crimson-blue-guard.gc active:trans)
+(define-extern *mod-city-guard-active-trans-hook* (function crimson-guard none))
+;; per-frame search-state scan (guard.gc search:trans): 'engaged = re-acquired a foe,
+;; 'idle = drop back to patrol, #f = not applicable
+(define-extern *mod-city-guard-search-trans-hook* (function crimson-guard symbol))
+;; #t => keep this guard-vs-guard traffic-target instead of clearing it (crimson-guard-method-220)
+(define-extern *mod-city-keep-guard-target-hook* (function process-focusable symbol))
 
 ;; DECOMP BEGINS
 

@@ -94,6 +94,10 @@
 ;; not decompiled or auto-discovered -- pre-mark them so cgo-file doesn't generate conflicting second build steps.
 (hash-table-set! *file-entry-map* "crimson-blue-guard-ag.go" #f)
 (hash-table-set! *file-entry-map* "crimson-blue-guard.o" #f)
+;; Blue Crimson Guard mod -- "city mode" hook libraries, built explicitly via (goal-src) below.
+(hash-table-set! *file-entry-map* "mod-city-insurrection.o" #f)
+(hash-table-set! *file-entry-map* "mod-city-peaceful.o" #f)
+(hash-table-set! *file-entry-map* "mod-city-hooks.o" #f)
 
 (cgo-file "game.gd" '("$OUT/obj/gcommon.o" "$OUT/obj/gstate.o" "$OUT/obj/gstring.o" "$OUT/obj/gkernel.o"))
 
@@ -333,6 +337,14 @@
 ;; levels/city/traffic/citizen/crimson-blue-guard.gc).
 (build-actor "crimson-blue-guard" :force-run #t :native-header #t)
 (goal-src "levels/city/traffic/citizen/crimson-blue-guard.gc" "guard")
+
+;; Blue Crimson Guard mod -- optional "city mode" layers. The engine files call the
+;; *mod-city-*-hook* function pointers (engine/ai/traffic-h.gc); these libraries implement them
+;; and mod-city-hooks.gc wires them up. mod-city-hooks.gc is registered on every branch; the
+;; two mode libraries only on branches that ship that mode.
+(goal-src "levels/city/traffic/citizen/mod-city-insurrection.gc" "traffic-manager")
+(goal-src "levels/city/traffic/citizen/mod-city-peaceful.gc" "traffic-manager")
+(goal-src "levels/city/traffic/citizen/mod-city-hooks.gc" "mod-city-insurrection" "mod-city-peaceful")
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; ANIMATIONS

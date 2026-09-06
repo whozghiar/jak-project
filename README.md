@@ -1,9 +1,10 @@
-# Crimson Blue Guard — Jak 2
+# Crimson Blue Guard & City Insurrection — Jak 2
 
 <p align="center">
   <img src="https://img.shields.io/badge/OpenGOAL-Mod-blue.svg" alt="OpenGOAL Mod">
   <img src="https://img.shields.io/badge/Game-Jak%202-orange.svg" alt="Target Game">
   <img src="https://img.shields.io/badge/Branch-jak2%2Ffeatures%2Fcity--insurrection-green.svg" alt="Branch">
+  <img src="https://img.shields.io/badge/Status-Work%20in%20Progress-yellow.svg" alt="Work in Progress">
   <img src="https://img.shields.io/badge/AI--assisted-Modding-purple.svg" alt="AI Assisted">
 </p>
 
@@ -15,207 +16,208 @@
 
 # 🇬🇧 English Version
 
+> [!WARNING]
+> ### ⚠️ Work in Progress — Stability Notice
+> This mod is currently under **active development**. While fully playable, players and testers may encounter **occasional unexpected game crashes** (e.g. `exit status 5` / process allocation limits) due to the high density of concurrent combatants, process slot exhaustion under sustained heavy battle, or level streaming crossfades.
+> Detailed health telemetry is periodically printed to the console terminal to help monitor heap memory and active process slots.
+
 ## 📖 Overview
-Adds a blue-recolored Crimson Guard as its own, standalone entity — a new GOAL type
-(`crimson-blue-guard`) that reuses 100% of the stock `crimson-guard`'s behavior, animations and
-sounds, only with a re-textured mesh. It appears in Haven City mixed into the normal ambient
-guard traffic, alongside the regular red guards.
+Adds the **Blue Crimson Guard** as its own standalone entity (`crimson-blue-guard`) with high-fidelity combat AI and custom textures, alongside the **City Insurrection** mode: a full-scale territorial civil war across Haven City between Baron Praxis's loyalist forces and the rebel blue guard insurgent faction.
 
 - **Target Game:** Jak 2
-- **Active Branch:** `jak2/features/city-insurrection` — base blue-guard traffic + the **City
-  Insurrection** mode: Haven City becomes a three-front territorial civil war.
+- **Active Branch:** `jak2/features/city-insurrection` — Standalone blue-guard traffic + City Insurrection territorial civil war.
 
-### Branch family
-| Branch | Adds |
+### Branch Family
+| Branch | Description |
 |---|---|
-| `jak2/features/blueguard-traffic` | base: `crimson-blue-guard` entity, faithful combat AI, ambient city-traffic spawning, modular hook layer |
-| `jak2/features/city-peaceful` | neutral blue patrol **squads** — formation nav, mutual defense, friendly-fire immunity |
-| **`jak2/features/city-insurrection`** *(this one)* | three-front **territorial civil war** — district zoning, autonomous inter-faction combat, alert-free zones, debug-menu war-zone picker |
-| `jak2/features/blueguard` | both modes together (mutually exclusive at runtime) |
+| `jak2/features/blueguard-traffic` | Base: `crimson-blue-guard` entity, faithful combat AI, ambient city-traffic spawning, modular hook layer |
+| `jak2/features/city-peaceful` | Neutral blue patrol **squads** — formation nav, mutual defense, friendly-fire immunity |
+| **`jak2/features/city-insurrection`** *(this branch)* | Full **territorial civil war** — district zoning, autonomous inter-faction combat, 60-guard density, artillery grenade launchers, alert-free zones |
+| `jak2/features/blueguard` | Integration of both modes (mutually exclusive at runtime via debug menu) |
 
-`City Insurrection` is toggled from `Debug ▸ Mods ▸ City Insurrection`; the war-zone district is
-picked from `Debug ▸ Mods ▸ Insurrection war zone`. Off = plain ambient blue guards.
+---
 
 ## ✨ Key Features
-- **New standalone entity:** `crimson-blue-guard` is a real GOAL type (subtype of
-  `crimson-guard`), not a global texture swap — regular red guards keep spawning too.
-- **Identical to the stock guard in every other respect:** animations, sounds, death (including native purple particle dissolution and ground knockdown death), collision,
-  weapon loadout — all inherited unchanged (same slot indices, see the technical doc); only the
-  mesh/skeleton-group and the one behavior difference below are different.
-- **Its own faction behavior:** unlike the stock guard, it is passive toward Jak by default and
-  never joins a general city alert against him. If Jak personally attacks it, it fights back
-  without raising the city-wide alarm.
-- **Manual "fight the other guards" trigger:** `crimson-blue-guard-attack-guards`, a small function
-  that makes it go hostile toward the nearest red `crimson-guard` — never automatic, called
-  explicitly (REPL or code).
-- **Mixed into ambient city traffic:** the traffic manager spawns the blue variant for a
-  configurable fraction of ambient guard spawns (`*crimson-blue-guard-ratio*`, default 1-in-2 of
-  the id-parity pool), right alongside the stock guard.
-- **Faithful Crimson Guard Combat AI:** rifle and grenade launcher guards maintain tactical standoff distance (engaging targets up to 50m away), fire reactive bursts or parabolic grenades, and execute evasive combat rolls (`roll-left` / `roll-right`). Melee rifle-butt strikes are strictly an emergency close-quarters counter (< 2.5m), followed immediately by an evasive roll to resume shooting. Taser guards charge and shock with high-voltage electric arcs.
-- **City Insurrection mode** (`mod-city-insurrection.gc`, toggled from the Mods debug tab):
-  districts are classified by the *loaded city-level name* that owns Jak's position (never
-  hardcoded coordinates). **Slums** (`ctysluma/b/c`) — 100% lone blue rebels, alert-free safe
-  haven. **Loyalist districts** — 100% stock red/yellow guards, byte-for-byte vanilla policing.
-  **War zone** — a debug-menu-selectable district (**Industrial** `ctyinda/b` by default, or Port
-  / Bazaar / Farmland / Market): ~30 guards 50/50 blue vs red, all civilians/metalheads/vehicles
-  removed, and the two factions hunt and fight each other on sight (~60 m acquisition) with **no**
-  effect on Jak's wanted level — hitting a red guard there raises nothing. Crossing a district
-  border crossfades the guard mix over ~1-2 s (incremental, never a single-frame flush — an
-  earlier flush raced level teardown and crashed the game).
-- **Modular `*mod-city-*-hook*` layer:** the shared traffic/guard engine files call ~8 named
-  function-pointer hooks (declared in `engine/ai/traffic-h.gc`); `mod-city-insurrection.gc` fills
-  in the ones it needs, the rest stay at their stock defaults. The engine files are byte-identical
-  across the branch family.
+
+### 🔵 Standalone Custom Entity (`crimson-blue-guard`)
+- **Native GOAL Type:** A standalone subclass of `crimson-guard` with its own mesh and textures, not a simple global texture swap. Standard red and yellow guards spawn alongside.
+- **Visual & Audio Fidelity:** Preserves 100% of authentic animations, voice lines, sound effects, collision, and death effects (native purple particle disintegration and knockdown physics).
+- **Independent Faction Logic:** Passive towards Jak by default; does not join general police alerts against him. Defends itself without raising the city-wide alarm.
+
+### ⚔️ City Insurrection Mode
+Toggled from `Debug Menu ▸ Mods ▸ City Insurrection`:
+- **Territorial District Zoning:**
+  - **Slums (`ctysluma/b/c`):** Insurgent stronghold. 100% blue rebel guards, no police gunships, alarm-free haven.
+  - **Loyalist Districts:** Baron Praxis control. 100% red and yellow loyalist police with vanilla enforcement.
+  - **War Zone (Industrial `ctyinda/b` by default, or selectable via Debug Menu / All City):** An active battlefield where opposing factions hunt and engage each other on sight.
+- **Autonomous Inter-Faction Warfare:** Blue and red/yellow guards engage at long range (~150m scan) with no police pursuit or wanted level triggered against Jak.
+- **Civilian Evacuation:** Civilians, civilian hovercrafts, and ambient metalheads are automatically purged from the conflict zone to dedicate memory and process slots to the firefight.
+- **Dynamic Faction Balancing (70% Loyalists / 30% Insurgents):** Street-level real-time balancing ensures loyalist forces maintain tactical superiority over the rebel forces.
+
+### 💥 Maximum Guard Density (60 Active Combatants)
+- **All Three Guard Pools Mobilized:** Exploits the OpenGOAL traffic engine architecture to its limit by mobilizing Pool 4 (`crimson-guard-0`), Pool 6 (`crimson-guard-1`), and Pool 7 (`crimson-guard-2`) at 20 guards each.
+- **Ultra-Dense Spacing (`inv-density-factor 0.1`):** Spawns combatants 50x denser than vanilla across sidewalks and streets.
+- **Continuous Battlefield Reinforcement (`fast-spawn #t`):** War zone losses are replenished in real-time frame-by-frame.
+
+### 🎯 Overhauled Ranged Arsenal & Melee Minimization
+- **0% Tasers:** Melee taser/baton guards are completely disabled in Insurrection mode.
+- **Grenade Launchers for Red & Yellow Guards:** Loyalists are equipped with high-explosive grenade launchers (`vehicle-grenade`) featuring parabolic ballistic trajectories alongside standard pulse rifles.
+- **Minimized Melee Attempts:**
+  - Guards no longer abandon shooting to perform awkward rifle-butt swings.
+  - The vanilla 10-meter shooting lockout is eliminated; guards fire at any range, including point-blank.
+  - Initial reaction delay reduced from 1.0–3.0s down to 0.2–0.5s for immediate fire.
+  - Standoff flanking positioning: guards maintain an arc of ~6.5m (rifle) to ~9m (grenade launcher).
+  - Guard bumping collisions in dense streets no longer trigger melee states.
+
+### 📊 Real-Time Terminal Telemetry Logs
+- Health metrics logged to the terminal every 5 seconds:
+  `[INS-METRICS] Heap: ... | Slots: ... | Combatants (act/tot): ... | P4(...) P6(...) P7(...) | Zone: conflict`
+
+---
+
+## 🎥 Demonstration Video
+
+[![Demonstration Video](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
+
+▶️ **[Watch the demonstration video on YouTube](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)**
+
+> [!NOTE]
+> *Demonstration videos must be hosted externally on YouTube to prevent repository bloating. Replace `YOUR_VIDEO_ID` with the video ID once uploaded.*
+
+---
 
 ## 🚀 Step-by-Step Guide to Run the Mod
 
 ### 1. Select the Active Game
-Make sure your environment is targeting Jak 2:
 ```bash
 task set-game-jak2
 ```
 
 ### 2. Binary Compilation
-- **Status:** `task build-release-game` (or `task build-debug-game`) — required. The
-  `build-actor` tool (`goalc/build_actor/jak2/build_actor.cpp`) and the `goalc` data-compiler
-  (`goalc/make/Tools.cpp`) both gained a new opt-in `:native-header` flag used to build this
-  actor's art-group. See `docs/modding/build_and_iteration_workflow.md`.
-- **Details:** engine/compiler C++ was modified (see the "Engine Changes" table in the technical
-  doc below).
+Required once if C++ engine tools have changed:
 ```bash
 task build-release-game
 ```
 
 ### 3. Asset Extraction
-- **Status:** Required, once — the guard's actual drawable geometry + textures ("Circuit 2", see
-  the technical doc) are baked into `GAME.fr3` by the decompiler, from
-  `custom_assets/jak2/models/common/crimson-blue-guard-lod0.glb`. Needs a legally-dumped Jak 2 ISO.
+Required once to extract the custom model and textures into `GAME.fr3`:
 ```bash
 task extract
 ```
-Check the log for `Adding custom model crimson-blue-guard-lod0 to common` and no
-`merc failed to find texture` error for it. This step does **not** need to be repeated after a
-pure GOAL-code change (`(mi)` is enough) — only after the `.glb` model itself changes.
 
 ### 4. Launch the Game
-Run the game natively:
 ```bash
 task boot-game
 ```
-*(Or launch via the OpenGOAL REPL using `task repl`, then compile and run with `(mi)` and `(r)`).*
-Roughly 1 in 8 ambient guard spawns in Haven City will be blue. To see it faster while testing,
-set `(set! *crimson-blue-guard-ratio* 1)` at the REPL once booted — every ambient guard spawn
-becomes blue until you reset it back to `8` (or any N you like). You can also spawn one right in
-front of you regardless of the ratio with `(spawn-crimson-blue-guard-debug 0)` (baton guard) or
-`(spawn-crimson-blue-guard-debug 1)` (gun-equipped guard).
+*(Or launch via the OpenGOAL REPL using `task repl`, then compile and run with `(mi)` and `(boot-game)`).*
+
+---
 
 ## 📖 Technical Documentation
-For the complete technical breakdown, architecture, and developer notes, refer to:
+For complete technical notes, engine modifications, and architecture:
 - 📄 [`docs/modding/current_mod/blue_guard_reskin_readme.md`](docs/modding/current_mod/blue_guard_reskin_readme.md)
 
 ---
 
 # 🇫🇷 Version Française
 
+> [!WARNING]
+> ### ⚠️ En Cours de Développement — Avis de Stabilité
+> Ce mod est actuellement en **cours de développement actif**. Bien que pleinement fonctionnel, les joueurs et testeurs peuvent faire face à des **crashs inopinés** (ex. `exit status 5` / saturation de processus) en raison de la très forte densité d'entités, de la fatigue de la mémoire de tas (heap) lors de combats intenses prolongés ou des transitions rapides de quartiers.
+> Des métriques de santé sont affichées régulièrement dans les logs du terminal pour surveiller l'état de la mémoire et des slots disponibles.
+
 ## 📖 Présentation du Mod
-Ajoute un garde crimson recoloré en bleu comme une entité à part entière — un nouveau type GOAL
-(`crimson-blue-guard`) qui réutilise à 100% le comportement, les animations et les sons du garde
-crimson d'origine (`crimson-guard`), seul le mesh/la texture change. Il apparaît dans Haven City
-mélangé au trafic ambiant normal, aux côtés des gardes rouges classiques.
+Ce mod introduit le **Garde Crimson Bleu** en tant qu'entité autonome (`crimson-blue-guard`) dotée d'une IA de combat avancée et de textures dédiées, ainsi que le mode **City Insurrection** : une guerre civile territoriale à grande échelle dans Haven City opposant les forces loyalistes du Baron Praxis à l'insurrection des gardes bleus.
 
 - **Jeu Ciblé :** Jak 2
-- **Branche Active :** `jak2/features/city-insurrection` — base blue-guard + le mode **City
-  Insurrection** : Haven City devient une guerre civile territoriale à trois fronts.
+- **Branche Active :** `jak2/features/city-insurrection` — Garde bleu autonome + mode guerre civile City Insurrection.
 
-### Famille de branches
-| Branche | Ajoute |
+### Famille de Branches
+| Branche | Description |
 |---|---|
-| `jak2/features/blueguard-traffic` | base : entité `crimson-blue-guard`, IA de combat fidèle, spawn dans le trafic ambiant, couche de hooks modulaire |
-| `jak2/features/city-peaceful` | **escouades** de patrouille bleues neutres — nav en formation, défense mutuelle, immunité aux tirs alliés |
-| **`jak2/features/city-insurrection`** *(celle-ci)* | **guerre civile territoriale** à trois fronts — zonage par quartier, combat inter-factions autonome, zones sans alerte, sélecteur de quartier de guerre |
-| `jak2/features/blueguard` | les deux modes ensemble (mutuellement exclusifs au runtime) |
+| `jak2/features/blueguard-traffic` | Base : entité `crimson-blue-guard`, IA de combat fidèle, spawn dans le trafic ambiant, hooks modulaires |
+| `jak2/features/city-peaceful` | **Escouades** de patrouille bleues neutres — formation, défense mutuelle, immunité aux tirs alliés |
+| **`jak2/features/city-insurrection`** *(cette branche)* | **Guerre civile territoriale** — zonage par quartier, affrontements autonomes, densité de 60 gardes, tirs d'artillerie au lance-grenades |
+| `jak2/features/blueguard` | Intégration des deux modes (mutuellement exclusifs au runtime via le menu debug) |
 
-`City Insurrection` se bascule depuis `Debug ▸ Mods ▸ City Insurrection` ; le quartier de guerre
-se choisit dans `Debug ▸ Mods ▸ Insurrection war zone`. Off = gardes bleus ambiants simples.
+---
 
 ## ✨ Fonctionnalités Clés
-- **Nouvelle entité à part entière :** `crimson-blue-guard` est un vrai type GOAL (sous-type de
-  `crimson-guard`), pas un simple remplacement de texture global — les gardes rouges classiques
-  continuent d'apparaître normalement.
-- **Identique au garde classique en tout le reste :** animations, sons, mort (dissolution en particules violettes et maintien au sol après projection), collision, arsenal —
-  tout est hérité sans modification (mêmes indices de slot, voir la doc technique) ; seuls le
-  mesh/skeleton-group et la différence de comportement ci-dessous changent.
-- **Sa propre logique de faction :** contrairement au garde classique, il est passif envers Jak par
-  défaut et ne rejoint jamais une alerte générale de la ville contre lui. Si Jak l'attaque
-  personnellement, il riposte sans déclencher l'alarme de la ville.
-- **Déclencheur manuel « combattre les autres gardes » :** `crimson-blue-guard-attack-guards`, une
-  petite fonction qui le fait devenir hostile envers le `crimson-guard` rouge le plus proche —
-  jamais automatique, appelée explicitement (REPL ou code).
-- **Mélangé au trafic ambiant de la ville :** le traffic-manager fait apparaître la variante bleue
-  pour une fraction configurable des spawns de gardes ambiants (`*crimson-blue-guard-ratio*`,
-  1 sur 2 du pool parité-id par défaut), aux côtés du garde classique.
-- **IA de Combat Fidèle aux Crimson Guards :** les gardes armés d'un fusil ou d'un lance-grenades maintiennent une distance d'engagement tactique (jusqu'à 50 m), tirent des rafales/projectiles avec visée réactive et enchaînent des roulades d'esquive latérales (`roll-left` / `roll-right`). Les coups de crosse sont strictement réservés au contact d'urgence (< 2,5 m) et sont immédiatement suivis d'une roulade d'esquive pour reprendre le tir à distance. Les gardes au taser foncent au contact pour électrocuter avec des arcs électriques.
-- **Mode City Insurrection** (`mod-city-insurrection.gc`, basculé depuis l'onglet Mods) : les
-  quartiers sont classés par le *nom du niveau de ville chargé* qui contient la position de Jak
-  (jamais de coordonnées codées en dur). **Slums** (`ctysluma/b/c`) — 100% de rebelles bleus
-  solitaires, zone refuge sans alerte. **Quartiers loyalistes** — 100% de gardes rouges/jaunes
-  classiques, police strictement d'origine. **Zone de guerre** — un quartier sélectionnable dans
-  le menu (**Industriel** `ctyinda/b` par défaut, ou Port / Bazar / Fermes / Marché) : ~30 gardes
-  50/50 bleus vs rouges, tous les civils/têtes-de-métal/véhicules retirés, et les deux factions se
-  combattent à vue (~60 m) sans **aucun** effet sur le niveau de recherche de Jak. Franchir une
-  frontière de quartier fait un fondu du mix de gardes sur ~1-2 s (incrémental, jamais un flush en
-  une frame — un flush antérieur entrait en course avec le démontage de niveau et crashait le jeu).
-- **Couche modulaire `*mod-city-*-hook*` :** les fichiers moteur partagés appellent ~8 hooks
-  nommés (déclarés dans `engine/ai/traffic-h.gc`) ; `mod-city-insurrection.gc` remplit ceux dont
-  il a besoin, le reste garde les défauts. Les fichiers moteur sont identiques sur toute la
-  famille de branches.
+
+### 🔵 Nouvelle Entité Autonome (`crimson-blue-guard`)
+- **Type GOAL Dédié :** Vrai sous-type de `crimson-guard` avec son propre maillage 3D et ses textures personnalisées (pas un simple swap global). Les gardes rouges et jaunes continuent d'apparaître normalement.
+- **Fidélité Totale :** Conserve l'intégralité des animations, voix, bruitages, collisions et effets de mort (désintégration violette et chutes après projection).
+- **Faction Indépendante :** Neutre envers Jak par défaut ; ne se joint pas aux alertes policières de la ville. Se défend si attaqué directement sans déclencher d'alarme générale.
+
+### ⚔️ Mode City Insurrection (Guerre Civile)
+Activé depuis `Debug Menu ▸ Mods ▸ City Insurrection` :
+- **Zonage Territorial des Quartiers :**
+  - **Slums / Bas-fonds (`ctysluma/b/c`) :** Bastion rebelle. 100% de gardes bleus, aucun vaisseau de police, zone refuge sans alerte.
+  - **Quartiers Loyalistes :** Contrôle total de Praxis. 100% de gardes rouges et jaunes avec maintien de l'ordre d'origine.
+  - **Zone de Conflit (Zone Industrielle `ctyinda/b` par défaut, sélectionnable dans le menu ou All City) :** Champ de bataille urbain où les factions s'affrontent à vue.
+- **Combats Inter-Factions Autonomes :** Les gardes bleus et rouges/jaunes se repèrent à longue distance (~150m) et combattent sans impacter le niveau de recherche de Jak.
+- **Évacuation des Civils :** Civils, véhicules civils et têtes-de-métal sont purgés de la zone de guerre afin de dédier les ressources mémoire aux combattants.
+- **Équilibrage Dynamique (70% Loyalistes / 30% Insurgés) :** Régulation en direct dans la rue garantissant la supériorité numérique des forces loyalistes.
+
+### 💥 Densité Maximale des Gardes (60 Combattants Actifs)
+- **Mobilisation des 3 Pools du Moteur :** Exploite la limite architecturale du moteur de trafic OpenGOAL en mobilisant les Pools 4, 6 et 7 à 20 gardes chacun (60 gardes simultanés).
+- **Espacement Ultra-Serré (`inv-density-factor 0.1`) :** Les gardes apparaissent 50 fois plus rapprochés le long des rues.
+- **Réapprovisionnement Continu (`fast-spawn #t`) :** Les pertes sont comblées instantanément à chaque image.
+
+### 🎯 Arsenal Rénové & Minimisation du Corps à Corps
+- **0% de Tasers :** Les armes de corps à corps (bâtons/tasers) sont totalement supprimées en mode Insurrection.
+- **Lance-Grenades pour les Gardes Rouges et Jaunes :** Tir de projectiles explosifs (`vehicle-grenade`) en cloche balistique parabolique et tirs au fusil d'assaut.
+- **Minimisation des Tentatives de Mêlée :**
+  - Fin des coups de crosse intempestifs qui interrompent les tirs.
+  - Suppression de l'interdiction de tir sous 10 mètres du code vanilla (tirs autorisés à bout portant).
+  - Réaction quasi-immédiate (0,2 à 0,5 s au lieu de 1 à 3 s).
+  - Maintien d'une distance tactique en arc de cercle (~6,5 m au fusil, ~9 m au lance-grenades).
+  - Les bousculades entre gardes dans les foules denses ne déclenchent plus de coups de crosse dans le vide.
+
+### 📊 Télémétrie en Direct (Logs Terminal)
+- Métriques affichées toutes les 5 secondes dans la console :
+  `[INS-METRICS] Heap: ... | Slots: ... | Combatants (act/tot): ... | P4(...) P6(...) P7(...) | Zone: conflict`
+
+---
+
+## 🎥 Démonstration Vidéo
+
+[![Démonstration Vidéo](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
+
+▶️ **[Regarder la vidéo de démonstration sur YouTube](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)**
+
+> [!NOTE]
+> *Les vidéos de démonstration doivent être hébergées sur YouTube pour éviter d'alourdir le dépôt git. Remplacez `YOUR_VIDEO_ID` par l'identifiant de la vidéo une fois mise en ligne.*
+
+---
 
 ## 🚀 Guide Pas à Pas pour Lancer le Mod
 
 ### 1. Sélectionner le Jeu Actif
-Assurez-vous que l'environnement cible Jak 2 :
 ```bash
 task set-game-jak2
 ```
 
 ### 2. Compilation des Binaires
-- **Statut :** `task build-release-game` (ou `task build-debug-game`) — requise. L'outil
-  `build-actor` (`goalc/build_actor/jak2/build_actor.cpp`) et le compilateur de données `goalc`
-  (`goalc/make/Tools.cpp`) ont tous deux reçu un nouveau flag optionnel `:native-header` utilisé
-  pour construire l'art-group de cet acteur. Voir `docs/modding/build_and_iteration_workflow.md`.
-- **Détails :** du C++ moteur/compilateur a été modifié (voir le tableau « Changements Moteur »
-  dans la doc technique ci-dessous).
 ```bash
 task build-release-game
 ```
 
 ### 3. Extraction des Données (Assets)
-- **Statut :** Requise, une fois — la géométrie de rendu + textures réelles du garde
-  (« Circuit 2 », voir la doc technique) sont cuites dans `GAME.fr3` par le décompilateur, à partir
-  de `custom_assets/jak2/models/common/crimson-blue-guard-lod0.glb`. Nécessite un ISO Jak 2
-  légalement dumpé.
 ```bash
 task extract
 ```
-Vérifiez dans le log la ligne `Adding custom model crimson-blue-guard-lod0 to common` et l'absence
-d'erreur `merc failed to find texture` pour lui. Cette étape n'est **pas** à refaire après un
-simple changement de code GOAL (`(mi)` suffit) — seulement quand le `.glb` lui-même change.
 
 ### 4. Lancer le Jeu
-Lancez le jeu nativement :
 ```bash
 task boot-game
 ```
-*(Ou via le REPL OpenGOAL avec `task repl`, puis `(mi)` et `(r)`).*
-Environ 1 spawn de garde ambiant sur 8 sera bleu dans Haven City. Pour le voir plus vite pendant
-les tests, faites `(set! *crimson-blue-guard-ratio* 1)` au REPL une fois le jeu lancé — chaque
-garde ambiant spawné devient bleu jusqu'à ce que vous remettiez `8` (ou la valeur de votre choix).
-Vous pouvez aussi en faire apparaître un directement devant vous, sans dépendre du ratio, avec
-`(spawn-crimson-blue-guard-debug 0)` (garde matraque) ou `(spawn-crimson-blue-guard-debug 1)`
-(garde armé d'un fusil).
+*(Ou via le REPL OpenGOAL avec `task repl`, puis `(mi)` et `(boot-game)`).*
+
+---
 
 ## 📖 Documentation Technique
-Pour l'audit technique approfondi, l'architecture et les détails d'implémentation, consultez :
+Pour l'audit technique complet, l'architecture et les modifications apportées au moteur :
 - 📄 [`docs/modding/current_mod/blue_guard_reskin_readme.md`](docs/modding/current_mod/blue_guard_reskin_readme.md)
 
 ---

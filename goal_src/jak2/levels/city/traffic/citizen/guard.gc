@@ -1282,8 +1282,10 @@
     (when (and *mod-city-insurrection?*
                (= (city-get-pos-zone (-> this root trans)) 'conflict)
                )
-      ;; search-blue? is #t for a red guard (it hunts blue), #f for a blue guard (it hunts red)
-      (let ((foe (find-nearest-enemy-guard this (not (type-type? (-> this type) crimson-blue-guard)) (meters 40))))
+      ;; search-blue? is #t for a red guard (it hunts blue), #f for a blue guard (it hunts red).
+      ;; ~60 m acquisition range -- a war-zone sightline down an Industrial street, not a
+      ;; back-alley ambush distance (was 40 m, which read as guards ignoring visible enemies).
+      (let ((foe (find-nearest-enemy-guard this (not (type-type? (-> this type) crimson-blue-guard)) (meters 60))))
         (when foe
           (set! (-> this traffic-target-status handle) (process->handle foe))
           (try-update-focus (-> this focus) foe this)

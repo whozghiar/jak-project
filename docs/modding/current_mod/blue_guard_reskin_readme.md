@@ -276,13 +276,14 @@ new knob defaults to a value that reproduces the original behavior exactly (`nat
 | Squad mutual defense & Faction friendly-fire immunity | ✅ done, verified in-game: squad responds as a unit without city sirens; blue members & projectiles are fully immune to friendly fire |
 | Squad weapon loadout diversity | ✅ done, verified in-game: 3-man squads always have 1 Taser, 1 Rifle, 1 Grenade Launcher; 2-man squads have 2 distinct weapons |
 | Faithful Crimson Guard combat AI | ✅ done, verified in-game: standoff distance (~6.5m–9m), reactive laser bursts/parabolic grenades, evasive sideways rolls, emergency-only close attack (< 2.5m) followed by evasive recovery roll |
-| "Mods" debug menu tab (`City Peaceful` / `City Insurrection`) | ✅ both modes implemented; mutually exclusive; each toggle flushes & respawns the city guards so the new rules apply immediately |
-| City Insurrection — nickname-based district zoning (`city-level-name-at-pos`) | ✅ done: Slums (`ctysluma/b/c`) = blue, Industrial (`ctyinda/b`) = conflict, everything else = red — verified level names, no hardcoded coordinates; probes only the traffic-engine's linked `level-data-array` grids (never a raw `*level*` bsp pointer — that crashed on the `ctyport→ctyinda` transition) |
-| City Insurrection — strict per-zone spawning (one pool, faction by district) | ✅ done: the single stock `crimson-guard-1` pool; `traffic-object-spawn` picks blue in the Slums, red in Loyalist districts, 50/50 in Industrial; a district change purges + refills the pool so it's always 100% the right faction — no filtering, no wasted slots |
-| City Insurrection — Industrial zone: no civilians/vehicles + boosted guard density | ✅ done: `want-count` for citizen types 0–3 and vehicle types 11–19 forced to 0 while Jak is in `ctyinda/b`; guard pool set to `want-count` 18 / `target-count` 14 → ~14 guards, 50/50; all restored on zone/mode change |
-| City Insurrection — Loyalist district police density | ✅ fixed: the guard pool is left **byte-for-byte vanilla** in Loyalist districts (base `want-count`, alert-scaled `target-count`) — the earlier 50/50 shared pool had halved it |
-| City Insurrection — autonomous inter-faction combat (`crimson-guard-insurrection-scan`) | ✅ done: red hunts blue / blue hunts red within ~40 m from `active` **and** `search`, full weapon AI, zero effect on Jak's wanted level; `find-nearest-enemy-guard` fixed to scan both trackers (the decomp's `citizen`/`vehicle` tracker aliases are swapped — guards are in `vehicle-tracker-array`) |
-| City Insurrection — Slums police safe haven (`increase-alert-level` choke + `set-alert-level 0`) | ✅ done: no alert can start or persist in the blue zone, from any source |
+| "Mods" debug menu tab (`City Peaceful` / `City Insurrection` + `Insurrection war zone` picker) | ✅ both modes implemented; mutually exclusive; each toggle/pick flushes & respawns the city guards so the new rules apply immediately |
+| City Insurrection — nickname-based district zoning (`city-level-name-at-pos` → `city-district-of-level`) | ✅ done: Slums (`ctysluma/b/c`) = blue, the selected war-zone district = conflict, everything else = red — verified level names, no hardcoded coordinates; probes only the traffic-engine's linked `level-data-array` grids (never a raw `*level*` bsp pointer — that crashed on the `ctyport→ctyinda` transition) |
+| City Insurrection — **configurable war zone** (`*mod-city-conflict-district*`) | ✅ done: `Debug ▸ Mods ▸ Insurrection war zone` cycles the war zone between Industrial (default), Port, Bazaar, Farmland and Market; changing it re-zones and flushes the guards live |
+| City Insurrection — strict per-zone spawning (single-faction pools, faction by district) | ✅ done: `traffic-object-spawn` picks blue in the Slums, red in Loyalist districts, 50/50 in the war zone; a district change is reconciled incrementally (`mod-city-guard-pool-reconcile`, ≤2 wrong-faction retirements per pool per frame) so the pool is always the right faction — no filtering, no wasted slots |
+| City Insurrection — war zone: no civilians/vehicles + dense guard battle | ✅ done: `want-count` for citizens (0–3), metalheads (8–10) and vehicles (11–19) forced to 0 in the war zone (drained by `kill-excess-once` + natural despawn); **two** guard pools — stock `crimson-guard-1` (18/16) + the unused `crimson-guard-2` (16/14) — `inv-density-factor` 2.0 → ~30 guards, 50/50, under the stock 64 nav ceiling; all restored on zone/mode change |
+| City Insurrection — Loyalist district police density | ✅ the stock `crimson-guard-1` pool is left **byte-for-byte vanilla** in Loyalist districts (base `want-count`, alert-scaled `target-count`) |
+| City Insurrection — autonomous inter-faction combat (`crimson-guard-insurrection-scan`) | ✅ done: red hunts blue / blue hunts red within **~60 m** (was 40 m) from `active` **and** `search`, full weapon AI, zero effect on Jak's wanted level; `find-nearest-enemy-guard` scans both trackers (the decomp's `citizen`/`vehicle` tracker aliases are swapped — guards are in `vehicle-tracker-array`) |
+| City Insurrection — alert-free zones (`increase-alert-level` choke + `set-alert-level 0`) | ✅ done: no alert can start or persist in the Slums **or** the war zone, from any source — hitting a red guard in the war zone raises nothing; only loyalist districts run the wanted system |
 
 ## 9. "Mods" Debug Menu Tab & Features
 
@@ -310,64 +311,78 @@ When toggled on in the Mods menu:
 
 ### 9.2 City Insurrection (✅ Fully Implemented)
 Haven City becomes a three-front territorial civil war. Districts are classified by the **loaded
-city-level name** that owns a position — `city-level-name-at-pos` / `city-get-pos-zone` in
+city-level name** that owns a position — `city-level-name-at-pos` → `city-district-of-level` →
+`city-zone-from-level-name` in
 [`traffic-manager.gc`](../../../goal_src/jak2/levels/city/traffic/traffic-manager.gc) — using
 only verified level names (`level-info.gc`), never hardcoded map coordinates:
 
 | Zone | City levels | Rule |
 |---|---|---|
-| **Blue — Slums (Rebel Stronghold)** | `ctysluma`, `ctyslumb`, `ctyslumc` | 100% lone blue guards, random weapons; police-alert safe haven |
-| **Red — Loyalist (Baron's districts)** | `ctygena/b/c`, `ctyport`, `ctyfarma/b`, `ctymarka/b`, Palace, Stadium — everything else | 100% stock red/yellow Crimson Guards, **fully vanilla** density & policing toward Jak |
-| **Conflict — Industrial (War Zone)** | `ctyinda`, `ctyindb` | 50/50 blue vs red, ~18 guards on the street, **no civilians, no vehicles**; the two factions fight each other on sight |
+| **Blue — Slums (Rebel Stronghold)** | `ctysluma`, `ctyslumb`, `ctyslumc` | 100% lone blue guards, random weapons; alert-free safe haven |
+| **Red — Loyalist (Baron's districts)** | every district that is *not* the Slums or the selected war zone | 100% stock red/yellow Crimson Guards, **fully vanilla** density & policing toward Jak |
+| **Conflict — War Zone** | the district picked in `Debug ▸ Mods ▸ Insurrection war zone` — **Industrial (`ctyinda/b`) by default**, or Port / Bazaar / Farmland / Market | ~30 guards, 50/50 blue vs red, **no civilians, no metalheads, no vehicles**; the two factions fight each other on sight; alert-free |
 
 When toggled on in the Mods menu:
-- **Strict territorial spawning — one pool, faction chosen by district** (`traffic-object-spawn` +
-  `mod-city-insurrection-shape-guard-pools` in `traffic-manager.gc`): all ambient city guards come
-  from the single stock `crimson-guard-1` pool. Under Insurrection `traffic-object-spawn` picks the
-  concrete process type per spawn from the district Jak is in — `crimson-blue-guard` in the Slums,
-  the stock red `crimson-guard` in Loyalist districts, a 50/50 roll in the Industrial zone. A
-  district change purges and refills the pool, so it is always 100% the right faction — no pool
-  filtering, no wasted slots, so a red guard can never patrol the Slums and a blue guard can never
-  patrol a Loyalist district. (`crimson-guard-0` is disabled under Insurrection — it never
-  activates as ambient traffic.)
-- **Loyalist police density is now vanilla:** in Loyalist districts the guard pool is left
-  completely untouched (base `want-count`, `target-count` scaled by `update-alert-state` with the
-  wanted level), so the police response there is byte-for-byte the stock game. (The earlier shared
-  50/50 pool had silently halved it.)
-- **Industrial zone = only guards, and lots of them** (`mod-city-insurrection-shape-guard-pools`
-  in `traffic-manager.gc`): while Jak stands in `ctyinda`/`ctyindb`, the ambient `want-count` for
-  citizen types `0..3` and every vehicle type `11..19` is forced to `0`, and the guard pool is set
-  to `want-count` 18 / `object-type-info-array target-count` 14 (`target-count` must be forced
-  because `update-alert-state` recomputes it to ~5 at peace) → ~14 guards on the street, 50/50,
-  filling the streets the removed civilians/vehicles left empty. Everything is restored the frame
-  the mode (or the zone) changes; crossing a district border purges the pool + gunships and
-  triggers a fast respawn so the street rebuilds for the new district within a frame.
+- **Configurable war zone** (`*mod-city-conflict-district*`): the `Insurrection war zone` sub-menu
+  is a radio picker over Industrial (default), Port, Bazaar, Farmland and Market. Changing it
+  re-zones the city and re-rolls the guards. The Slums are always the blue haven and are never a
+  war-zone option.
+- **Strict territorial spawning — single-faction pools, faction chosen by district**
+  (`mod-city-guard-spawn-blue?` + `mod-city-insurrection-shape-guard-pools`):
+  `traffic-object-spawn` picks the concrete process type per spawn from the district Jak is in —
+  `crimson-blue-guard` in the Slums, the stock red `crimson-guard` in Loyalist districts, a 50/50
+  roll in the war zone. A district change is reconciled **incrementally** — `mod-city-guard-pool-reconcile`
+  retires up to 2 wrong-faction guards per pool per frame while `spawn-all` refills with the new
+  faction, so the street crossfades over ~1-2 s and a red guard never ends up patrolling the Slums
+  (nor a blue guard a Loyalist district). (`crimson-guard-0` is disabled — it never activates as
+  ambient traffic; `restore-default-settings` clears its auto-activate flag.)
+- **Loyalist police density is vanilla:** in Loyalist districts the stock `crimson-guard-1` pool
+  is left completely untouched (base `want-count`, `target-count` scaled by `update-alert-state`
+  with the wanted level), so the police response there is byte-for-byte the stock game.
+- **War zone = only guards** (`mod-city-insurrection-shape-guard-pools`): while Jak stands in the
+  selected war-zone district, the ambient `want-count` for citizens (`0..3`), metalheads
+  (`8..10`) and every vehicle type (`11..19`) is forced to `0` (`kill-excess-once` + natural
+  despawn drain the ones already out); and **two** guard pools run at once — the stock
+  `crimson-guard-1` (`want` 18 / `target` 16) plus `crimson-guard-2` (16 / 14), a fully-wired
+  pool jak2 never uses as street traffic (`target-count` must be forced because
+  `update-alert-state` recomputes it to ~5 at peace / 0 for the second pool). With
+  `inv-density-factor` dropped to 2.0 this is **~30 guards** brawling in the visible street,
+  50/50 — comfortably under the stock 64 nav-user ceiling (no `nav-mesh.gc` change needed since
+  every non-guard is suppressed there). Everything restores the frame the mode/zone changes.
+- **Crash fixed — district transitions are incremental** ([commit 1](../../../goal_src/jak2/levels/city/traffic/traffic-manager.gc)):
+  an earlier version force-deactivated every civilian + vehicle + hard-killed all three guard
+  pools + fast-spawned on the frame Jak crossed a border — that coincides with the outgoing city
+  level's teardown and hard-crashed the game (`exit status 5`, log ending at
+  `kill #<level active ctysluma>`). Now the crossover is spread over ~1-2 s at a few process ops
+  per frame, so it can never race a level transition.
 - **Autonomous inter-faction warfare** (`crimson-guard-insurrection-scan` in `guard.gc`): in the
-  Industrial zone every guard scans for the nearest **opposing-faction** guard within ~40 m (the
-  faction is derived from `this`, so one helper covers both red and blue). On acquisition it
-  targets the foe directly and goes hostile — laser bursts, parabolic grenades, taser charges —
-  and **never touches Jak's wanted level**. The hook runs from both `active` and `search`, so a
-  guard that loses a foe re-acquires the next nearest one or drops back to patrol instead of
-  idling. `find-nearest-enemy-guard` scans **both** of the traffic engine's trackers — the decomp
-  aliases `citizen-tracker-array` / `vehicle-tracker-array` onto the two `tracker-array` slots
-  *backwards* (guards live in the one called `vehicle-tracker-array`), and the first cut of this
-  scan looked in the wrong one and found no one to fight.
+  war zone every guard scans for the nearest **opposing-faction** guard within **~60 m** (raised
+  from 40 m, which read as guards ignoring visible enemies across a street; the faction is derived
+  from `this`, so one helper covers both red and blue). On acquisition it targets the foe directly
+  and goes hostile — laser bursts, parabolic grenades, taser charges — and **never touches Jak's
+  wanted level**. The hook runs from both `active` and `search`, so a guard that loses a foe
+  re-acquires the next nearest one or drops back to patrol instead of idling.
+  `find-nearest-enemy-guard` scans **both** of the traffic engine's trackers — the decomp aliases
+  `citizen-tracker-array` / `vehicle-tracker-array` onto the two `tracker-array` slots *backwards*
+  (guards live in the one called `vehicle-tracker-array`).
 - **Reciprocal retaliation:** a red guard hit (melee *or* projectile — `incoming attacker-handle`
   resolves a bolt/grenade back to the firing guard via the process parent chain) by a blue guard
   targets and returns fire on that blue guard directly, no city alarm, no siren. The blue guard
   side already had this.
-- **Slums safe haven:**
+- **Alert-free zones (Slums *and* war zone):**
   - `increase-alert-level` (`traffic-engine.gc`) is short-circuited whenever Jak is in the blue
-    zone — the **single choke point** for the alert rising, so it blocks the menu event, the
-    direct `citizen::trigger-alert` path *and* kill-count escalation.
-  - `mod-city-insurrection-update-traffic` additionally snaps `set-alert-level` to `0` on the
-    frame Jak enters, so any alert he *carried in* drops instantly.
-  - Loyalist gunships (`guard-bike` 18, `hellcat` 19) are kept out of the Slums (they carry red
-    guards). Hitting a blue guard still triggers only that guard's personal self-defense.
-- **Live mode switching** (`dm-mod-city-flush-guards` in `default-menu-pc.gc`): toggling any Mods
-  entry flushes both crimson-guard pools (4, 6) and the guard vehicles (18, 19); they respawn
-  within a few seconds rebuilt from scratch under the newly-selected rules — squads for Peaceful,
-  lone factioned guards for Insurrection, the stock mix for off.
+    zone **or** the war zone — the **single choke point** for the alert rising, so it blocks the
+    menu event, the direct `citizen::trigger-alert` path *and* kill-count escalation. Hitting a
+    red guard in the war zone raises nothing. Only loyalist districts run the wanted system.
+  - `mod-city-insurrection-update-traffic` additionally snaps `set-alert-level` to `0` on every
+    frame Jak is in either zone, so any alert he *carried in* drops instantly.
+  - Loyalist gunships (`guard-bike` 18, `hellcat` 19) are kept out of the Slums and the war zone
+    (`want-count` 0). Hitting a blue guard still triggers only that guard's personal self-defense.
+- **Live mode / config switching** (`dm-mod-city-flush-guards` in `default-menu-pc.gc`): toggling
+  any Mods entry — mode toggle or war-zone pick — parks all three crimson-guard pools (4, 6, 7)
+  and the guard vehicles (18, 19); they respawn within a second or two rebuilt under the
+  newly-selected rules — squads for Peaceful, lone factioned guards for Insurrection, the
+  stock mix for off.
 - **Crash fixed (`ctyport → ctyinda` transition):** `city-level-name-at-pos` used to probe
   `sphere-in-grid?` on every loaded level's raw `(-> lev bsp city-level-info)` pointer. During a
   level transition an outgoing city level's `-vis` heap is freed while the traffic manager keeps
@@ -620,13 +635,14 @@ Voir le tableau en anglais ci-dessus (section 6) — identique, fichier par fich
 | Défense mutuelle d'escouade & immunité aux tirs alliés | ✅ fait, vérifié en jeu : l'escouade riposte comme un seul homme sans alarme générale ; membres et tirs bleus immunisés aux tirs fratricides |
 | Diversité de l'arsenal par escouade | ✅ fait, vérifié en jeu : les escouades de 3 possèdent toujours 1 Taser, 1 Fusil, 1 Lance-Grenades ; celles de 2 ont 2 armes distinctes |
 | IA de combat fidèle aux Crimson Guards | ✅ fait, vérifié en jeu : distance tactique (~6,5m–9m), tirs réactifs de rafales/grenades dès ldv acquise (jusqu'à 50m), roulades d'esquive latérales, coup de crosse de secours (< 2,5m) suivi d'une roulade de dégagement |
-| Onglet menu debug « Mods » (bascules `City Peaceful` / `City Insurrection`) | ✅ les deux modes implémentés ; mutuellement exclusifs ; chaque bascule vide et fait réapparaître les gardes pour appliquer les règles immédiatement |
-| City Insurrection — zonage par nom de niveau (`city-level-name-at-pos`) | ✅ fait : Slums (`ctysluma/b/c`) = bleu, Industriel (`ctyinda/b`) = conflit, tout le reste = rouge — noms de niveaux vérifiés, aucune coordonnée codée en dur ; ne sonde que les grilles `level-data-array` liées du moteur de trafic (jamais un pointeur bsp `*level*` brut — ça crashait à la transition `ctyport→ctyinda`) |
-| City Insurrection — spawns stricts par zone (un pool, faction par quartier) | ✅ fait : le seul pool `crimson-guard-1` d'origine ; `traffic-object-spawn` choisit bleu dans les Slums, rouge chez les loyalistes, 50/50 dans l'Industriel ; un changement de quartier vide + recharge le pool, toujours 100 % la bonne faction — aucun filtrage, aucun slot gaspillé |
-| City Insurrection — zone Industrielle : aucun civil/véhicule + densité de gardes gonflée | ✅ fait : `want-count` des types civils 0–3 et véhicules 11–19 forcé à 0 tant que Jak est dans `ctyinda/b` ; pool de gardes à `want-count` 18 / `target-count` 14 → ~14 gardes, 50/50 ; tout restauré au changement de zone/mode |
-| City Insurrection — densité de police des quartiers loyalistes | ✅ corrigé : le pool de gardes est laissé **strictement vanilla** dans les quartiers loyalistes (`want-count` de base, `target-count` échelonné par l'alerte) — l'ancien pool partagé 50/50 l'avait réduit de moitié |
-| City Insurrection — combat inter-factions autonome (`crimson-guard-insurrection-scan`) | ✅ fait : rouge chasse bleu / bleu chasse rouge dans ~40 m depuis `active` **et** `search`, IA d'armes complète, aucun effet sur le niveau d'alerte de Jak ; `find-nearest-enemy-guard` corrigé pour scanner les deux trackers (les alias `citizen`/`vehicle` du décomp sont inversés — les gardes sont dans `vehicle-tracker-array`) |
-| City Insurrection — zone refuge des Slums (verrou `increase-alert-level` + `set-alert-level 0`) | ✅ fait : aucune alerte ne peut démarrer ni persister dans la zone bleue, quelle qu'en soit la source |
+| Onglet menu debug « Mods » (bascules `City Peaceful` / `City Insurrection` + sélecteur `Insurrection war zone`) | ✅ les deux modes implémentés ; mutuellement exclusifs ; chaque bascule/choix vide et fait réapparaître les gardes pour appliquer les règles immédiatement |
+| City Insurrection — zonage par nom de niveau (`city-level-name-at-pos` → `city-district-of-level`) | ✅ fait : Slums (`ctysluma/b/c`) = bleu, le quartier de guerre sélectionné = conflit, tout le reste = rouge — noms de niveaux vérifiés, aucune coordonnée codée en dur ; ne sonde que les grilles `level-data-array` liées du moteur de trafic (jamais un pointeur bsp `*level*` brut — ça crashait à la transition `ctyport→ctyinda`) |
+| City Insurrection — **zone de guerre configurable** (`*mod-city-conflict-district*`) | ✅ fait : `Debug ▸ Mods ▸ Insurrection war zone` fait tourner la zone de guerre entre Industriel (défaut), Port, Bazar, Fermes et Marché ; le changement re-zone et re-tire les gardes en direct |
+| City Insurrection — spawns stricts par zone (pools mono-faction, faction par quartier) | ✅ fait : `traffic-object-spawn` choisit bleu dans les Slums, rouge chez les loyalistes, 50/50 dans la zone de guerre ; un changement de quartier est réconcilié incrémentalement (`mod-city-guard-pool-reconcile`, ≤2 retraits de mauvaise faction par pool par frame) — pool toujours de la bonne faction, aucun filtrage, aucun slot gaspillé |
+| City Insurrection — zone de guerre : aucun civil/véhicule + bataille de gardes dense | ✅ fait : `want-count` des civils (0–3), tête-de-métal (8–10) et véhicules (11–19) forcé à 0 (drainé par `kill-excess-once` + despawn naturel) ; **deux** pools de gardes — `crimson-guard-1` d'origine (18/16) + `crimson-guard-2` inutilisé (16/14) — `inv-density-factor` 2.0 → ~30 gardes, 50/50, sous le plafond nav d'origine de 64 ; tout restauré au changement de zone/mode |
+| City Insurrection — densité de police des quartiers loyalistes | ✅ le pool `crimson-guard-1` d'origine est laissé **strictement vanilla** dans les quartiers loyalistes (`want-count` de base, `target-count` échelonné par l'alerte) |
+| City Insurrection — combat inter-factions autonome (`crimson-guard-insurrection-scan`) | ✅ fait : rouge chasse bleu / bleu chasse rouge dans **~60 m** (au lieu de 40 m) depuis `active` **et** `search`, IA d'armes complète, aucun effet sur le niveau d'alerte de Jak ; `find-nearest-enemy-guard` scanne les deux trackers (les alias `citizen`/`vehicle` du décomp sont inversés — les gardes sont dans `vehicle-tracker-array`) |
+| City Insurrection — zones sans alerte (verrou `increase-alert-level` + `set-alert-level 0`) | ✅ fait : aucune alerte ne peut démarrer ni persister dans les Slums **ou** la zone de guerre, quelle qu'en soit la source — frapper un garde rouge dans la zone de guerre ne déclenche rien ; seuls les quartiers loyalistes appliquent le système de recherche |
 
 ## 9. Onglet Menu Debug « Mods » & Fonctionnalités
 
@@ -655,8 +671,8 @@ Lorsque cette option est activée dans le menu Mods :
 
 ### 9.2 City Insurrection (✅ Entièrement Implémenté)
 Haven City devient une guerre civile territoriale à trois fronts. Les quartiers sont classés par
-le **nom du niveau de ville chargé** qui contient une position — `city-level-name-at-pos` /
-`city-get-pos-zone` dans
+le **nom du niveau de ville chargé** qui contient une position — `city-level-name-at-pos` →
+`city-district-of-level` → `city-zone-from-level-name` dans
 [`traffic-manager.gc`](../../../goal_src/jak2/levels/city/traffic/traffic-manager.gc) — en
 utilisant uniquement des noms de niveaux vérifiés (`level-info.gc`), jamais de coordonnées codées
 en dur :
@@ -664,60 +680,73 @@ en dur :
 | Zone | Niveaux de ville | Règle |
 |---|---|---|
 | **Bleu — Slums (Bastion Rebelle)** | `ctysluma`, `ctyslumb`, `ctyslumc` | 100% de gardes bleus solitaires, armes aléatoires ; zone refuge anti-alerte |
-| **Rouge — Loyaliste (quartiers du Baron)** | `ctygena/b/c`, `ctyport`, `ctyfarma/b`, `ctymarka/b`, Palais, Stade — tout le reste | 100% de Crimson Guards rouges/jaunes classiques, densité & police envers Jak **100% vanilla** |
-| **Conflit — Industriel (Zone de Guerre)** | `ctyinda`, `ctyindb` | 50/50 bleus vs rouges, ~18 gardes dans la rue, **aucun civil, aucun véhicule** ; les deux factions se combattent à vue |
+| **Rouge — Loyaliste (quartiers du Baron)** | tout quartier qui n'est *ni* les Slums *ni* la zone de guerre sélectionnée | 100% de Crimson Guards rouges/jaunes classiques, densité & police envers Jak **100% vanilla** |
+| **Conflit — Zone de Guerre** | le quartier choisi dans `Debug ▸ Mods ▸ Insurrection war zone` — **Industriel (`ctyinda/b`) par défaut**, ou Port / Bazar / Fermes / Marché | ~30 gardes, 50/50 bleus vs rouges, **aucun civil, aucune tête-de-métal, aucun véhicule** ; les deux factions se combattent à vue ; sans alerte |
 
 Lorsque cette option est activée dans le menu Mods :
-- **Génération territoriale stricte — un seul pool, faction choisie par quartier**
-  (`traffic-object-spawn` + `mod-city-insurrection-shape-guard-pools` dans `traffic-manager.gc`) :
-  tous les gardes ambiants de la ville viennent du seul pool `crimson-guard-1` d'origine. Sous
-  Insurrection, `traffic-object-spawn` choisit le type de process concret à chaque spawn selon le
-  quartier de Jak — `crimson-blue-guard` dans les Slums, `crimson-guard` rouge d'origine dans les
-  quartiers loyalistes, tirage 50/50 dans l'Industriel. Un changement de quartier vide et recharge
-  le pool, qui est donc toujours 100 % la bonne faction — aucun filtrage de pool, aucun slot
-  gaspillé, jamais de garde rouge dans les Slums ni de garde bleu chez les loyalistes.
-  (`crimson-guard-0` est désactivé sous Insurrection — il ne s'active jamais en trafic ambiant.)
-- **La densité de police loyaliste est maintenant vanilla :** dans les quartiers loyalistes, le
-  pool de gardes est laissé totalement intact (`want-count` de base, `target-count` échelonné par
-  `update-alert-state` avec le niveau de recherche), donc la réponse policière y est identique au
-  jeu d'origine. (L'ancien pool partagé 50/50 l'avait silencieusement réduite de moitié.)
-- **Industriel = uniquement des gardes, et en nombre** (`mod-city-insurrection-shape-guard-pools`
-  dans `traffic-manager.gc`) : tant que Jak est dans `ctyinda`/`ctyindb`, le `want-count` ambiant
-  des types civils `0..3` et de tous les véhicules `11..19` est forcé à `0`, et le pool de gardes
-  est mis à `want-count` 18 / `object-type-info-array target-count` 14 (le `target-count` doit être
-  forcé car `update-alert-state` le recalcule à ~5 en paix) → ~14 gardes en rue, 50/50, remplissant
-  les rues vidées des civils et véhicules retirés. Tout est restauré à la frame où le mode (ou la
-  zone) change ; franchir une frontière de quartier vide le pool + les vaisseaux et déclenche un
-  respawn rapide pour reconstruire la rue du nouveau quartier en une frame.
-- **Guerre autonome inter-factions** (`crimson-guard-insurrection-scan` dans `guard.gc`) : dans
-  l'Industriel, chaque garde scanne le garde de la **faction opposée** le plus proche dans ~40 m
-  (la faction est déduite de `this`, donc un seul helper couvre rouges et bleus). À l'acquisition
-  il cible directement l'ennemi et devient hostile — rafales laser, grenades paraboliques,
-  charges au taser — et **ne touche jamais au niveau de recherche de Jak**. Le hook tourne depuis
-  `active` ET `search`, donc un garde qui perd un ennemi en réacquiert un autre ou retourne
-  patrouiller au lieu de rester inactif. `find-nearest-enemy-guard` scanne **les deux** trackers
-  du moteur de trafic — le décomp alie `citizen-tracker-array` / `vehicle-tracker-array` sur les
-  deux slots de `tracker-array` *à l'envers* (les gardes sont dans celui nommé
-  `vehicle-tracker-array`), et la première version de ce scan regardait le mauvais et ne trouvait
-  personne à combattre.
+- **Zone de guerre configurable** (`*mod-city-conflict-district*`) : le sous-menu
+  `Insurrection war zone` est un sélecteur radio entre Industriel (défaut), Port, Bazar, Fermes et
+  Marché. Le changement re-zone la ville et re-tire les gardes. Les Slums sont toujours le refuge
+  bleu et ne sont jamais une option de zone de guerre.
+- **Génération territoriale stricte — pools mono-faction, faction choisie par quartier**
+  (`mod-city-guard-spawn-blue?` + `mod-city-insurrection-shape-guard-pools`) :
+  `traffic-object-spawn` choisit le type de process concret à chaque spawn selon le quartier de
+  Jak — `crimson-blue-guard` dans les Slums, `crimson-guard` rouge d'origine chez les loyalistes,
+  tirage 50/50 dans la zone de guerre. Un changement de quartier est réconcilié
+  **incrémentalement** — `mod-city-guard-pool-reconcile` retire jusqu'à 2 gardes de la mauvaise
+  faction par pool par frame pendant que `spawn-all` remplit avec la nouvelle, donc la rue fait un
+  fondu sur ~1-2 s et jamais de garde rouge dans les Slums (ni de garde bleu chez les loyalistes).
+  (`crimson-guard-0` est désactivé — il ne s'active jamais en trafic ambiant ;
+  `restore-default-settings` efface son flag d'auto-activation.)
+- **La densité de police loyaliste est vanilla :** dans les quartiers loyalistes, le pool
+  `crimson-guard-1` d'origine est laissé totalement intact (`want-count` de base, `target-count`
+  échelonné par `update-alert-state`), donc la réponse policière y est identique au jeu d'origine.
+- **Zone de guerre = uniquement des gardes** (`mod-city-insurrection-shape-guard-pools`) : tant
+  que Jak est dans le quartier de guerre sélectionné, le `want-count` ambiant des civils (`0..3`),
+  tête-de-métal (`8..10`) et de tous les véhicules (`11..19`) est forcé à `0` (drainé par
+  `kill-excess-once` + despawn naturel) ; et **deux** pools de gardes tournent en même temps — le
+  `crimson-guard-1` d'origine (`want` 18 / `target` 16) plus `crimson-guard-2` (16 / 14), un pool
+  entièrement câblé que jak2 n'utilise jamais en trafic (le `target-count` doit être forcé car
+  `update-alert-state` le recalcule à ~5 en paix / 0 pour le second pool). Avec `inv-density-factor`
+  abaissé à 2.0 ça fait **~30 gardes** dans la rue visible, 50/50 — confortablement sous le
+  plafond nav d'origine de 64 (aucune modif de `nav-mesh.gc` nécessaire vu que tous les non-gardes
+  y sont supprimés). Tout est restauré à la frame où le mode/la zone change.
+- **Crash corrigé — les transitions de quartier sont incrémentales** : une version antérieure
+  force-désactivait tous les civils + véhicules + tuait les trois pools de gardes + fast-spawn sur
+  la frame où Jak franchissait une frontière — ça coïncide avec le démontage du niveau sortant et
+  crashait le jeu (`exit status 5`, log qui s'arrête à `kill #<level active ctysluma>`). Le
+  renouvellement est maintenant étalé sur ~1-2 s à quelques opérations process par frame, donc ça
+  ne peut plus entrer en course avec une transition de niveau.
+- **Guerre autonome inter-factions** (`crimson-guard-insurrection-scan` dans `guard.gc`) : dans la
+  zone de guerre, chaque garde scanne le garde de la **faction opposée** le plus proche dans
+  **~60 m** (au lieu de 40 m, qui donnait l'impression que les gardes ignoraient des ennemis
+  visibles de l'autre côté de la rue ; la faction est déduite de `this`, donc un seul helper
+  couvre rouges et bleus). À l'acquisition il cible directement l'ennemi et devient hostile —
+  rafales laser, grenades paraboliques, charges au taser — et **ne touche jamais au niveau de
+  recherche de Jak**. Le hook tourne depuis `active` ET `search`.
+  `find-nearest-enemy-guard` scanne **les deux** trackers du moteur de trafic — le décomp alie
+  `citizen-tracker-array` / `vehicle-tracker-array` sur les deux slots de `tracker-array` *à
+  l'envers* (les gardes sont dans celui nommé `vehicle-tracker-array`).
 - **Riposte réciproque :** un garde rouge touché (corps à corps *ou* projectile —
   `incoming attacker-handle` remonte d'un tir/grenade jusqu'au garde tireur via la chaîne parente
   du process) par un garde bleu cible et riposte directement contre ce garde bleu, sans alarme de
   ville, sans sirène. Le côté garde bleu l'avait déjà.
-- **Zone refuge des Slums :**
+- **Zones sans alerte (Slums *et* zone de guerre) :**
   - `increase-alert-level` (`traffic-engine.gc`) est court-circuité dès que Jak est dans la zone
-    bleue — le **point de passage unique** de la montée d'alerte, donc il bloque l'événement du
-    menu, l'appel direct `citizen::trigger-alert` *et* l'escalade par nombre de morts.
-  - `mod-city-insurrection-update-traffic` force en plus `set-alert-level` à `0` à la frame où
-    Jak entre, donc toute alerte qu'il *amène avec lui* retombe instantanément.
-  - Les vaisseaux loyalistes (`guard-bike` 18, `hellcat` 19) sont tenus hors des Slums (ils
-    transportent des gardes rouges). Frapper un garde bleu ne déclenche que l'autodéfense
-    personnelle de ce garde.
-- **Bascule à chaud du mode** (`dm-mod-city-flush-guards` dans `default-menu-pc.gc`) : basculer
-  une entrée Mods vide les deux pools de crimson-guards (4, 6) et les vaisseaux de gardes
-  (18, 19) ; ils réapparaissent en quelques secondes, reconstruits de zéro selon les nouvelles
-  règles — escouades pour Peaceful, gardes solitaires à faction pour Insurrection, mélange
-  classique pour off.
+    bleue **ou** la zone de guerre — le **point de passage unique** de la montée d'alerte, donc il
+    bloque l'événement du menu, l'appel direct `citizen::trigger-alert` *et* l'escalade par nombre
+    de morts. Frapper un garde rouge dans la zone de guerre ne déclenche rien. Seuls les quartiers
+    loyalistes appliquent le système de recherche.
+  - `mod-city-insurrection-update-traffic` force en plus `set-alert-level` à `0` à chaque frame où
+    Jak est dans l'une des deux zones, donc toute alerte qu'il *amène avec lui* retombe
+    instantanément.
+  - Les vaisseaux loyalistes (`guard-bike` 18, `hellcat` 19) sont tenus hors des Slums et de la
+    zone de guerre (`want-count` 0). Frapper un garde bleu ne déclenche que l'autodéfense de ce garde.
+- **Bascule à chaud du mode / config** (`dm-mod-city-flush-guards` dans `default-menu-pc.gc`) :
+  basculer une entrée Mods — bascule de mode ou choix de zone de guerre — parque les trois pools de
+  crimson-guards (4, 6, 7) et les vaisseaux de gardes (18, 19) ; ils réapparaissent en une seconde
+  ou deux selon les nouvelles règles — escouades pour Peaceful, gardes solitaires à faction pour
+  Insurrection, mélange classique pour off.
 - **Crash corrigé (transition `ctyport → ctyinda`) :** `city-level-name-at-pos` sondait
   `sphere-in-grid?` sur le pointeur `(-> lev bsp city-level-info)` brut de chaque niveau chargé.
   Pendant une transition de niveau, le tas `-vis` d'un niveau de ville sortant est libéré alors que

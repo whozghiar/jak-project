@@ -1859,11 +1859,16 @@
   )
 
 (defmethod increase-alert-level ((this traffic-engine) (arg0 int) (arg1 target))
-  ;; City Insurrection mod: the Slums are a police safe haven. Block EVERY alert rise while Jak is
-  ;; inside the blue zone, whatever the source (traffic-manager 'increase-alert-level event,
-  ;; citizen::trigger-alert calling us directly, or the kill-count escalation in update-alert-state).
-  ;; This is the single choke point for the alert level going up.
-  (when (not (and *mod-city-insurrection?* (= (city-get-current-zone) 'blue)))
+  ;; City Insurrection mod: only the loyalist ('red) districts run the wanted system. Block EVERY
+  ;; alert rise while Jak is in the Slums rebel haven ('blue) OR the faction war zone ('conflict) --
+  ;; whatever the source (traffic-manager 'increase-alert-level event, citizen::trigger-alert
+  ;; calling us directly, or the kill-count escalation in update-alert-state). This is the single
+  ;; choke point for the alert level going up, so hitting a red guard in the war zone raises nothing.
+  (when (not (and *mod-city-insurrection?*
+                  (let ((z (city-get-current-zone)))
+                    (or (= z 'blue) (= z 'conflict))
+                    )
+                  ))
     (when (and (logtest? (-> this alert-state flags) (traffic-alert-flag target-jak))
                (logtest? (-> arg1 mask) (process-mask target))
                )

@@ -1035,9 +1035,9 @@
   )
 
 (defun crimson-blue-guard-attack-guards ((this crimson-blue-guard))
-  "Manually trigger this guard's normal combat behavior against the nearest other
-   crimson-guard within ~40m, deliberately excluding crimson-blue-guard itself."
-  (let ((target-proc (find-nearest-enemy-guard this #f (meters 40))))
+  "Manually trigger this guard's normal combat behavior against the nearest red crimson-guard
+   within ~60m (war-zone street sightline; was 40m), deliberately excluding crimson-blue-guard itself."
+  (let ((target-proc (find-nearest-enemy-guard this #f (meters 60))))
     (when target-proc
       (set! (-> this traffic-target-status handle) (process->handle target-proc))
       (try-update-focus (-> this focus) target-proc this)

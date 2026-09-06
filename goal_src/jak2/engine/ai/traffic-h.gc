@@ -82,6 +82,9 @@
 ;; NOTE - for default-menu-pc (Mods tab); defined in traffic-manager.gc
 (define-extern *mod-city-peaceful?* symbol)
 (define-extern *mod-city-insurrection?* symbol)
+;; District group selected as the City Insurrection war zone ('industrial default; also 'port,
+;; 'bazaar, 'farm, 'market). Read by the city zoning helpers, set from the Mods debug menu.
+(define-extern *mod-city-conflict-district* symbol)
 (define-extern *crimson-blue-guard-ratio* int)
 (define-extern city-get-current-zone (function symbol))
 (define-extern city-get-pos-zone (function vector symbol))

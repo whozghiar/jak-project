@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/OpenGOAL-Mod-blue.svg" alt="OpenGOAL Mod">
   <img src="https://img.shields.io/badge/Game-Jak%202-orange.svg" alt="Target Game">
-  <img src="https://img.shields.io/badge/Branch-jak2%2Ffeatures%2Fblueguard-green.svg" alt="Branch">
+  <img src="https://img.shields.io/badge/Branch-jak2%2Ffeatures%2Fblueguard--traffic-green.svg" alt="Branch">
   <img src="https://img.shields.io/badge/AI--assisted-Modding-purple.svg" alt="AI Assisted">
 </p>
 
@@ -22,7 +22,17 @@ sounds, only with a re-textured mesh. It appears in Haven City mixed into the no
 guard traffic, alongside the regular red guards.
 
 - **Target Game:** Jak 2
-- **Active Branch:** `jak2/features/blueguard`
+- **Active Branch:** `jak2/features/blueguard-traffic` — the base layer: the entity + faithful
+  combat AI + ambient-traffic integration, and the `*mod-city-*-hook*` extension points that the
+  two mode branches build on.
+
+### Branch family
+| Branch | Adds |
+|---|---|
+| **`jak2/features/blueguard-traffic`** *(this one)* | base: `crimson-blue-guard` entity, faithful combat AI, ambient city-traffic spawning, modular hook layer |
+| `jak2/features/city-peaceful` | neutral blue patrol **squads** — formation nav, mutual defense, friendly-fire immunity |
+| `jak2/features/city-insurrection` | three-front **territorial civil war** — district zoning, autonomous inter-faction combat, alert-free zones, debug-menu war-zone picker |
+| `jak2/features/blueguard` | both modes together (mutually exclusive at runtime) |
 
 ## ✨ Key Features
 - **New standalone entity:** `crimson-blue-guard` is a real GOAL type (subtype of
@@ -36,13 +46,15 @@ guard traffic, alongside the regular red guards.
 - **Manual "fight the other guards" trigger:** `crimson-blue-guard-attack-guards`, a small function
   that makes it go hostile toward the nearest red `crimson-guard` — never automatic, called
   explicitly (REPL or code).
-- **Mixed into ambient city traffic:** the traffic manager now spawns the blue variant for a
-  configurable fraction of ambient guard spawns (`*crimson-blue-guard-ratio*`, default 1-in-8),
-  right alongside the stock guard.
-- **"Mods" debug menu tab (City Peaceful & City Insurrection):** the debug menu includes a dedicated "Mods" tab:
-  - `City Peaceful` (**Fully Implemented & Verified**): ambient blue guards spawn in coordinated 2 to 3 member patrol squads with tight formation navigation, adaptive speed modulation, automatic leader re-election, and diverse weapon loadouts (taser, rifle, grenade launcher). Squad members defend each other in mutual retaliatory defense without raising the city alarm, and enjoy complete friendly-fire immunity.
-  - `City Insurrection` (**Fully Implemented**): a three-front territorial civil war across Haven City, with districts classified by loaded city-level name (never hardcoded coordinates). The ambient city-guard pool is populated with whichever faction owns the district Jak is in, so districts are strictly territorial with no wasted spawn slots. **Slums** (`ctysluma`/`b`/`c`) — Blue rebel stronghold: strictly 100% lone blue guards with random weapons, and an alert-free safe haven (any wanted level snaps to 0 on entry and cannot rise; hitting a blue guard triggers only its personal self-defense). **Loyalist districts** (everything else) — strictly 100% stock red/yellow guards, with fully vanilla police density and behaviour toward Jak. **War Zone** — a configurable district (`Debug ▸ Mods ▸ Insurrection war zone`: **Industrial** `ctyinda`/`b` by default, or Port / Bazaar / Farmland / Market): ~30 guards at 50/50 blue vs red (two guard pools, all civilians/metalheads/vehicles removed, tighter spawn packing), and the two factions hunt and open fire on each other on sight (bursts, grenades, taser charges) with a ~60m acquisition range — a living background battle that never raises Jak's wanted level (hitting a red guard here raises nothing either; only loyalist districts run the wanted system). Switching modes or the war-zone district re-rolls the city guards immediately; crossing a district border crossfades them over ~1-2 seconds.
+- **Mixed into ambient city traffic:** the traffic manager spawns the blue variant for a
+  configurable fraction of ambient guard spawns (`*crimson-blue-guard-ratio*`, default 1-in-2 of
+  the id-parity pool), right alongside the stock guard.
 - **Faithful Crimson Guard Combat AI:** rifle and grenade launcher guards maintain tactical standoff distance (engaging targets up to 50m away), fire reactive bursts or parabolic grenades, and execute evasive combat rolls (`roll-left` / `roll-right`). Melee rifle-butt strikes are strictly an emergency close-quarters counter (< 2.5m), followed immediately by an evasive roll to resume shooting. Taser guards charge and shock with high-voltage electric arcs.
+- **Modular `*mod-city-*-hook*` layer:** the shared traffic/guard engine files call ~8 named
+  function-pointer hooks (declared in `engine/ai/traffic-h.gc`, defaulted in `mod-city-hooks.gc`).
+  On this branch every hook is a no-op / stock default; the `city-peaceful` and `city-insurrection`
+  branches each add one library file that fills them in. The engine files are byte-identical
+  across the whole branch family.
 
 ## 🚀 Step-by-Step Guide to Run the Mod
 
@@ -101,7 +113,17 @@ crimson d'origine (`crimson-guard`), seul le mesh/la texture change. Il apparaî
 mélangé au trafic ambiant normal, aux côtés des gardes rouges classiques.
 
 - **Jeu Ciblé :** Jak 2
-- **Branche Active :** `jak2/features/blueguard`
+- **Branche Active :** `jak2/features/blueguard-traffic` — la couche de base : l'entité + l'IA de
+  combat fidèle + l'intégration au trafic ambiant, et les points d'extension `*mod-city-*-hook*`
+  sur lesquels les deux branches de mode s'appuient.
+
+### Famille de branches
+| Branche | Ajoute |
+|---|---|
+| **`jak2/features/blueguard-traffic`** *(celle-ci)* | base : entité `crimson-blue-guard`, IA de combat fidèle, spawn dans le trafic ambiant, couche de hooks modulaire |
+| `jak2/features/city-peaceful` | **escouades** de patrouille bleues neutres — nav en formation, défense mutuelle, immunité aux tirs alliés |
+| `jak2/features/city-insurrection` | **guerre civile territoriale** à trois fronts — zonage par quartier, combat inter-factions autonome, zones sans alerte, sélecteur de quartier de guerre |
+| `jak2/features/blueguard` | les deux modes ensemble (mutuellement exclusifs au runtime) |
 
 ## ✨ Fonctionnalités Clés
 - **Nouvelle entité à part entière :** `crimson-blue-guard` est un vrai type GOAL (sous-type de
@@ -116,13 +138,15 @@ mélangé au trafic ambiant normal, aux côtés des gardes rouges classiques.
 - **Déclencheur manuel « combattre les autres gardes » :** `crimson-blue-guard-attack-guards`, une
   petite fonction qui le fait devenir hostile envers le `crimson-guard` rouge le plus proche —
   jamais automatique, appelée explicitement (REPL ou code).
-- **Mélangé au trafic ambiant de la ville :** le traffic-manager fait maintenant apparaître la
-  variante bleue pour une fraction configurable des spawns de gardes ambiants
-  (`*crimson-blue-guard-ratio*`, 1 sur 8 par défaut), aux côtés du garde classique.
-- **Onglet menu debug « Mods » (City Peaceful & City Insurrection) :** le menu debug comprend un onglet « Mods » :
-  - `City Peaceful` (**Entièrement Implémenté & Vérifié**) : les gardes bleus ambiants patrouillent en escouades coordonnées de 2 à 3 membres avec déplacement en formation serrée, modulation adaptative de la vitesse, réélection automatique du leader, et répartition d'armes variées (taser, fusil laser, lance-grenades). Les membres de l'escouade ripostent ensemble en cas d'agression sans déclencher l'alarme de la ville, et bénéficient d'une immunité totale aux tirs alliés.
-  - `City Insurrection` (**Entièrement Implémenté**) : une guerre civile territoriale à trois fronts dans Haven City, les quartiers étant classés par le nom du niveau de ville chargé (jamais de coordonnées codées en dur). Le pool de gardes ambiants de la ville est peuplé de la faction qui contrôle le quartier où se trouve Jak, donc les quartiers sont strictement territoriaux sans aucun slot de spawn gaspillé. **Slums** (`ctysluma`/`b`/`c`) — bastion des rebelles bleus : strictement 100% de gardes bleus solitaires à arsenal aléatoire, et zone refuge sans alerte (tout niveau de recherche retombe à 0 à l'entrée et ne peut plus monter ; frapper un garde bleu ne déclenche que son autodéfense personnelle). **Quartiers loyalistes** (tout le reste) — strictement 100% de gardes rouges/jaunes classiques, avec une densité et un comportement de police strictement d'origine envers Jak. **Zone de Guerre** — un quartier configurable (`Debug ▸ Mods ▸ Insurrection war zone` : **Industriel** `ctyinda`/`b` par défaut, ou Port / Bazar / Fermes / Marché) : ~30 gardes en 50/50 bleus vs rouges (deux pools de gardes, tous les civils/têtes-de-métal/véhicules retirés, spawn plus serré), et les deux factions se repèrent et ouvrent le feu mutuellement à vue (rafales, grenades, charges au taser) avec une portée d'acquisition de ~60 m — une bataille de fond vivante qui ne fait jamais monter le niveau de recherche de Jak (frapper un garde rouge ici ne déclenche rien non plus ; seuls les quartiers loyalistes appliquent le système de recherche). Basculer le mode ou le quartier de guerre re-tire les gardes immédiatement ; franchir une frontière de quartier les fait faire un fondu sur ~1-2 secondes.
+- **Mélangé au trafic ambiant de la ville :** le traffic-manager fait apparaître la variante bleue
+  pour une fraction configurable des spawns de gardes ambiants (`*crimson-blue-guard-ratio*`,
+  1 sur 2 du pool parité-id par défaut), aux côtés du garde classique.
 - **IA de Combat Fidèle aux Crimson Guards :** les gardes armés d'un fusil ou d'un lance-grenades maintiennent une distance d'engagement tactique (jusqu'à 50 m), tirent des rafales/projectiles avec visée réactive et enchaînent des roulades d'esquive latérales (`roll-left` / `roll-right`). Les coups de crosse sont strictement réservés au contact d'urgence (< 2,5 m) et sont immédiatement suivis d'une roulade d'esquive pour reprendre le tir à distance. Les gardes au taser foncent au contact pour électrocuter avec des arcs électriques.
+- **Couche modulaire `*mod-city-*-hook*` :** les fichiers moteur trafic/garde partagés appellent
+  ~8 hooks nommés (pointeurs de fonction déclarés dans `engine/ai/traffic-h.gc`, avec des valeurs
+  par défaut dans `mod-city-hooks.gc`). Sur cette branche chaque hook est un no-op / défaut
+  d'origine ; les branches `city-peaceful` et `city-insurrection` ajoutent chacune un fichier de
+  bibliothèque qui les remplit. Les fichiers moteur sont identiques sur toute la famille de branches.
 
 ## 🚀 Guide Pas à Pas pour Lancer le Mod
 

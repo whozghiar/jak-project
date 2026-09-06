@@ -6,41 +6,25 @@
 ;; dgos: CWI
 
 ;; ================================================================================================
-;; Blue Crimson Guard mod -- per-branch "city mode" wiring manifest.
+;; Blue Crimson Guard mod -- "city mode" wiring manifest (BASE variant, blueguard-traffic branch).
 ;;
 ;; The shared traffic / guard engine files call the *mod-city-*-hook* function pointers declared
 ;; in engine/ai/traffic-h.gc. THIS file is the only place a branch legitimately differs: it
-;; defines the two mode flags and points each hook var either at a no-op / stock default (below)
-;; or at a function from a registered mode library (mod-city-peaceful.gc / mod-city-insurrection.gc).
-;;
-;; This is the COMBINED variant, for the jak2/features/blueguard branch -- both mode libraries are
-;; registered, and the hooks dispatch on the (mutually exclusive) mode flags. The single-mode
-;; branches ship a trimmed version of this file:
-;;   blueguard-traffic : defaults only (no mode library)
-;;   city-peaceful     : the peaceful hooks -> mod-pea-* , the rest -> defaults
-;;   city-insurrection : the insurrection hooks -> mod-ins-*
+;; defines the two mode flags and points each hook var at a no-op / stock default. On this base
+;; branch there is no City Peaceful / City Insurrection library, so every hook stays at its
+;; default and the blue guard is simply a faithful-combat ambient traffic entity spawned at
+;; *crimson-blue-guard-ratio*.
 ;; ================================================================================================
 
-;; Both flags exist on every branch so the debug-menu pick-funcs can always clear the other one.
+;; Both flags exist on every branch so a debug-menu pick-func could always clear the other one.
 (define *mod-city-peaceful?* #f)
 (define *mod-city-insurrection?* #f)
-
-;; hook implementations pulled from the registered mode libraries (this COMBINED variant registers
-;; both; a single-mode branch's mod-city-hooks.gc only externs the one it ships).
-(define-extern mod-city-insurrection-update-traffic (function traffic-manager none))
-(define-extern mod-ins-guard-spawn-blue? (function traffic-object-spawn-params symbol))
-(define-extern mod-ins-alert-blocked? (function symbol))
-(define-extern mod-ins-blue-activated? (function crimson-blue-guard traffic-object-spawn-params symbol))
-(define-extern mod-ins-guard-active-trans (function crimson-guard none))
-(define-extern mod-ins-guard-search-trans (function crimson-guard symbol))
-(define-extern mod-ins-keep-guard-target? (function process-focusable symbol))
-(define-extern mod-pea-guard-activate (function traffic-tracker traffic-type handle))
-(define-extern mod-pea-blue-activated? (function crimson-blue-guard traffic-object-spawn-params symbol))
 
 ;; --- no-op / stock defaults ---------------------------------------------------------------------
 
 (defun mod-city-hook-traffic-update ((this traffic-manager))
   "default *mod-city-traffic-update-hook*: nothing to shape."
+  this
   (none)
   )
 
@@ -85,56 +69,13 @@
   #f
   )
 
-;; --- combined-branch flag dispatch ------------------------------------------------------------
-
-(defun mod-city-combined-guard-spawn-blue? ((params traffic-object-spawn-params))
-  (cond
-    (*mod-city-insurrection?* (mod-ins-guard-spawn-blue? params))
-    (else (mod-city-hook-guard-spawn-blue? params))  ;; peaceful uses the id-parity mix too
-    )
-  )
-
-(defun mod-city-combined-guard-activate ((this traffic-tracker) (ttype traffic-type))
-  (cond
-    (*mod-city-peaceful?* (mod-pea-guard-activate this ttype))
-    (else (get-from-inactive-by-type this ttype))    ;; insurrection + stock: plain pull
-    )
-  )
-
-(defun mod-city-combined-alert-blocked? ()
-  (and *mod-city-insurrection?* (mod-ins-alert-blocked?))
-  )
-
-(defun mod-city-combined-blue-activated? ((this crimson-blue-guard) (params traffic-object-spawn-params))
-  (cond
-    (*mod-city-insurrection?* (mod-ins-blue-activated? this params))
-    (*mod-city-peaceful?* (mod-pea-blue-activated? this params))
-    (else #f)
-    )
-  )
-
-(defun mod-city-combined-guard-active-trans ((this crimson-guard))
-  (when *mod-city-insurrection?*
-    (mod-ins-guard-active-trans this)
-    )
-  (none)
-  )
-
-(defun mod-city-combined-guard-search-trans ((this crimson-guard))
-  (and *mod-city-insurrection?* (mod-ins-guard-search-trans this))
-  )
-
-(defun mod-city-combined-keep-guard-target? ((p process-focusable))
-  (and *mod-city-insurrection?* (mod-ins-keep-guard-target? p))
-  )
-
 ;; --- install -----------------------------------------------------------------------------------
 
-(define *mod-city-traffic-update-hook* mod-city-insurrection-update-traffic)
-(define *mod-city-guard-spawn-blue-hook* (the-as (function object symbol) mod-city-combined-guard-spawn-blue?))
-(define *mod-city-guard-activate-hook* (the-as (function object traffic-type handle) mod-city-combined-guard-activate))
-(define *mod-city-alert-blocked-hook* mod-city-combined-alert-blocked?)
-(define *mod-city-blue-activated-hook* (the-as (function crimson-blue-guard object symbol) mod-city-combined-blue-activated?))
-(define *mod-city-guard-active-trans-hook* mod-city-combined-guard-active-trans)
-(define *mod-city-guard-search-trans-hook* mod-city-combined-guard-search-trans)
-(define *mod-city-keep-guard-target-hook* mod-city-combined-keep-guard-target?)
+(define *mod-city-traffic-update-hook* mod-city-hook-traffic-update)
+(define *mod-city-guard-spawn-blue-hook* (the-as (function object symbol) mod-city-hook-guard-spawn-blue?))
+(define *mod-city-guard-activate-hook* (the-as (function object traffic-type handle) mod-city-hook-guard-activate))
+(define *mod-city-alert-blocked-hook* mod-city-hook-alert-blocked?)
+(define *mod-city-blue-activated-hook* (the-as (function crimson-blue-guard object symbol) mod-city-hook-blue-activated?))
+(define *mod-city-guard-active-trans-hook* mod-city-hook-guard-active-trans)
+(define *mod-city-guard-search-trans-hook* mod-city-hook-guard-search-trans)
+(define *mod-city-keep-guard-target-hook* mod-city-hook-keep-guard-target?)

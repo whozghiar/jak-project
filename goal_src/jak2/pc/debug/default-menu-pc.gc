@@ -824,6 +824,22 @@
 ;; each pick-func clears the other flag when it turns its own flag on.
 ;; ----------------------------------------------------------------------------------
 
+(defun dm-mod-city-flush-guards ()
+  "Flush every ambient city guard so they respawn (within a few seconds) under whichever Mods-tab
+   mode is now active. Both crimson-guard traffic pools (4 = crimson-guard-0, 6 = crimson-guard-1)
+   hold red AND blue guard processes, so deactivating the pools is what actually re-rolls each
+   guard's faction / squad / weapon per the new rules; the guard vehicles (18 = guard-bike,
+   19 = hellcat) are flushed too since City Insurrection keeps them out of the Slums & Industrial
+   zones. This is how the debug menu applies the mode 'immediately to the guards already in game'."
+  (when *traffic-manager*
+    (send-event *traffic-manager* 'deactivate-by-type 4)
+    (send-event *traffic-manager* 'deactivate-by-type 6)
+    (send-event *traffic-manager* 'deactivate-by-type 18)
+    (send-event *traffic-manager* 'deactivate-by-type 19)
+    )
+  (none)
+  )
+
 (defun dm-mod-city-peaceful-pick-func ((arg0 symbol) (arg1 debug-menu-msg))
   "Debug-menu pick-func for the Mods tab: toggles *mod-city-peaceful?*, and turning it on
    clears *mod-city-insurrection?* (the two modes are mutually exclusive)."
@@ -832,10 +848,7 @@
     (if *mod-city-peaceful?*
         (set! *mod-city-insurrection?* #f)
         )
-    (when *traffic-manager*
-      (send-event *traffic-manager* 'deactivate-by-type 18)
-      (send-event *traffic-manager* 'deactivate-by-type 19)
-      )
+    (dm-mod-city-flush-guards)
     )
   *mod-city-peaceful?*
   )
@@ -848,10 +861,7 @@
     (if *mod-city-insurrection?*
         (set! *mod-city-peaceful?* #f)
         )
-    (when *traffic-manager*
-      (send-event *traffic-manager* 'deactivate-by-type 18)
-      (send-event *traffic-manager* 'deactivate-by-type 19)
-      )
+    (dm-mod-city-flush-guards)
     )
   *mod-city-insurrection?*
   )

@@ -550,50 +550,52 @@
                  (cond
                    ((or (= gp-0 (traffic-type crimson-guard-0))
                         (= gp-0 (traffic-type crimson-guard-1)))
-                    (let ((want-blue? (the-as symbol #f)))
-                      (cond
-                        (*mod-city-insurrection?*
-                         (let ((zone (city-get-pos-zone (-> arg0 position))))
-                           (case zone
-                             (('blue) (set! want-blue? #t))
-                             (('conflict) (set! want-blue? (zero? (rand-vu-int-count 2))))
-                             (else (set! want-blue? #f))
+                    (cond
+                      (*mod-city-insurrection?*
+                       ;; City Insurrection splits the two guard pools by faction at spawn time
+                       ;; (traffic-object-spawn): crimson-guard-1 = red, crimson-guard-0 = blue.
+                       ;; Each pool is therefore single-faction -- no per-activation choice to
+                       ;; make, just take the next inactive process of this type.
+                       (get-from-inactive-by-type this gp-0)
+                       )
+                      (else
+                       ;; Stock / City Peaceful: this pool is an id-parity blue+red mix. Pull the
+                       ;; wanted faction out of it -- every guard blue for City Peaceful, else
+                       ;; 1-in-*crimson-blue-guard-ratio* blue (stock ambient behaviour). If the
+                       ;; wanted faction is momentarily not in the inactive list, fall back to
+                       ;; whatever is there rather than stalling the spawner.
+                       (let ((want-blue? (cond (*mod-city-peaceful?* #t)
+                                               (else (and (> *crimson-blue-guard-ratio* 0)
+                                                          (zero? (rand-vu-int-count *crimson-blue-guard-ratio*))))
+                                               )
+                                         )
+                             (chosen-h (the-as handle #f))
+                             )
+                         (dotimes (i (the-as int (-> v1-2 inactive-count)))
+                           (let* ((h (-> v1-2 array i))
+                                  (p (handle->process h))
+                                  )
+                             (when p
+                               (let ((is-blue? (type-type? (-> p type) crimson-blue-guard)))
+                                 (when (or (and want-blue? is-blue?)
+                                           (and (not want-blue?) (not is-blue?)))
+                                   (set! chosen-h h)
+                                   (set! i (the-as int (-> v1-2 inactive-count)))
+                                   )
+                                 )
+                               )
                              )
                            )
+                         (if (handle->process chosen-h)
+                             (begin
+                               (get-from-inactive-by-handle this gp-0 chosen-h)
+                               (+! (-> v1-2 reserve-count) -1)
+                               chosen-h
+                               )
+                             (get-from-inactive-by-type this gp-0)
+                             )
                          )
-                        (*mod-city-peaceful?*
-                         (set! want-blue? #t)
-                         )
-                        (else
-                         (set! want-blue? (and (> *crimson-blue-guard-ratio* 0)
-                                               (zero? (rand-vu-int-count *crimson-blue-guard-ratio*))))
-                         )
-                        )
-                      (let ((chosen-h (the-as handle #f)))
-                        (dotimes (i (the-as int (-> v1-2 inactive-count)))
-                          (let* ((h (-> v1-2 array i))
-                                 (p (handle->process h))
-                                 )
-                            (when p
-                              (let ((is-blue? (type-type? (-> p type) crimson-blue-guard)))
-                                (when (or (and want-blue? is-blue?)
-                                          (and (not want-blue?) (not is-blue?)))
-                                  (set! chosen-h h)
-                                  (set! i (the-as int (-> v1-2 inactive-count)))
-                                  )
-                                )
-                              )
-                            )
-                          )
-                        (if (handle->process chosen-h)
-                            (begin
-                              (get-from-inactive-by-handle this gp-0 chosen-h)
-                              (+! (-> v1-2 reserve-count) -1)
-                              chosen-h
-                              )
-                            (get-from-inactive-by-type this gp-0)
-                            )
-                        )
+                       )
                       )
                     )
                    (else
@@ -1857,15 +1859,21 @@
   )
 
 (defmethod increase-alert-level ((this traffic-engine) (arg0 int) (arg1 target))
-  (when (and (logtest? (-> this alert-state flags) (traffic-alert-flag target-jak))
-             (logtest? (-> arg1 mask) (process-mask target))
-             )
-    (let ((v1-6 (min arg0 (the-as int (-> this alert-state max-level)))))
-      (when #t
-        (set-time! (-> this alert-state start-time))
-        (logclear! (-> this alert-state flags) (traffic-alert-flag alert-ending))
+  ;; City Insurrection mod: the Slums are a police safe haven. Block EVERY alert rise while Jak is
+  ;; inside the blue zone, whatever the source (traffic-manager 'increase-alert-level event,
+  ;; citizen::trigger-alert calling us directly, or the kill-count escalation in update-alert-state).
+  ;; This is the single choke point for the alert level going up.
+  (when (not (and *mod-city-insurrection?* (= (city-get-current-zone) 'blue)))
+    (when (and (logtest? (-> this alert-state flags) (traffic-alert-flag target-jak))
+               (logtest? (-> arg1 mask) (process-mask target))
+               )
+      (let ((v1-6 (min arg0 (the-as int (-> this alert-state max-level)))))
+        (when #t
+          (set-time! (-> this alert-state start-time))
+          (logclear! (-> this alert-state flags) (traffic-alert-flag alert-ending))
+          )
+        (set! (-> this alert-state level) (the-as uint (max (the-as int (-> this alert-state level)) v1-6)))
         )
-      (set! (-> this alert-state level) (the-as uint (max (the-as int (-> this alert-state level)) v1-6)))
       )
     )
   0

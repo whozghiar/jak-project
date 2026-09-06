@@ -1224,8 +1224,10 @@
 
 (defun find-nearest-enemy-guard ((from-guard process-focusable) (search-blue? symbol) (max-dist float))
   "Find the nearest opposing guard within max-dist in ambient traffic.
-   If search-blue? is true, searches for a crimson-blue-guard.
-   If search-blue? is false, searches for a red crimson-guard."
+   If search-blue? is true, searches for a crimson-blue-guard; if false, a red crimson-guard.
+   NOTE: the traffic-engine's two trackers are named backwards in the decomp -- `vehicle-tracker-array`
+   is the one that actually holds pedestrians and guards (traffic-types 0..10), `citizen-tracker-array`
+   holds vehicles (11..20). We scan BOTH `tracker-array` slots so this is robust regardless."
   (let ((best-proc (the-as process-focusable #f))
         (best-dist max-dist)
         (from-pos (-> from-guard root trans))
@@ -1236,23 +1238,25 @@
                 )
         )
     (when engine
-      (let ((tracker (-> engine citizen-tracker-array)))
-        (dotimes (i (the-as int (-> tracker active-object-count)))
-          (let ((proc (as-type (handle->process (-> tracker active-object-list i)) process-focusable)))
-            (when (and proc
-                       (!= proc from-guard)
-                       (not (focus-test? proc dead inactive disable))
-                       )
-              (let ((is-blue? (type-type? (-> proc type) crimson-blue-guard))
-                    (is-red? (and (type-type? (-> proc type) crimson-guard)
-                                  (not (type-type? (-> proc type) crimson-blue-guard))))
-                    )
-                (when (or (and search-blue? is-blue?)
-                          (and (not search-blue?) is-red?))
-                  (let ((d (vector-vector-distance from-pos (-> proc root trans))))
-                    (when (< d best-dist)
-                      (set! best-dist d)
-                      (set! best-proc proc)
+      (dotimes (tk 2)
+        (let ((tracker (-> engine tracker-array tk)))
+          (dotimes (i (the-as int (-> tracker active-object-count)))
+            (let ((proc (as-type (handle->process (-> tracker active-object-list i)) process-focusable)))
+              (when (and proc
+                         (!= proc from-guard)
+                         (not (focus-test? proc dead inactive disable))
+                         )
+                (let ((is-blue? (type-type? (-> proc type) crimson-blue-guard))
+                      (is-red? (and (type-type? (-> proc type) crimson-guard)
+                                    (not (type-type? (-> proc type) crimson-blue-guard))))
+                      )
+                  (when (or (and search-blue? is-blue?)
+                            (and (not search-blue?) is-red?))
+                    (let ((d (vector-vector-distance from-pos (-> proc root trans))))
+                      (when (< d best-dist)
+                        (set! best-dist d)
+                        (set! best-proc proc)
+                        )
                       )
                     )
                   )
@@ -1263,6 +1267,38 @@
         )
       )
     best-proc
+    )
+  )
+
+(defun crimson-guard-insurrection-scan ((this crimson-guard))
+  "City Insurrection mod: while in the Industrial conflict zone, acquire and engage the nearest
+   guard of the OPPOSING faction within ~40m -- a red crimson-guard hunts blue rebels, a
+   crimson-blue-guard hunts red loyalists (the faction is derived from `this` so this one helper
+   is safe to call from shared crimson-guard states that crimson-blue-guard inherits).
+   Targets the foe directly (traffic-target-status + focus) and goes hostile; it never touches the
+   city alert -- this is pure background faction warfare, invisible to Jak's wanted level.
+   Returns #t if a foe was engaged, #f otherwise (no opposing guard in range / not in the zone)."
+  (let ((engaged? #f))
+    (when (and *mod-city-insurrection?*
+               (= (city-get-pos-zone (-> this root trans)) 'conflict)
+               )
+      ;; search-blue? is #t for a red guard (it hunts blue), #f for a blue guard (it hunts red)
+      (let ((foe (find-nearest-enemy-guard this (not (type-type? (-> this type) crimson-blue-guard)) (meters 40))))
+        (when foe
+          (set! (-> this traffic-target-status handle) (process->handle foe))
+          (try-update-focus (-> this focus) foe this)
+          (when (or (not (-> this next-state))
+                    (let ((nm (-> this next-state name)))
+                      (not (or (= nm 'jump) (= nm 'exit-transport) (= nm 'die) (= nm 'knocked)))
+                      )
+                    )
+            (go-hostile this)
+            (set! engaged? #t)
+            )
+          )
+        )
+      )
+    engaged?
     )
   )
 
@@ -1299,18 +1335,10 @@
           )
         )
       )
-    ;; City Insurrection: scan for blue rebel guards in the conflict zone
-    (when (and *mod-city-insurrection?*
-               (time-elapsed? (-> self state-time) (seconds 0.5))
-               (= (city-get-pos-zone (-> self root trans)) 'conflict)
-               )
-      (let ((blue-enemy (find-nearest-enemy-guard self #t (meters 35))))
-        (when blue-enemy
-          (set! (-> self traffic-target-status handle) (process->handle blue-enemy))
-          (try-update-focus (-> self focus) blue-enemy self)
-          (go-hostile self)
-          )
-        )
+    ;; City Insurrection: hunt the opposing faction on sight in the Industrial conflict zone
+    ;; (settle for 0.5s after entering `active` first so guards don't lock on mid-spawn).
+    (when (time-elapsed? (-> self state-time) (seconds 0.5))
+      (crimson-guard-insurrection-scan self)
       )
     )
   )
@@ -1695,6 +1723,16 @@
   :trans (behavior ()
     (-> self target-flags)
     (crimson-guard-method-220 self)
+    ;; City Insurrection: don't let a guard idle in `search` after losing an opposing-faction
+    ;; target in the war zone -- re-acquire the nearest foe, or drop back to patrol (`active`)
+    ;; so it can pick a new fight rather than walking search forever.
+    (when (and *mod-city-insurrection?*
+               (= (city-get-pos-zone (-> self root trans)) 'conflict)
+               )
+      (if (not (crimson-guard-insurrection-scan self))
+          (go-virtual active)
+          )
+      )
     (cond
       ((logtest? (-> self target-flags) 1)
        (speech-control-method-12 *speech-control* self (speech-type speech-type-3))

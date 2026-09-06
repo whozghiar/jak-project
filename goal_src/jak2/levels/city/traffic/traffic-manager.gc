@@ -27,35 +27,92 @@
 
 ;; Mod-wide mode flags, toggled from the debug menu's "Mods" tab (see default-menu-pc.gc) --
 ;; mutually exclusive (enabling one clears the other from the menu's pick-funcs). Defined here
-;; rather than in the debug-gated menu file so gameplay code (crimson-blue-guard.gc and later
-;; the faction/zone logic) can read them unconditionally, regardless of *debug-segment*. Both
-;; default to #f: with neither set, blue guard behavior is exactly what it already is today.
+;; rather than in the debug-gated menu file so gameplay code (crimson-blue-guard.gc, guard.gc,
+;; traffic-engine.gc) can read them unconditionally, regardless of *debug-segment*. Both default
+;; to #f: with neither set, blue guard behavior is exactly what it already is today.
 ;; - city-peaceful: blue guards patrol as neutral 2-3 member squads; a squad member being
 ;;   attacked makes the whole squad retaliate together, still without raising the city alert.
-;; - city-insurrection: blue guards and red/yellow guards become hostile to each other on sight
-;;   in contested zones, without alerting Jak.
-;; (Neither behavior is implemented yet -- these flags exist so the menu entries and their
-;; on/off state are wired up first; the logic that reads them comes next.)
+;; - city-insurrection: Haven City becomes a three-front territorial civil war (see the district
+;;   zoning in city-get-pos-zone below):
+;;   * Slums (Bastion Rebelle)   -> 100% lone blue guards w/ random weapons; police-alert safe haven.
+;;   * Loyalist districts        -> 100% stock red/yellow guards, normal policing toward Jak.
+;;   * Industrial (Zone de Guerre) -> 50/50 blue vs red, no civilians, no vehicles; the two guard
+;;     factions hunt and fight each other on sight without ever raising the city alarm against Jak.
 (define *mod-city-peaceful?* #f)
 (define *mod-city-insurrection?* #f)
 
-(defun city-get-pos-zone ((pos vector))
-  "Returns 'blue, 'conflict, or 'red based on 3D world position (coordinates + level fallback)."
-  (when pos
-    (let ((x (-> pos x))
-          (z (-> pos z))
+;; Baseline ambient-traffic want-counts per traffic-type (0..20). This MUST mirror the values
+;; assigned in (method init-params traffic-manager) below -- indices 5 and 17 are unused traffic
+;; slots (init-params leaves them as stack garbage; 0 here is the intended "off"). It is the single
+;; restore source for mod-city-insurrection-update-traffic, which zeroes selected entries per-zone
+;; under City Insurrection and puts every entry back to this baseline otherwise.
+;;             type:  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
+(define *traffic-want-count-base*
+  (new 'static 'boxed-array :type int8 15 15 14 1 1 0 9 0 14 14 14 8 8 8 7 7 7 0 8 8 0))
+
+;; #t while mod-city-insurrection-update-traffic is actively overriding want-counts, so that the
+;; frame City Insurrection is switched off it can put every want-count back exactly once.
+(define *mod-traffic-shaped?* #f)
+
+;; Last district (city-get-current-zone result) mod-city-insurrection-update-traffic shaped the
+;; guard pools for. 'none forces a re-shape + flush on the next frame (set when Insurrection is
+;; toggled off, so re-enabling always rebuilds the street from scratch).
+(define *mod-city-guard-zone* 'none)
+
+(defun city-level-name-at-pos ((pos vector))
+  "Returns the runtime `name` symbol (e.g. 'ctysluma, 'ctyinda -- see level-info.gc) of the loaded
+   city level whose traffic vis-grid contains `pos`, or #f when no active traffic grid owns it.
+   Uses only verified level names, never hardcoded map coordinates.
+
+   IMPORTANT: this only ever probes the <=2 city grids the traffic-engine has fully linked this
+   frame -- `level-data-array city-info`, the exact set update-traffic / sphere-in-loaded-city-infos?
+   walk. It must NEVER call sphere-in-grid? on a raw `(-> lev bsp city-level-info)` pointer: during
+   a level transition that -vis data can be mid-teardown (level-unlink has already zeroed the
+   level-data-array entry, but the bsp pointer still dangles), and reading its grid-info/cell-array
+   then walks freed memory -> hard crash. The level name is recovered by pointer identity only."
+  (let ((engine *traffic-engine*))
+    (when (and engine *level* pos)
+      (let ((probe (new 'stack-no-clear 'vector)))
+        (set! (-> probe quad) (-> pos quad))
+        (set! (-> probe w) 4096.0)
+        (dotimes (di 2)
+          (let ((info (-> engine level-data-array di city-info)))
+            ;; bit 0 = citizen-navigable cell active -- same probe update-traffic-amount uses
+            (when (and (nonzero? info) (sphere-in-grid? info probe 0))
+              ;; map this linked city-info back to its level name (pure pointer compare -- never
+              ;; dereferences the possibly-dead bsp data behind the pointer)
+              (dotimes (li (-> *level* length))
+                (let ((lev (-> *level* level li)))
+                  (when (and (= (-> lev status) 'active)
+                             (= (the-as int (-> lev bsp city-level-info)) (the-as int info))
+                             )
+                    (return (-> lev name))
+                    )
+                  )
+                )
+              )
+            )
           )
-      ;; Slums: East/Southeast sector (X > 1.4M meters, Z < 1.68M meters)
-      (when (and (> x 1433600.0) (< z 1679360.0))
-        (return 'blue)
-        )
-      ;; Industrial: East sector north of Slums, south of Port (X >= 2.66M meters, 1.68M <= Z <= 4.6M meters)
-      (when (and (>= x 2662400.0) (>= z 1679360.0) (<= z 4608000.0))
-        (return 'conflict)
         )
       )
     )
-  ;; Fallback: check active levels excluding ctywide
+  #f
+  )
+
+(defun city-get-pos-zone ((pos vector))
+  "Returns 'blue (Slums rebel stronghold), 'conflict (Industrial war zone) or 'red (Baron loyalist
+   districts) for a world position. Classification is by the *loaded city level name* that owns
+   `pos` -- verified level names (level-info.gc), never invented coordinates. Falls back to the
+   nearest active city level by bsphere distance when the grid lookup cannot resolve `pos`."
+  (let ((lev-name (city-level-name-at-pos pos)))
+    (case lev-name
+      (('ctysluma 'ctyslumb 'ctyslumc) (return 'blue))
+      (('ctyinda 'ctyindb) (return 'conflict))
+      ((#f) #f) ;; grid lookup failed -- use the bsphere-nearest fallback below
+      (else (return 'red))
+      )
+    )
+  ;; Fallback: nearest active city level by bsphere (Slums / Industrial names only; else Loyalist)
   (when (and *level* pos)
     (let ((best-lev (the-as level #f))
           (min-dist 4096000000.0)
@@ -142,16 +199,131 @@
   (none)
   )
 
-(defmethod update ((this traffic-manager))
-  (update-traffic (-> this traffic-engine))
-  (kill-excess-once this)
-  (spawn-all this)
-  ;; City Insurrection: clear city alert when Jak retreats into the Slums safe haven
-  (when (and *mod-city-insurrection?* (= (city-get-current-zone) 'blue))
-    (when (> (get-alert-level (-> this traffic-engine)) 0)
-      (decrease-alert-level (-> this traffic-engine) 4)
+(defun mod-city-insurrection-shape-guard-pools ((engine traffic-engine) (zone symbol))
+  "Size the ambient crimson-guard pool for Jak's current `zone` under City Insurrection.
+
+   Only ONE traffic type carries city guards: `crimson-guard-1` (6) -- the stock ambient guard
+   pool (base want-count 9), the one the alert system already drives. `crimson-guard-0` (4) is
+   barely wired into stock ambient traffic (activate-by-type never promotes it reliably), so it
+   stays disabled here. Faction is chosen per spawn by district in traffic-object-spawn
+   (blue in the Slums, red in Loyalist districts, 50/50 in the Industrial zone), and a district
+   change purges + refills the pool (see mod-city-purge-guard-pool), so the pool is always 100%
+   the right faction for where Jak is -- no filtering, no wasted slots.
+
+   want-count sizes the pool; kill-excess-once drains a surplus, spawn-all tops it up. In the
+   Industrial zone we also force object-type-info-array target-count AFTER update-alert-state has
+   run (it caps guards at ~5 at peace), to get a proper battle. In Loyalist districts we leave
+   BOTH want-count and target-count untouched -- vanilla police density, byte-for-byte."
+  (set! (-> engine object-type-info-array 4 want-count) 0)
+  (case zone
+    (('blue)
+     ;; Slums = Bastion Rebelle: lone blue rebels, no loyalist gunships.
+     (set! (-> engine object-type-info-array 6 want-count) 10)
+     (set! (-> engine object-type-info-array 6 target-count) 7)
+     (set! (-> engine object-type-info-array 18 want-count) 0)
+     (set! (-> engine object-type-info-array 19 want-count) 0)
+     )
+    (('conflict)
+     ;; Industrial = Zone de Guerre: dense 50/50 war, no civilians (0..3), no vehicles (11..19).
+     (set! (-> engine object-type-info-array 6 want-count) 18)
+     (set! (-> engine object-type-info-array 6 target-count) 14)
+     (dotimes (i 4)
+       (set! (-> engine object-type-info-array i want-count) 0)
+       )
+     (dotimes (i 9)
+       (set! (-> engine object-type-info-array (+ i 11) want-count) 0)
+       )
+     )
+    (else
+     ;; Loyalist districts: stock red police, pool left fully vanilla (base want-count,
+     ;; update-alert-state target-count).
+     0
+     )
+    )
+  (none)
+  )
+
+(defun mod-city-purge-guard-pool ((this traffic-manager) (ttype traffic-type))
+  "Fully empty one crimson-guard traffic pool: park every active guard of `ttype`
+   (deactivate-by-type) then destroy the whole inactive list (the kill-all-inactive pattern --
+   get-from-inactive-by-type removes the handle and drops the counts, then deactivate kills the
+   process). spawn-all then rebuilds the pool from scratch with the current district's faction
+   (traffic-object-spawn), so no wrong-faction guard from the previous composition can linger."
+  (let* ((engine (-> this traffic-engine))
+         (info (-> engine object-type-info-array ttype))
+         (tracker (-> engine tracker-array (-> info tracker-index)))
+         )
+    (deactivate-by-type engine ttype)
+    (countdown (i (-> info inactive-count))
+      (let ((p (handle->process (get-from-inactive-by-type tracker ttype))))
+        (if p
+            (deactivate p)
+            )
+        )
       )
     )
+  (none)
+  )
+
+(defun mod-city-insurrection-update-traffic ((this traffic-manager))
+  "Per-frame City Insurrection traffic shaping, driven by the district Jak is standing in
+   (city-get-current-zone). Runs from traffic-manager::update BEFORE kill-excess-once / spawn-all
+   so the adjusted want-counts take effect the same frame:
+   - Every frame: reset all 21 want-counts to *traffic-want-count-base*, then apply this
+     district's guard-pool rules via mod-city-insurrection-shape-guard-pools.
+   - Slums (blue): also snap the police alert straight to 0 -- the safe haven.
+   - On a district change: flush both guard pools + loyalist gunships (deactivate-by-type parks
+     the active ones so kill-excess-once can drain the departed faction) and request a fast
+     spawn pass, so the street rebuilds with the new district's faction mix within ~1 frame.
+   - Insurrection off: restore every want-count once, and arm a re-flush for the next enable."
+  (let ((engine (-> this traffic-engine)))
+    (when engine
+      (cond
+        (*mod-city-insurrection?*
+         (dotimes (i 21)
+           (set! (-> engine object-type-info-array i want-count) (-> *traffic-want-count-base* i))
+           )
+         (set! *mod-traffic-shaped?* #t)
+         (let ((zone (city-get-current-zone)))
+           (mod-city-insurrection-shape-guard-pools engine zone)
+           (when (!= zone *mod-city-guard-zone*)
+             ;; district changed (or Insurrection just enabled -- 'none -> zone): destroy both
+             ;; guard pools so the kill-excess-once + spawn-all pass right after rebuilds the
+             ;; street with `zone`'s faction mix, and flush the loyalist gunships.
+             (mod-city-purge-guard-pool this (traffic-type crimson-guard-0))
+             (mod-city-purge-guard-pool this (traffic-type crimson-guard-1))
+             (deactivate-by-type engine (traffic-type guard-bike))
+             (deactivate-by-type engine (traffic-type hellcat))
+             (set! (-> this fast-spawn) #t)
+             (set! *mod-city-guard-zone* zone)
+             )
+           ;; Slums safe haven: any alert Jak carried in drops to 0 on the frame he enters
+           (if (and (= zone 'blue) (> (get-alert-level engine) 0))
+               (set-alert-level engine 0)
+               )
+           )
+         )
+        (*mod-traffic-shaped?*
+         ;; City Insurrection was just switched off -- restore every want-count exactly once
+         (dotimes (i 21)
+           (set! (-> engine object-type-info-array i want-count) (-> *traffic-want-count-base* i))
+           )
+         (set! *mod-traffic-shaped?* #f)
+         (set! *mod-city-guard-zone* 'none)
+         )
+        )
+      )
+    )
+  (none)
+  )
+
+(defmethod update ((this traffic-manager))
+  (update-traffic (-> this traffic-engine))
+  ;; City Insurrection: re-shape ambient traffic for Jak's current district BEFORE the kill/spawn
+  ;; pass so the adjusted want-counts take effect this same frame (also snaps the Slums alert to 0).
+  (mod-city-insurrection-update-traffic this)
+  (kill-excess-once this)
+  (spawn-all this)
   (if *debug-segment*
       (debug-unused (-> this traffic-engine))
       )
@@ -563,6 +735,62 @@
     )
   )
 
+;; DEBUG (REPL): report City Insurrection state from Jak's position -- current zone, the live guard
+;; want/target counts, and how many red / blue ambient guards are currently tracked & how far the
+;; nearest of each is. Use this in the Industrial zone to confirm the faction war can actually see
+;; both sides:  (mod-city-insurrection-debug)
+(defun mod-city-insurrection-debug ()
+  (let ((engine *traffic-engine*))
+    (format #t "~%--- City Insurrection debug ---~%")
+    (format #t "  peaceful?=~A  insurrection?=~A~%" *mod-city-peaceful?* *mod-city-insurrection?*)
+    (when *target*
+      (format #t "  jak zone (pos)  = ~A~%" (city-get-pos-zone (-> *target* root trans)))
+      )
+    (format #t "  jak zone (curr) = ~A~%" (city-get-current-zone))
+    (when engine
+      (format #t "  guard zone shaped for = ~A (spawns ~A here)~%"
+              *mod-city-guard-zone*
+              (case *mod-city-guard-zone* (('blue) "blue") (('conflict) "50/50") (else "red")))
+      ;; The single ambient city-guard pool is crimson-guard-1 (t6); its faction is set per spawn
+      ;; by district. crimson-guard-0 (t4) is unused under Insurrection.
+      (format #t "  crimson-guard-1 / t6 (city guard pool): want=~D target=~D active=~D inactive=~D~%"
+              (-> engine object-type-info-array 6 want-count)
+              (-> engine object-type-info-array 6 target-count)
+              (-> engine object-type-info-array 6 active-count)
+              (-> engine object-type-info-array 6 inactive-count))
+      (format #t "  crimson-guard-0 / t4 (unused):          want=~D active=~D inactive=~D~%"
+              (-> engine object-type-info-array 4 want-count)
+              (-> engine object-type-info-array 4 active-count)
+              (-> engine object-type-info-array 4 inactive-count))
+      (let ((n-red 0) (n-blue 0))
+        (dotimes (tk 2)
+          (let ((tracker (-> engine tracker-array tk)))
+            (dotimes (i (the-as int (-> tracker active-object-count)))
+              (let ((p (handle->process (-> tracker active-object-list i))))
+                (when (and p (type-type? (-> p type) crimson-guard))
+                  (if (type-type? (-> p type) crimson-blue-guard)
+                      (+! n-blue 1)
+                      (+! n-red 1)
+                      )
+                  )
+                )
+              )
+            )
+          )
+        (format #t "  tracked guards: ~D red, ~D blue~%" n-red n-blue)
+        )
+      (when *target*
+        (let ((r (find-nearest-enemy-guard (the-as process-focusable *target*) #f 409600.0))
+              (b (find-nearest-enemy-guard (the-as process-focusable *target*) #t 409600.0)))
+          (format #t "  nearest red  to jak: ~A~%" r)
+          (format #t "  nearest blue to jak: ~A~%" b)
+          )
+        )
+      )
+    )
+  (none)
+  )
+
 (defun traffic-object-spawn ((arg0 process) (arg1 traffic-object-spawn-params))
   (let ((v0-0 (the-as process-drawable #f)))
     (case (-> arg1 object-type)
@@ -612,7 +840,24 @@
        (set! v0-0 (citizen-spawn arg0 metalhead-flitter arg1))
        )
       (((traffic-type crimson-guard-1))
-       (let ((spawn-blue? (logtest? (-> arg1 id) 1)))
+       ;; The single ambient city-guard pool. Under City Insurrection the faction is chosen by
+       ;; the district Jak is in (mod-city-insurrection-shape-guard-pools keeps *mod-city-guard-zone*
+       ;; current, and purges+refills the pool on a district change) -- blue in the Slums, red in
+       ;; Loyalist districts, a 50/50 roll in the Industrial war zone. Outside Insurrection: keep
+       ;; the id-parity blue/red mix that City Peaceful & the *crimson-blue-guard-ratio* draw from.
+       (let ((spawn-blue?
+               (cond
+                 (*mod-city-insurrection?*
+                  (case *mod-city-guard-zone*
+                    (('blue) #t)
+                    (('conflict) (zero? (rand-vu-int-count 2)))
+                    (else #f)
+                    )
+                  )
+                 (else (logtest? (-> arg1 id) 1))
+                 )
+               )
+             )
          (set! v0-0 (citizen-spawn
                        arg0
                        (if spawn-blue? crimson-blue-guard crimson-guard)
@@ -621,7 +866,8 @@
          )
        )
       (((traffic-type crimson-guard-0))
-       (let ((spawn-blue? (logtest? (-> arg1 id) 1)))
+       ;; Secondary stock pool -- disabled (want-count 0) under Insurrection; id-parity mix otherwise.
+       (let ((spawn-blue? (if *mod-city-insurrection?* #f (logtest? (-> arg1 id) 1))))
          (set! v0-0 (citizen-spawn
                        arg0
                        (if spawn-blue? crimson-blue-guard crimson-guard)

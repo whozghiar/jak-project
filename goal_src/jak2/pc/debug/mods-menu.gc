@@ -1,0 +1,228 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+#|
+
+  mods-menu.gc -- Unified "Mods" tab for the OpenGOAL debug menu (Jak 2 PC port).
+
+  GOAL / Circuit 1 (logic & skeletons).
+
+  ------------------------------------------------------------------------------
+  WHY THIS FILE EXISTS
+  ------------------------------------------------------------------------------
+  Every mod branch wants to expose a few debug toggles (spawn a variant, switch a
+  faction, force a state, ...). If each branch edits `default-menu-pc.gc` or
+  `default-menu.gc` directly, two things go wrong:
+    1. Symbol / menu-node collisions between branches (two mods both add a
+       "Mods" submenu, or both name a pick-func `dm-toggle`).
+    2. Constant merge conflicts on the shared menu files whenever branches are
+       rebased on `master-dev`.
+
+  This file installs ONE root tab -- "Debug > Mods" -- and a tiny runtime
+  registry. A mod never edits this file: it calls
+  `(mods-menu-register "<slug>" builder)` from its own already-compiled `.gc`
+  file. The registry rebuilds the live menu, sorted by label, so branch merge
+  order never changes what the player sees.
+
+  ------------------------------------------------------------------------------
+  RESULTING HIERARCHY
+  ------------------------------------------------------------------------------
+    Debug > Mods > [mod-slug] > [variant / sub-module] > [options & toggles]
+
+  Example (branch jak2/gameplay/crimson-blueguard):
+    Debug > Mods > crimson-blueguard > city-peaceful > [Enable / Disable]
+
+  ------------------------------------------------------------------------------
+  PUBLIC API (call these from your mod file, nothing else)
+  ------------------------------------------------------------------------------
+    (mods-menu-register (name string)
+                        (builder (function debug-menu-context debug-menu-node)))
+        Register (or, on hot-reload, replace) one mod's submenu. `builder` is
+        called with the debug-menu-context and must return a `debug-menu-node`
+        (normally a `debug-menu-item-submenu` built with
+        `debug-menu-make-from-template`). Returning `#f` hides the mod.
+
+    (mods-menu-rebuild)
+        Force a rebuild of the live menu from the registry. Rarely needed by
+        hand -- `mods-menu-register` already calls it.
+
+  See the copy-paste template + traffic-manager example in
+  docs/modding/templates/mod_debug_menu.template.gc and the full write-up in
+  docs/modding/jak2_modding_utilities/27_debug_mods_menu_architecture.md
+
+|#
+
+;; debug-only file: stripped from release builds just like the rest of the menu code.
+(declare-file (debug))
+
+;; ============================================================================
+;; Registry type
+;; ============================================================================
+
+(deftype mod-menu-entry (basic)
+  ((name     string)                                            ;; label shown under "Mods" (use the mod slug)
+   (builder  (function debug-menu-context debug-menu-node))     ;; returns this mod's submenu node
+   )
+  (:methods
+    (new (symbol type string (function debug-menu-context debug-menu-node)) _type_)
+    )
+  )
+
+(defmethod new mod-menu-entry ((allocation symbol)
+                               (type-to-make type)
+                               (name string)
+                               (builder (function debug-menu-context debug-menu-node))
+                               )
+  "Allocate a registry entry. `allocation` should be 'debug (menu data lives on the debug heap)."
+  (let ((obj (object-new allocation type-to-make (the-as int (-> type-to-make size)))))
+    (set! (-> obj name) name)
+    (set! (-> obj builder) builder)
+    obj
+    )
+  )
+
+;; ============================================================================
+;; Registry state
+;; ============================================================================
+
+;; The live inner menu that sits under the "Mods" submenu item, or #f before install.
+(define *mods-menu* (the-as debug-menu #f))
+
+;; All registered mod entries: a plain list whose cars are `mod-menu-entry`,
+;; kept sorted by name on every rebuild.
+;; NOTE: a hot-reload of THIS file resets the registry -- re-run (mi) (which
+;; re-runs every mod's top-level register call) or reboot to repopulate.
+;; Reloading a mod file on its own is always safe.
+(define *mods-menu-entries* (the-as pair '()))
+
+;; ============================================================================
+;; Permanent help item -- also guarantees the submenu is never empty
+;; (the framework refuses to open a submenu with zero items).
+;; ============================================================================
+
+(defun mods-menu-about ((arg0 object))
+  "Activate-func for the permanent 'About' entry. Prints usage to the console."
+  (format #t "~%=== Debug > Mods ===~%")
+  (format #t "Unified modding tab. Each mod registers its own submenu at load with:~%")
+  (format #t "  (mods-menu-register \"<mod-slug>\" <builder-fn>)~%")
+  (format #t "Registered mods: ~D~%" (length *mods-menu-entries*))
+  (let ((iter *mods-menu-entries*))
+    (while (not (null? iter))
+      (format #t "  - ~A~%" (-> (the-as mod-menu-entry (car iter)) name))
+      (set! iter (cdr iter))
+      )
+    )
+  (format #t "Template: docs/modding/templates/mod_debug_menu.template.gc~%")
+  ;; return #f: the menu framework only uses this to flash the row red/green.
+  #f
+  )
+
+;; ============================================================================
+;; Rebuild
+;; ============================================================================
+
+(defun mods-menu-rebuild ()
+  "Clear the live 'Mods' submenu and repopulate it from the registry, sorted by
+   label. Cheap and allocation-light: only runs on register / hot-reload, never
+   per-frame and never on district / level transitions."
+  (when *mods-menu*
+    (debug-menu-remove-all-items *mods-menu*)
+    ;; permanent first row (keeps the submenu non-empty + self-documents)
+    (debug-menu-append-item
+      *mods-menu*
+      (new 'debug 'debug-menu-item-function "About / how to register" #f mods-menu-about)
+      )
+    ;; stable, merge-proof ordering: sort registered mods alphabetically by slug
+    (when (pair? *mods-menu-entries*)
+      (set! *mods-menu-entries*
+            (the-as pair
+                    (sort *mods-menu-entries*
+                          (lambda ((a mod-menu-entry) (b mod-menu-entry))
+                            (string<=? (-> a name) (-> b name))
+                            )
+                          )
+                    )
+            )
+      (let ((iter *mods-menu-entries*))
+        (while (not (null? iter))
+          (let* ((entry (the-as mod-menu-entry (car iter)))
+                 (node ((-> entry builder) *debug-menu-context*))
+                 )
+            ;; a builder may return #f to opt out of showing up
+            (when node
+              (debug-menu-append-item *mods-menu* node)
+              )
+            )
+          (set! iter (cdr iter))
+          )
+        )
+      )
+    )
+  (none)
+  )
+
+;; ============================================================================
+;; Register (public)
+;; ============================================================================
+
+(defun mods-menu-register ((name string) (builder (function debug-menu-context debug-menu-node)))
+  "Register a mod's submenu builder under Debug > Mods.
+     name    : menu label -- use your branch mod slug (e.g. \"crimson-blueguard\").
+     builder : (function debug-menu-context debug-menu-node). Called now and on
+               every rebuild; must be idempotent and allocation-light. Return a
+               submenu node (see `debug-menu-make-from-template`) or #f to hide.
+   Hot-reload safe: calling again with the same `name` replaces the builder in
+   place instead of adding a duplicate row."
+  (let ((found #f)
+        (iter *mods-menu-entries*)
+        )
+    (while (not (null? iter))
+      (when (string= (-> (the-as mod-menu-entry (car iter)) name) name)
+        (set! (-> (the-as mod-menu-entry (car iter)) builder) builder)
+        (set! found #t)
+        )
+      (set! iter (cdr iter))
+      )
+    (when (not found)
+      ;; dcons = cons on the debug heap (menu data must not touch the global heap)
+      (set! *mods-menu-entries*
+            (the-as pair (dcons (new 'debug 'mod-menu-entry name builder) *mods-menu-entries*))
+            )
+      )
+    )
+  ;; reflect the change immediately if the menu is already on screen
+  (mods-menu-rebuild)
+  (none)
+  )
+
+;; ============================================================================
+;; Install -- create/find the "Mods" root tab, then rebuild
+;; ============================================================================
+
+(defun mods-menu-install! ()
+  "Attach the 'Mods' submenu to the debug root menu. Idempotent: on a hot-reload
+   of this file it finds the existing tab and reuses it rather than adding a
+   second one."
+  (when (-> *debug-menu-context* root-menu)
+    (let ((existing (debug-menu-find-from-template *debug-menu-context* '("Mods"))))
+      (cond
+        (existing
+          ;; reuse the tab that a previous load already attached
+          (set! *mods-menu* existing)
+          )
+        (else
+          (set! *mods-menu* (new 'debug 'debug-menu *debug-menu-context* "Mods menu"))
+          (debug-menu-append-item
+            (-> *debug-menu-context* root-menu)
+            (new 'debug 'debug-menu-item-submenu "Mods" *mods-menu*)
+            )
+          )
+        )
+      )
+    (mods-menu-rebuild)
+    )
+  (none)
+  )
+
+;; run at file load. Guarded internally, so it is safe at boot and on (mi).
+(mods-menu-install!)

@@ -9,11 +9,12 @@
 > - [🇬🇧 English Version](#-english-version)
 > - [🇫🇷 Version Française](#-version-française)
 >
-> Companion knowledge-base tips (read them too) /
-> Fiches de connaissances associées (à lire également) :
-> [`../jak2_modding_utilities/13_custom_animation_and_sound_import_pipeline.md`](../jak2_modding_utilities/13_custom_animation_and_sound_import_pipeline.md),
-> [`../jak2_modding_utilities/10_gltf_retargeting_build_actor.md`](../jak2_modding_utilities/10_gltf_retargeting_build_actor.md),
-> [`../jak2_modding_utilities/09_custom_art_groups_link_art.md`](../jak2_modding_utilities/09_custom_art_groups_link_art.md).
+> Companion reference (read it too) / Référence associée (à lire également) :
+> [`../jak2_lisp_instructions.md` §B5 & §B8 — `initialize-skeleton`, art-groups & `link-art!`](../jak2_lisp_instructions.md#b8--custom-art-groups--dynamic-animation-linking-link-art--art-groups-custom--liaison-dynamique).
+> The full retargeting / `build-actor` / sound-bank pipeline lives on the
+> `jak2/config/custom_animation_and_sound` branch (its root `README.md` and
+> `docs/modding/current_mod/`). / Le pipeline complet de retargeting / `build-actor` /
+> banques sonores vit sur la branche `jak2/config/custom_animation_and_sound`.
 
 ---
 

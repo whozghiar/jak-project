@@ -50,7 +50,7 @@ This mod enhances the ambient atmosphere and danger level of Haven City in Jak 2
 | **2026-08-30** | `traffic-manager.gc` | Boosted want counts, cast `*default-dead-pool*` to `dead-pool-heap`, split format calls | Enhanced peacetime guard density and added diagnostic logs |
 | **2026-08-30** | `traffic-engine.gc` | Rebalanced alert settings 0-4, adjusted cell spheres to 240m/160m | Massive alert waves while staying within DMA / grid limits |
 | **2026-08-30** | `nav-mesh.gc` | Raised default `nav-max-users` from 64 to 128 | Fixed `too many users for nav-mesh` crash during level streaming |
-| **2026-08-30** | `17_traffic_engine_spawnrates_and_nav_mesh_limits.md` | Created technical documentation in `docs/modding/jak2_modding_utilities/` | Document engine discoveries and architecture |
+| **2026-08-30** | `17_traffic_engine_spawnrates_and_nav_mesh_limits.md` | Created technical documentation in `docs/modding/jak2_lisp_instructions.md` | Document engine discoveries and architecture |
 | **2026-08-30** | `enhanced_spawnrates_readme.md` | Created dedicated mod readme in `docs/modding/current_mod/` | Mod documentation & changelog |
 
 ---

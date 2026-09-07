@@ -155,6 +155,33 @@ tasks:
         msg: "Couldn't locate formatter executable in '{{.FORMATTER_BIN_RELEASE_DIR}}/formatter'"
     cmds:
       - "{{.FORMATTER_BIN_RELEASE_DIR}}/formatter --write --file '{{.FILE}}'"
+  # MODDING WORKFLOW
+  # Thin wrappers over scripts/modding/*.py so the mod workflow is discoverable via
+  # `task --list`. Pass script args after `--`, e.g. `task modding-new-branch -- jak2/features/foo`.
+  modding-new-branch:
+    desc: "Create a new mod branch from master-dev with an initialised root README (scripts/modding/create_mod_branch.py). Args after --, e.g. -- jak2/features/my-mod"
+    cmds:
+      - "{{.PYTHON}} ./scripts/modding/create_mod_branch.py {{.CLI_ARGS}}"
+  modding-sync-branch:
+    desc: "Sync the current mod branch with master-dev via safe git merge (scripts/modding/sync_branch_with_master_dev.py). --rebase / --push accepted after --"
+    cmds:
+      - "{{.PYTHON}} ./scripts/modding/sync_branch_with_master_dev.py {{.CLI_ARGS}}"
+  modding-sync-docs:
+    desc: "Pull docs/modding + AGENTS.md + CLAUDE.md from master-dev into the current branch, pruning files deleted upstream (scripts/modding/sync_docs_from_master.py)"
+    cmds:
+      - "{{.PYTHON}} ./scripts/modding/sync_docs_from_master.py {{.CLI_ARGS}}"
+  modding-land-doc:
+    desc: "Land a lisp/engine doc change on master-dev conflict-free, then re-sync your branch (scripts/modding/land_doc_on_master_dev.py). e.g. -- --file docs/modding/jak2_lisp_instructions.md --message '...' --push"
+    cmds:
+      - "{{.PYTHON}} ./scripts/modding/land_doc_on_master_dev.py {{.CLI_ARGS}}"
+  modding-branch-status:
+    desc: "Test every mod branch's mergeability with master-dev and refresh the sync dashboard (scripts/modding/sync_branches_with_master.py). Add -- --push to auto-merge clean branches"
+    cmds:
+      - "{{.PYTHON}} ./scripts/modding/sync_branches_with_master.py {{.CLI_ARGS}}"
+  modding-audit:
+    desc: "Regenerate docs/modding/branch_audit.md: per-branch compliance with the modding standards (scripts/modding/branch_audit.py)"
+    cmds:
+      - "{{.PYTHON}} ./scripts/modding/branch_audit.py {{.CLI_ARGS}}"
   # DECOMPILING
   disasm:
     cmds:

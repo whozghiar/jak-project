@@ -140,7 +140,7 @@ working with the exact same numeric indices, unmodified.
 `build-actor` (Circuit 1, §3) only produces the skeleton/animations art-group. The actual triangles
 + textures the PC renderer draws (Circuit 2) come from a completely separate system: the
 decompiler bakes them into `.fr3` files, looked up **by name** at runtime. See
-`docs/modding/jak2_modding_utilities/19_injecting_a_model_into_a_level.md` for the full mechanism.
+`docs/modding/jak2_lisp_instructions.md` for the full mechanism.
 `build-actor`'s own merc-ctrl output is a placeholder (`generate_dummy_merc_ctrl` in
 `build_actor.cpp` literally reuses a hardcoded dummy mesh) — without Circuit 2, the guard spawns,
 moves and makes sound normally, but is **invisible**.
@@ -519,7 +519,7 @@ fonctionner avec exactement les mêmes indices numériques, sans modification.
 `build-actor` (Circuit 1, §3) ne produit que l'art-group squelette/animations. Les triangles +
 textures réellement dessinés par le renderer PC (Circuit 2) viennent d'un système totalement
 séparé : le décompilateur les cuit dans des fichiers `.fr3`, recherchés **par nom** au runtime.
-Voir `docs/modding/jak2_modding_utilities/19_injecting_a_model_into_a_level.md` pour le mécanisme
+Voir `docs/modding/jak2_lisp_instructions.md` pour le mécanisme
 complet. Le merc-ctrl produit par `build-actor` lui-même est un placeholder
 (`generate_dummy_merc_ctrl` dans `build_actor.cpp` réutilise littéralement un mesh factice codé en
 dur) — sans le Circuit 2, le garde apparaît, se déplace et fait du bruit normalement, mais est

@@ -110,7 +110,9 @@
   ;; FR: la boucle : jouer l'anim idle en boucle, en rendant la main chaque frame
   :code (behavior ()
     (loop
-      (ja-no-eval :group! (-> self draw art-group data 2) :num! (seek!) :frame-num 0.0)
+      ;; my-actor-idle-ja = the animation symbol from this actor's art-group
+      ;; my-actor-idle-ja = le symbole d'animation de l'art-group de cet acteur
+      (ja-no-eval :group! my-actor-idle-ja :num! (seek!) :frame-num 0.0)
       (until (ja-done? 0)
         (suspend)
         (ja :num! (seek!)))))

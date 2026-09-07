@@ -24,7 +24,7 @@ This mod enhances the Yakow animals located at the Hip Hog farm in Jak 2 by brin
   - **Krimzon Guard Alert Trigger ("Hands off the cow!"):** Striking a Yakow is treated as a crime and immediately sets the Krimzon Guard alert to Level 1 via `(send-event *traffic-manager* 'set-alert-level 1)`, summoning nearby guards to protect the farm.
   - Yakows now have 3 hit points (`default-hit-points = 3`) instead of being invulnerable, and `damage-amount-from-attack` returns 1 so every attack registers.
   - Upon death, the Yakow drops **6 dark eco pills** dispersed in a ~1.5 m radius around its position.
-  - Plays the classic `"yakow-die"` cry (via the base `enemy` `dying` hook), then dissolves using the engine's generic `death-default` effect: **purple particles tracing the mesh/skeleton outline** as it fades out, layered with the `"enemy-fizz"` sound baked into that effect — the exact same system used by civilians and Crimson Guards. See the dedicated engine tip: [`jak2_modding_utilities/12_generic_death_effect_particles.md`](../jak2_modding_utilities/12_generic_death_effect_particles.md).
+  - Plays the classic `"yakow-die"` cry (via the base `enemy` `dying` hook), then dissolves using the engine's generic `death-default` effect: **purple particles tracing the mesh/skeleton outline** as it fades out, layered with the `"enemy-fizz"` sound baked into that effect — the exact same system used by civilians and Crimson Guards. See the dedicated engine tip: [`jak2_lisp_instructions.md`](../jak2_lisp_instructions.md).
 
 ## 2. Technical Architecture & Tooling
 
@@ -67,7 +67,7 @@ This mod enhances the Yakow animals located at the Hip Hog farm in Jak 2 by brin
 
 - **Stable / working as intended:** flee, graze, kick reactions, Krimzon Guard alert trigger ("Hands off the cow!"), HP-based death, dark eco pill drops, and the purple death-dissolve VFX + classic cry.
 - **Not yet investigated:** whether killed Yakows should respawn on level re-entry/task reset like other farm entities, and whether repeated kills should be capped per play session (no reward-farming guard is currently in place beyond the natural respawn rules inherited from `nav-enemy`/entity persistence).
-- **Tip discovered and now documented separately** (previously undocumented in this repo): the generic `death-default` purple particle system is available to *any* skeleton-having `process-drawable` for free via `do-effect` — see [`jak2_modding_utilities/12_generic_death_effect_particles.md`](../jak2_modding_utilities/12_generic_death_effect_particles.md) for the full mechanism, code pattern, and pitfalls (in particular: always `suspend-for` before `cleanup-for-death`, or the particles never get a chance to spawn).
+- **Tip discovered and now documented separately** (previously undocumented in this repo): the generic `death-default` purple particle system is available to *any* skeleton-having `process-drawable` for free via `do-effect` — see [`jak2_lisp_instructions.md`](../jak2_lisp_instructions.md) for the full mechanism, code pattern, and pitfalls (in particular: always `suspend-for` before `cleanup-for-death`, or the particles never get a chance to spawn).
 
 ## 5. Modding Changes Log
 
@@ -93,7 +93,7 @@ Ce mod enrichit les Yakows présents à la ferme du Hip Hog dans Jak 2 en réint
   - **Déclenchement de l'Alerte Krimzon (« Pas touche à la vache ! ») :** Frapper un Yakow est considéré comme un crime et déclenche immédiatement l'alerte de Niveau 1 des Grenadiers via `(send-event *traffic-manager* 'set-alert-level 1)`, alertant la patrouille locale pour protéger les bêtes.
   - Le Yakow possède désormais 3 points de vie (`default-hit-points = 3`) au lieu d'être invulnérable, et `damage-amount-from-attack` renvoie 1 afin que chaque coup entame sa santé.
   - À sa mort, le Yakow lâche **6 pilules d'éco sombre** dispersées dans un rayon d'environ 1,5 m autour de sa position.
-  - Il émet le cri classique `"yakow-die"` (via le hook `dying` de base d'`enemy`), puis se dissout avec l'effet générique `death-default` du moteur : **des particules violettes traçant le contour du maillage/squelette** pendant qu'il disparaît, superposées au son `"enemy-fizz"` intégré à cet effet — exactement le même système que celui utilisé par les civils et les Crimson Guards. Voir le tip moteur dédié : [`jak2_modding_utilities/12_generic_death_effect_particles.md`](../jak2_modding_utilities/12_generic_death_effect_particles.md).
+  - Il émet le cri classique `"yakow-die"` (via le hook `dying` de base d'`enemy`), puis se dissout avec l'effet générique `death-default` du moteur : **des particules violettes traçant le contour du maillage/squelette** pendant qu'il disparaît, superposées au son `"enemy-fizz"` intégré à cet effet — exactement le même système que celui utilisé par les civils et les Crimson Guards. Voir le tip moteur dédié : [`jak2_lisp_instructions.md`](../jak2_lisp_instructions.md).
 
 ## 2. Architecture Technique & Outillage
 
@@ -136,7 +136,7 @@ Ce mod enrichit les Yakows présents à la ferme du Hip Hog dans Jak 2 en réint
 
 - **Stable / fonctionnant comme prévu :** fuite, pâturage, réactions au coup de pied, déclenchement de l'alerte Krimzon (« Pas touche à la vache ! »), mort basée sur les PV, lâcher de pilules d'éco sombre, et VFX de dissolution violette + cri classique.
 - **Non encore investigué :** si les Yakows tués doivent réapparaître au rechargement du niveau/reset de tâche comme d'autres entités de la ferme, et si les kills répétés doivent être plafonnés par session de jeu (aucun garde-fou anti-farming n'est en place au-delà des règles naturelles de respawn héritées de `nav-enemy`/de la persistance des entités).
-- **Astuce découverte et désormais documentée séparément** (jusqu'ici non documentée dans ce dépôt) : le système générique de particules violettes `death-default` est disponible gratuitement pour **n'importe quel** `process-drawable` possédant un squelette, via `do-effect` — voir [`jak2_modding_utilities/12_generic_death_effect_particles.md`](../jak2_modding_utilities/12_generic_death_effect_particles.md) pour le mécanisme complet, le pattern de code et les pièges (en particulier : toujours faire un `suspend-for` avant `cleanup-for-death`, sinon les particules n'ont jamais l'occasion d'apparaître).
+- **Astuce découverte et désormais documentée séparément** (jusqu'ici non documentée dans ce dépôt) : le système générique de particules violettes `death-default` est disponible gratuitement pour **n'importe quel** `process-drawable` possédant un squelette, via `do-effect` — voir [`jak2_lisp_instructions.md`](../jak2_lisp_instructions.md) pour le mécanisme complet, le pattern de code et les pièges (en particulier : toujours faire un `suspend-for` avant `cleanup-for-death`, sinon les particules n'ont jamais l'occasion d'apparaître).
 
 ## 6. Journal des Modifications
 

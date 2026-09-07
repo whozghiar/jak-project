@@ -14,7 +14,7 @@
 
 ## 1. Description & Features
 
-The **Mega Dark Jak** mod rehabilitates the **Dark Giant** transformation in Jak 3, re-using the giant animation, scaling and interpolation assets that Naughty Dog left dormant in the Jak 3 engine after the Jak 2 Dark Giant boss set-piece (see [`jak3_modding_utilities` #09](../jak3_modding_utilities/09_darkjak_architecture.md)).
+The **Mega Dark Jak** mod rehabilitates the **Dark Giant** transformation in Jak 3, re-using the giant animation, scaling and interpolation assets that Naughty Dog left dormant in the Jak 3 engine after the Jak 2 Dark Giant boss set-piece (see [`jak3_modding_utilities` #09](../jak3_lisp_instructions.md)).
 
 - **Hold `L1` while Dark Jak** to grow into the **Dark Giant** (`darkjak-giant-interp` → `2.0`, roughly 2× scale).
 - The transformation runs a **headroom collision probe** (a sphere `+12697.6` above Jak, radius `11878.4`): if the ceiling is too low, Jak stays at normal scale so he never clips into geometry.
@@ -73,7 +73,7 @@ The **Mega Dark Jak** mod rehabilitates the **Dark Giant** transformation in Jak
 
 ## 1. Description & Fonctionnalités
 
-Le mod **Méga Dark Jak** réhabilite la transformation **Dark Giant** dans Jak 3, en réutilisant les assets d'animation, de mise à l'échelle et d'interpolation « géant » que Naughty Dog a laissés en sommeil dans le moteur de Jak 3 après la séquence du Dark Giant de Jak 2 (voir [`jak3_modding_utilities` #09](../jak3_modding_utilities/09_darkjak_architecture.md)).
+Le mod **Méga Dark Jak** réhabilite la transformation **Dark Giant** dans Jak 3, en réutilisant les assets d'animation, de mise à l'échelle et d'interpolation « géant » que Naughty Dog a laissés en sommeil dans le moteur de Jak 3 après la séquence du Dark Giant de Jak 2 (voir [`jak3_modding_utilities` #09](../jak3_lisp_instructions.md)).
 
 - **Maintenir `L1` en Dark Jak** pour se transformer en **Dark Giant** (`darkjak-giant-interp` → `2.0`, échelle ~2×).
 - La transformation exécute une **sonde de collision de dégagement** (une sphère à `+12697.6` au-dessus de Jak, rayon `11878.4`) : si le plafond est trop bas, Jak reste à l'échelle normale et ne traverse jamais la géométrie.

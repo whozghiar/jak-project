@@ -63,7 +63,7 @@ Almost every requirement is already implemented on `vehicle-guard`:
 
 ### 5. Rendering — the merc geometry `.fr3` injection (shared with the sibling branch)
 
-`transport-ag`'s hull geometry only ever shipped in `lprotect/ctykora/forestb/nest`. `extra_art_groups_by_dgo` in `decompiler/config/jak2/jak2_config.jsonc` bakes it into the always-resident `lwidea/lwideb/lwidec.fr3` (textures resolved via `LPROTECT`'s remap table); the matching `transport-ag.go` + `tpage-2869.go` entries are added to the three `lwide*.gd`. See [utility #18](../jak2_modding_utilities/18_merc_geometry_fr3_residency.md).
+`transport-ag`'s hull geometry only ever shipped in `lprotect/ctykora/forestb/nest`. `extra_art_groups_by_dgo` in `decompiler/config/jak2/jak2_config.jsonc` bakes it into the always-resident `lwidea/lwideb/lwidec.fr3` (textures resolved via `LPROTECT`'s remap table); the matching `transport-ag.go` + `tpage-2869.go` entries are added to the three `lwide*.gd`. See [utility #18](../jak2_lisp_instructions.md).
 
 > **Requires a re-extraction** (`task extract`) so the three `.fr3` are rebuilt. The `vehicle-turret` chin gun needs none (retail `CWI.DGO`).
 
@@ -170,7 +170,7 @@ Presque tout est déjà implémenté sur `vehicle-guard` :
 
 ### 5. Rendu — l'injection de géométrie merc `.fr3` (partagée avec la branche sœur)
 
-`extra_art_groups_by_dgo` dans `decompiler/config/jak2/jak2_config.jsonc` cuit la géométrie de `transport-ag` dans `lwidea/lwideb/lwidec.fr3` toujours résidents (textures résolues via la table de remap de `LPROTECT`) ; les entrées `transport-ag.go` + `tpage-2869.go` sont ajoutées aux trois `lwide*.gd`. Voir la [fiche #18](../jak2_modding_utilities/18_merc_geometry_fr3_residency.md).
+`extra_art_groups_by_dgo` dans `decompiler/config/jak2/jak2_config.jsonc` cuit la géométrie de `transport-ag` dans `lwidea/lwideb/lwidec.fr3` toujours résidents (textures résolues via la table de remap de `LPROTECT`) ; les entrées `transport-ag.go` + `tpage-2869.go` sont ajoutées aux trois `lwide*.gd`. Voir la [fiche #18](../jak2_lisp_instructions.md).
 
 > **Impose une re-extraction** (`task extract`). La tourelle `vehicle-turret` n'en demande aucune (`CWI.DGO` retail).
 

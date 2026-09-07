@@ -68,6 +68,14 @@ task boot-game
 > [!NOTE]
 > *Demonstration videos must be hosted externally on YouTube to prevent repository bloating. Replace `{YOUTUBE_ID}` with the YouTube video ID (e.g. `MnqnybexhSA`) and `{YOUTUBE_URL}` with the video URL (e.g. `https://youtu.be/MnqnybexhSA`).*
 
+## ✅ Compliance Checklist
+- [ ] **Native non-regression:** with the mod compiled but its toggle OFF, the game plays identically to stock.
+- [ ] **Debug ▸ Mods toggle:** the mod registers at least one enable/disable entry via `(mods-menu-register "{MOD_SLUG}" ...)` (Jak 2) or a `{MOD_SLUG}`-prefixed debug submenu (Jak 1/3). See [`docs/modding/tools/mods_debug_menu.md`](docs/modding/tools/mods_debug_menu.md).
+- [ ] **No direct `default-menu*.gc` edits.**
+- [ ] **Symbols prefixed** with the mod slug (`*mod-{MOD_SLUG}-*`, `mod-{MOD_SLUG}-*`).
+- [ ] **Verified Lisp instructions** used by this mod are present in `docs/modding/jak[x]_lisp_instructions.md` (landed on `master-dev` via `task modding-land-doc`).
+- [ ] **In-code comments** on every new/overridden type, method, state, macro.
+
 ## 📖 Technical Documentation
 For the complete technical breakdown, architecture, and developer notes, refer to:
 - 📄 [`docs/modding/current_mod/{MOD_SLUG}_readme.md`](docs/modding/current_mod/{MOD_SLUG}_readme.md)
@@ -128,6 +136,14 @@ task boot-game
 
 > [!NOTE]
 > *Les vidéos de démonstration doivent être hébergées sur YouTube pour éviter d'alourdir le dépôt Git. Remplacez `{YOUTUBE_ID}` par l'identifiant de la vidéo YouTube (ex : `MnqnybexhSA`) et `{YOUTUBE_URL}` par l'URL de la vidéo (ex : `https://youtu.be/MnqnybexhSA`).*
+
+## ✅ Checklist de Conformité
+- [ ] **Non-régression native :** mod compilé mais bascule sur OFF → le jeu se joue à l'identique du jeu d'origine.
+- [ ] **Bascule Debug ▸ Mods :** le mod enregistre au moins une entrée activer/désactiver via `(mods-menu-register "{MOD_SLUG}" ...)` (Jak 2) ou un sous-menu debug préfixé `{MOD_SLUG}` (Jak 1/3). Voir [`docs/modding/tools/mods_debug_menu.md`](docs/modding/tools/mods_debug_menu.md).
+- [ ] **Aucune édition directe de `default-menu*.gc`.**
+- [ ] **Symboles préfixés** par le slug du mod (`*mod-{MOD_SLUG}-*`, `mod-{MOD_SLUG}-*`).
+- [ ] **Instructions Lisp vérifiées** utilisées par ce mod présentes dans `docs/modding/jak[x]_lisp_instructions.md` (intégrées sur `master-dev` via `task modding-land-doc`).
+- [ ] **Commentaires dans le code** sur chaque type/méthode/état/macro ajouté ou surchargé.
 
 ## 📖 Documentation Technique
 Pour l'audit technique approfondi, l'architecture et les détails d'implémentation, consultez :

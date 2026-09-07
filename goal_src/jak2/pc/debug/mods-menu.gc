@@ -48,7 +48,7 @@
 
   See the copy-paste template + traffic-manager example in
   docs/modding/templates/mod_debug_menu.template.gc and the full write-up in
-  docs/modding/jak2_modding_utilities/27_debug_mods_menu_architecture.md
+  docs/modding/tools/mods_debug_menu.md
 
 |#
 

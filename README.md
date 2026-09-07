@@ -62,7 +62,7 @@ task boot-game
 
 ## 📖 Technical Documentation
 For the complete technical breakdown, architecture, and developer notes, refer to:
-- 📄 [`docs/modding/jak3_modding_utilities/02_memory_architecture.md`](docs/modding/jak3_modding_utilities/02_memory_architecture.md)
+- 📄 [`docs/modding/engine_generic_concepts.md`](docs/modding/engine_generic_concepts.md)
 
 ---
 
@@ -115,7 +115,7 @@ task boot-game
 
 ## 📖 Documentation Technique
 Pour l'audit technique approfondi, l'architecture et les détails d'implémentation, consultez :
-- 📄 [`docs/modding/jak3_modding_utilities/02_memory_architecture.md`](docs/modding/jak3_modding_utilities/02_memory_architecture.md)
+- 📄 [`docs/modding/engine_generic_concepts.md`](docs/modding/engine_generic_concepts.md)
 
 ---
 *(AI-assisted)*

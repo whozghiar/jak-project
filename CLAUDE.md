@@ -44,6 +44,14 @@ task repl                   # Open interactive goalc compiler
 task boot-game              # Boot game directly without REPL
 task run-game               # Run game with REPL attached
 task format                 # Format C++ and GOAL code
+
+# Modding workflow (wrappers over scripts/modding/*.py — pass args after `--`)
+task modding-new-branch -- jak2/features/my-mod   # new mod branch from master-dev + initial README
+task modding-sync-branch                          # safe git merge of master-dev into current branch
+task modding-sync-docs                            # pull docs/modding + AGENTS.md + CLAUDE.md from master-dev (prunes deletes)
+task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "..." --push  # land a doc addition on master-dev, conflict-free
+task modding-branch-status                        # refresh the branch sync dashboard
+task modding-audit                                # regenerate docs/modding/branch_audit.md
 ```
 
 > [!IMPORTANT]
@@ -58,6 +66,16 @@ task format                 # Format C++ and GOAL code
 
 Before designing or modifying any code for Jak 1, Jak 2, or Jak 3, **strictly consult and adhere to**:
 * 📄 [`docs/modding/jak_modding_instructions.md`](docs/modding/jak_modding_instructions.md)
+
+> [!IMPORTANT]
+> **Consult the reference BEFORE writing or changing any `.gc`:**
+> * 📗 [`docs/modding/jak[1|2|3]_lisp_instructions.md`](docs/modding/) — the verified,
+>   100 %-certain OpenGOAL Lisp reference for that game (one commented example + traps
+>   per instruction). **Never invent an instruction.** If you rely on a verified
+>   instruction that is missing, record it — see §4.
+> * 📘 [`docs/modding/engine_generic_concepts.md`](docs/modding/engine_generic_concepts.md)
+>   — the shared, non-Lisp engine primer (memory, heaps, DGOs, level streaming,
+>   virtual-state residency, process life cycle, boot diagnostics).
 
 ### 🌿 Git Branching Convention
 * `master`: Clean mirror of `open-goal/jak-project:master`. Never commit directly to `master`.
@@ -80,48 +98,44 @@ Every mod branch maintains a dedicated root `README.md` presenting:
 4. Video Demo / Vidéo démonstrative (or gameplay screenshots)
 * **Template:** [`docs/modding/templates/MOD_README.template.md`](docs/modding/templates/MOD_README.template.md)
 * **GitHub Visibility:** GitHub automatically renders this root `README.md` when browsing the mod's branch.
-* **Syncing Modding Docs On-Demand:** To pull latest tips from `master-dev` without rebasing:
+* **Syncing Modding Docs On-Demand:** To pull `docs/modding` + `AGENTS.md` + `CLAUDE.md` from `master-dev` (prunes files deleted upstream) without rebasing:
   ```bash
-  python scripts/modding/sync_docs_from_master.py
+  task modding-sync-docs      # = python scripts/modding/sync_docs_from_master.py
   ```
 * **Branch Sync Dashboard:** Tracked live on `master-dev`'s `README.md` and [`docs/modding/tools/branch_sync_status.md`](docs/modding/tools/branch_sync_status.md). Routine updates via:
   ```bash
   python scripts/modding/sync_branches_with_master.py --push
   ```
 
-### 🛡️ Code Architecture & Guardrails
+### 🛡️ Code Architecture & Guardrails — 🥇 Golden Rules
+* **Consult the reference first** (see §3): read `jak[x]_lisp_instructions.md` + `engine_generic_concepts.md` before touching any `.gc`. Never hallucinate an instruction.
+* **Native non-regression:** a mod MUST NOT change default game behaviour unless its written spec explicitly requires it. Every behaviour change ships **OFF by default**, gated behind the mod's Debug ▸ Mods toggle. A fresh install with the mod compiled-but-disabled must play identically to stock.
+* **Debug ▸ Mods toggle mandatory:** every mod is switchable on/off at runtime from the in-game debug menu. Jak 2: `(mods-menu-register "<slug>" builder)` — [`docs/modding/tools/mods_debug_menu.md`](docs/modding/tools/mods_debug_menu.md). Never edit `default-menu*.gc` directly. (Jak 1 / Jak 3: mod-slug-prefixed submenu for now; unified-framework port is a follow-up.)
 * **In-Code Comments Mandatory:** Every function, method, macro, state, hook, or type modification in `.gc` files **must be thoroughly commented** (intent, arguments, return values, side effects).
 * **Non-Destructive Modifications:** Never delete or destructively empty original `.gc` files; favor surgical overrides and modular additions.
 * **Project Registration (`.gp`):** Register new `.gc` files in the corresponding project file (e.g. `goal_src/jak[x]/jak[x]-game.gp`).
 
 ---
 
-## 4. Modding Utilities & Knowledge Base Access
+## 4. Modding Knowledge Base — Two Reference Docs
 
-Engine discoveries, runtime memory structures, particle tricks, state machines, and assembly patterns are organized per game under `docs/modding/`:
+Verified engine knowledge lives in **two curated files per topic** (not a per-branch pile of tips). CI aggregation and its workflow have been removed.
 
-### 📚 Knowledge Base Directories:
-* **Jak 1:** [`docs/modding/jak1_modding_utilities/`](docs/modding/jak1_modding_utilities/)
-  * Aggregated reference: [`docs/modding/jak1_modding_utilities/jak1_modding_utilities.md`](docs/modding/jak1_modding_utilities/jak1_modding_utilities.md)
-* **Jak 2:** [`docs/modding/jak2_modding_utilities/`](docs/modding/jak2_modding_utilities/)
-  * Aggregated reference: [`docs/modding/jak2_modding_utilities/jak2_modding_utilities.md`](docs/modding/jak2_modding_utilities/jak2_modding_utilities.md)
-* **Jak 3:** [`docs/modding/jak3_modding_utilities/`](docs/modding/jak3_modding_utilities/)
-  * Aggregated reference: [`docs/modding/jak3_modding_utilities/jak3_modding_utilities.md`](docs/modding/jak3_modding_utilities/jak3_modding_utilities.md)
+### 📚 The reference:
+* 📗 **`docs/modding/jak[1|2|3]_lisp_instructions.md`** — the per-game source of truth for OpenGOAL Lisp. Every entry is **100 %-verified** (compiled + seen working), in plain language, with one commented example and its traps. Consult before coding.
+* 📘 **`docs/modding/engine_generic_concepts.md`** — shared, non-Lisp engine primer (memory, heaps, DGOs, level streaming, virtual-state residency, process life cycle, boot diagnostics).
 
-### 📌 Writing New Tips / Utilities:
-* **One File per Tip:** Create a new numbered `.md` file inside the corresponding game folder (e.g. `docs/modding/jak2_modding_utilities/12_sound_bank_allocation.md`).
-* **⚠️ NEVER Edit Aggregated Files Directly:** Claude must **NEVER** manually edit or touch the consolidated `jak[x]_modding_utilities.md` files. Exclusively create a new numbered `.md` file (or edit an existing individual tip file). The aggregated files are regenerated exclusively by the automated CI pipeline.
-* **Provenance Header Required:** Include Git branch origin metadata at the top:
-  ```markdown
-  > **Bilingual Knowledge Item / Base de Connaissances Bilingue**
-  >
-  > - **Origin / Provenance:** `jak[x]/[type]/[name]`
-  > - **Last Updated / Dernière modification:** `jak[x]/[type]/[name]`
-  > - [🇬🇧 English Version](#-english-version)
-  > - [🇫🇷 Version Française](#-version-française)
+### 📌 Recording a verified discovery (conflict-free rule):
+* These files have **one source of truth: `master-dev`**. **NEVER edit them on a mod branch.**
+* Land a discovery on `master-dev` as a tiny dedicated commit, then pull it back:
+  ```bash
+  task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "jak2: <what>" --push
+  # then, back on your branch:
+  task modding-sync-docs
   ```
-* **Bilingual & Pedagogical:** Must be fully documented in both English and French with verified facts, code snippets, and common pitfalls.
-* **Automated Aggregation:** The CI pipeline (`.github/workflows/sync-modding-docs.yaml` & `scripts/modding/aggregate_modding_utilities.py`) will automatically harvest tips and regenerate the aggregated knowledge base across branches.
+* **Append only** — add a numbered block below the `➕ APPEND NEW VERIFIED ENTRIES` marker; never reflow existing sections (this is what keeps parallel mods conflict-free).
+* Only **verified** facts. No speculation.
+* **Mod-*feature*-specific notes** (what your mod changed and why) go in the mod branch's root `README.md` "Modding Changes Log", NOT in the reference docs.
 
 ---
 

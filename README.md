@@ -27,7 +27,8 @@ The goal of this repository is to explore the use of AI to create mods for the J
 ### Code Reliability and Approach
 * **Modifications to compiler & decompiler:** Some liberties were taken with the GOAL compiler (`goalc`), the C++ runtime (`game`), and the extraction tools (`decompiler`) to change default behaviors and facilitate AI-assisted modding.
 * **Code reliability:** The code is not guaranteed to be 100% reliable. The focus is to reach the intended objective for each mod. Most commits created with agent assistance include the `(AI-assisted)` tag.
-* **Documentation for developers:** Guidelines are in place so that AI agents document their findings, memory structures, and changes in modular knowledge bases (`docs/modding/`). This ensures experienced developers can review, fix, or build upon the code if needed.
+* **Documentation for developers:** Two curated bilingual references live under `docs/modding/` — `jak[x]_lisp_instructions.md` (verified OpenGOAL Lisp per game) and `engine_generic_concepts.md` (shared engine architecture). Agents consult them before coding and never hallucinate an instruction. Mod-specific notes live in each mod branch's root `README.md`.
+* **Two golden rules:** (1) **native non-regression** — a mod never changes default behaviour unless its spec requires it; changes ship OFF by default; (2) **Debug ▸ Mods toggle** — every mod is switchable at runtime from the in-game debug menu.
 * **Dedicated mod README:** Each mod branch features its own `README.md` at the root of the repository, including an installation guide, feature list, usage instructions, and a demo video.
 * **Contributions & feedback:** Constructive feedback and contributions are welcome.
 
@@ -48,28 +49,35 @@ The goal of this repository is to explore the use of AI to create mods for the J
          ├── New mod branch: jak[N]/[type]/[name]
          │      │
          │      ├── Root README.md automatically initialized for the mod
-         │      ├── Mod source code + modular tips in docs/modding/
+         │      ├── Mod source code (goal_src/) + Modding Changes Log in the root README
          │      └── Routine automated testing and merges
          │
          └── Live branch status and conflict tracking below
 ```
 
-### Main Workflows:
-1. [`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml): Pulls daily updates from official OpenGOAL, fast-forwards `master`, updates `master-dev`, tests and auto-merges clean mod branches, and updates the status table.
-2. [`.github/workflows/sync-modding-docs.yaml`](.github/workflows/sync-modding-docs.yaml): Collects modular tips from mod branches and updates the documentation base on `master-dev`.
+### Main Workflow:
+- [`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml): Pulls daily updates from official OpenGOAL, fast-forwards `master`, updates `master-dev`, tests and auto-merges clean mod branches, and updates the status table.
+
+> The old `sync-modding-docs.yaml` aggregation workflow has been **removed**. The two
+> reference docs (`docs/modding/jak[x]_lisp_instructions.md`,
+> `engine_generic_concepts.md`) have a single source of truth — `master-dev` — and
+> are updated there directly via `task modding-land-doc` (append-only), then pulled
+> into mod branches with `task modding-sync-docs`. This is what keeps parallel mod
+> branches from ever conflicting on documentation.
 
 ---
 
 ## 📂 Directory Overview
 
-| Directory | Description |
+| Directory / File | Description |
 | :--- | :--- |
-| [`docs/modding/`](docs/modding/) | Central modding documentation, instructions, templates, and branch tracking. |
-| [`docs/modding/jak1_modding_utilities/`](docs/modding/jak1_modding_utilities/) | Modular engine knowledge base and tips for **Jak 1**. |
-| [`docs/modding/jak2_modding_utilities/`](docs/modding/jak2_modding_utilities/) | Modular engine knowledge base and tips for **Jak 2** (physics, guard states, etc.). |
-| [`docs/modding/jak3_modding_utilities/`](docs/modding/jak3_modding_utilities/) | Modular engine knowledge base and tips for **Jak 3** (traffic, armors, secrets). |
-| [`docs/modding/templates/`](docs/modding/templates/) | Templates for mod documentation ([`MOD_README.template.md`](docs/modding/templates/MOD_README.template.md)). |
-| [`scripts/modding/`](scripts/modding/) | Python automation scripts (branch sync, doc aggregation, branch creation). |
+| [`docs/modding/jak_modding_instructions.md`](docs/modding/jak_modding_instructions.md) | The mandatory modding directive (rules, branching, golden rules). |
+| [`docs/modding/jak1_lisp_instructions.md`](docs/modding/jak1_lisp_instructions.md) · [`jak2`](docs/modding/jak2_lisp_instructions.md) · [`jak3`](docs/modding/jak3_lisp_instructions.md) | **Verified** OpenGOAL Lisp reference per game — consult before coding. |
+| [`docs/modding/engine_generic_concepts.md`](docs/modding/engine_generic_concepts.md) | Shared non-Lisp engine primer (memory, heaps, DGOs, level streaming, process life cycle). |
+| [`docs/modding/tools/`](docs/modding/tools/) | Tool & pipeline guides (build workflow, custom assets, [Debug ▸ Mods menu](docs/modding/tools/mods_debug_menu.md)). |
+| [`docs/modding/templates/`](docs/modding/templates/) | [`MOD_README.template.md`](docs/modding/templates/MOD_README.template.md), [`mod_debug_menu.template.gc`](docs/modding/templates/mod_debug_menu.template.gc). |
+| [`docs/modding/branch_audit.md`](docs/modding/branch_audit.md) | Generated per-branch compliance report (`task modding-audit`). |
+| [`scripts/modding/`](scripts/modding/) | Python automation (branch creation, branch/doc sync, doc landing, branch audit). |
 | [`goal_src/`](goal_src/) | Decompiled and modified GOAL source code by game (`jak1/`, `jak2/`, `jak3/`). |
 | [`goalc/`](goalc/) | OpenGOAL compiler with modding adjustments. |
 | [`game/`](game/) | C++ runtime simulating the Emotion Engine memory on PC. |
@@ -90,7 +98,8 @@ L'objectif de ce projet est d'utiliser l'IA pour créer des mods pour la trilogi
 ### Fiabilité du code et démarche
 * **Modifications du compilateur et décompilateur :** Certaines libertés ont été prises au niveau du compilateur GOAL (`goalc`), du runtime C++ (`game`) et des outils d'extraction (`decompiler`) pour modifier des comportements natifs du projet original et faciliter le modding avec l'IA.
 * **Fiabilité du code :** Le code produit avec l'assistance d'agents IA n'est pas garanti fiable à 100%. L'accent est mis sur l'atteinte de l'objectif fixé pour chaque mod. La plupart des commits correspondants portent la mention `(AI-assisted)`.
-* **Documentation pour les développeurs :** Des consignes sont en place pour que les agents documentent leurs travaux, leurs recherches et leurs découvertes dans des bases de connaissances modulaires (`docs/modding/`). Cela permet à des développeurs de vérifier, reprendre ou adapter le code si besoin.
+* **Documentation pour les développeurs :** Deux références bilingues curatées sous `docs/modding/` — `jak[x]_lisp_instructions.md` (Lisp OpenGOAL vérifié par jeu) et `engine_generic_concepts.md` (architecture moteur partagée). Les agents les consultent avant de coder et n'hallucinent jamais d'instruction. Les notes propres à un mod vivent dans le `README.md` racine de sa branche.
+* **Deux règles d'or :** (1) **non-régression native** — un mod ne change jamais le comportement par défaut sauf si son cahier des charges l'exige ; les changements sont livrés DÉSACTIVÉS par défaut ; (2) **bascule Debug ▸ Mods** — tout mod est activable/désactivable à la volée depuis le menu debug en jeu.
 * **README dédié par mod :** Chaque branche de mod dispose à sa racine d'un fichier `README.md` décrivant : le guide d'installation, les fonctionnalités du mod, son utilisation et une vidéo démonstrative.
 * **Contributions et retours :** Toute contribution ou suggestion est accueillie avec grand plaisir, tant qu'elle reste constructive et bienveillante.
 
@@ -103,9 +112,16 @@ Le dépôt sépare le code amont officiel et les branches de modding :
 - **`master-dev`** : Branche de base pour le modding, l'outillage et la documentation consolidée.
 - **Branches de mods (`jak[N]/[type]/[nom]`)** : Dérivées de `master-dev`.
 
-### Principaux Workflows :
-1. [`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml) : Rapatrie chaque jour les nouveautés officielles sur `master`, met à jour `master-dev`, teste et fusionne les branches de mods prêtes, et actualise le tableau ci-dessous.
-2. [`.github/workflows/sync-modding-docs.yaml`](.github/workflows/sync-modding-docs.yaml) : Récolte les tips modulaires des branches de mods et met à jour la documentation globale sur `master-dev`.
+### Workflow Principal :
+- [`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml) : Rapatrie chaque jour les nouveautés officielles sur `master`, met à jour `master-dev`, teste et fusionne les branches de mods prêtes, et actualise le tableau ci-dessous.
+
+> L'ancien workflow d'agrégation `sync-modding-docs.yaml` a été **supprimé**. Les
+> deux documents de référence (`docs/modding/jak[x]_lisp_instructions.md`,
+> `engine_generic_concepts.md`) ont une seule source de vérité — `master-dev` — et
+> sont mis à jour là directement via `task modding-land-doc` (en ajout seul), puis
+> rapatriés dans les branches de mods avec `task modding-sync-docs`. C'est ce qui
+> évite tout conflit de documentation entre branches de mods développées en
+> parallèle.
 
 ---
 
@@ -144,26 +160,55 @@ Le dépôt sépare le code amont officiel et les branches de modding :
 
 ---
 
-## 🛠️ Commandes Utiles / Useful Commands
+## 🛠️ Référence des commandes `task` / `task` Command Reference
 
-```bash
-# Sélectionner le jeu actif / Set active game (jak1, jak2 or jak3)
-task set-game-jak2
+> Builds & runtime use [Taskfile](https://taskfile.dev/). Pass script arguments after `--`.
+> Les builds et l'exécution utilisent [Taskfile](https://taskfile.dev/). Passez les arguments après `--`.
 
-# Compiler les binaires release du moteur et du compilateur / Build release binaries
-task build-release
+### Jeu actif / Active game
+| Commande | 🇬🇧 | 🇫🇷 |
+| :--- | :--- | :--- |
+| `task set-game-jak1` · `-jak2` · `-jak3` | Persist the target game | Fixe le jeu ciblé |
 
-# Lancer le jeu directement / Boot game
-task boot-game
+### Build & CMake
+| Commande | 🇬🇧 | 🇫🇷 |
+| :--- | :--- | :--- |
+| `task gen-cmake-release` | Configure the build (Ninja + clang); auto-wires `sccache` if installed | Configure le build ; câble `sccache` s'il est installé |
+| `task build-release` | Build **all** ~20 binaries (slow — first build / full check) | Build **complet** des ~20 binaires (lent) |
+| `task build-release-game` | Build only `gk` + `goalc` — fast, for engine/compiler C++ iteration | Build `gk` + `goalc` uniquement — rapide, pour le C++ moteur/compilateur |
+| `task build-release-decomp` | Build only the decompiler — after `decompiler/**` changes, then re-`extract` | Build le décompilateur seul — après modif `decompiler/**`, puis re-`extract` |
+| `task build-debug` / `-debug-game` / `-debug-decomp` | Debug equivalents | Équivalents debug |
+| `task clean-cmake` | Remove CMake artifacts | Supprime les artefacts CMake |
 
-# Mettre à jour la branche active avec master-dev / Sync active branch with master-dev
-python scripts/modding/sync_branch_with_master_dev.py
+### Extraction & décompilation / Extraction & decompile
+| Commande | 🇬🇧 | 🇫🇷 |
+| :--- | :--- | :--- |
+| `task extract` | Extract assets + run the decompiler (re-run after any `decompiler/config` change) | Extrait les assets + lance le décompilateur |
+| `task decomp` / `decomp-file FILE=…` | Decompile all / one object | Décompile tout / un objet |
+| `task rip-textures` / `rip-levels` / `rip-collision` / `rip-audio` | Rip specific asset kinds | Extrait un type d'asset précis |
 
-# Mettre à jour la doc sur une branche sans rebase / Sync docs on active branch
-python scripts/modding/sync_docs_from_master.py
+### REPL & exécution / REPL & run
+| Commande | 🇬🇧 | 🇫🇷 |
+| :--- | :--- | :--- |
+| `task repl` → `(mi)` | Open the compiler REPL; `(mi)` = incremental compile + hot reload (**no C++ build for `.gc` edits**) | Ouvre le REPL ; `(mi)` = compilation incrémentale + hot reload |
+| `task boot-game` / `boot-game-retail` | Boot the game (debug / retail) without the REPL | Démarre le jeu (debug / retail) sans REPL |
+| `task run-game` | Start the runtime, drive it from the REPL | Lance le runtime, piloté depuis le REPL |
+| `task format` / `format-gsrc FILE=…` | Format C++ / one GOAL file | Formate le C++ / un fichier GOAL |
 
-# Créer une nouvelle branche de mod / Create a new mod branch with auto-initialized README
-python scripts/modding/create_mod_branch.py jak2/features/mon-nouveau-mod
-```
+### Workflow de modding / Modding workflow
+| Commande | 🇬🇧 | 🇫🇷 |
+| :--- | :--- | :--- |
+| `task modding-new-branch -- jak2/features/x` | New mod branch from `master-dev` + initial README | Nouvelle branche de mod depuis `master-dev` + README initial |
+| `task modding-sync-branch` | Safe `git merge` of `master-dev` into the current branch (`-- --rebase` / `-- --push`) | `git merge` sûr de `master-dev` dans la branche courante |
+| `task modding-sync-docs` | Pull `docs/modding` + `AGENTS.md` + `CLAUDE.md` from `master-dev` (prunes deleted files) | Rapatrie la doc depuis `master-dev` (purge les fichiers supprimés) |
+| `task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "…" --push` | Land a doc addition on `master-dev` conflict-free, then re-sync your branch | Intègre un ajout de doc sur `master-dev` sans conflit, puis resync |
+| `task modding-branch-status` | Test every mod branch's mergeability + refresh the dashboard (`-- --push` auto-merges) | Teste la fusionnabilité de chaque branche + actualise le tableau |
+| `task modding-audit` | Regenerate `docs/modding/branch_audit.md` | Régénère `docs/modding/branch_audit.md` |
+
+### Tests
+| Commande | 🇬🇧 | 🇫🇷 |
+| :--- | :--- | :--- |
+| `task offline-tests` / `offline-tests-fast` | Decompiler reference tests | Tests de référence du décompilateur |
+| `task unit-tests` / `tests-filtered FILTER=…` | `goalc` unit tests | Tests unitaires `goalc` |
 
 *(AI-assisted)*

@@ -885,7 +885,7 @@
   )
 
 (defmethod vehicle-method-137 ((this vehicle-guard) (arg0 traffic-object-spawn-params))
-  (vehicle-rider-spawn this crimson-guard-rider arg0)
+  (vehicle-rider-spawn this (*mod-city-guard-rider-type-hook*) arg0)
   0
   (none)
   )

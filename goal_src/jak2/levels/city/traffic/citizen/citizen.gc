@@ -160,9 +160,9 @@
 (defmethod trigger-alert ((this citizen) (arg0 int) (arg1 target))
   (let ((a0-1 (-> this controller traffic)))
     (when (and (nonzero? a0-1) arg1)
-      (if #t
-          (increase-alert-level a0-1 arg0 arg1)
-          )
+      (when (not (*mod-city-citizen-alert-blocked-hook* this))
+        (increase-alert-level a0-1 arg0 arg1)
+        )
       )
     )
   0

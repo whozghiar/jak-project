@@ -105,8 +105,11 @@
 
 (declare-type nav-branch structure)
 (declare-type traffic-manager process)
+(declare-type citizen process-focusable)
 (declare-type crimson-guard process-focusable)
 (declare-type crimson-blue-guard crimson-guard)
+(declare-type crimson-guard-rider process-focusable)
+(declare-type crimson-blue-guard-rider crimson-guard-rider)
 
 ;; the *mod-city-*-hook* function pointers (need the forward-declared types above)
 ;; per-frame traffic shaping, called from traffic-manager::update (arg: traffic-manager)
@@ -126,6 +129,10 @@
 (define-extern *mod-city-guard-search-trans-hook* (function crimson-guard symbol))
 ;; #t => keep this guard-vs-guard traffic-target instead of clearing it (crimson-guard-method-220)
 (define-extern *mod-city-keep-guard-target-hook* (function process-focusable symbol))
+;; rider type spawned for guard vehicles (crimson-guard-rider vs crimson-blue-guard-rider)
+(define-extern *mod-city-guard-rider-type-hook* (function type))
+;; #t => block alert triggered by citizen being attacked/killed (arg: citizen)
+(define-extern *mod-city-citizen-alert-blocked-hook* (function citizen symbol))
 
 ;; DECOMP BEGINS
 

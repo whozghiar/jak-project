@@ -44,7 +44,8 @@ guard traffic, alongside the regular red guards.
   mesh/skeleton-group and the one behavior difference below are different.
 - **Its own faction behavior:** unlike the stock guard, it is passive toward Jak by default and
   never joins a general city alert against him. If Jak personally attacks it, it fights back
-  without raising the city-wide alarm.
+  without raising the city-wide alarm. Enhanced resilience: 8 HP (double standard guard health)
+  ensures durable tactical squad combat.
 - **Manual "fight the other guards" trigger:** `crimson-blue-guard-attack-guards`, a small function
   that makes it go hostile toward the nearest red `crimson-guard` — never automatic, called
   explicitly (REPL or code).
@@ -58,10 +59,16 @@ guard traffic, alongside the regular red guards.
   death, distinct weapon loadouts across the squad, and mutual retaliatory defense (hit one, the
   whole squad turns on the attacker) — all without ever sounding the city alarm. Blue guards are
   completely immune to friendly fire from each other.
-- **Modular `*mod-city-*-hook*` layer:** the shared traffic/guard engine files call ~8 named
-  function-pointer hooks (declared in `engine/ai/traffic-h.gc`); `mod-city-peaceful.gc` fills in
-  the two it needs (`guard-activate` = pull blue from the pool, `blue-activated` = form a squad),
-  the rest stay at their stock defaults. The engine files are byte-identical across the branch family.
+- **Blue Guard Vehicle Drivers (Peaceful mode):** Krimson Guard patrol cruisers (`vehicle-guard`)
+  are piloted by blue guards (`crimson-blue-guard-rider`). If knocked off their vehicle, they
+  deploy onto the street as blue guards on foot without triggering police alerts.
+- **Civilian Protection / Alert Suppression (Peaceful mode):** attacking or killing civilian
+  pedestrians in the street no longer triggers police alarms or raises the city alert level.
+  Stock red guards still trigger alerts normally if directly engaged.
+- **Modular `*mod-city-*-hook*` layer:** the shared traffic/guard engine files call ~10 named
+  function-pointer hooks (declared in `engine/ai/traffic-h.gc`); `mod-city-peaceful.gc` and
+  `mod-city-hooks.gc` wire the required behaviors, while the rest stay at their stock defaults.
+  The engine files remain byte-identical across the branch family.
 
 ## 🚀 Step-by-Step Guide to Run the Mod
 
@@ -143,7 +150,8 @@ simples (le comportement de `blueguard-traffic`).
   mesh/skeleton-group et la différence de comportement ci-dessous changent.
 - **Sa propre logique de faction :** contrairement au garde classique, il est passif envers Jak par
   défaut et ne rejoint jamais une alerte générale de la ville contre lui. Si Jak l'attaque
-  personnellement, il riposte sans déclencher l'alarme de la ville.
+  personnellement, il riposte sans déclencher l'alarme de la ville. Robustesse accrue : 8 PV
+  (le double des gardes classiques) pour des affrontements tactiques prolongés.
 - **Déclencheur manuel « combattre les autres gardes » :** `crimson-blue-guard-attack-guards`, une
   petite fonction qui le fait devenir hostile envers le `crimson-guard` rouge le plus proche —
   jamais automatique, appelée explicitement (REPL ou code).
@@ -157,10 +165,18 @@ simples (le comportement de `blueguard-traffic`).
   réélection automatique du chef à la mort, arsenal distinct par membre, et riposte mutuelle
   (frappe-en un, toute l'escouade se retourne contre l'attaquant) — le tout sans jamais déclencher
   l'alarme de la ville. Les gardes bleus sont totalement immunisés aux tirs alliés entre eux.
-- **Couche modulaire `*mod-city-*-hook*` :** les fichiers moteur partagés appellent ~8 hooks
-  nommés (déclarés dans `engine/ai/traffic-h.gc`) ; `mod-city-peaceful.gc` remplit les deux dont
-  il a besoin, le reste garde les défauts d'origine. Les fichiers moteur sont identiques sur toute
-  la famille de branches.
+- **Conducteurs de véhicules en gardes bleus (mode Peaceful) :** les cruisers de patrouille
+  de la garde (`vehicle-guard`) sont conduits par des gardes bleus (`crimson-blue-guard-rider`).
+  En cas d'éjection du véhicule, ils atterrissent sur la chaussée en gardes bleus à pied sans
+  déclencher d'alerte de police.
+- **Protection des civils / Suppression de l'alerte (mode Peaceful) :** attaquer ou tuer des
+  piétons civils dans les rues ne déclenche plus l'alarme de police et ne fait plus monter le
+  niveau d'alerte de la ville. Les gardes rouges classiques déclenchent toujours l'alerte
+  normalement s'ils sont directement provoqués.
+- **Couche modulaire `*mod-city-*-hook*` :** les fichiers moteur partagés appellent ~10 hooks
+  nommés (déclarés dans `engine/ai/traffic-h.gc`) ; `mod-city-peaceful.gc` et `mod-city-hooks.gc`
+  câblent les comportements requis, tandis que le reste conserve les valeurs d'origine. Les
+  fichiers moteur restent identiques sur toute la famille de branches.
 
 ## 🚀 Guide Pas à Pas pour Lancer le Mod
 

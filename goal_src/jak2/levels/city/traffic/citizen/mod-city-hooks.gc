@@ -58,6 +58,17 @@
   #f
   )
 
+(defun mod-city-hook-guard-rider-type ()
+  "default *mod-city-guard-rider-type-hook*: stock crimson-guard-rider."
+  crimson-guard-rider
+  )
+
+(defun mod-city-hook-citizen-alert-blocked? ((this citizen))
+  "default *mod-city-citizen-alert-blocked-hook*: citizen deaths and attacks raise alerts normally."
+  this
+  #f
+  )
+
 ;; --- City Peaceful dispatch (flag-guarded so a toggle-off is exactly the stock behaviour) ------
 
 (defun mod-city-pea-guard-activate ((this traffic-tracker) (ttype traffic-type))
@@ -78,6 +89,20 @@
       )
   )
 
+(defun mod-city-pea-guard-rider-type ()
+  "*mod-city-guard-rider-type-hook*: blue guard vehicle rider when City Peaceful is active; stock red otherwise."
+  (if *mod-city-peaceful?*
+      crimson-blue-guard-rider
+      crimson-guard-rider
+      )
+  )
+
+(defun mod-city-pea-citizen-alert-blocked? ((this citizen))
+  "*mod-city-citizen-alert-blocked-hook*: when City Peaceful is active, citizens (civilians)
+   do not trigger city alerts when killed or attacked. Guards still trigger alerts normally."
+  (and *mod-city-peaceful?* (not (type? this crimson-guard)))
+  )
+
 ;; --- install -----------------------------------------------------------------------------------
 
 (define *mod-city-traffic-update-hook* mod-city-hook-traffic-update)
@@ -88,3 +113,5 @@
 (define *mod-city-guard-active-trans-hook* mod-city-hook-guard-active-trans)
 (define *mod-city-guard-search-trans-hook* mod-city-hook-guard-search-trans)
 (define *mod-city-keep-guard-target-hook* mod-city-hook-keep-guard-target?)
+(define *mod-city-guard-rider-type-hook* mod-city-pea-guard-rider-type)
+(define *mod-city-citizen-alert-blocked-hook* mod-city-pea-citizen-alert-blocked?)

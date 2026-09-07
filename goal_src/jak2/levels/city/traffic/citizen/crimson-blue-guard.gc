@@ -1,79 +1,201 @@
 ;;-*-Lisp-*-
+
 (in-package goal)
 
 ;; name: crimson-blue-guard.gc
+
 ;; Blue-recolored Crimson Guard variant (custom mod entity, not part of the original game).
+
 ;;
+
 ;; ARCHITECTURE & ASSETS:
+
 ;; - Visuals & Skeleton: The 3D model geometry and textures are compiled via build-actor:
+
 ;;   - custom_assets/jak2/models/custom_levels/crimson-blue-guard.glb (Circuit 1, actor art-group)
+
 ;;   - custom_assets/jak2/models/common/crimson-blue-guard-lod0.glb (Circuit 2, PC FR3 renderer)
+
 ;;   Both share the pristine 38-bone skeleton with native joint indices:
+
 ;;   Joint 14: "blast" (at gun barrel tip)
+
 ;;   Joint 15: "dirblast" (forward direction vector from gun barrel)
+
 ;;   This guarantees gunshots and taser lightning fire exactly from the muzzle.
+
 ;;
+
 ;; - Animation Alignment:
+
 ;;   Built with :native-header #t, padding slots 2 & 3 so animation slots 4..43 align 1:1
+
 ;;   with crimson-guard-ag.
+
 ;;
+
 ;; - Death Animation & Dissolution (inspired by yakow_killable):
+
 ;;   Because custom actors built via build-actor use dummy merc-ctrl geometry, setting death-timer
+
 ;;   would invoke Generic Merc C++ routines that access uninitialized fragment memory and crash.
+
 ;;   Instead, die state directly replicates the death dissolution behavior:
+
 ;;   1. Plays the "enemy-fizz" sound.
+
 ;;   2. Spawns the authentic purple death particles (*part-id-table* 73) via merc-death-spawn /
+
 ;;      sp-launch-particles-death across the guard's 38 bones over 1 second (~60 frames).
+
 ;;   3. Hides the mesh after 5 frames (draw-control-status no-draw) so it dissolves into purple mist.
+
 ;;   4. For knockdown death, knocked-fatal? prevents re-playing die-anim so the guard dissolves
+
 ;;      directly on the ground just like the native crimson-guard.
+
 ;;
+
 ;; - Faction & Behavior:
+
 ;;   Inherited from crimson-guard, with passive alert handling toward Jak:
+
 ;;   - citizen-init! keeps the non-Jak-targeting spec so it does not attack Jak during city alerts.
+
 ;;   - general-event-handler makes it personally hostile toward Jak only if Jak attacks it.
+
 ;;   - crimson-blue-guard-attack-guards allows manually provoking a fight against red guards.
 
 (declare-type vehicle-grenade projectile-bounce)
 
 (define-extern merc-death-spawn (function int vector vector none))
+
 (define-extern sp-launch-particles-death (function sparticle-system sparticle-launcher vector none))
+
 (define-extern citizen-spawn (function process type traffic-object-spawn-params process-drawable))
 
 (deftype crimson-blue-guard (crimson-guard)
-  ((knocked-fatal?  symbol)
-   (squad-count     int8)
-   (squad-index     int8)
-   (squad-leader    handle)
-   (squad-members   handle  3)
-   (squad-offset    vector  :inline)
-   )
-  )
+  ((knocked-fatal? symbol)
+   (squad-count    int8)
+   (squad-index    int8)
+   (squad-leader   handle)
+   (squad-members  handle 3)
+   (squad-offset   vector :inline)))
 
 (define-extern crimson-blue-guard-attack-guards (function crimson-blue-guard none))
 
 (def-art-elt crimson-blue-guard-ag crimson-blue-guard-lod0-jg 0)
 (def-art-elt crimson-blue-guard-ag crimson-blue-guard-lod0-mg 1)
+(defskelgroup skel-crimson-blue-guard
+  crimson-blue-guard
+  crimson-blue-guard-lod0-jg
+  -1
+  ((crimson-blue-guard-lod0-mg (meters 999999)))
+  :bounds (static-spherem 0 0 0 5)
+  :origin-joint-index 3)
 
-(defskelgroup skel-crimson-blue-guard crimson-blue-guard crimson-blue-guard-lod0-jg -1
-              ((crimson-blue-guard-lod0-mg (meters 999999)))
-              :bounds (static-spherem 0 0 0 5)
-              :origin-joint-index 3
-              )
+;; ================================================================================================
+
+;; crimson-blue-guard-rider: vehicle pilot variant for Krimson Guard vehicles (vehicle-guard)
+
+;; ================================================================================================
+
+(deftype crimson-blue-guard-rider (crimson-guard-rider) ())
+
+(defskelgroup skel-crimson-blue-guard-rider
+  crimson-blue-guard
+  crimson-blue-guard-lod0-jg
+  -1
+  ((crimson-blue-guard-lod0-mg (meters 999999)))
+  :bounds (static-spherem 0 0 0 3))
+
+(defbehavior crimson-blue-guard-rider-event-handler crimson-blue-guard-rider ((arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+  (case arg2
+    (('knocked-off)
+     (let ((gp-0 (new 'stack 'traffic-object-spawn-params)))
+       (let ((v1-1 (find-nearest-nav-mesh (-> self root trans) (the-as float #x7f800000))))
+         (set! (-> gp-0 object-type) (traffic-type crimson-guard-1))
+         (set! (-> gp-0 behavior) (the-as uint 11))
+         (set! (-> gp-0 id) (the-as uint 1)) ;; odd id so default parity selects crimson-blue-guard
+
+         (set! (-> gp-0 nav-mesh) v1-1))
+       (set! (-> gp-0 nav-branch) #f)
+       (set! (-> gp-0 proc) #f)
+       (set! (-> gp-0 handle) (process->handle (-> self parent 0)))
+       (set! (-> gp-0 user-data) (-> self draw seg-mask))
+       (set! (-> gp-0 flags) (traffic-spawn-flags))
+       (set! (-> gp-0 guard-type) (the-as uint 7))
+       (vector-reset! (-> gp-0 velocity))
+       (set! (-> gp-0 position quad) (-> self root trans quad))
+       (quaternion-copy! (-> gp-0 rotation) (-> self root quat))
+       ;; Blue guard knocked off: do NOT send increase-alert-level, spawn blue guard on foot
+
+       (send-event *traffic-manager* 'activate-object gp-0))
+     (logand! (-> self flags) -3)
+     (vehicle-rider-method-35 self))
+    (else (vehicle-rider-event-handler arg0 arg1 arg2 arg3))))
+
+(defstate active (crimson-blue-guard-rider)
+  :virtual #t
+  :event crimson-blue-guard-rider-event-handler
+  :enter
+    (behavior ()
+      (ja-channel-push! 1 (seconds 0.05))
+      (ja :group! (-> self draw art-group data (-> self riding-anim))))
+  :code sleep-code
+  :post
+    (behavior ()
+      (vehicle-rider-method-34 self)))
+
+(defstate taunt (crimson-blue-guard-rider)
+  :virtual #t
+  :event crimson-blue-guard-rider-event-handler
+  :code sleep-code
+  :post
+    (behavior ()
+      (go-virtual active)
+      (vehicle-rider-method-34 self)))
+
+(defstate got-passed (crimson-blue-guard-rider)
+  :virtual #t
+  :event crimson-blue-guard-rider-event-handler
+  :code sleep-code
+  :post
+    (behavior ()
+      (go-virtual active)
+      (vehicle-rider-method-34 self)))
+
+(defstate inactive (crimson-blue-guard-rider)
+  :virtual #t
+  :event crimson-blue-guard-rider-event-handler
+  :enter
+    (behavior ()
+      (logior! (-> self draw status) (draw-control-status no-draw)))
+  :exit
+    (behavior ()
+      (logclear! (-> self draw status) (draw-control-status no-draw)))
+  :code sleep-code)
+
+(defmethod vehicle-rider-method-32 ((this crimson-blue-guard-rider) (arg0 traffic-object-spawn-params))
+  (initialize-skeleton this
+                       (the-as skeleton-group (art-group-get-by-name *level* "skel-crimson-blue-guard-rider" (the-as (pointer uint32) #f)))
+                       (the-as pair 0))
+  (logior! (-> this flags) 9)
+  (set! (-> this draw lod-set lod 0 dist) 122880.0)
+  (set! (-> this draw lod-set lod 1 dist) 286720.0)
+  (vehicle-rider-method-33 this)
+  0
+  (none))
 
 (defmethod init-enemy! ((this crimson-blue-guard))
   "Identical to crimson-guard's init-enemy!, except it binds skel-crimson-blue-guard."
-  (initialize-skeleton
-    this
-    (the-as skeleton-group (art-group-get-by-name *level* "skel-crimson-blue-guard" (the-as (pointer uint32) #f)))
-    (the-as pair 0)
-    )
+  (initialize-skeleton this
+                       (the-as skeleton-group (art-group-get-by-name *level* "skel-crimson-blue-guard" (the-as (pointer uint32) #f)))
+                       (the-as pair 0))
   (set! (-> this joint) (new 'process 'joint-mod (joint-mod-mode joint-set*-world) this 4))
   (set! (-> this info) *crimson-guard-global-info*)
   (init-enemy-behaviour-and-stats! this *crimson-guard-nav-enemy-info*)
-  (let ((v1-7 (-> this nav)))
-    (set! (-> v1-7 speed-scale) 1.0)
-    )
+  (let ((v1-7 (-> this nav))) (set! (-> v1-7 speed-scale) 1.0))
   0
   (set! (-> this draw lod-set lod 0 dist) 143360.0)
   (set! (-> this draw lod-set lod 1 dist) 491520.0)
@@ -90,7 +212,7 @@
   (set! (-> this l-control state points-to-draw) 0)
   (set! (-> this water-anim) -1)
   (set! (-> this minimap) #f)
-  (set! (-> this hit-points) 4)
+  (set! (-> this hit-points) 8)
   (set! (-> this knocked-fatal?) #f)
   (set! (-> this squad-count) 1)
   (set! (-> this squad-index) 0)
@@ -100,41 +222,35 @@
   (set! (-> this squad-members 2) (the-as handle #f))
   (vector-reset! (-> this squad-offset))
   0
-  (none)
-  )
+  (none))
 
 (defmethod citizen-init! ((this crimson-blue-guard))
   "Same as crimson-guard's citizen-init!, except this variant never opportunistically
-   targets Jak on its own, has 4 HP, and rolls a random weapon loadout (tazer, rifle, grenade)."
+   targets Jak on its own, has 8 HP, and rolls a random weapon loadout (tazer, rifle, grenade)."
   ((method-of-type crimson-guard citizen-init!) this)
   (reset-to-collide-spec (-> this focus) (collide-spec enemy hit-by-others-list bot-targetable))
-  (set! (-> this hit-points) 4)
+  (set! (-> this hit-points) 8)
   ;; Roll random weapon between 0 (taser), 1 (rifle), and 2 (grenade launcher)
-  (let ((weapon-type (rand-vu-int-count 3)))
-    (crimson-guard-method-225 this (the-as uint weapon-type) #f)
-    )
+
+  (let ((weapon-type (rand-vu-int-count 3))) (crimson-guard-method-225 this (the-as uint weapon-type) #f))
   (logior! (-> this flags) (citizen-flag sticky-weapon))
-  (none)
-  )
+  (none))
 
 (defun crimson-blue-guard-alert-squad ((this crimson-blue-guard) (attacker process-focusable))
   "Alert all other squad members to retaliate against the specified attacker."
   (when (> (-> this squad-count) 1)
     (dotimes (i (-> this squad-count))
       (let ((member-h (-> this squad-members i)))
-        (when (and (!= member-h (process->handle this))
-                   (handle->process member-h))
-          (send-event (handle->process member-h) 'squad-member-attacked attacker)
-          )
-        )
-      )
-    )
-  (none)
-  )
+        (when (and (!= member-h (process->handle this)) (handle->process member-h))
+          (send-event (handle->process member-h) 'squad-member-attacked attacker)))))
+  (none))
 
 ;; NOTE (Blue Crimson Guard mod): crimson-blue-guard-setup-squad + spawn-crimson-blue-guard-squad-ambient
+
 ;; moved to mod-city-peaceful.gc (only City Peaceful forms squads). The squad-* deftype fields and
+
 ;; the 'squad-* event cases below stay here as inert plumbing -- they do nothing unless a squad is
+
 ;; actually formed, and crimson-blue-guard-alert-squad is a no-op when squad-count <= 1.
 
 (defun get-inactive-crimson-blue-guard-handle ((engine traffic-engine) (params traffic-object-spawn-params))
@@ -144,30 +260,18 @@
     (let ((type-info (-> engine object-type-info-array (traffic-type crimson-guard-1))))
       (dotimes (i (-> type-info inactive-count))
         (let* ((h (-> type-info array i))
-               (p (handle->process h))
-               )
+               (p (handle->process h)))
           (when (and p (type? p crimson-blue-guard))
             (set! (-> params object-type) (traffic-type crimson-guard-1))
-            (return h)
-            )
-          )
-        )
-      )
+            (return h)))))
     (let ((type-info-0 (-> engine object-type-info-array (traffic-type crimson-guard-0))))
       (dotimes (i (-> type-info-0 inactive-count))
         (let* ((h (-> type-info-0 array i))
-               (p (handle->process h))
-               )
+               (p (handle->process h)))
           (when (and p (type? p crimson-blue-guard))
             (set! (-> params object-type) (traffic-type crimson-guard-0))
-            (return h)
-            )
-          )
-        )
-      )
-    )
-  (the-as handle #f)
-  )
+            (return h))))))
+  (the-as handle #f))
 
 (defun activate-inactive-crimson-blue-guard ((engine traffic-engine) (params traffic-object-spawn-params))
   "Pulls an inactive crimson-blue-guard from the traffic-engine pool and activates it."
@@ -177,13 +281,8 @@
       (activate-by-handle engine params)
       (let ((proc (the-as crimson-blue-guard (-> params proc))))
         (when proc
-          (logclear! (-> proc focus-status) (focus-status inactive))
-          )
-        proc
-        )
-      )
-    )
-  )
+          (logclear! (-> proc focus-status) (focus-status inactive)))
+        proc))))
 
 (defbehavior crimson-blue-guard-dissolve-sequence crimson-blue-guard ()
   "Plays the fizz sound and emits purple death particles (preset 73) across the skeleton
@@ -194,99 +293,77 @@
         (zero-vec (new 'static 'vector)))
     (dotimes (frame 60)
       ;; After 5 frames (~0.08s), hide the body mesh so it has dissolved into purple mist
+
       (when (= frame 5)
-        (logior! (-> self draw status) (draw-control-status no-draw))
-        )
+        (logior! (-> self draw status) (draw-control-status no-draw)))
       ;; Emit 8 purple death sparks each frame across random joints with spatial jitter
+
       (dotimes (j 8)
         (let ((joint-idx (rand-vu-int-count node-cnt)))
           (vector<-cspace! pos (-> self node-list data joint-idx))
           (+! (-> pos x) (rnd-float-range self -819.2 819.2))
           (+! (-> pos y) (rnd-float-range self -819.2 819.2))
           (+! (-> pos z) (rnd-float-range self -819.2 819.2))
-          (merc-death-spawn 73 pos zero-vec)
-          )
-        )
-      (suspend)
-      )
-    )
+          (merc-death-spawn 73 pos zero-vec)))
+      (suspend)))
   (send-event self 'death-end)
   (while (-> self child)
-    (suspend)
-    )
+    (suspend))
   (cleanup-for-death self)
-  (none)
-  )
+  (none))
 
 (defstate die (crimson-blue-guard)
   :virtual #t
   :event enemy-event-handler
-  :enter (behavior ()
-    (dying self)
-    (let ((v1-3 (-> self root root-prim)))
-      (set! (-> v1-3 prim-core collide-as) (collide-spec))
-      (set! (-> v1-3 prim-core collide-with) (collide-spec))
-      )
-    0
-    (set-time! (-> self state-time))
-    (set! (-> self hit-points) 0)
-    (enemy-method-103 self)
-    ;; Notify remaining squad members so they can promote a new leader or update state
-    (when (> (-> self squad-count) 1)
-      (dotimes (i (-> self squad-count))
-        (let ((mh (-> self squad-members i)))
-          (when (and (!= mh (process->handle self)) (handle->process mh))
-            (send-event (handle->process mh) 'squad-member-died (process->handle self))
-            )
-          )
-        )
-      (set! (-> self squad-count) 1)
-      (set! (-> self squad-leader) (the-as handle #f))
-      )
-    )
-  :code (behavior ()
-    ;; If the guard died while standing, play the standing death collapse animation first.
-    ;; If the guard was knocked down, knocked-fatal? is #t so he stays lying on the ground.
-    (when (not (-> self knocked-fatal?))
-      (ja-channel-push! 1 (seconds 0.075))
-      (let ((f30-0 (rnd-float-range self 0.8 1.2)))
-        (ja-no-eval :group! (-> self draw art-group data (-> self enemy-info die-anim))
-                    :num! (seek! max f30-0)
-                    :frame-num 0.0
-                    )
-        (until (ja-done? 0)
-          (suspend)
-          (ja :num! (seek! max f30-0))
-          )
-        )
-      )
-    ;; Run the purple dissolution sequence (inspired by yakow_killable)
-    (crimson-blue-guard-dissolve-sequence)
-    )
-  :post enemy-simple-post
-  )
+  :enter
+    (behavior ()
+      (dying self)
+      (let ((v1-3 (-> self root root-prim)))
+        (set! (-> v1-3 prim-core collide-as) (collide-spec))
+        (set! (-> v1-3 prim-core collide-with) (collide-spec)))
+      0
+      (set-time! (-> self state-time))
+      (set! (-> self hit-points) 0)
+      (enemy-method-103 self)
+      ;; Notify remaining squad members so they can promote a new leader or update state
+
+      (when (> (-> self squad-count) 1)
+        (dotimes (i (-> self squad-count))
+          (let ((mh (-> self squad-members i)))
+            (when (and (!= mh (process->handle self)) (handle->process mh))
+              (send-event (handle->process mh) 'squad-member-died (process->handle self)))))
+        (set! (-> self squad-count) 1)
+        (set! (-> self squad-leader) (the-as handle #f))))
+  :code
+    (behavior ()
+      ;; If the guard died while standing, play the standing death collapse animation first.
+
+      ;; If the guard was knocked down, knocked-fatal? is #t so he stays lying on the ground.
+
+      (when (not (-> self knocked-fatal?))
+        (ja-channel-push! 1 (seconds 0.075))
+        (let ((f30-0 (rnd-float-range self 0.8 1.2)))
+          (ja-no-eval :group! (-> self draw art-group data (-> self enemy-info die-anim)) :num! (seek! max f30-0) :frame-num 0.0)
+          (until (ja-done? 0)
+            (suspend)
+            (ja :num! (seek! max f30-0)))))
+      ;; Run the purple dissolution sequence (inspired by yakow_killable)
+
+      (crimson-blue-guard-dissolve-sequence))
+  :post enemy-simple-post)
 
 (defun crimson-blue-guard-friendly-attacker? ((this crimson-blue-guard) (attacker process))
   "Returns #t if the attacker process is a crimson-blue-guard or a projectile spawned by one."
   (when attacker
     (let ((real-attacker attacker))
       (if (type? real-attacker projectile)
-          (let ((owner (handle->process (-> (the-as projectile real-attacker) notify-handle))))
-            (if owner
-                (set! real-attacker owner)
-                (if (-> real-attacker parent)
-                    (set! real-attacker (the-as process (ppointer->process (-> real-attacker parent))))
-                    )
-                )
-            )
-          )
+        (let ((owner (handle->process (-> (the-as projectile real-attacker) notify-handle))))
+          (if owner
+            (set! real-attacker owner)
+            (if (-> real-attacker parent) (set! real-attacker (the-as process (ppointer->process (-> real-attacker parent))))))))
       (when (and real-attacker (type? real-attacker crimson-blue-guard))
-        (return #t)
-        )
-      )
-    )
-  #f
-  )
+        (return #t))))
+  #f)
 
 (defmethod general-event-handler ((this crimson-blue-guard) (arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
   "The only behavioral difference from crimson-guard: this variant never becomes hostile
@@ -297,30 +374,24 @@
   (case arg2
     (('attack 'touch 'touched)
      (when (crimson-blue-guard-friendly-attacker? this arg0)
-       (return #f)
-       )
-     ((method-of-type crimson-guard general-event-handler) this arg0 arg1 arg2 arg3)
-     )
+       (return #f))
+     ((method-of-type crimson-guard general-event-handler) this arg0 arg1 arg2 arg3))
     (('hit 'hit-flinch 'hit-knocked)
      (let ((attacker (the-as process-focusable (as-type (handle->process (-> this incoming attacker-handle)) process-focusable))))
        (when (or (not attacker) (crimson-blue-guard-friendly-attacker? this attacker))
-         (return #f)
-         )
+         (return #f))
        (logior! (-> this flags) (citizen-flag hostile))
        (speech-control-method-12 *speech-control* this (speech-type speech-type-11))
        (set! (-> this traffic-target-status handle) (process->handle attacker))
        (try-update-focus (-> this focus) attacker this)
        (set-time! (-> this last-time-see-target))
        ;; Alert other squad members to retaliate together
-       (crimson-blue-guard-alert-squad this attacker)
-       )
-     ((method-of-type nav-enemy general-event-handler) this arg0 arg1 arg2 arg3)
-     )
+
+       (crimson-blue-guard-alert-squad this attacker))
+     ((method-of-type nav-enemy general-event-handler) this arg0 arg1 arg2 arg3))
     (('squad-member-attacked)
      (let ((attacker (the-as process-focusable (-> arg3 param 0))))
-       (when (and attacker
-                  (not (focus-test? this dead))
-                  (not (crimson-blue-guard-friendly-attacker? this attacker)))
+       (when (and attacker (not (focus-test? this dead)) (not (crimson-blue-guard-friendly-attacker? this attacker)))
          (logior! (-> this flags) (citizen-flag hostile))
          (set! (-> this traffic-target-status handle) (process->handle attacker))
          (try-update-focus (-> this focus) attacker this)
@@ -328,46 +399,26 @@
          (if (and (not (and (-> this next-state) (= (-> this next-state name) 'jump)))
                   (not (and (-> this next-state) (= (-> this next-state name) 'exit-transport)))
                   (not (and (-> this next-state) (= (-> this next-state name) 'die)))
-                  (not (and (-> this next-state) (= (-> this next-state name) 'knocked)))
-                  )
-             (go-hostile this)
-             )
-         )
-       )
-     #t
-     )
-    (('squad-new-leader)
-     (let ((new-leader (the-as handle (-> arg3 param 0))))
-       (set! (-> this squad-leader) new-leader)
-       )
-     #t
-     )
+                  (not (and (-> this next-state) (= (-> this next-state name) 'knocked))))
+           (go-hostile this))))
+     #t)
+    (('squad-new-leader) (let ((new-leader (the-as handle (-> arg3 param 0)))) (set! (-> this squad-leader) new-leader)) #t)
     (('squad-member-died)
      (let ((dead-h (the-as handle (-> arg3 param 0))))
        (dotimes (i (-> this squad-count))
          (when (= (-> this squad-members i) dead-h)
-           (set! (-> this squad-members i) (the-as handle #f))
-           )
-         )
+           (set! (-> this squad-members i) (the-as handle #f))))
        (when (= (-> this squad-leader) dead-h)
          (if (= (-> this squad-index) 1)
-             (begin
-               (set! (-> this squad-index) 0)
-               (set! (-> this squad-leader) (process->handle this))
-               (vector-reset! (-> this squad-offset))
-               (dotimes (i (-> this squad-count))
-                 (let ((mh (-> this squad-members i)))
-                   (when (and mh (!= mh (process->handle this)) (handle->process mh))
-                     (send-event (handle->process mh) 'squad-new-leader (process->handle this))
-                     )
-                   )
-                 )
-               )
-             )
-         )
-       )
-     #t
-     )
+           (begin
+             (set! (-> this squad-index) 0)
+             (set! (-> this squad-leader) (process->handle this))
+             (vector-reset! (-> this squad-offset))
+             (dotimes (i (-> this squad-count))
+               (let ((mh (-> this squad-members i)))
+                 (when (and mh (!= mh (process->handle this)) (handle->process mh))
+                   (send-event (handle->process mh) 'squad-new-leader (process->handle this)))))))))
+     #t)
     (('panic)
      (set-time! (-> this last-danger-time))
      (let ((danger-info (the-as traffic-danger-info (-> arg3 param 0))))
@@ -375,61 +426,49 @@
          (((traffic-danger-type tdt7))
           (set! (-> this cp-factor) 20.0)
           (let ((source (the-as process-focusable (as-type (handle->process (-> danger-info handle)) process-focusable))))
-            (if (not (and source (logtest? (-> source mask) (process-mask target))))
-                (trigger-alert this 1 (the-as target source))
-                )
-            )
-          )
-         )
-       )
-     )
+            (if (not (and source (logtest? (-> source mask) (process-mask target)))) (trigger-alert this 1 (the-as target source))))))))
     (('clear-path)
      (set-time! (-> this last-danger-time))
      (let ((v1-44 (the-as traffic-danger-info (-> arg3 param 0))))
        (set! (-> this cp-valid?) #t)
        (set! (-> this cp-sphere quad) (-> v1-44 sphere quad))
-       (set! (-> this cp-vec quad) (-> v1-44 velocity quad))
-       )
+       (set! (-> this cp-vec quad) (-> v1-44 velocity quad)))
      (let ((s5-2 (-> this cp-plane)))
        (set! (-> s5-2 quad) (-> this cp-vec quad))
        (set! (-> s5-2 y) 0.0)
        (vector-rotate90-around-y! s5-2 s5-2)
        (vector-normalize! s5-2 1.0)
-       (set! (-> s5-2 w) (- (vector-dot (the-as vector s5-2) (the-as vector (-> this cp-sphere)))))
-       )
-     (set! (-> this cp-exit-time) (the-as time-frame (+ (current-time) (seconds 1))))
-     )
+       (set! (-> s5-2 w) (- (vector-dot (the-as vector s5-2) (the-as vector (-> this cp-sphere))))))
+     (set! (-> this cp-exit-time) (the-as time-frame (+ (current-time) (seconds 1)))))
     (('traffic-activate)
      (let ((params (the-as traffic-object-spawn-params (-> arg3 param 0))))
        ;; Stock activation (nav setup / citizen-init! / set-behavior! via the parent handler)...
+
        ((method-of-type crimson-guard general-event-handler) this arg0 arg1 arg2 arg3)
        ;; ...then let an optional city-mode library add its own behaviour on top: City Peaceful
+
        ;; forms a patrol squad around a fresh ambient leader; City Insurrection re-rolls the
+
        ;; weapon and keeps the guard solo. No-op by default.
-       (*mod-city-blue-activated-hook* this params)
-       )
-     #t
-     )
+
+       (*mod-city-blue-activated-hook* this params))
+     #t)
     (('traffic-off 'traffic-off-force)
      (set! (-> this squad-count) 1)
      (set! (-> this squad-index) 0)
      (set! (-> this squad-leader) (the-as handle #f))
-     ((method-of-type crimson-guard general-event-handler) this arg0 arg1 arg2 arg3)
-     )
+     ((method-of-type crimson-guard general-event-handler) this arg0 arg1 arg2 arg3))
     (('alert-begin 'alert-end 'end-pursuit)
      ;; Deliberately ignore general city alerts for peaceful blue guards.
+
      ;; Blue guards never participate in city alerts and only fight in self/squad defense.
-     #f
-     )
+
+     #f)
     (('event-death)
      ;; Event death is safely handled by the die state sequence.
-     #f
-     )
-    (else
-      ((method-of-type crimson-guard general-event-handler) this arg0 arg1 arg2 arg3)
-      )
-    )
-  )
+
+     #f)
+    (else ((method-of-type crimson-guard general-event-handler) this arg0 arg1 arg2 arg3))))
 
 (defmethod crimson-guard-method-214 ((this crimson-blue-guard))
   "Fires weapon projectile: standard laser bolts for rifle (guard-type 1), or vehicle-grenade
@@ -439,8 +478,7 @@
      (let* ((target-pos (-> this target-pos-predict-miss))
             (muzzle (vector<-cspace! (new 'stack-no-clear 'vector) (-> this node-list data 14)))
             (traj (new 'stack-no-clear 'traj3d-params))
-            (a1-1 (new 'stack-no-clear 'projectile-init-by-other-params))
-            )
+            (a1-1 (new 'stack-no-clear 'projectile-init-by-other-params)))
        (set! (-> traj src quad) (-> muzzle quad))
        (set! (-> traj dest quad) (-> target-pos quad))
        (set! (-> traj initial-tilt) 8192.0)
@@ -454,64 +492,60 @@
        (let* ((gi *game-info*)
               (atk-id (+ (-> gi attack-id) 1)))
          (set! (-> gi attack-id) atk-id)
-         (set! (-> a1-1 attack-id) atk-id)
-         )
+         (set! (-> a1-1 attack-id) atk-id))
        (set! (-> a1-1 timeout) (seconds 4))
        (set! (-> a1-1 pos quad) (-> muzzle quad))
        (if (traj3d-calc-initial-velocity-using-tilt traj)
-           (set! (-> a1-1 vel quad) (-> traj initial-velocity quad))
-           (let ((dir (vector-! (new 'stack-no-clear 'vector) target-pos muzzle)))
-             (vector-normalize! dir 102400.0)
-             (+! (-> dir y) 40960.0)
-             (set! (-> a1-1 vel quad) (-> dir quad))
-             )
-           )
-       (spawn-projectile vehicle-grenade a1-1 this *default-dead-pool*)
-       )
-     )
-    (else
-      ((method-of-type crimson-guard crimson-guard-method-214) this)
-      )
-    )
+         (set! (-> a1-1 vel quad) (-> traj initial-velocity quad))
+         (let ((dir (vector-! (new 'stack-no-clear 'vector) target-pos muzzle)))
+           (vector-normalize! dir 102400.0)
+           (+! (-> dir y) 40960.0)
+           (set! (-> a1-1 vel quad) (-> dir quad))))
+       (spawn-projectile vehicle-grenade a1-1 this *default-dead-pool*)))
+    (else ((method-of-type crimson-guard crimson-guard-method-214) this)))
   0
-  (none)
-  )
+  (none))
 
 (defstate active (crimson-blue-guard)
   :virtual #t
   :event enemy-event-handler
-  :enter (-> (method-of-type crimson-guard active) enter)
-  :exit (-> (method-of-type crimson-guard active) exit)
-  :trans (behavior ()
-    (if (and (time-elapsed? (-> self state-time) (seconds 0.5))
-             (not (logtest? (-> self nav state flags) (nav-state-flag in-mesh)))
-             (< (-> self root trans y) 4096.0)
-             )
-        (go-virtual in-ditch)
-        )
-    (if (logtest? (-> self draw status) (draw-control-status on-screen))
-        (speech-control-method-12 *speech-control* self (speech-type speech-type-1))
-        )
-    ;; Blue Crimson Guard mod: per-frame active-state scan (City Insurrection: hunt red guards in
-    ;; the war zone). Throttled to ~2 Hz; no-op by default.
-    (when (time-elapsed? (-> self last-danger-time) (seconds 0.5))
-      (set-time! (-> self last-danger-time))
-      (*mod-city-guard-active-trans-hook* self)
-      )
-    )
-  :code (-> (method-of-type citizen active) code)
-  :post (behavior ()
+  :enter
+    (-> (method-of-type crimson-guard active)
+        enter)
+  :exit
+    (-> (method-of-type crimson-guard active)
+        exit)
+  :trans
+    (behavior ()
+      (if (and (time-elapsed? (-> self state-time) (seconds 0.5))
+               (not (logtest? (-> self nav state flags) (nav-state-flag in-mesh)))
+               (< (-> self root trans y) 4096.0))
+        (go-virtual in-ditch))
+      (if (logtest? (-> self draw status) (draw-control-status on-screen))
+        (speech-control-method-12 *speech-control* self (speech-type speech-type-1)))
+      ;; Blue Crimson Guard mod: per-frame active-state scan (City Insurrection: hunt red guards in
+
+      ;; the war zone). Throttled to ~2 Hz; no-op by default.
+
+      (when (time-elapsed? (-> self last-danger-time) (seconds 0.5))
+        (set-time! (-> self last-danger-time))
+        (*mod-city-guard-active-trans-hook* self)))
+  :code
+    (-> (method-of-type citizen active)
+        code)
+  :post
+  (behavior ()
     (cond
       ((> (-> self squad-index) 0)
        ;; Follower formation post logic
+
        (let ((leader-proc (the-as crimson-blue-guard (handle->process (-> self squad-leader)))))
          (cond
            ((and leader-proc
                  (not (focus-test? leader-proc dead))
                  (not (focus-test? leader-proc inactive))
                  (-> self nav)
-                 (-> self nav state)
-                 )
+                 (-> self nav state))
             (let ((targ (new 'stack-no-clear 'vector))
                   (offset (new 'stack-no-clear 'vector)))
               (vector-orient-by-quat! offset (-> self squad-offset) (-> leader-proc root quat))
@@ -519,25 +553,17 @@
               (let ((nav-st (-> self nav state)))
                 (logclear! (-> nav-st flags) (nav-state-flag directional-mode))
                 (logior! (-> nav-st flags) (nav-state-flag target-poly-dirty))
-                (set! (-> nav-st target-post quad) (-> targ quad))
-                )
+                (set! (-> nav-st target-post quad) (-> targ quad)))
               (let ((dist (vector-vector-xz-distance (-> self root trans) targ))
                     (base-speed (* (-> self speed-scale) (-> self speed-walk))))
                 (cond
-                  ((> dist 20480.0)
-                   (set! (-> self nav target-speed) (* base-speed 1.5)))
-                  ((> dist 8192.0)
-                   (set! (-> self nav target-speed) (* base-speed 1.25)))
-                  ((< dist 2048.0)
-                   (set! (-> self nav target-speed) (* base-speed 0.85)))
-                  (else
-                   (set! (-> self nav target-speed) base-speed))
-                  )
-                )
-              )
-            )
+                  ((> dist 20480.0) (set! (-> self nav target-speed) (* base-speed 1.5)))
+                  ((> dist 8192.0) (set! (-> self nav target-speed) (* base-speed 1.25)))
+                  ((< dist 2048.0) (set! (-> self nav target-speed) (* base-speed 0.85)))
+                  (else (set! (-> self nav target-speed) base-speed))))))
            (else
             ;; Leader dead or missing: promote follower 1
+
             (when (= (-> self squad-index) 1)
               (set! (-> self squad-index) 0)
               (set! (-> self squad-leader) (process->handle self))
@@ -545,56 +571,32 @@
               (dotimes (i (-> self squad-count))
                 (let ((mh (-> self squad-members i)))
                   (when (and mh (!= mh (process->handle self)) (handle->process mh))
-                    (send-event (handle->process mh) 'squad-new-leader (process->handle self))
-                    )
-                  )
-                )
-              )
+                    (send-event (handle->process mh) 'squad-new-leader (process->handle self))))))
             ;; Fallback to standard citizen path navigation
+
             (when (and (nonzero? (-> self controller branch)) (-> self nav) (-> self nav state))
-              (if (or (< (vector-vector-xz-distance-squared (-> self root trans) (-> self controller turn-exit-point))
-                         (square 16384.0)
-                         )
-                      (logtest? (-> self nav state flags) (nav-state-flag at-target))
-                      )
-                  (vehicle-controller-method-14 (-> self controller) (the-as vehicle self))
-                  )
+              (if (or (< (vector-vector-xz-distance-squared (-> self root trans) (-> self controller turn-exit-point)) (square 16384.0))
+                      (logtest? (-> self nav state flags) (nav-state-flag at-target)))
+                (vehicle-controller-method-14 (-> self controller) (the-as vehicle self)))
               (let ((a0-5 (-> self nav state))
-                    (v1-11 (-> self controller turn-exit-point))
-                    )
+                    (v1-11 (-> self controller turn-exit-point)))
                 (logclear! (-> a0-5 flags) (nav-state-flag directional-mode))
                 (logior! (-> a0-5 flags) (nav-state-flag target-poly-dirty))
-                (set! (-> a0-5 target-post quad) (-> v1-11 quad))
-                )
-              )
-            )
-           )
-         )
-       (nav-enemy-method-176 self)
-       )
+                (set! (-> a0-5 target-post quad) (-> v1-11 quad)))))))
+       (nav-enemy-method-176 self))
       (else
        ;; Leader runs standard citizen post logic
+
        (when (and (nonzero? (-> self controller branch)) (-> self nav) (-> self nav state))
-         (if (or (< (vector-vector-xz-distance-squared (-> self root trans) (-> self controller turn-exit-point))
-                    (square 16384.0)
-                    )
-                 (logtest? (-> self nav state flags) (nav-state-flag at-target))
-                 )
-             (vehicle-controller-method-14 (-> self controller) (the-as vehicle self))
-             )
+         (if (or (< (vector-vector-xz-distance-squared (-> self root trans) (-> self controller turn-exit-point)) (square 16384.0))
+                 (logtest? (-> self nav state flags) (nav-state-flag at-target)))
+           (vehicle-controller-method-14 (-> self controller) (the-as vehicle self)))
          (let ((a0-5 (-> self nav state))
-               (v1-11 (-> self controller turn-exit-point))
-               )
+               (v1-11 (-> self controller turn-exit-point)))
            (logclear! (-> a0-5 flags) (nav-state-flag directional-mode))
            (logior! (-> a0-5 flags) (nav-state-flag target-poly-dirty))
-           (set! (-> a0-5 target-post quad) (-> v1-11 quad))
-           )
-         )
-       (nav-enemy-method-176 self)
-       )
-      )
-    )
-  )
+           (set! (-> a0-5 target-post quad) (-> v1-11 quad))))
+       (nav-enemy-method-176 self)))))
 
 (defmethod crimson-guard-method-220 ((this crimson-blue-guard))
   "Updates target awareness, line-of-sight, and assigns tactical flanking move-positions."
@@ -602,309 +604,245 @@
   (let ((focus-proc (handle->process (-> this focus handle))))
     (when (and focus-proc (not (focus-test? (the-as process-focusable focus-proc) disable dead inactive)))
       ;; Update LOS immediately so the guard reacts promptly
+
       (if (crimson-guard-method-215 this)
-          (logior! (-> this flags) (citizen-flag target-in-sight))
-          (logclear! (-> this flags) (citizen-flag target-in-sight))
-          )
+        (logior! (-> this flags) (citizen-flag target-in-sight))
+        (logclear! (-> this flags) (citizen-flag target-in-sight)))
       (cond
         ((or (= (-> this guard-type) 1) (= (-> this guard-type) 2))
          ;; Ranged weapon guards (rifle: ~6.5m, grenade launcher: ~9m): maintain tactical distance in an arc
+
          (let ((dist (if (= (-> this guard-type) 2) 36864.0 26624.0))
                (angle (+ (vector-y-angle (-> this target-self)) (* 182.04445 45.0 (the float (-> this squad-index))))))
            (set-vector! (-> this move-position)
                         (+ (-> this target-pos x) (* dist (sin angle)))
                         (-> this target-pos y)
                         (+ (-> this target-pos z) (* dist (cos angle)))
-                        1.0
-                        )
-           )
-         )
+                        1.0)))
         (else
          ;; Taser guard (guard-type 0): charge target directly
-         (set! (-> this move-position quad) (-> this target-pos quad))
-         )
-        )
-      )
-    )
-  (none)
-  )
+
+         (set! (-> this move-position quad) (-> this target-pos quad))))))
+  (none))
 
 (defstate hostile (crimson-blue-guard)
   :virtual #t
   :event enemy-event-handler
-  :enter (-> (method-of-type crimson-guard hostile) enter)
-  :exit (-> (method-of-type crimson-guard hostile) exit)
-  :trans (behavior ()
-    (crimson-guard-method-220 self)
-    (when (and (not (logtest? (-> self draw status) (draw-control-status on-screen)))
-               (= (-> self controller traffic sync-mask-16) (ash 1 (logand (-> self traffic-id) 15)))
-               (not (logtest? (-> self flags) (citizen-flag sticky-weapon)))
-               )
-      (let ((a1-4 (get-traffic-guard-change-to-type (-> self controller traffic) (the-as int (-> self guard-type)))))
-        (if (!= a1-4 (-> self guard-type))
-            (crimson-guard-method-225 self a1-4 #f)
-            )
-        )
-      )
-    (let* ((s5-0 (-> self traffic-target-status))
-           (gp-0 (as-type (handle->process (-> s5-0 handle)) process-focusable))
-           )
-      (if (or (focus-test? gp-0 inactive) (focus-test? gp-0 disable))
-          (set! gp-0 (the-as process-focusable #f))
-          )
-      (cond
-        ((not gp-0)
-         (go-virtual active)
-         )
-        (else
-          (let ((target-alive (and gp-0 (not (focus-test? gp-0 dead inactive disable))))
-                (has-los (or (logtest? (-> self flags) (citizen-flag target-in-sight))
-                             (crimson-guard-method-215 self)))
-                )
-            (if (not target-alive)
-                (go-virtual active)
-                )
-            (when has-los
-              (set-time! (-> self last-time-see-target))
-              (logior! (-> self flags) (citizen-flag target-in-sight))
-              )
-            ;; If target lost for 5 seconds, search
-            (when (and (not has-los)
-                       (time-elapsed? (-> self last-time-see-target) (seconds 5))
-                       (not (logtest? (-> s5-0 flags) (traffic-target-flag visible-recently)))
-                       )
-              (logclear! (-> self flags) (citizen-flag persistent))
-              (citizen-method-195 self (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> self root quat)))
-              (go-virtual search)
-              )
-            (speech-control-method-15 *speech-control* self)
-            (cond
-              ((focus-test? gp-0 arrestable)
-               (if (and (< (-> self target-self-xz-dist) 28672.0)
-                        (< (fabs (-> self target-y-angle)) 7281.778)
-                        (>= 8192.0 (fabs (- (-> (get-trans gp-0 1) y) (-> self root trans y))))
-                        )
-                   (go-virtual arrest)
-                   )
-               )
-              (else
+  :enter
+    (-> (method-of-type crimson-guard hostile)
+        enter)
+  :exit
+    (-> (method-of-type crimson-guard hostile)
+        exit)
+  :trans
+    (behavior ()
+      (crimson-guard-method-220 self)
+      (when (and (not (logtest? (-> self draw status) (draw-control-status on-screen)))
+                 (= (-> self controller traffic sync-mask-16) (ash 1 (logand (-> self traffic-id) 15)))
+                 (not (logtest? (-> self flags) (citizen-flag sticky-weapon))))
+        (let ((a1-4 (get-traffic-guard-change-to-type (-> self controller traffic) (the-as int (-> self guard-type)))))
+          (if (!= a1-4 (-> self guard-type)) (crimson-guard-method-225 self a1-4 #f))))
+      (let* ((s5-0 (-> self traffic-target-status))
+             (gp-0 (as-type (handle->process (-> s5-0 handle)) process-focusable)))
+        (if (or (focus-test? gp-0 inactive) (focus-test? gp-0 disable)) (set! gp-0 (the-as process-focusable #f)))
+        (cond
+          ((not gp-0) (go-virtual active))
+          (else
+           (let ((target-alive (and gp-0 (not (focus-test? gp-0 dead inactive disable))))
+                 (has-los (or (logtest? (-> self flags) (citizen-flag target-in-sight)) (crimson-guard-method-215 self))))
+             (if (not target-alive) (go-virtual active))
+             (when has-los
+               (set-time! (-> self last-time-see-target))
+               (logior! (-> self flags) (citizen-flag target-in-sight)))
+             ;; If target lost for 5 seconds, search
+
+             (when (and (not has-los)
+                        (time-elapsed? (-> self last-time-see-target) (seconds 5))
+                        (not (logtest? (-> s5-0 flags) (traffic-target-flag visible-recently))))
+               (logclear! (-> self flags) (citizen-flag persistent))
+               (citizen-method-195 self (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> self root quat)))
+               (go-virtual search))
+             (speech-control-method-15 *speech-control* self)
+             (cond
+               ((focus-test? gp-0 arrestable)
+                (if (and (< (-> self target-self-xz-dist) 28672.0)
+                         (< (fabs (-> self target-y-angle)) 7281.778)
+                         (>= 8192.0 (fabs (- (-> (get-trans gp-0 1) y) (-> self root trans y)))))
+                  (go-virtual arrest)))
+               (else
                 (let ((v1-78 (-> self guard-type)))
                   (cond
                     ;; Ranged Guards: Rifle (guard-type 1) & Grenade Launcher (guard-type 2)
+
                     ((or (= v1-78 1) (= v1-78 2))
                      ;; Only rifle butt if Jak gets into point-blank (< 2.5m = 10240.0)
-                     (if (and (< (-> self target-self-xz-dist) 10240.0)
-                              (< (fabs (-> self target-y-angle)) 7281.778)
-                              target-alive
-                              has-los
-                              )
-                         (go-virtual close-attack)
-                         )
+
+                     (if (and (< (-> self target-self-xz-dist) 10240.0) (< (fabs (-> self target-y-angle)) 7281.778) target-alive has-los)
+                       (go-virtual close-attack))
                      ;; Ranged attack: shoot weapon anywhere between 2.5m and 50m (204800.0)
+
                      (when (and (>= (-> self target-self-xz-dist) 10240.0)
                                 (< (-> self target-self-xz-dist) 204800.0)
                                 has-los
-                                (time-elapsed? (-> self state-time) (seconds 0.2))
-                                )
-                       (go-virtual gun-shoot)
-                       )
-                     )
+                                (time-elapsed? (-> self state-time) (seconds 0.2)))
+                       (go-virtual gun-shoot)))
                     ;; Taser Guard (guard-type 0) - Yellow Guard behavior
+
                     ((zero? v1-78)
                      ;; Charges Jak and enters attack within 7m (28672.0)
-                     (if (and (< (-> self target-self-xz-dist) 28672.0)
-                              target-alive
-                              )
-                         (go-virtual attack)
-                         )
-                     )
-                    )
-                  )
-                )
-              )
-            )
-          )
-        )
-      )
-    )
-  :code (-> (method-of-type crimson-guard hostile) code)
-  :post (behavior ()
+
+                     (if (and (< (-> self target-self-xz-dist) 28672.0) target-alive) (go-virtual attack))))))))))))
+  :code
+    (-> (method-of-type crimson-guard hostile)
+        code)
+  :post
+  (behavior ()
     (let ((v1-5 (new 'stack-no-clear 'vector)))
       (cond
         ((or (= (-> self guard-type) 1) (= (-> self guard-type) 2))
          ;; Ranged guards: navigate towards flanking move-position
-         (set! (-> v1-5 quad) (-> self move-position quad))
-         )
+
+         (set! (-> v1-5 quad) (-> self move-position quad)))
         (else
          ;; Taser guard: rushes directly towards Jak
+
          (if (< 32768.0 (-> self target-self-xz-dist))
-             (set! (-> v1-5 quad) (-> self move-position quad))
-             (set! (-> v1-5 quad) (-> self traffic-target-status position quad))
-             )
-         )
-        )
+           (set! (-> v1-5 quad) (-> self move-position quad))
+           (set! (-> v1-5 quad) (-> self traffic-target-status position quad)))))
       (when (and (-> self nav) (-> self nav state))
         (let ((nav-st (-> self nav state)))
           (logclear! (-> nav-st flags) (nav-state-flag directional-mode))
           (logior! (-> nav-st flags) (nav-state-flag target-poly-dirty))
-          (set! (-> nav-st target-post quad) (-> v1-5 quad))
-          )
-        )
-      )
-    (nav-enemy-method-176 self)
-    )
-  )
+          (set! (-> nav-st target-post quad) (-> v1-5 quad)))))
+    (nav-enemy-method-176 self)))
 
 (defstate close-attack (crimson-blue-guard)
   :virtual #t
   :event enemy-event-handler
-  :enter (-> (method-of-type crimson-guard close-attack) enter)
-  :exit (-> (method-of-type crimson-guard close-attack) exit)
-  :trans (-> (method-of-type crimson-guard close-attack) trans)
-  :code (behavior ()
-    (ja-channel-push! 1 (seconds 0.15))
-    (let ((gp-0 #f))
-      (ja-no-eval :group! crimson-guard-rifle-butt-ja :num! (seek!) :frame-num 0.0)
-      (until (ja-done? 0)
-        (when (not gp-0)
-          (seek-toward-heading-vec! (-> self root) (-> self target-self-xz) 65536.0 (seconds 0.02))
-          )
-        (when (and (< 7.0 (ja-frame-num 0)) (not gp-0))
-          (let ((v1-22 (-> (the-as collide-shape-prim-group (-> self root root-prim)) child 3)))
-            (logior! (-> v1-22 prim-core action) (collide-action deadly))
-            )
-          (set! gp-0 #t)
-          )
-        (suspend)
-        (ja :num! (seek!))
-        )
-      )
-    ;; Roll away after melee strike to create distance and prevent infinite butt loop
-    (crimson-guard-method-226 self)
-    )
-  :post (-> (method-of-type crimson-guard close-attack) post)
-  )
+  :enter
+    (-> (method-of-type crimson-guard close-attack)
+        enter)
+  :exit
+    (-> (method-of-type crimson-guard close-attack)
+        exit)
+  :trans
+    (-> (method-of-type crimson-guard close-attack)
+        trans)
+  :code
+    (behavior ()
+      (ja-channel-push! 1 (seconds 0.15))
+      (let ((gp-0 #f))
+        (ja-no-eval :group! crimson-guard-rifle-butt-ja :num! (seek!) :frame-num 0.0)
+        (until (ja-done? 0)
+          (when (not gp-0)
+            (seek-toward-heading-vec! (-> self root) (-> self target-self-xz) 65536.0 (seconds 0.02)))
+          (when (and (< 7.0 (ja-frame-num 0)) (not gp-0))
+            (let ((v1-22 (-> (the-as collide-shape-prim-group (-> self root root-prim)) child 3)))
+              (logior! (-> v1-22 prim-core action) (collide-action deadly)))
+            (set! gp-0 #t))
+          (suspend)
+          (ja :num! (seek!))))
+      ;; Roll away after melee strike to create distance and prevent infinite butt loop
+
+      (crimson-guard-method-226 self))
+  :post (-> (method-of-type crimson-guard close-attack) post))
 
 (defstate gun-shoot (crimson-blue-guard)
   :virtual #t
   :event enemy-event-handler
-  :enter (-> (method-of-type crimson-guard gun-shoot) enter)
-  :exit (-> (method-of-type crimson-guard gun-shoot) exit)
-  :trans (behavior ()
-    (crimson-guard-method-220 self)
-    (let ((gp-0 (handle->process (-> self focus handle))))
-      (when gp-0
-        (if (and (< (-> self target-self-xz-dist) 10240.0)
-                 (< (fabs (-> self target-y-angle)) 7281.778)
-                 (not (logtest? (-> (the-as process-focusable gp-0) focus-status) (focus-status disable dead ignore grabbed)))
-                 )
-            (go-virtual close-attack)
-            )
-        )
-      )
-    )
-  :code (behavior ()
-    (local-vars (v1-35 object))
-    (speech-control-method-12 *speech-control* self (speech-type speech-type-9))
-    (ja-channel-push! 1 (seconds 0.2))
-    (let ((f30-0 (rnd-float-range self 0.9 1.1)))
-      (ja-no-eval :group! (-> self draw art-group data (-> self anim-shoot 0 anim-index))
-                  :num! (seek! max f30-0)
-                  :frame-num 0.0
-                  )
-      (until (ja-done? 0)
-        (seek-toward-heading-vec! (-> self root) (-> self target-self-xz) 65536.0 (seconds 0.02))
-        (suspend)
-        (ja :num! (seek! max f30-0))
-        )
-      )
-    (label cfg-3)
-    (seek-toward-heading-vec! (-> self root) (-> self target-self-xz) 65536.0 (seconds 0.02))
-    (when (or (crimson-guard-method-216 self) (crimson-guard-method-215 self))
-      (set! v1-35 #t)
-      (goto cfg-10)
-      )
-    (when (time-elapsed? (-> self state-time) (seconds 0.3))
-      (set! v1-35 (crimson-guard-method-215 self))
-      (goto cfg-10)
-      )
-    (suspend)
-    (b! (not #f) cfg-3 :delay (set! v1-35 #f))
-    (label cfg-10)
-    (when v1-35
-      (set-time! (-> self state-time))
-      ;; Single shot for grenade launcher (guard-type 2), 3-burst for rifle (guard-type 1)
-      (let ((gp-0 (if (= (-> self guard-type) 2) 0 2)))
-        (until #f
-          (ja-channel-push! 1 (seconds 0.1))
-          (ja-no-eval :group! (-> self draw art-group data (-> self anim-shoot 1 anim-index)) :num! min)
-          (set! (-> self already-shot) #t)
-          (lerp-scale 1.0 0.2 (-> self target-self-dist) 20480.0 122880.0)
-          (let ((f0-8 1.0))
-            (cond
-              ((logtest? (-> self draw status) (draw-control-status on-screen))
-               (let ((v1-58 (handle->process (-> self focus handle))))
-                 (when v1-58
-                   (if (or (< (-> self target-vel) 40.96)
-                           (and (focus-test? (the-as process-focusable v1-58) pilot) (< (-> self target-pos y) 49152.0))
-                           )
-                       (set! (-> self miss-amount) (- (-> self miss-amount) (* 12288.0 f0-8)))
-                       (set! (-> self miss-amount) (- (-> self miss-amount) (* 4096.0 f0-8)))
-                       )
-                   )
-                 )
-               )
-              (else
-                (set! (-> self miss-amount) (- (-> self miss-amount) (* 3276.8 f0-8)))
-                )
-              )
-            )
-          (if (< (-> self miss-amount) 0.0)
-              (set! (-> self miss-amount) 0.0)
-              )
-          (crimson-guard-method-214 self)
-          (until (ja-done? 0)
-            (ja :num! (seek!))
-            (suspend)
-            )
-          (+! gp-0 -1)
-          (if (< gp-0 0)
-              (goto cfg-40)
-              )
-          )
-        )
-      #f
-      )
-    (label cfg-40)
-    (let ((f30-1 (rnd-float-range self 0.9 1.1)))
+  :enter
+    (-> (method-of-type crimson-guard gun-shoot)
+        enter)
+  :exit
+    (-> (method-of-type crimson-guard gun-shoot)
+        exit)
+  :trans
+    (behavior ()
+      (crimson-guard-method-220 self)
+      (let ((gp-0 (handle->process (-> self focus handle))))
+        (when gp-0
+          (if (and (< (-> self target-self-xz-dist) 10240.0)
+                   (< (fabs (-> self target-y-angle)) 7281.778)
+                   (not (logtest? (-> (the-as process-focusable gp-0) focus-status) (focus-status disable dead ignore grabbed))))
+            (go-virtual close-attack)))))
+  :code
+    (behavior ()
+      (local-vars (v1-35 object))
+      (speech-control-method-12 *speech-control* self (speech-type speech-type-9))
       (ja-channel-push! 1 (seconds 0.2))
-      (ja-no-eval :group! (-> self draw art-group data (-> self anim-shoot 2 anim-index))
-                  :num! (seek! max f30-1)
-                  :frame-num 0.0
-                  )
-      (until (ja-done? 0)
-        (seek-toward-heading-vec! (-> self root) (-> self target-self-xz) 65536.0 (seconds 0.02))
-        (suspend)
-        (ja :num! (seek! max f30-1))
-        )
-      )
-    ;; Combat roll (roll-left or roll-right) which loops back to gun-shoot
-    (crimson-guard-method-226 self)
-    )
-  :post (behavior ()
+      (let ((f30-0 (rnd-float-range self 0.9 1.1)))
+        (ja-no-eval :group!
+                    (-> self draw art-group data (-> self anim-shoot 0 anim-index))
+                    :num! (seek! max f30-0)
+                    :frame-num 0.0)
+        (until (ja-done? 0)
+          (seek-toward-heading-vec! (-> self root) (-> self target-self-xz) 65536.0 (seconds 0.02))
+          (suspend)
+          (ja :num! (seek! max f30-0))))
+      (label cfg-3)
+      (seek-toward-heading-vec! (-> self root) (-> self target-self-xz) 65536.0 (seconds 0.02))
+      (when (or (crimson-guard-method-216 self) (crimson-guard-method-215 self))
+        (set! v1-35 #t)
+        (goto cfg-10))
+      (when (time-elapsed? (-> self state-time) (seconds 0.3))
+        (set! v1-35 (crimson-guard-method-215 self))
+        (goto cfg-10))
+      (suspend)
+      (b! (not #f) cfg-3 :delay (set! v1-35 #f))
+      (label cfg-10)
+      (when v1-35
+        (set-time! (-> self state-time))
+        ;; Single shot for grenade launcher (guard-type 2), 3-burst for rifle (guard-type 1)
+
+        (let ((gp-0 (if (= (-> self guard-type) 2) 0 2)))
+          (until #f
+            (ja-channel-push! 1 (seconds 0.1))
+            (ja-no-eval :group! (-> self draw art-group data (-> self anim-shoot 1 anim-index)) :num! min)
+            (set! (-> self already-shot) #t)
+            (lerp-scale 1.0 0.2 (-> self target-self-dist) 20480.0 122880.0)
+            (let ((f0-8 1.0))
+              (cond
+                ((logtest? (-> self draw status) (draw-control-status on-screen))
+                 (let ((v1-58 (handle->process (-> self focus handle))))
+                   (when v1-58
+                     (if (or (< (-> self target-vel) 40.96)
+                             (and (focus-test? (the-as process-focusable v1-58) pilot) (< (-> self target-pos y) 49152.0)))
+                       (set! (-> self miss-amount) (- (-> self miss-amount) (* 12288.0 f0-8)))
+                       (set! (-> self miss-amount) (- (-> self miss-amount) (* 4096.0 f0-8)))))))
+                (else (set! (-> self miss-amount) (- (-> self miss-amount) (* 3276.8 f0-8))))))
+            (if (< (-> self miss-amount) 0.0) (set! (-> self miss-amount) 0.0))
+            (crimson-guard-method-214 self)
+            (until (ja-done? 0)
+              (ja :num! (seek!))
+              (suspend))
+            (+! gp-0 -1)
+            (if (< gp-0 0) (goto cfg-40))))
+        #f)
+      (label cfg-40)
+      (let ((f30-1 (rnd-float-range self 0.9 1.1)))
+        (ja-channel-push! 1 (seconds 0.2))
+        (ja-no-eval :group!
+                    (-> self draw art-group data (-> self anim-shoot 2 anim-index))
+                    :num! (seek! max f30-1)
+                    :frame-num 0.0)
+        (until (ja-done? 0)
+          (seek-toward-heading-vec! (-> self root) (-> self target-self-xz) 65536.0 (seconds 0.02))
+          (suspend)
+          (ja :num! (seek! max f30-1))))
+      ;; Combat roll (roll-left or roll-right) which loops back to gun-shoot
+
+      (crimson-guard-method-226 self))
+  :post
+  (behavior ()
     (citizen-method-200 self)
-    (nav-enemy-method-176 self)
-    )
-  )
+    (nav-enemy-method-176 self)))
 
 (defmethod enemy-method-78 ((this crimson-blue-guard) (arg0 enemy-knocked-info))
   "Handles fatal knockdown: records knocked-fatal? so the guard stays on the ground,
    and delegates to crimson-guard to play the knocked-land animation without setting death-start."
   (when (<= (-> this hit-points) 0)
-    (set! (-> this knocked-fatal?) #t)
-    )
-  ((method-of-type crimson-guard enemy-method-78) this arg0)
-  )
+    (set! (-> this knocked-fatal?) #t))
+  ((method-of-type crimson-guard enemy-method-78) this arg0))
 
 (defun crimson-blue-guard-attack-guards ((this crimson-blue-guard))
   "Manually trigger this guard's normal combat behavior against the nearest red crimson-guard
@@ -915,11 +853,6 @@
       (try-update-focus (-> this focus) target-proc this)
       (crimson-blue-guard-alert-squad this target-proc)
       (if (and (not (and (-> this next-state) (= (-> this next-state name) 'jump)))
-               (not (and (-> this next-state) (= (-> this next-state name) 'exit-transport)))
-               )
-          (go-hostile this)
-          )
-      )
-    )
-  (none)
-  )
+               (not (and (-> this next-state) (= (-> this next-state name) 'exit-transport))))
+        (go-hostile this))))
+  (none))

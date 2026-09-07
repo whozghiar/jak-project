@@ -257,7 +257,7 @@ un `art-joint-anim`. Or un art-group produit par `build-actor` **avec squelette*
 slot 0. Les animations ne sont donc jamais liées automatiquement → il faut **spécial-caser le nom**
 de l'art-group custom là où `link-art!` est appelé.
 
-> ⚠️ Le tip [`jak2_modding_utilities/09_custom_art_groups_link_art.md`](../jak2_modding_utilities/09_custom_art_groups_link_art.md)
+> ⚠️ Le tip [`jak2_lisp_instructions.md`](../jak2_lisp_instructions.md)
 > documente qu'il ne faut **jamais** appeler `link-art!` depuis du code gameplay (`-init` d'acteur) :
 > l'état des tableaux d'art-groups du niveau n'y est pas garanti cohérent → risque de crash mémoire.
 > Le seul point sûr est `art-group::relocate` / le chemin de login.
@@ -389,7 +389,7 @@ L'overlord commun (`game/overlord/common/sbank.cpp`) possède **déjà** un slot
 `gBoardBank` (index 2, pré-nommé `"board"` dans `InitBanks`) — hérité du fait que Jak 2 a un jetboard.
 `LookupBank("board")` le retrouve par nom → **pas besoin** de toucher `AllocateBankName` en Jak 1.
 (Ce n'est **pas** le cas si on ajoute une banque à un *nom nouveau* : cf.
-[`jak2_modding_utilities/13`](../jak2_modding_utilities/13_custom_animation_and_sound_import_pipeline.md) §B2.)
+[`jak2_modding_utilities/13`](../jak2_lisp_instructions.md) §B2.)
 
 <a name="16-modifications-c-transverses"></a>
 

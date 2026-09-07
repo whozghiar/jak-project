@@ -1,0 +1,105 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+#|
+  ============================================================================
+  STANDARDISED MOD DEBUG-MENU TEMPLATE  --  Debug > Mods > <your-mod>
+  ============================================================================
+
+  Copy this block into ONE of your mod's own `.gc` files (an existing one that
+  is already registered in a `.gd`, or a new dedicated `<slug>-menu.gc` you add
+  to your level/game `.gd` AFTER `mods-menu.o`).
+
+  You never touch `pc/debug/mods-menu.gc`, `default-menu.gc` or
+  `default-menu-pc.gc` -- that is the whole point: zero shared-file edits, zero
+  merge conflicts between mod branches.
+
+  Rules of engagement
+  -------------------
+  1. Prefix EVERYTHING with your mod slug:
+       - config vars   : *mod-<slug>-<option>*
+       - pick funcs     : mod-<slug>-<option>-pick
+       - builder        : mod-<slug>-build-menu
+     This is what keeps two branches from colliding on a symbol.
+  2. Pick-functions match the message with
+     `(case arg1 (((debug-menu-msg press)) ...))` and must RETURN the current
+     boolean so the menu can draw the checkmark.
+  3. Do the side effects (spawn, despawn, faction swap...) INSIDE the
+     `press` branch only. The `update` path runs every few frames just to
+     refresh the checkmark -- it must stay allocation-free.
+  4. To change large dynamic state (e.g. swap a traffic faction) send an
+     event to the owning manager instead of re-spawning by hand:
+       (send-event *traffic-manager* 'deactivate-by-type (traffic-type ...))
+     `send-event` uses a stack message block -- no heap allocation, no
+     heap-overwrite when the player crosses a city district.
+  5. `mod-<slug>-build-menu` is called on every rebuild. Keep it pure: build
+     and return a node, never spawn anything from it.
+
+  Replace every `crimson-blueguard` / `city-peaceful` below with your own names.
+|#
+
+(declare-file (debug))
+
+;; ============================================================================
+;; 1. Forward-declared neutral hooks + prefixed config state
+;; ============================================================================
+
+;; Each option is a plain symbol whose `value` slot holds the boolean, so the
+;; stock `dm-boolean-toggle-pick-func` works out of the box for simple toggles.
+(define *mod-crimson-blueguard-enable*        #f)  ;; master on/off
+(define *mod-crimson-blueguard-city-peaceful* #f)  ;; variant: guards ignore the player in the city
+
+;; If gameplay code in OTHER files of your mod needs to read these flags, add a
+;; neutral forward declaration to your mod's shared `-h` file (never to a stock
+;; engine header) so those files do not depend on this debug-only menu file:
+;;   (define-extern *mod-crimson-blueguard-enable*        symbol)
+;;   (define-extern *mod-crimson-blueguard-city-peaceful* symbol)
+
+;; ============================================================================
+;; 2. Pick-functions  (one per option that needs a side effect)
+;; ============================================================================
+
+(defun mod-crimson-blueguard-city-peaceful-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Toggle the 'city-peaceful' variant. On press: flip the flag, then ask the
+   traffic manager to recycle the affected guard types so the change takes
+   effect without a respawn storm. Returns the flag for the menu checkmark."
+  (case arg1
+    (((debug-menu-msg press))
+     (set! (-> arg0 value) (not (-> arg0 value)))
+     ;; hand the heavy lifting to the traffic engine (stack event, no alloc)
+     (when *traffic-manager*
+       (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-0))
+       (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-1))
+       (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-2))
+       )
+     )
+    )
+  ;; always return the current state (both on `press` and `update`)
+  (-> arg0 value)
+  )
+
+;; ============================================================================
+;; 3. Menu builder  --  cascade: <slug> > <variant> > [options]
+;; ============================================================================
+
+(defun mod-crimson-blueguard-build-menu ((ctx debug-menu-context))
+  "Return this mod's submenu node. Called by the Mods registry on every rebuild."
+  (debug-menu-make-from-template ctx
+    '(menu "crimson-blueguard"
+       ;; simple master toggle -- stock pick-func, no side effect needed
+       (flag "Enable" *mod-crimson-blueguard-enable* dm-boolean-toggle-pick-func)
+       ;; a variant / sub-module with its own options
+       (menu "city-peaceful"
+         (flag "Enable / Disable" *mod-crimson-blueguard-city-peaceful*
+               mod-crimson-blueguard-city-peaceful-pick)
+         )
+       ;; add more variants here ...
+       )
+    )
+  )
+
+;; ============================================================================
+;; 4. Register with the unified Mods tab  (top-level, runs at file load)
+;; ============================================================================
+
+(mods-menu-register "crimson-blueguard" mod-crimson-blueguard-build-menu)

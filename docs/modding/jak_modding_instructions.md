@@ -45,7 +45,7 @@ Over 98% of the original trilogy was coded in GOAL, a custom LISP dialect develo
   ```
 
 * **Branch Synchronization Routine & Status Dashboard:**
-  The live sync status of all mod branches against `master` is tracked in `README.md` and [`docs/modding/branch_sync_status.md`](branch_sync_status.md). To test or push clean merges manually:
+  The live sync status of all mod branches against `master` is tracked in `README.md` and [`docs/modding/tools/branch_sync_status.md`](tools/branch_sync_status.md). To test or push clean merges manually:
   ```bash
   python scripts/modding/sync_branches_with_master.py --push
   ```
@@ -56,24 +56,40 @@ Over 98% of the original trilogy was coded in GOAL, a custom LISP dialect develo
 
 When developing a mod for any game in the trilogy, the following documentation structure is mandatory:
 
-### 1. Modular Knowledge Bases (`docs/modding/jak[N°]_modding_utilities/`)
-* Each game has its dedicated folder for knowledge base files:
-  - Jak 1: `docs/modding/jak1_modding_utilities/`
-  - Jak 2: `docs/modding/jak2_modding_utilities/`
-  - Jak 3: `docs/modding/jak3_modding_utilities/`
-* **One `.md` File per Tip / Utility:** Every engine discovery, technical mechanism, or modding utility must be documented in its own dedicated `.md` file inside the corresponding game directory (e.g. `docs/modding/jak2_modding_utilities/11_jetboard_state_handling.md`, etc.).
-* **⚠️ NEVER Edit Aggregated Files Directly:** Agents must **NEVER** edit or touch the consolidated files `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md` manually. Agents must exclusively create a new numbered `.md` file (or edit an existing individual tip file) according to the discovery. The aggregated document is maintained and regenerated exclusively by the automated CI aggregation script.
-* **Mandatory Provenance Metadata (Branch Traceability):** Every tip file must display at the top the origin Git branch where the discovery was made or implemented, as well as subsequent branches that modified or refined it:
-  ```markdown
-  > - **Origin / Provenance:** `jak[x]/[type]/[name]` (or `master-dev`)
-  > - **Last Updated / Dernière modification:** `jak[x]/[type]/[name]`
-  ```
-* **Bilingual Requirement & Strict Formalism (🇬🇧 EN & 🇫🇷 FR):** Each individual tip file must adhere strictly to the established bilingual standard:
-  - Both English (`# 🇬🇧 English Version`) and French (`# 🇫🇷 Version Française`) sections within the same document.
-  - Identical level of technical depth, precision, and commentary across both languages.
-  - Standardized structure: Title, Provenance, Context & Core Concepts, Technical Implementation, Concrete Annotated Code Examples, Known Pitfalls / Edge Cases, and Verification Steps.
-* **Factuality & Rigor:** Include only **verified, certain information** derived from source code analysis, decompiler outputs, or runtime tests. Tag unverified hypotheses with `[Hypothèse / Unverified]`.
-* **Automated Aggregation via GitHub Action:** The GitHub Action workflow (`.github/workflows/sync-modding-docs.yaml`) automatically harvests all individual `.md` tip files for each game and aggregates them into `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md` on `master-dev`.
+### 1. The two reference documents (consult BEFORE coding)
+
+There is now **one curated source of truth per topic**, not a per-branch pile of
+tip files. Before you write or change a single `.gc` line, read the relevant one:
+
+* **`docs/modding/jak[N°]_lisp_instructions.md`** — the verified OpenGOAL Lisp
+  reference for that game: every instruction/pattern that is **100 %-certain**
+  (compiled and seen working), in plain language, with one commented example each
+  and its traps. This is what stops an agent hallucinating an instruction that does
+  not exist.
+  - Jak 1: `docs/modding/jak1_lisp_instructions.md`
+  - Jak 2: `docs/modding/jak2_lisp_instructions.md`
+  - Jak 3: `docs/modding/jak3_lisp_instructions.md`
+* **`docs/modding/engine_generic_concepts.md`** — the shared, non-Lisp engine primer
+  (memory, heaps, DGOs & level streaming, virtual-state residency, process life
+  cycle, boot diagnostics). Common to all three games.
+
+**Recording a discovery (conflict-free rule).** These files have **one source of
+truth: `master-dev`**. NEVER edit them on a mod branch — that is what caused
+constant merge conflicts. When you verify a new instruction or engine fact:
+
+1. `task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "..." --push`
+   — it carries your appended block onto `master-dev` as a tiny dedicated commit,
+   pushes, returns you to your branch and re-syncs. (Or do the round-trip by hand:
+   branch off `master-dev`, append, commit, push, then `task modding-sync-docs`.)
+2. Only **append** — add a numbered block below the
+   `➕ APPEND NEW VERIFIED ENTRIES` marker. Never reflow existing sections. Appends
+   to end-of-file are what keep parallel mods from ever conflicting on the file.
+3. Only add what is **verified**. No speculation, no "should work".
+
+**Mod-*feature*-specific notes** (what your mod changed and why — jetboard tuning,
+a faction rework, a networking stub) do **not** go in the reference docs. They go in
+your mod branch's root `README.md` "Modding Changes Log", and optionally a
+`docs/modding/current_mod/<slug>_readme.md` on your branch.
 
 ### 2. Dedicated Mod Readme (`README.md` at root)
 * Every mod branch must replace the repository root `README.md` with its dedicated bilingual mod presentation.
@@ -93,6 +109,27 @@ When developing a mod for any game in the trilogy, the following documentation s
 ---
 
 ## 4. Strict Guardrails & Architecture Rules
+
+### 🥇 Golden rules (non-negotiable)
+
+1. **Consult the reference first.** Before writing or changing any `.gc`, read the
+   relevant `docs/modding/jak[x]_lisp_instructions.md` and
+   `docs/modding/engine_generic_concepts.md`. Do not invent instructions.
+2. **Native non-regression.** A mod MUST NOT change the game's default behaviour
+   unless its written spec explicitly requires it. Ship every behaviour change
+   **OFF by default**, gated behind the mod's toggle. A fresh install with the mod
+   compiled but disabled must play identically to stock.
+3. **Debug ▸ Mods toggle mandatory.** Every mod must be switchable on/off at runtime
+   from the in-game debug menu. On Jak 2, register it with
+   `(mods-menu-register "<slug>" builder)` — see
+   [`tools/mods_debug_menu.md`](tools/mods_debug_menu.md). Never edit
+   `default-menu.gc` / `default-menu-pc.gc` directly. (Jak 1 / Jak 3: add a
+   mod-slug-prefixed submenu for now; the unified framework port is a follow-up.)
+4. **Record every verified Lisp instruction** you rely on that is not yet in
+   `jak[x]_lisp_instructions.md` — via `task modding-land-doc` (`master-dev` only,
+   append-only). See §3.1.
+
+### Architecture rules
 
 * **Mandatory In-Code Comments:** Every definitive code addition or modification (types, functions, methods, states, hooks, macros, and overriding behaviors) **must be thoroughly commented** directly in the source code (`.gc`). Comments must clarify purpose, arguments, return values, and side effects.
 * **Preservation of Existing Code:** Strictly avoid deleting, emptying, or destructively modifying original game source files. Favor modular extensions and surgical overrides.
@@ -122,8 +159,16 @@ When developing a mod for any game in the trilogy, the following documentation s
 - First setup / after `task clean-cmake`: `task gen-cmake-release` (installs `sccache` wiring if
   present — `scoop install sccache`).
 
-See [`build_and_iteration_workflow.md`](build_and_iteration_workflow.md) for the full three-layer
+See [`tools/build_and_iteration_workflow.md`](tools/build_and_iteration_workflow.md) for the full three-layer
 model and the "what if my mod modifies the decompiler?" walkthrough.
+
+**Modding-workflow tasks (wrappers over `scripts/modding/*.py`):**
+- `task modding-new-branch -- jak2/features/my-mod` — new mod branch from `master-dev` + initial README.
+- `task modding-sync-branch` — safe `git merge` of `master-dev` into the current branch.
+- `task modding-sync-docs` — pull `docs/modding` + `AGENTS.md` + `CLAUDE.md` from `master-dev` (prunes deleted files).
+- `task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "..." --push` — land a doc addition on `master-dev` conflict-free.
+- `task modding-branch-status` — refresh the branch sync dashboard.
+- `task modding-audit` — regenerate `docs/modding/branch_audit.md`.
 
 ---
 
@@ -165,7 +210,7 @@ Plus de 98% de la trilogie d'origine a été programmée en GOAL, un dialecte LI
   ```
 
 * **Routine de Synchronisation & Tableau de Bord des Conflits :**
-  L'état de synchronisation en direct des branches par rapport à `master` est suivi dans `README.md` et [`docs/modding/branch_sync_status.md`](branch_sync_status.md). Pour tester ou fusionner manuellement les branches propres :
+  L'état de synchronisation en direct des branches par rapport à `master` est suivi dans `README.md` et [`docs/modding/tools/branch_sync_status.md`](tools/branch_sync_status.md). Pour tester ou fusionner manuellement les branches propres :
   ```bash
   python scripts/modding/sync_branches_with_master.py --push
   ```
@@ -176,24 +221,46 @@ Plus de 98% de la trilogie d'origine a été programmée en GOAL, un dialecte LI
 
 Lors du développement d'un mod pour n'importe quel jeu de la trilogie, la structure documentaire suivante est obligatoire :
 
-### 1. Bases de Connaissances Modulaires (`docs/modding/jak[N°]_modding_utilities/`)
-* Chaque jeu dispose de son répertoire dédié pour les fichiers de base de connaissances :
-  - Jak 1 : `docs/modding/jak1_modding_utilities/`
-  - Jak 2 : `docs/modding/jak2_modding_utilities/`
-  - Jak 3 : `docs/modding/jak3_modding_utilities/`
-* **Un Fichier `.md` par Tip / Utilitaire :** Chaque découverte moteur, mécanisme technique ou pattern d'utilitaire doit être consigné dans son propre fichier `.md` dédié au sein du répertoire du jeu correspondant (ex : `docs/modding/jak2_modding_utilities/11_jetboard_state_handling.md`, etc.).
-* **⚠️ Interdiction de Modifier les Fichiers Agrégés Directement :** Les agents ne doivent **JAMAIS** modifier manuellement les fichiers consolidés `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md`. Les agents doivent exclusivement créer un nouveau fichier `.md` numéroté (ou modifier le fichier individuel existant) selon le tip découvert. Le fichier agrégé est maintenu et régénéré exclusivement par le script d'agrégation automatique CI.
-* **Métadonnées de Traçabilité Obligatoires (Origine des Branches) :** Chaque fichier de tip doit obligatoirement afficher en en-tête la branche Git d'origine où la découverte/le code a été créé, ainsi que les branches ultérieures l'ayant modifié :
-  ```markdown
-  > - **Origin / Provenance :** `jak[x]/[type]/[nom]` (ou `master-dev`)
-  > - **Last Updated / Dernière modification :** `jak[x]/[type]/[nom]`
-  ```
-* **Exigence Bilingue & Formalisme Strict (🇬🇧 EN & 🇫🇷 FR) :** Chaque fichier de tip individuel doit respecter rigoureusement le formalisme bilingue établi :
-  - Les deux sections Anglais (`# 🇬🇧 English Version`) et Français (`# 🇫🇷 Version Française`) au sein du même document.
-  - Même niveau de profondeur technique, de précision et de commentaires dans les deux langues.
-  - Structure standardisée : Titre, Provenance, Contexte & Concepts Clés, Implémentation Technique, Exemples de Code annotés concrets, Pièges / Cas Particuliers et Procédure de Validation.
-* **Factualité & Rigueur :** N'inclure que des informations vérifiées et certaines issues de l'analyse du code source, de la décompilation ou des tests runtime. Taguer les hypothèses avec `[Hypothèse / Unverified]`.
-* **Agrégation Automatisée via GitHub Action :** La GitHub Action (`.github/workflows/sync-modding-docs.yaml`) récolte automatiquement les tips individuels des branches de mods et les agrège dans `docs/modding/jak[x]_modding_utilities/jak[x]_modding_utilities.md` sur `master-dev`.
+### 1. Les deux documents de référence (à consulter AVANT de coder)
+
+Il existe désormais **une source de vérité curatée par sujet**, et non plus un tas
+de fichiers de tips par branche. Avant d'écrire ou de modifier une seule ligne
+`.gc`, lisez le document pertinent :
+
+* **`docs/modding/jak[N°]_lisp_instructions.md`** — la référence Lisp OpenGOAL
+  vérifiée pour ce jeu : chaque instruction/pattern **certain à 100 %** (compilé et
+  vu fonctionner), en langage simple, avec un exemple commenté et ses pièges. C'est
+  ce qui empêche un agent d'halluciner une instruction qui n'existe pas.
+  - Jak 1 : `docs/modding/jak1_lisp_instructions.md`
+  - Jak 2 : `docs/modding/jak2_lisp_instructions.md`
+  - Jak 3 : `docs/modding/jak3_lisp_instructions.md`
+* **`docs/modding/engine_generic_concepts.md`** — l'introduction moteur partagée,
+  non-Lisp (mémoire, heaps, DGO & streaming de niveaux, résidence des états
+  virtuels, cycle de vie des processus, diagnostic au démarrage). Commune aux trois
+  jeux.
+
+**Consigner une découverte (règle anti-conflit).** Ces fichiers ont **une seule
+source de vérité : `master-dev`**. Ne JAMAIS les éditer sur une branche de mod —
+c'est ce qui a causé les conflits de fusion permanents. Quand vous vérifiez une
+nouvelle instruction ou un fait moteur :
+
+1. `task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "..." --push`
+   — le script porte votre bloc ajouté sur `master-dev` comme un petit commit dédié,
+   pousse, vous ramène sur votre branche et resynchronise. (Ou faites l'aller-retour
+   à la main : partir de `master-dev`, ajouter, commit, push, puis
+   `task modding-sync-docs`.)
+2. Uniquement en **ajout** — un bloc numéroté sous le marqueur
+   `➕ APPEND NEW VERIFIED ENTRIES`. Ne jamais reformater les sections existantes.
+   Les ajouts en fin de fichier sont ce qui évite tout conflit entre mods
+   parallèles.
+3. N'ajouter que ce qui est **vérifié**. Pas de spéculation, pas de « devrait
+   marcher ».
+
+**Les notes propres à une *fonctionnalité* de mod** (ce que votre mod change et
+pourquoi — réglage du jetboard, refonte d'une faction, stub réseau) ne vont **pas**
+dans les documents de référence. Elles vont dans le « Modding Changes Log » du
+`README.md` racine de votre branche, et éventuellement un
+`docs/modding/current_mod/<slug>_readme.md` sur votre branche.
 
 ### 2. Readme Dédié au Mod (`README.md` à la racine)
 * Chaque branche de mod doit remplacer le fichier `README.md` à la racine du dépôt par la présentation de son mod.
@@ -213,6 +280,29 @@ Lors du développement d'un mod pour n'importe quel jeu de la trilogie, la struc
 ---
 
 ## 4. Règles d'Architecture & Garde-Fous
+
+### 🥇 Règles d'or (non négociables)
+
+1. **Consulter la référence d'abord.** Avant d'écrire ou de modifier un `.gc`, lire
+   le `docs/modding/jak[x]_lisp_instructions.md` concerné et
+   `docs/modding/engine_generic_concepts.md`. Ne pas inventer d'instructions.
+2. **Non-régression native.** Un mod NE DOIT PAS changer le comportement par défaut
+   du jeu sauf si son cahier des charges écrit l'exige explicitement. Livrer chaque
+   changement de comportement **DÉSACTIVÉ par défaut**, derrière la bascule du mod.
+   Une installation neuve, mod compilé mais désactivé, doit se jouer à l'identique
+   du jeu d'origine.
+3. **Bascule Debug ▸ Mods obligatoire.** Tout mod doit être activable/désactivable à
+   la volée depuis le menu debug en jeu. Sur Jak 2, l'enregistrer avec
+   `(mods-menu-register "<slug>" builder)` — voir
+   [`tools/mods_debug_menu.md`](tools/mods_debug_menu.md). Ne jamais éditer
+   directement `default-menu.gc` / `default-menu-pc.gc`. (Jak 1 / Jak 3 : ajouter un
+   sous-menu préfixé par le slug pour l'instant ; le portage du framework unifié est
+   un suivi.)
+4. **Consigner toute instruction Lisp vérifiée** dont vous dépendez et qui n'est pas
+   encore dans `jak[x]_lisp_instructions.md` — via `task modding-land-doc`
+   (`master-dev` uniquement, en ajout seul). Voir §3.1.
+
+### Règles d'architecture
 
 * **Commentaires Obligatoires dans le Code :** Tout ajout ou modification définitive de code (types, fonctions, méthodes, états, hooks, macros) **doit être rigoureusement commenté** directement dans les fichiers source `.gc` (rôle, arguments, types, valeurs de retour, effets de bord).
 * **Préservation du Code Existant :** Interdiction absolue de supprimer ou écraser destructivement les fichiers sources d'origine. Privilégier les extensions modulaires et les surcharges chirurgicales.
@@ -244,5 +334,13 @@ Lors du développement d'un mod pour n'importe quel jeu de la trilogie, la struc
 - Première install / après `task clean-cmake` : `task gen-cmake-release` (câble `sccache` s'il est
   présent — `scoop install sccache`).
 
-Voir [`build_and_iteration_workflow.md`](build_and_iteration_workflow.md) pour le modèle complet à
+Voir [`tools/build_and_iteration_workflow.md`](tools/build_and_iteration_workflow.md) pour le modèle complet à
 trois couches et le déroulé « et si mon mod modifie le décompilateur ? ».
+
+**Tâches du workflow de modding (wrappers de `scripts/modding/*.py`) :**
+- `task modding-new-branch -- jak2/features/mon-mod` — nouvelle branche de mod depuis `master-dev` + README initial.
+- `task modding-sync-branch` — `git merge` sûr de `master-dev` dans la branche courante.
+- `task modding-sync-docs` — rapatrie `docs/modding` + `AGENTS.md` + `CLAUDE.md` depuis `master-dev` (purge les fichiers supprimés).
+- `task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "..." --push` — intègre un ajout de doc sur `master-dev` sans conflit.
+- `task modding-branch-status` — actualise le tableau de bord de synchronisation des branches.
+- `task modding-audit` — régénère `docs/modding/branch_audit.md`.

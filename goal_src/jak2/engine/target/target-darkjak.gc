@@ -60,11 +60,24 @@
                      (>= (-> self game eco-pill-dark) (-> *FACT-bank* eco-pill-dark-max-default))
                      )
                 )
-           ;; og:preserve-this MODDED - Allow progressive evolution to giant & mega-giant without story unlock (AI-assisted)
-           (and (focus-test? self dark)
-                (nonzero? (-> self darkjak))
-                (not (logtest? (-> self darkjak stage) (darkjak-stage mega-giant)))
-                )
+           ;; The "already Dark Jak, press L2 again to evolve" branch.
+           (if *mod-dark-jak-enhanced-enable*
+               ;; og:preserve-this MODDED - progressive evolution to Giant & Mega-Giant, no story unlock (AI-assisted)
+               (and (focus-test? self dark)
+                    (nonzero? (-> self darkjak))
+                    (not (logtest? (-> self darkjak stage) (darkjak-stage mega-giant)))
+                    )
+               ;; STOCK - a single Giant form, gated behind the darkjak-giant story feature,
+               ;; and only reachable from Level 1 Dark Jak (never re-triggered while Giant).
+               (and (and (focus-test? self dark) (nonzero? (-> self darkjak)))
+                    (not (and (focus-test? self dark)
+                              (nonzero? (-> self darkjak))
+                              (logtest? (-> self darkjak stage) (darkjak-stage giant))
+                              )
+                         )
+                    (logtest? (game-feature darkjak-giant) (-> self game features))
+                    )
+               )
            )
        )
   )
@@ -88,8 +101,11 @@
     (remove-setting! 'string-spline-max-move-player)
     (remove-setting! 'string-spline-accel-player)
     (sound-stop (-> self darkjak tone))
-    ;; og:preserve-this MODDED - Ensure all dark eco is consumed when dark jak mode ends (AI-assisted)
-    (set! (-> self game eco-pill-dark) 0.0)
+    ;; og:preserve-this MODDED - drain 100% of the dark eco reserve when Dark Jak mode ends.
+    ;; Gated: stock retains the reserve proportionally.
+    (if *mod-dark-jak-enhanced-enable*
+        (set! (-> self game eco-pill-dark) 0.0)
+        )
     ;; og:preserve-this trigger effects
     (when (pc-get-trigger-effects-enabled?)
       (pc-clear-trigger-effect! (pc-trigger-effect-option left)))
@@ -114,8 +130,10 @@
        )
      (target-danger-set! (-> self control danger-mode) #f)
      (update-transforms (-> self control))
-     ;; og:preserve-this MODDED - R2 manual cancel to return to normal Jak in any state (AI-assisted)
-     (if (and (cpad-pressed? (-> self control cpad number) r2)
+     ;; og:preserve-this MODDED - R2 manual cancel to return to normal Jak in any state (AI-assisted).
+     ;; Gated: stock has no manual cancel (Dark Jak only ends on its timer).
+     (if (and *mod-dark-jak-enhanced-enable*
+              (cpad-pressed? (-> self control cpad number) r2)
               (not (focus-test? self dead dangerous hit grabbed))
               (not (and (-> self next-state) (= (-> self next-state name) 'target-darkjak-get-off)))
               (not (logtest? (-> self darkjak stage) (darkjak-stage force-on)))
@@ -1015,11 +1033,15 @@
     (set! (-> self darkjak clock-pos) 1.0)
     (set! (-> self darkjak clock-vel) 0.0)
     (set! (-> self darkjak clock-on) #f)
-    ;; og:preserve-this MODDED - Super attack consumes all remaining dark eco (AI-assisted)
-    (set! (-> self game eco-pill-dark) 0.0)
-    (let ((f0-0 (vector-dot (-> self control dynam gravity-normal) (-> self control transv))))
-      (when (> f0-0 0.0)
-        (vector-! (-> self control transv) (-> self control transv) (vector-float*! (new-stack-vector0) (-> self control dynam gravity-normal) f0-0))
+    ;; og:preserve-this MODDED - Dark Bomb consumes all remaining dark eco, and instantly
+    ;; kills any upward momentum so the plunge starts on the frame it is triggered.
+    ;; Gated: stock keeps the eco reserve and lets the existing arc carry through.
+    (when *mod-dark-jak-enhanced-enable*
+      (set! (-> self game eco-pill-dark) 0.0)
+      (let ((f0-0 (vector-dot (-> self control dynam gravity-normal) (-> self control transv))))
+        (when (> f0-0 0.0)
+          (vector-! (-> self control transv) (-> self control transv) (vector-float*! (new-stack-vector0) (-> self control dynam gravity-normal) f0-0))
+          )
         )
       )
     (set! (-> self control unknown-sound-id00)
@@ -1062,7 +1084,12 @@
     (set! (-> self control mod-surface) *roll-flip-mods*)
     (set! (-> self alt-cam-pos quad) (-> self control trans quad))
     (let ((sv-16 (the-as float 0.0))
-          (sv-20 (if (and (nonzero? (-> self darkjak)) (logtest? (-> self darkjak stage) (darkjak-stage giant)))
+          ;; og:preserve-this MODDED - scale the Dark Bomb shockwave (visual + AoE) up with the
+          ;; giant/titan size. Gated: stock Dark Bomb is always 1.0x.
+          (sv-20 (if (and *mod-dark-jak-enhanced-enable*
+                          (nonzero? (-> self darkjak))
+                          (logtest? (-> self darkjak stage) (darkjak-stage giant))
+                          )
                      (-> self darkjak-giant-interp)
                      1.0
                      )
@@ -1471,39 +1498,74 @@
     )
   )
 
+;; og:preserve-this MODDED - "collision-resilient" Dark Blast: the mod version drops the
+;; on-surface / slide-down aborts so the barrage plays out in confined interiors and
+;; under low ceilings, and gives the state its own full teardown. All of it is gated --
+;; flag off restores the stock :exit (= bomb0's), :trans (with the aborts) and :code.
 (defstate target-darkjak-bomb1 (target)
   :event (-> target-darkjak-bomb0 event)
   :enter (-> target-attack-uppercut-jump enter)
   :exit (behavior ()
-    (set-action!
-      *gui-control*
-      (gui-action fade)
-      (-> self control unknown-sound-id00)
-      (gui-channel none)
-      (gui-action none)
-      (the-as string #f)
-      (the-as (function gui-connection symbol) #f)
-      (the-as process #f)
+    (cond
+      (*mod-dark-jak-enhanced-enable*
+       (set-action!
+         *gui-control*
+         (gui-action fade)
+         (-> self control unknown-sound-id00)
+         (gui-channel none)
+         (gui-action none)
+         (the-as string #f)
+         (the-as (function gui-connection symbol) #f)
+         (the-as process #f)
+         )
+       (logclear! (-> self state-flags) (state-flags sf6))
+       (target-exit)
+       (remove-setting! 'music-volume)
+       (remove-setting! 'sfx-volume)
+       (remove-setting! 'ambient-volume)
+       (set! (-> self darkjak clock-pos) 1.0)
+       (set! (-> self darkjak clock-vel) 0.0)
+       (set! (-> self darkjak clock-on) #f)
+       (update-rates! (-> *display* entity-clock) 1.0)
+       (update-rates! (-> *display* bg-clock) 1.0)
+       (update-rates! (-> *display* target-clock) 1.0)
+       )
+      (else
+       ;; STOCK: share target-darkjak-bomb0's exit
+       (let ((f (-> target-darkjak-bomb0 exit)))
+         (if f (f))
+         )
+       )
       )
-    (logclear! (-> self state-flags) (state-flags sf6))
-    (target-exit)
-    (remove-setting! 'music-volume)
-    (remove-setting! 'sfx-volume)
-    (remove-setting! 'ambient-volume)
-    (set! (-> self darkjak clock-pos) 1.0)
-    (set! (-> self darkjak clock-vel) 0.0)
-    (set! (-> self darkjak clock-on) #f)
-    (update-rates! (-> *display* entity-clock) 1.0)
-    (update-rates! (-> *display* bg-clock) 1.0)
-    (update-rates! (-> *display* target-clock) 1.0)
     )
   :trans (behavior ()
-    (mod-var-jump #t #t (cpad-hold? (-> self control cpad number) x) (-> self control transv))
-    (update-clock! (-> self darkjak) 8)
+    (cond
+      (*mod-dark-jak-enhanced-enable*
+       ;; og:preserve-this MODDED - no ground / slide abort: the barrage survives surface contact
+       (mod-var-jump #t #t (cpad-hold? (-> self control cpad number) x) (-> self control transv))
+       (update-clock! (-> self darkjak) 8)
+       )
+      (else
+       ;; STOCK
+       (if (logtest? (-> self control status) (collide-status on-surface))
+           (go target-hit-ground #f)
+           )
+       (mod-var-jump #t #t (cpad-hold? (-> self control cpad number) x) (-> self control transv))
+       (if (and (= (-> self control danger-mode) 'uppercut)
+                (< (vector-dot (-> self control dynam gravity-normal) (-> self control transv)) -8192.0)
+                )
+           (target-danger-set! 'harmless #f)
+           )
+       (slide-down-test)
+       (update-clock! (-> self darkjak) 8)
+       )
+      )
     )
   :code (behavior ((arg0 float) (arg1 float))
-    ;; og:preserve-this MODDED - Super attack consumes all remaining dark eco (AI-assisted)
-    (set! (-> self game eco-pill-dark) 0.0)
+    ;; og:preserve-this MODDED - super attack consumes all remaining dark eco (gated)
+    (if *mod-dark-jak-enhanced-enable*
+        (set! (-> self game eco-pill-dark) 0.0)
+        )
     (logior! (-> self state-flags) (state-flags sf4))
     (set! (-> self neck flex-blend) 0.0)
     (set-setting! 'music-volume 'rel 0.0 0)
@@ -1676,7 +1738,11 @@
               (if (and (focus-test? self dark)
                        (and (nonzero? (-> self darkjak)) (logtest? (-> self darkjak stage) (darkjak-stage giant)))
                        )
-                  (* 327680.0 (-> self darkjak-giant-interp))
+                  ;; og:preserve-this MODDED - Dark Blast reach scales with titan size (gated: stock 614400.0)
+                  (if *mod-dark-jak-enhanced-enable*
+                      (* 327680.0 (-> self darkjak-giant-interp))
+                      614400.0
+                      )
                   327680.0
                   )
               )
@@ -1801,7 +1867,13 @@
   :post target-post
   )
 
-;; og:preserve-this MODDED - Progressive Dark Giant (2.0x) & Mega-Giant Titan (3.5x) (AI-assisted)
+;; og:preserve-this MODDED - Progressive Dark Giant (2.0x) & Mega-Giant Titan (3.5x) (AI-assisted).
+;; No explicit flag check needed here: the mega path is only taken when this state is
+;; re-entered while already Giant (`already-giant?`), which only want-to-darkjak?'s MODDED
+;; branch permits. With the mod off, want-to-darkjak? is stock (Giant only reachable from
+;; Level 1, never re-triggered while Giant), so `already-giant?` is always #f and every
+;; branch below resolves to the stock 2.0x values -- and :exit's `(<= unknown-word04 1.0)`
+;; is equivalent to the stock `(= ... 1.0)` for the only reachable values (1.0 / 2.0).
 (defstate target-darkjak-giant (target)
   :event target-standard-event-handler
   :exit (behavior ()

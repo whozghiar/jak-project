@@ -72,6 +72,17 @@ task boot-game
 ```
 *(Or iterate fast via the OpenGOAL REPL using `task repl`, then hot-reload with `(mi)` and `(r)`).*
 
+### 5. Enable the Mod (OFF by default)
+This mod ships **disabled** — a fresh install plays Dark Jak exactly like stock
+Jak 2. Open the in-game debug menu and go to:
+
+```
+Debug ▸ Mods ▸ dark-jak-enhanced ▸ Enable
+```
+
+The choice persists across level reloads. Turn it off to restore vanilla Dark Jak
+(single story-gated Giant form, no `R2` cancel, no rolling, vanilla Dark Bomb / Blast).
+
 ## 🎥 Demonstration Video
 [![Demonstration Video](https://img.youtube.com/vi/eUS1cFZ_clg/maxresdefault.jpg)](https://youtu.be/eUS1cFZ_clg)
 
@@ -141,6 +152,18 @@ Lancez le jeu nativement :
 task boot-game
 ```
 *(Ou itérez rapidement via le REPL OpenGOAL avec `task repl`, puis rechargez à chaud avec `(mi)` et `(r)`).*
+
+### 5. Activer le Mod (DÉSACTIVÉ par défaut)
+Ce mod est livré **désactivé** — une installation neuve joue Dark Jak exactement
+comme dans Jak 2 d'origine. Ouvrez le menu debug en jeu et allez dans :
+
+```
+Debug ▸ Mods ▸ dark-jak-enhanced ▸ Enable
+```
+
+Le choix persiste au rechargement des niveaux. Désactivez-le pour rétablir le Dark
+Jak d'origine (Giant unique débloqué par l'histoire, pas d'annulation `R2`, pas de
+roulade, Dark Bomb / Blast d'origine).
 
 ## 🎥 Encart Vidéo Démonstrative
 [![Vidéo de Démonstration](https://img.youtube.com/vi/eUS1cFZ_clg/maxresdefault.jpg)](https://youtu.be/eUS1cFZ_clg)

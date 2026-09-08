@@ -396,6 +396,7 @@
   "anim-tester-x.o" ;; added
   "vag-player.o" ;; added
   "mods-menu.o" ;; added -- unified "Debug > Mods" tab (see pc/debug/mods-menu.gc)
+  "dark-jak-enhanced-menu.o" ;; dark_jak_enhanced mod -- Debug > Mods > dark-jak-enhanced on/off (after mods-menu.o)
   "default-menu-pc.o" ;; added
   "dir-tpages.go"
   "tpage-11.go"

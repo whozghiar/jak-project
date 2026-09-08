@@ -1040,11 +1040,20 @@
         (go target-double-jump (-> *TARGET-bank* double-jump-height-min) (-> *TARGET-bank* double-jump-height-max))
         )
     (if (and (cpad-pressed? (-> self control cpad number) square)
-             (or (and (focus-test? self dark) (nonzero? (-> self darkjak)))
+             ;; og:preserve-this MODDED - instant Dark Bomb: Dark Jak may trigger it at any point of
+             ;; the arc (bypassing the vertical-velocity window). Gated -> stock window when off.
+             (if *mod-dark-jak-enhanced-enable*
+                 (or (and (focus-test? self dark) (nonzero? (-> self darkjak)))
+                     (and (< (vector-dot (-> self control dynam gravity-normal) (-> self control transv))
+                             (* 26624.0 (-> self darkjak-giant-interp) (-> self darkjak-giant-interp))
+                             )
+                          (< (* -61440.0 (-> self darkjak-giant-interp)) (vector-dot (-> self control dynam gravity-normal) (-> self control transv)))
+                          )
+                     )
                  (and (< (vector-dot (-> self control dynam gravity-normal) (-> self control transv))
                          (* 26624.0 (-> self darkjak-giant-interp) (-> self darkjak-giant-interp))
                          )
-                      (< (* -61440.0 (-> self darkjak-giant-interp)) (vector-dot (-> self control dynam gravity-normal) (-> self control transv)))
+                      (< -61440.0 (vector-dot (-> self control dynam gravity-normal) (-> self control transv)))
                       )
                  )
              (and (time-elapsed? (-> self control last-time-of-stuck) (the-as time-frame (-> *TARGET-bank* stuck-timeout)))
@@ -1259,11 +1268,17 @@
             )
       )
     (if (and (cpad-pressed? (-> self control cpad number) square)
-             (or (and (focus-test? self dark) (nonzero? (-> self darkjak)))
-                 (and (< (vector-dot (-> self control dynam gravity-normal) (-> self control transv))
-                         (* 22118.4 (-> self darkjak-giant-interp))
-                         )
-                      (< (* -61440.0 (-> self darkjak-giant-interp)) (vector-dot (-> self control dynam gravity-normal) (-> self control transv)))
+             ;; og:preserve-this MODDED - instant Dark Bomb (Dark Jak bypasses the velocity window). Gated.
+             (if *mod-dark-jak-enhanced-enable*
+                 (or (and (focus-test? self dark) (nonzero? (-> self darkjak)))
+                     (and (< (vector-dot (-> self control dynam gravity-normal) (-> self control transv))
+                             (* 22118.4 (-> self darkjak-giant-interp))
+                             )
+                          (< (* -61440.0 (-> self darkjak-giant-interp)) (vector-dot (-> self control dynam gravity-normal) (-> self control transv)))
+                          )
+                     )
+                 (and (< (vector-dot (-> self control dynam gravity-normal) (-> self control transv)) 22118.4)
+                      (< -61440.0 (vector-dot (-> self control dynam gravity-normal) (-> self control transv)))
                       )
                  )
              (and (time-elapsed? (-> self control last-time-of-stuck) (the-as time-frame (-> *TARGET-bank* stuck-timeout)))
@@ -1398,11 +1413,17 @@
       )
     ;; og:preserve-this - High FPS Fix - https://github.com/open-goal/jak-project/pull/3178
     (if (and (recently-pressed? square)
-             (or (and (focus-test? self dark) (nonzero? (-> self darkjak)))
-                 (and (< (vector-dot (-> self control dynam gravity-normal) (-> self control transv))
-                         (* 73728.0 (-> self darkjak-giant-interp))
-                         )
-                      (< (* -61440.0 (-> self darkjak-giant-interp)) (vector-dot (-> self control dynam gravity-normal) (-> self control transv)))
+             ;; og:preserve-this MODDED - instant Dark Bomb (Dark Jak bypasses the velocity window). Gated.
+             (if *mod-dark-jak-enhanced-enable*
+                 (or (and (focus-test? self dark) (nonzero? (-> self darkjak)))
+                     (and (< (vector-dot (-> self control dynam gravity-normal) (-> self control transv))
+                             (* 73728.0 (-> self darkjak-giant-interp))
+                             )
+                          (< (* -61440.0 (-> self darkjak-giant-interp)) (vector-dot (-> self control dynam gravity-normal) (-> self control transv)))
+                          )
+                     )
+                 (and (< (vector-dot (-> self control dynam gravity-normal) (-> self control transv)) 73728.0)
+                      (< -61440.0 (vector-dot (-> self control dynam gravity-normal) (-> self control transv)))
                       )
                  )
              (and (time-elapsed? (-> self control last-time-of-stuck) (the-as time-frame (-> *TARGET-bank* stuck-timeout)))
@@ -3504,7 +3525,11 @@
             ((nonzero? s5-0)
              )
             (else
-              (align! (-> self align) (align-opts adjust-xz-vel) 1.0 1.0 (* f30-0 (-> self darkjak-giant-interp)))
+              ;; og:preserve-this MODDED - roll velocity scales with giant size. Gated: stock is
+              ;; unscaled (and this only ever differs for a rolling Giant, which is otherwise
+              ;; blocked, so it is effectively a no-op either way).
+              (align! (-> self align) (align-opts adjust-xz-vel) 1.0 1.0
+                      (if *mod-dark-jak-enhanced-enable* (* f30-0 (-> self darkjak-giant-interp)) f30-0))
               (let ((s3-2 (new-stack-vector0)))
                 (vector-matrix*! s3-2 (-> self control transv) (-> self control w-R-c))
                 (set! (-> s3-2 y) 0.0)
@@ -3522,9 +3547,13 @@
                    )
                (can-jump? 'target-roll-flip)
                )
-          (go target-roll-flip
-              (* (-> *TARGET-bank* roll-flip-height) (-> self darkjak-giant-interp))
-              (* (-> *TARGET-bank* roll-flip-dist) (-> self darkjak-giant-interp))
+          ;; og:preserve-this MODDED - roll-flip arc scales with giant size (gated; stock unscaled).
+          (if *mod-dark-jak-enhanced-enable*
+              (go target-roll-flip
+                  (* (-> *TARGET-bank* roll-flip-height) (-> self darkjak-giant-interp))
+                  (* (-> *TARGET-bank* roll-flip-dist) (-> self darkjak-giant-interp))
+                  )
+              (go target-roll-flip (-> *TARGET-bank* roll-flip-height) (-> *TARGET-bank* roll-flip-dist))
               )
           )
       )
@@ -3541,9 +3570,13 @@
                 (if (and (recently-pressed? x)
                          (can-jump? 'target-roll-flip)
                          )
-                    (go target-roll-flip
-                        (* (-> *TARGET-bank* roll-flip-height) (-> self darkjak-giant-interp))
-                        (* (-> *TARGET-bank* roll-flip-dist) (-> self darkjak-giant-interp))
+                    ;; og:preserve-this MODDED - roll-flip arc scales with giant size (gated; stock unscaled).
+                    (if *mod-dark-jak-enhanced-enable*
+                        (go target-roll-flip
+                            (* (-> *TARGET-bank* roll-flip-height) (-> self darkjak-giant-interp))
+                            (* (-> *TARGET-bank* roll-flip-dist) (-> self darkjak-giant-interp))
+                            )
+                        (go target-roll-flip (-> *TARGET-bank* roll-flip-height) (-> *TARGET-bank* roll-flip-dist))
                         )
                     )
                 )

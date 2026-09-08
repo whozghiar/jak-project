@@ -118,6 +118,25 @@
   (mega-giant)
   )
 
+;; ============================================================================
+;; Dark Jak Enhanced -- runtime enable flag (Debug > Mods > dark-jak-enhanced)
+;; ============================================================================
+;; Golden rule / non-regression: every behaviour this mod adds ships OFF by default
+;; behind this flag. With it #f a fresh install plays byte-for-byte like stock Jak 2 --
+;; Dark Jak keeps its story-gated single Giant form, retains eco proportionally, has no
+;; R2 cancel, cannot roll, and Dark Bomb / Dark Blast behave exactly as vanilla.
+;;
+;; Defined here (a non-debug header loaded very early in GAME.CGO) so the engine code
+;; that reads it -- target.gc / target-darkjak.gc / target-handler.gc / target-util.gc --
+;; always compiles, debug build or release. The debug-only menu file
+;; pc/debug/dark-jak-enhanced-menu.gc only flips it and registers it with the unified
+;; Mods tab via (mods-menu-register "dark-jak-enhanced" ...). See
+;; docs/modding/tools/mods_debug_menu.md.
+;;
+;; define-perm: #f on first boot, but a hot-reload (mi) of this header keeps the
+;; tester's current choice instead of snapping it back off.
+(define-perm *mod-dark-jak-enhanced-enable* symbol #f)
+
 ;; og:ignore-form:(new 'static 'boxed-array
 
 ;; DECOMP BEGINS

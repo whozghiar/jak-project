@@ -396,6 +396,7 @@
   "anim-tester-x.o" ;; added
   "vag-player.o" ;; added
   "mods-menu.o" ;; added -- unified "Debug > Mods" tab (see pc/debug/mods-menu.gc)
+  "enhanced-spawnrates-menu.o" ;; added -- Debug > Mods > enhanced-spawnrates (jak2/config/enhanced_spawnrates)
   "default-menu-pc.o" ;; added
   "dir-tpages.go"
   "tpage-11.go"

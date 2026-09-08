@@ -11,6 +11,10 @@
 
 (define *traffic-fast-spawn* #f)
 
+;; MOD enhanced-spawnrates: master toggle, defined (define-perm) in traffic-h.gc.
+;; Gates the want-count bump in init-params and the telemetry prints in update.
+(define-extern *mod-enhanced-spawnrates-enable* symbol)
+
 (deftype traffic-manager (process)
   ((traffic-engine    traffic-engine)
    (fast-spawn        symbol)
@@ -56,7 +60,9 @@
   (update-traffic (-> this traffic-engine))
   (kill-excess-once this)
   (spawn-all this)
-  (when (and *traffic-engine* (zero? (mod (current-time) (seconds 3))))
+  ;; MOD enhanced-spawnrates: traffic/memory telemetry, every 3s. OFF => silent
+  ;; (stock never prints this).
+  (when (and *mod-enhanced-spawnrates-enable* *traffic-engine* (zero? (mod (current-time) (seconds 3))))
     (format #t "[TRAFFIC STATS] Alert: ~D | Citizens: ~D/126 (inact: ~D) | Vehicles: ~D/126 (inact: ~D)~%"
             (-> this traffic-engine alert-state level)
             (-> this traffic-engine citizen-tracker-array active-object-count)
@@ -264,12 +270,17 @@
                         (+! spawned-nb 1)
                         )
                       (else
-                        (format #t "[TRAFFIC WARN] Unable to spawn type ~D! Active Citizens: ~D/126, Vehicles: ~D/126 | DeadPool Free: ~D KB~%"
-                                spawn-type
-                                (-> this traffic-engine citizen-tracker-array active-object-count)
-                                (-> this traffic-engine vehicle-tracker-array active-object-count)
-                                (/ (memory-free (the-as dead-pool-heap *default-dead-pool*)) 1024)
-                                )
+                        ;; MOD enhanced-spawnrates: verbose spawn-failure diagnostics.
+                        ;; OFF => the stock one-line message.
+                        (if *mod-enhanced-spawnrates-enable*
+                            (format #t "[TRAFFIC WARN] Unable to spawn type ~D! Active Citizens: ~D/126, Vehicles: ~D/126 | DeadPool Free: ~D KB~%"
+                                    spawn-type
+                                    (-> this traffic-engine citizen-tracker-array active-object-count)
+                                    (-> this traffic-engine vehicle-tracker-array active-object-count)
+                                    (/ (memory-free (the-as dead-pool-heap *default-dead-pool*)) 1024)
+                                    )
+                            (format #t "traffic-manager: unable to spawn~%")
+                            )
                         (goto cfg-41)))
                     )
                   )
@@ -469,25 +480,53 @@
 
 (defmethod init-params ((this traffic-manager))
   (let ((traffic-want-counts (new 'stack-no-clear 'array 'int8 21)))
-    (set! (-> traffic-want-counts 11) 16)
-    (set! (-> traffic-want-counts 12) 16)
-    (set! (-> traffic-want-counts 13) 16)
-    (set! (-> traffic-want-counts 14) 14)
-    (set! (-> traffic-want-counts 15) 14)
-    (set! (-> traffic-want-counts 16) 14)
-    (set! (-> traffic-want-counts 18) 10)
-    (set! (-> traffic-want-counts 19) 8)
-    (set! (-> traffic-want-counts 20) 0)
-    (set! (-> traffic-want-counts 0) 18)
-    (set! (-> traffic-want-counts 1) 18)
-    (set! (-> traffic-want-counts 2) 18)
-    (set! (-> traffic-want-counts 3) 2)
-    (set! (-> traffic-want-counts 4) 6)
-    (set! (-> traffic-want-counts 6) 22)
-    (set! (-> traffic-want-counts 7) 10)
-    (set! (-> traffic-want-counts 8) 18)
-    (set! (-> traffic-want-counts 9) 18)
-    (set! (-> traffic-want-counts 10) 18)
+    ;; MOD enhanced-spawnrates: near-doubled ambient want-counts for Haven City
+    ;; traffic. Read once at city (re)load, so the toggle applies on the next
+    ;; load. OFF => the exact stock want-counts.
+    (cond
+      (*mod-enhanced-spawnrates-enable*
+        (set! (-> traffic-want-counts 11) 16)
+        (set! (-> traffic-want-counts 12) 16)
+        (set! (-> traffic-want-counts 13) 16)
+        (set! (-> traffic-want-counts 14) 14)
+        (set! (-> traffic-want-counts 15) 14)
+        (set! (-> traffic-want-counts 16) 14)
+        (set! (-> traffic-want-counts 18) 10)
+        (set! (-> traffic-want-counts 19) 8)
+        (set! (-> traffic-want-counts 20) 0)
+        (set! (-> traffic-want-counts 0) 18)
+        (set! (-> traffic-want-counts 1) 18)
+        (set! (-> traffic-want-counts 2) 18)
+        (set! (-> traffic-want-counts 3) 2)
+        (set! (-> traffic-want-counts 4) 6)
+        (set! (-> traffic-want-counts 6) 22)
+        (set! (-> traffic-want-counts 7) 10)
+        (set! (-> traffic-want-counts 8) 18)
+        (set! (-> traffic-want-counts 9) 18)
+        (set! (-> traffic-want-counts 10) 18)
+        )
+      (else
+        (set! (-> traffic-want-counts 11) 8)
+        (set! (-> traffic-want-counts 12) 8)
+        (set! (-> traffic-want-counts 13) 8)
+        (set! (-> traffic-want-counts 14) 7)
+        (set! (-> traffic-want-counts 15) 7)
+        (set! (-> traffic-want-counts 16) 7)
+        (set! (-> traffic-want-counts 18) 4)
+        (set! (-> traffic-want-counts 19) 3)
+        (set! (-> traffic-want-counts 20) 0)
+        (set! (-> traffic-want-counts 0) 15)
+        (set! (-> traffic-want-counts 1) 15)
+        (set! (-> traffic-want-counts 2) 14)
+        (set! (-> traffic-want-counts 3) 1)
+        (set! (-> traffic-want-counts 4) 1)
+        (set! (-> traffic-want-counts 6) 9)
+        (set! (-> traffic-want-counts 7) 0)
+        (set! (-> traffic-want-counts 8) 14)
+        (set! (-> traffic-want-counts 9) 14)
+        (set! (-> traffic-want-counts 10) 14)
+        )
+      )
     (set! (-> this fast-spawn) *traffic-fast-spawn*)
     (reset-and-init this)
     (let ((v1-20 (-> this traffic-engine)))

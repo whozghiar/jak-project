@@ -7,6 +7,9 @@
 
 ;; DECOMP BEGINS
 
+;; MOD enhanced-spawnrates: master toggle, defined (define-perm) in traffic-h.gc.
+(define-extern *mod-enhanced-spawnrates-enable* symbol)
+
 (rlet ((vf0 :class vf) (vf4 :class vf) (vf5 :class vf) (vf6 :class vf))
 (init-vf0-vector)
 
@@ -794,8 +797,13 @@
   (set! (-> this nearest-y-threshold) (res-lump-float arg0 'nearest-y-threshold :default 40960.0))
   (set! (-> this flags) (nav-mesh-flag))
   (set! (-> this water-max-height) (res-lump-float arg0 'water-max-height :default 8192.0))
-  ;; Enhanced capacity for high-density mods (default raised from 64 to 128 concurrent users)
-  (let ((s5-1 (the-as uint128 (min 200 (max 128 (the-as int (res-lump-value arg0 'nav-max-users uint128 :default (the-as uint128 128) :time -1000000000.0)))))))
+  ;; MOD enhanced-spawnrates: when enabled, raise the nav-mesh concurrent-user
+  ;; capacity (clamped to [128,200]) so the denser ambient traffic + guards do
+  ;; not hit the stock 64-user ceiling. OFF => exact stock behaviour: default 64,
+  ;; no clamp. (*mod-enhanced-spawnrates-enable* lives in traffic-h.gc.)
+  (let ((s5-1 (if *mod-enhanced-spawnrates-enable*
+                  (the-as uint128 (min 200 (max 128 (the-as int (res-lump-value arg0 'nav-max-users uint128 :default (the-as uint128 128) :time -1000000000.0)))))
+                  (res-lump-value arg0 'nav-max-users uint128 :default (the-as uint128 64) :time -1000000000.0))))
     (set! (-> this user-list) (new 'loading-level 'engine 'nav-engine (the-as int s5-1) connection))
     (set! (-> this nav-control-array)
           (the-as (inline-array nav-control) (malloc 'loading-level (* 288 (the-as int s5-1))))

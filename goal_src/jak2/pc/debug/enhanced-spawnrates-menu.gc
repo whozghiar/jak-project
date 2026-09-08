@@ -1,0 +1,73 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+#|
+  ============================================================================
+  enhanced-spawnrates-menu.gc  ->  Debug > Mods > enhanced-spawnrates
+  ============================================================================
+
+  Registers the "Enhanced Spawn Rates" mod (branch
+  jak2/config/enhanced_spawnrates) with the unified "Mods" debug tab
+  (goal_src/jak2/pc/debug/mods-menu.gc), per the mandatory procedure in
+  docs/modding/tools/mods_debug_menu.md and CLAUDE.md's golden rules.
+
+  The mod raises Haven City ambient-traffic density, guard alert focus-target
+  counts, nav-mesh user capacity and cell-culling ranges, and turns on a small
+  traffic/memory telemetry print. Everything ships OFF: a fresh
+  compiled-but-disabled install plays byte-for-byte like stock Jak 2.
+
+  The flag is *mod-enhanced-spawnrates-enable*, defined (`define-perm`, #f) in
+  goal_src/jak2/engine/ai/traffic-h.gc -- a non-debug file resident in ENGINE +
+  GAME, next to (and before) every consumer, so the gated code links in release
+  builds too (this menu file is `(declare-file (debug))` and is stripped from
+  release).
+
+  IMPORTANT -- applies on the NEXT city load:
+    * want-counts are read once in traffic-manager/init-params at city load;
+    * nav-max-users is sized once in nav-mesh/init-from-entity at level load.
+  So after toggling Enable you must RELOAD Haven City (warp, enter/exit an
+  interior, or reboot) to see the denser traffic. The alert focus-count and
+  cell-cull overlays are read live and take effect immediately.
+
+  Wiring: "enhanced-spawnrates-menu.o" is listed in goal_src/jak2/dgos/game.gd
+  immediately after "mods-menu.o".
+|#
+
+;; debug-only file: stripped from release builds like the rest of the menu code.
+(declare-file (debug))
+
+;; the flag lives in traffic-h.gc; just declare its type for this file.
+(define-extern *mod-enhanced-spawnrates-enable* symbol)
+
+;; ============================================================================
+;; Pick-func -- no side effects, just flips the bool on `press`. The heavy
+;; changes (want-counts, nav capacity) are re-read on the next city load; the
+;; live overlays (alert counts, cull ranges) pick up the new value next frame.
+;; ============================================================================
+
+(defun mod-enhanced-spawnrates-enable-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Master enable toggle. arg0's `value` slot is *mod-enhanced-spawnrates-enable*."
+  (if (= arg1 (debug-menu-msg press))
+      (set! (-> arg0 value) (not (-> arg0 value))))
+  (-> arg0 value)
+  )
+
+;; ============================================================================
+;; Menu builder -- pure: only builds and returns the submenu node.
+;; ============================================================================
+
+(defun mod-enhanced-spawnrates-build-menu ((ctx debug-menu-context))
+  "Return the 'enhanced-spawnrates' submenu node."
+  (debug-menu-make-from-template ctx
+    '(menu "enhanced-spawnrates"
+       (flag "Enable (denser traffic - reload the city to apply)"
+             *mod-enhanced-spawnrates-enable* mod-enhanced-spawnrates-enable-pick)
+       )
+    )
+  )
+
+;; ============================================================================
+;; Register with the unified Mods tab (top-level, runs at file load / (mi)).
+;; ============================================================================
+
+(mods-menu-register "enhanced-spawnrates" mod-enhanced-spawnrates-build-menu)

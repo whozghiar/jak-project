@@ -150,3 +150,25 @@
   ))
 
 (define-extern traffic-object-spawn (function process traffic-object-spawn-params process-drawable))
+
+;; ============================================================================
+;; MOD: enhanced-spawnrates   (branch jak2/config/enhanced_spawnrates)
+;; ----------------------------------------------------------------------------
+;; Master runtime switch for the "Enhanced Spawn Rates" mod. Ships #f: a fresh
+;; compiled-but-disabled install plays byte-for-byte like stock Jak 2.
+;;
+;; When toggled #t (Debug > Mods > enhanced-spawnrates > Enable) it raises, at
+;; the next city (re)load:
+;;   - Haven City ambient traffic want-counts    (traffic-manager.gc/init-params)
+;;   - guard alert focus-target counts per level  (traffic-engine.gc/update-alert-state)
+;;   - traffic density / cell-cull ranges         (traffic-engine.gc)
+;;   - nav-mesh concurrent-user capacity          (nav-mesh.gc/init-from-entity)
+;; and enables the traffic telemetry prints in traffic-manager.gc/update.
+;;
+;; `define-perm` => the toggled-on value survives file & level reloads
+;; (expands to define-extern + define-once). Defined here in traffic-h (resident
+;; in ENGINE + GAME) so every consumer -- including nav-mesh.gc, which also runs
+;; outside the city -- links against a real symbol in release builds too. The
+;; Debug-menu file only (define-extern)s it.
+;; ============================================================================
+(define-perm *mod-enhanced-spawnrates-enable* symbol #f)

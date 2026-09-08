@@ -2275,10 +2275,13 @@
   (none)
   )
 
+;; MOD enhanced-spawnrates: master toggle, defined (define-perm) in traffic-h.gc.
+(define-extern *mod-enhanced-spawnrates-enable* symbol)
+
 (define *alert-level-settings* (new 'static 'inline-array traffic-alert-state-settings 5
                                  (new 'static 'traffic-alert-state-settings
                                    :ped-tazer (new 'static 'traffic-guard-type-settings
-                                     :target-count 12
+                                     :target-count 5
                                      :inaccuracy 0.5
                                      :acquire-delay (seconds 1)
                                      :shot-delay (seconds 0.25)
@@ -2286,7 +2289,6 @@
                                      :shot-count 1
                                      )
                                    :ped-rifle (new 'static 'traffic-guard-type-settings
-                                     :target-count 6
                                      :inaccuracy 0.5
                                      :acquire-delay (seconds 1)
                                      :shot-delay (seconds 0.25)
@@ -2309,7 +2311,7 @@
                                      :shot-count 1
                                      )
                                    :bike-turret (new 'static 'traffic-guard-type-settings
-                                     :target-count 2
+                                     :target-count 1
                                      :inaccuracy 0.5
                                      :acquire-delay (seconds 1)
                                      :shot-delay (seconds 0.25)
@@ -2318,7 +2320,7 @@
                                      :rand-shot-count 1
                                      )
                                    :hellcat-turret (new 'static 'traffic-guard-type-settings
-                                     :target-count 2
+                                     :target-count 1
                                      :inaccuracy 0.5
                                      :acquire-delay (seconds 1)
                                      :shot-delay (seconds 0.25)
@@ -2329,7 +2331,7 @@
                                    )
                                  (new 'static 'traffic-alert-state-settings
                                    :ped-tazer (new 'static 'traffic-guard-type-settings
-                                     :target-count 12
+                                     :target-count 5
                                      :inaccuracy 0.5
                                      :acquire-delay (seconds 1)
                                      :shot-delay (seconds 0.25)
@@ -2337,7 +2339,6 @@
                                      :shot-count 1
                                      )
                                    :ped-rifle (new 'static 'traffic-guard-type-settings
-                                     :target-count 8
                                      :inaccuracy 0.5
                                      :acquire-delay (seconds 1)
                                      :shot-delay (seconds 0.25)
@@ -2360,44 +2361,41 @@
                                      :shot-count 1
                                      )
                                    :bike-turret (new 'static 'traffic-guard-type-settings
+                                     :inaccuracy 0.5
+                                     :acquire-delay (seconds 1)
+                                     :shot-delay (seconds 0.25)
+                                     :burst-delay (seconds 5)
+                                     :shot-count 2
+                                     :rand-shot-count 1
+                                     )
+                                   :hellcat-turret (new 'static 'traffic-guard-type-settings
+                                     :inaccuracy 0.5
+                                     :acquire-delay (seconds 1)
+                                     :shot-delay (seconds 0.25)
+                                     :burst-delay (seconds 5)
+                                     :shot-count 2
+                                     :rand-shot-count 1
+                                     )
+                                   )
+                                 (new 'static 'traffic-alert-state-settings
+                                   :ped-tazer (new 'static 'traffic-guard-type-settings
+                                     :target-count 3
+                                     :inaccuracy 0.5
+                                     :acquire-delay (seconds 1)
+                                     :shot-delay (seconds 0.25)
+                                     :burst-delay (seconds 2)
+                                     :shot-count 1
+                                     )
+                                   :ped-rifle (new 'static 'traffic-guard-type-settings
                                      :target-count 4
                                      :inaccuracy 0.5
                                      :acquire-delay (seconds 1)
                                      :shot-delay (seconds 0.25)
-                                     :burst-delay (seconds 5)
-                                     :shot-count 2
-                                     :rand-shot-count 1
-                                     )
-                                   :hellcat-turret (new 'static 'traffic-guard-type-settings
-                                     :target-count 2
-                                     :inaccuracy 0.5
-                                     :acquire-delay (seconds 1)
-                                     :shot-delay (seconds 0.25)
-                                     :burst-delay (seconds 5)
-                                     :shot-count 2
-                                     :rand-shot-count 1
-                                     )
-                                   )
-                                 (new 'static 'traffic-alert-state-settings
-                                   :ped-tazer (new 'static 'traffic-guard-type-settings
-                                     :target-count 10
-                                     :inaccuracy 0.5
-                                     :acquire-delay (seconds 1)
-                                     :shot-delay (seconds 0.25)
-                                     :burst-delay (seconds 2)
-                                     :shot-count 1
-                                     )
-                                   :ped-rifle (new 'static 'traffic-guard-type-settings
-                                     :target-count 14
-                                     :inaccuracy 0.5
-                                     :acquire-delay (seconds 1)
-                                     :shot-delay (seconds 0.25)
                                      :burst-delay (seconds 2)
                                      :shot-count 2
                                      :rand-shot-count 1
                                      )
                                    :ped-grenade (new 'static 'traffic-guard-type-settings
-                                     :target-count 2
                                      :inaccuracy 0.5
                                      :acquire-delay (seconds 1)
                                      :shot-delay (seconds 0.25)
@@ -2412,7 +2410,7 @@
                                      :shot-count 1
                                      )
                                    :bike-turret (new 'static 'traffic-guard-type-settings
-                                     :target-count 6
+                                     :target-count 2
                                      :inaccuracy 0.5
                                      :acquire-delay (seconds 1)
                                      :shot-delay (seconds 0.25)
@@ -2421,7 +2419,6 @@
                                      :rand-shot-count 1
                                      )
                                    :hellcat-turret (new 'static 'traffic-guard-type-settings
-                                     :target-count 4
                                      :inaccuracy 0.5
                                      :acquire-delay (seconds 1)
                                      :shot-delay (seconds 0.25)
@@ -2432,7 +2429,7 @@
                                    )
                                  (new 'static 'traffic-alert-state-settings
                                    :ped-tazer (new 'static 'traffic-guard-type-settings
-                                     :target-count 8
+                                     :target-count 2
                                      :inaccuracy 0.5
                                      :acquire-delay (seconds 1)
                                      :shot-delay (seconds 0.25)
@@ -2440,7 +2437,7 @@
                                      :shot-count 1
                                      )
                                    :ped-rifle (new 'static 'traffic-guard-type-settings
-                                     :target-count 18
+                                     :target-count 7
                                      :inaccuracy 0.25
                                      :acquire-delay (seconds 1)
                                      :shot-delay (seconds 0.25)
@@ -2449,7 +2446,6 @@
                                      :rand-shot-count 1
                                      )
                                    :ped-grenade (new 'static 'traffic-guard-type-settings
-                                     :target-count 4
                                      :inaccuracy 0.5
                                      :acquire-delay (seconds 1)
                                      :shot-delay (seconds 0.25)
@@ -2464,7 +2460,7 @@
                                      :shot-count 1
                                      )
                                    :bike-turret (new 'static 'traffic-guard-type-settings
-                                     :target-count 8
+                                     :target-count 3
                                      :inaccuracy 0.25
                                      :acquire-delay (seconds 0.75)
                                      :shot-delay (seconds 0.25)
@@ -2473,7 +2469,7 @@
                                      :rand-shot-count 1
                                      )
                                    :hellcat-turret (new 'static 'traffic-guard-type-settings
-                                     :target-count 6
+                                     :target-count 2
                                      :inaccuracy 0.25
                                      :acquire-delay (seconds 0.75)
                                      :shot-delay (seconds 0.25)
@@ -2484,7 +2480,7 @@
                                    )
                                  (new 'static 'traffic-alert-state-settings
                                    :ped-tazer (new 'static 'traffic-guard-type-settings
-                                     :target-count 8
+                                     :target-count 2
                                      :inaccuracy 0.125
                                      :acquire-delay (seconds 0.5)
                                      :shot-delay (seconds 0.25)
@@ -2492,7 +2488,7 @@
                                      :shot-count 1
                                      )
                                    :ped-rifle (new 'static 'traffic-guard-type-settings
-                                     :target-count 22
+                                     :target-count 7
                                      :inaccuracy 0.125
                                      :acquire-delay (seconds 0.5)
                                      :shot-delay (seconds 0.15)
@@ -2501,7 +2497,6 @@
                                      :rand-shot-count 2
                                      )
                                    :ped-grenade (new 'static 'traffic-guard-type-settings
-                                     :target-count 6
                                      :inaccuracy 0.125
                                      :acquire-delay (seconds 1)
                                      :shot-delay (seconds 0.25)
@@ -2516,7 +2511,7 @@
                                      :shot-count 1
                                      )
                                    :bike-turret (new 'static 'traffic-guard-type-settings
-                                     :target-count 10
+                                     :target-count 3
                                      :inaccuracy 0.125
                                      :acquire-delay (seconds 0.5)
                                      :shot-delay (seconds 0.25)
@@ -2525,7 +2520,7 @@
                                      :rand-shot-count 2
                                      )
                                    :hellcat-turret (new 'static 'traffic-guard-type-settings
-                                     :target-count 8
+                                     :target-count 2
                                      :inaccuracy 0.125
                                      :acquire-delay (seconds 0.5)
                                      :shot-delay (seconds 0.25)
@@ -2536,6 +2531,26 @@
                                    )
                                  )
         )
+
+
+;; ============================================================================
+;; MOD enhanced-spawnrates: guard focus-target counts, overlaid on the stock
+;; *alert-level-settings* above ONLY while *mod-enhanced-spawnrates-enable*.
+;; Indexed [alert-level * 6 + guard-type]; guard-type order matches
+;; traffic-alert-state-settings.guard-settings-array:
+;;   0 ped-tazer  1 ped-rifle  2 ped-grenade  3 ped-roboguard
+;;   4 bike-turret  5 hellcat-turret
+;; A 0 leaves that slot at the stock value's intent (stock never focuses those
+;; types at that level either). Applied in update-alert-state after the mem-copy.
+;; ============================================================================
+(define *mod-esr-alert-target-counts* (new 'static 'boxed-array :type int32
+  ;; tazer rifle gren robo bike hell
+     12    6    0    0    2    2   ;; alert level 0
+     12    8    0    0    4    2   ;; alert level 1
+     10   14    2    0    6    4   ;; alert level 2
+      8   18    4    0    8    6   ;; alert level 3
+      8   22    6    0   10    8   ;; alert level 4
+  ))
 
 (defmethod get-traffic-guard-type-settings ((this traffic-engine) (arg0 int))
   "TODO - guard-type should be an enum"
@@ -2691,6 +2706,17 @@
       (the-as pointer (-> this alert-state settings))
       (the-as pointer (-> *alert-level-settings* (-> this alert-state level)))
       96
+      )
+    ;; MOD enhanced-spawnrates: overlay higher guard focus-target counts per alert
+    ;; level so more guards actively engage during a chase. OFF => the stock
+    ;; per-level counts just mem-copied above are used unchanged.
+    (when *mod-enhanced-spawnrates-enable*
+      (let ((lvl (-> this alert-state level)))
+        (dotimes (gt 6)
+          (set! (-> this alert-state settings guard-settings-array gt target-count)
+                (-> *mod-esr-alert-target-counts* (+ (* lvl 6) gt)))
+          )
+        )
       )
     (dotimes (v1-10 6)
       (let ((a1-3 (-> this alert-state settings guard-settings-array v1-10))
@@ -2883,7 +2909,9 @@
     (-> this alert-state flags)
     (traffic-alert-flag guard-multi-focus sticky-guard-settings disable-pursuit-control)
     )
-  (set! (-> this inv-density-factor) 2.5)
+  ;; MOD enhanced-spawnrates: a lower inv-density-factor packs traffic tighter.
+  ;; OFF => stock 5.0.
+  (set! (-> this inv-density-factor) (if *mod-enhanced-spawnrates-enable* 2.5 5.0))
   (if (demo?)
       (set! (-> this inv-density-factor) 1.25)
       )
@@ -3372,10 +3400,12 @@
       (set! (-> a0-3 prev-flags) (-> a0-3 flags))
       )
     )
+  ;; MOD enhanced-spawnrates: widen the per-cell activation ranges so denser
+  ;; traffic stays populated further from camera. OFF => stock 81920 / 819200 / 491520.
   (let ((s5-0 (math-camera-pos))
-        (f30-0 122880.0)
-        (f28-0 983040.0)
-        (f26-0 655360.0)
+        (f30-0 (if *mod-enhanced-spawnrates-enable* 122880.0 81920.0))
+        (f28-0 (if *mod-enhanced-spawnrates-enable* 983040.0 819200.0))
+        (f26-0 (if *mod-enhanced-spawnrates-enable* 655360.0 491520.0))
         )
     (dotimes (s4-0 (the-as int (-> this city-info cell-count)))
       (let ((s3-0 (-> this city-info cell-array s4-0)))

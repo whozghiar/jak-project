@@ -21,6 +21,19 @@ Significantly intensifies the ambient atmosphere, military presence, and combat 
 - **Target Game:** Jak 2
 - **Active Branch:** `jak2/config/enhanced_spawnrates`
 
+**The mod ships OFF.** A fresh compiled-but-disabled install plays byte-for-byte
+like stock Jak 2 — stock traffic density, stock alert waves, stock nav-mesh
+limits, no console spam. Turn it on at `Debug ▸ Mods ▸ enhanced-spawnrates ▸
+Enable`.
+
+> ⚠️ **Reload Haven City after toggling `Enable`.** The ambient want-counts are
+> read once when the city loads (`traffic-manager/init-params`) and the nav-mesh
+> user quota is sized once per district on load (`nav-mesh/init-from-entity`), so
+> the denser traffic only appears **after you reload the city** — warp, step
+> through an interior, or reboot. The alert focus-count and cell-activation-range
+> parts of the mod are read live and apply on the next frame. The toggle choice
+> persists across level reloads.
+
 ## ✨ Key Features
 - **Peacetime Crimson Guard Patrols:** Quadrupled Crimson Guard rifle patrols (from 9 to 22), introduced 10 tazer guards during peace, and increased patrol guards (from 1 to 6).
 - **Military Vehicles:** Increased guard hover bikes from 4 to 10 and Crimson Guard Hellcat cruisers from 3 to 8.
@@ -28,6 +41,15 @@ Significantly intensifies the ambient atmosphere, military presence, and combat 
 - **Extended Detection & Activation Ranges:** Expanded cell activation radius from 200m to 240m for vehicles and 120m to 160m for pedestrians.
 - **Doubled Nav-Mesh Capacity:** Raised per-district nav-mesh user quota from 64 to 128 simultaneous pathfinding actors, permanently fixing the `too many users for nav-mesh` crash during district streaming.
 - **Real-Time Memory & Population Diagnostics:** Live console logging of active/inactive entities, alarm level, and remaining `*default-dead-pool*` memory headroom.
+- **Ships OFF, one runtime switch:** everything above is gated behind a single `*mod-enhanced-spawnrates-enable*` flag, toggled from `Debug ▸ Mods ▸ enhanced-spawnrates ▸ Enable`. Disabled = stock Jak 2.
+
+## 🎮 Usage & Controls
+1. Boot the game, open the debug menu (`~` / select+L1 depending on your setup) and go to **`Debug ▸ Mods ▸ enhanced-spawnrates`**.
+2. Toggle **`Enable`**.
+3. **Reload Haven City** (warp, or enter and leave any interior) so `init-params` re-reads the want-counts and the nav-mesh is re-sized — otherwise you keep stock traffic density.
+4. To turn the mod off again: toggle `Enable` off and reload the city once more.
+
+There are no in-world keybindings; the mod is entirely data/spawn tuning.
 
 ## 🚀 Step-by-Step Guide to Run the Mod
 
@@ -39,7 +61,7 @@ task set-game-jak2
 
 ### 2. Binary Compilation
 - **Status:** Layer 3 (GOAL only) — Not required if standard binaries already exist.
-- **Details:** Only GOAL scripts are modified (`traffic-manager.gc`, `traffic-engine.gc`, `nav-mesh.gc`). No C++ rebuild needed. For a first-time build, use the fast targeted task:
+- **Details:** Only GOAL scripts are modified (`traffic-h.gc`, `traffic-manager.gc`, `traffic-engine.gc`, `nav-mesh.gc`, the new `pc/debug/enhanced-spawnrates-menu.gc`, and `dgos/game.gd`). No C++ rebuild needed. For a first-time build, use the fast targeted task:
 ```bash
 task build-release-game
 ```
@@ -77,6 +99,20 @@ Intensifie considérablement la vie ambiante, la présence militaire et le dange
 - **Jeu Ciblé :** Jak 2
 - **Branche Active :** `jak2/config/enhanced_spawnrates`
 
+**Le mod est livré DÉSACTIVÉ.** Une installation neuve compilée-mais-désactivée
+joue un Jak 2 identique à l'original — densité de trafic, vagues d'alerte et
+limites nav-mesh d'origine, aucun message console. Activez-le dans
+`Debug ▸ Mods ▸ enhanced-spawnrates ▸ Enable`.
+
+> ⚠️ **Rechargez Abriville après avoir activé `Enable`.** Les want-counts ambiants
+> sont lus une seule fois au chargement de la ville (`traffic-manager/init-params`)
+> et le quota d'utilisateurs du nav-mesh est dimensionné une fois par quartier au
+> chargement (`nav-mesh/init-from-entity`) : le trafic plus dense n'apparaît donc
+> **qu'après rechargement de la ville** — warp, passage par un intérieur, ou
+> redémarrage. Les parties « nombre de cibles en alerte » et « portée d'activation
+> des cellules » sont lues en direct et s'appliquent à la frame suivante. Le choix
+> de la bascule persiste au rechargement des niveaux.
+
 ## ✨ Fonctionnalités Clés
 - **Patrouilles de Gardes Grenat Hors-Alerte :** Gardes à fusil plus que doublés (de 9 à 22), ajout de 10 gardes tazer en temps de paix et augmentation des patrouilleurs (de 1 à 6).
 - **Véhicules Militaires Accrus :** Flotte de motos de garde augmentée de 4 à 10 et croiseurs Hellcat de 3 à 8.
@@ -84,6 +120,15 @@ Intensifie considérablement la vie ambiante, la présence militaire et le dange
 - **Portée de Détection et d'Activation Élargie :** Rayon des cellules de grille porté de 200m à 240m pour les véhicules et de 120m à 160m pour les piétons.
 - **Doublement de la Capacité Nav-Mesh :** Quota maximal de chaque nav-mesh doublé de 64 à 128 acteurs simultanés, éliminant définitivement les plantages `too many users for nav-mesh` lors du streaming entre quartiers.
 - **Diagnostics Mémoire & Population en Direct :** Suivi périodique en console des entités actives/inactives, de l'alarme et de la marge mémoire restante dans le heap de process (`*default-dead-pool*`).
+- **Livré DÉSACTIVÉ, un seul interrupteur :** tout ce qui précède est conditionné à l'unique variable `*mod-enhanced-spawnrates-enable*`, basculée depuis `Debug ▸ Mods ▸ enhanced-spawnrates ▸ Enable`. Désactivé = Jak 2 d'origine.
+
+## 🎮 Utilisation & Commandes
+1. Lancez le jeu, ouvrez le menu debug et allez dans **`Debug ▸ Mods ▸ enhanced-spawnrates`**.
+2. Basculez **`Enable`**.
+3. **Rechargez Abriville** (warp, ou entrez puis sortez d'un intérieur) pour que `init-params` relise les want-counts et que le nav-mesh soit redimensionné — sinon la densité de trafic reste celle d'origine.
+4. Pour désactiver le mod : rebasculez `Enable` et rechargez la ville une nouvelle fois.
+
+Aucune touche de jeu dédiée ; le mod n'est que du réglage de données / de spawn.
 
 ## 🚀 Guide Pas à Pas pour Lancer le Mod
 
@@ -95,7 +140,7 @@ task set-game-jak2
 
 ### 2. Compilation des Binaires
 - **Statut :** Couche 3 (GOAL uniquement) — Non requise si les binaires standards existent déjà.
-- **Détails :** Seuls les scripts GOAL sont modifiés (`traffic-manager.gc`, `traffic-engine.gc`, `nav-mesh.gc`), aucune recompilation C++ n'est nécessaire. En cas de premier build machine, utilisez la tâche ciblée rapide :
+- **Détails :** Seuls des scripts GOAL sont modifiés (`traffic-h.gc`, `traffic-manager.gc`, `traffic-engine.gc`, `nav-mesh.gc`, le nouveau `pc/debug/enhanced-spawnrates-menu.gc` et `dgos/game.gd`), aucune recompilation C++ n'est nécessaire. En cas de premier build machine, utilisez la tâche ciblée rapide :
 ```bash
 task build-release-game
 ```

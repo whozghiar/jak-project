@@ -7,6 +7,10 @@
 
 (define-extern ctywide-entity-hack (function none))
 
+;; MOD transport-ag/alert: switch defined (define-perm) in traffic-manager.gc,
+;; also resident in the CWI DGO. Declared here for the gate just below.
+(define-extern *mod-transport-ag-alert-enable* symbol)
+
 ;; DECOMP BEGINS
 
 (defskelgroup skel-vehicle-turret vehicle-turret vehicle-turret-lod0-jg vehicle-turret-idle-ja
@@ -497,7 +501,12 @@
   (set! (-> self count-guard) (the-as uint 0))
   (set! (-> self nav-mesh) (-> arg0 nav-mesh))
   (set! (-> self max-time) 0.0)
-  (ctywide-entity-hack)
+  ;; MOD transport-ag/alert: the .fr3-baked transport-ag hull only needs this
+  ;; city-wide entity hack for the mod's alert drop-ship. Retail story transports
+  ;; ran fine without it, so keep it gated behind the mod toggle (OFF by default).
+  (when *mod-transport-ag-alert-enable*
+    (ctywide-entity-hack)
+    )
   (initialize-skeleton
     self
     (the-as skeleton-group (art-group-get-by-name *level* "skel-transport" (the-as (pointer uint32) #f)))

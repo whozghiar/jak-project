@@ -11,6 +11,22 @@
 
 (define *traffic-fast-spawn* #f)
 
+;; ============================================================================
+;; MOD: transport-ag / alert -- runtime on/off switch (Debug > Mods)
+;; ============================================================================
+;; Native non-regression: the scripted alert drop-ship ships OFF. With this
+;; symbol #f the city behaves exactly like stock Jak 2 -- `update-alert-transport`
+;; is never called (see `active` :post) and `transport-init-by-other`'s extra
+;; `(ctywide-entity-hack)` is skipped, so retail story transports are untouched.
+;;
+;; `define-perm` (define-extern + define-once): the #t set from the menu survives
+;; file / level reloads. Defined here -- a non-debug file resident in the CWI DGO
+;; alongside every site that reads it -- and NOT in the menu file, which is
+;; `(declare-file (debug))` and stripped from release builds. The menu file
+;; (goal_src/jak2/pc/debug/transport-ag-alert-menu.gc, wired into game.gd after
+;; mods-menu.o) only `define-extern`s it and flips it.
+(define-perm *mod-transport-ag-alert-enable* symbol #f)
+
 (deftype traffic-manager (process)
   ((traffic-engine              traffic-engine)
    (fast-spawn                  symbol)
@@ -851,7 +867,11 @@
   :code sleep-code
   :post (behavior ()
     (update self)
-    (update-alert-transport self)
+    ;; MOD transport-ag/alert: only run the drop-ship scheduler when the mod is
+    ;; enabled from Debug > Mods. OFF by default => stock traffic-manager :post.
+    (when *mod-transport-ag-alert-enable*
+      (update-alert-transport self)
+      )
     )
   )
 

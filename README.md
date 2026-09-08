@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/OpenGOAL-Mod-blue.svg" alt="OpenGOAL Mod">
   <img src="https://img.shields.io/badge/Game-Jak%202-orange.svg" alt="Game">
-  <img src="https://img.shields.io/badge/Branch-jak2%2Ffeatures%2Ftransport__alert-green.svg" alt="Branch">
+  <img src="https://img.shields.io/badge/Branch-jak2%2Ffeatures%2Ftransport--ag%2Falert-green.svg" alt="Branch">
   <img src="https://img.shields.io/badge/AI--assisted-Modding-purple.svg" alt="AI Assisted">
 </p>
 
@@ -19,7 +19,7 @@
 While Haven City is on **alert (level ≥ 1)**, a **Crimson Guard Troop Transport** (`transport-ag`, the retail drop-ship) descends near the player roughly **once per minute**, deploys a squad of Crimson Guards, and departs. It is a scripted reinforcement actor tied to the city alert system.
 
 - **Target Game:** Jak 2
-- **Active Branch:** `jak2/features/transport_alert`
+- **Active Branch:** `jak2/features/transport-ag/alert`
 
 ## ✨ Key Features
 - **Feature:** Scripted troop drop-ship spawns 10–18 m from the player during city alerts (level ≥ 1).
@@ -57,6 +57,16 @@ task boot-game
 ```
 *(Or iterate fast via the OpenGOAL REPL using `task repl`, then hot-reload with `(mi)` and `(r)`).*
 
+### 5. Enable the Mod (OFF by default)
+This mod ships **disabled** — a fresh install plays Haven City exactly like stock
+Jak 2 (no alert drop-ship, retail story transports untouched). Open the in-game
+debug menu and go to:
+
+```
+Debug ▸ Mods ▸ transport-ag-alert ▸ Enable
+```
+
+The choice persists across level reloads. Turn it off to restore vanilla traffic.
 
 ## 🎥 Demonstration Video
 [![Demonstration Video](https://img.youtube.com/vi/yF5ZNcgOR10 /maxresdefault.jpg)](https://youtu.be/yF5ZNcgOR10 )
@@ -75,7 +85,7 @@ For the complete technical breakdown, architecture, and developer notes, refer t
 Tant qu'Abriville est en **alerte (niveau ≥ 1)**, un **Transport de Troupes des Gardes Grenat** (`transport-ag`, le drop-ship du jeu d'origine) descend près du joueur environ **une fois par minute**, déploie une escouade de Gardes Grenat, puis repart. Il s'agit d'un renfort scripté directement relié à l'état d'alerte de la ville.
 
 - **Jeu Ciblé :** Jak 2
-- **Branche Active :** `jak2/features/transport_alert`
+- **Branche Active :** `jak2/features/transport-ag/alert`
 
 ## ✨ Fonctionnalités Clés
 - **Fonctionnalité :** Apparition d'un drop-ship de troupes à 10–18 m du joueur en situation d'alerte (niveau ≥ 1).
@@ -112,6 +122,18 @@ Lancez le jeu nativement :
 task boot-game
 ```
 *(Ou itérez rapidement via le REPL OpenGOAL avec `task repl`, puis rechargez à chaud avec `(mi)` et `(r)`).*
+
+### 5. Activer le Mod (DÉSACTIVÉ par défaut)
+Ce mod est livré **désactivé** — une installation neuve joue Abriville exactement
+comme dans Jak 2 d'origine (pas de drop-ship d'alerte, transports scriptés de
+l'histoire intacts). Ouvrez le menu debug en jeu et allez dans :
+
+```
+Debug ▸ Mods ▸ transport-ag-alert ▸ Enable
+```
+
+Le choix persiste au rechargement des niveaux. Désactivez-le pour rétablir le
+trafic d'origine.
 
 ## 🎥 Encart Vidéo Démonstrative
 [![Vidéo de Démonstration](https://img.youtube.com/vi/yF5ZNcgOR10 /maxresdefault.jpg)](https://youtu.be/yF5ZNcgOR10 )

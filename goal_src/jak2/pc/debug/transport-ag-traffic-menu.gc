@@ -1,0 +1,61 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+#|
+  ============================================================================
+  transport-ag-traffic-menu.gc -- Debug > Mods > transport-ag-traffic
+  ============================================================================
+
+  Registers the "transport-ag / traffic" mod's on/off switch with the unified
+  "Mods" debug tab (goal_src/jak2/pc/debug/mods-menu.gc), per the mandatory
+  procedure in docs/modding/tools/mods_debug_menu.md and CLAUDE.md's golden
+  rules.
+
+  This file only declares the flag's type and registers the menu row. The flag
+  itself, *mod-transport-ag-traffic-enable*, is defined (define-perm, #f default)
+  in goal_src/jak2/levels/city/traffic/traffic-manager.gc -- a non-debug file
+  resident in the CWI DGO next to every site that reads it -- so the gated code
+  compiles in release builds too (this menu file is (declare-file (debug)) and
+  is stripped from release).
+
+  The whole mod is one cohesive behaviour (a drivable Crimson Guard troop
+  transport gunship woven into the city's high-altitude traffic lanes: hijack,
+  turret, alert pursuit, squad drop), so a single master toggle is exposed.
+  With it OFF the traffic want-count for the transport-v slot is 0, so no
+  transport-v is ever spawned and none of car.gc's transport-v code runs.
+
+  NOTE: the want-count is read in `traffic-manager` `init-params`, which runs
+  when the city (re)loads -- toggling this flag takes effect on the next city
+  load / level reload, not instantly mid-frame.
+
+  Wiring: "transport-ag-traffic-menu.o" is listed in goal_src/jak2/dgos/game.gd
+  immediately after "mods-menu.o".
+|#
+
+;; debug-only file: stripped from release builds like the rest of the menu code.
+(declare-file (debug))
+
+;; the flag lives in traffic-manager.gc; just declare its type for this file.
+(define-extern *mod-transport-ag-traffic-enable* symbol)
+
+;; ============================================================================
+;; Menu builder -- pure: only builds and returns the submenu node.
+;; ============================================================================
+
+(defun mod-transport-ag-traffic-build-menu ((ctx debug-menu-context))
+  "Return the 'transport-ag-traffic' submenu node."
+  (debug-menu-make-from-template ctx
+    '(menu "transport-ag-traffic"
+       ;; plain boolean -- the traffic code reads *mod-transport-ag-traffic-enable*
+       ;; on city load, so the stock no-side-effect toggle pick-func is enough.
+       (flag "Enable (applies on next city load)"
+             *mod-transport-ag-traffic-enable* dm-boolean-toggle-pick-func)
+       )
+    )
+  )
+
+;; ============================================================================
+;; Register with the unified Mods tab (top-level, runs at file load / (mi)).
+;; ============================================================================
+
+(mods-menu-register "transport-ag-traffic" mod-transport-ag-traffic-build-menu)

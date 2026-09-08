@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/OpenGOAL-Mod-blue.svg" alt="OpenGOAL Mod">
   <img src="https://img.shields.io/badge/Game-Jak%202-orange.svg" alt="Game">
-  <img src="https://img.shields.io/badge/Branch-jak2%2Ffeatures%2Ftransport_traffic-green.svg" alt="Branch">
+  <img src="https://img.shields.io/badge/Branch-jak2%2Ffeatures%2Ftransport--ag%2Ftraffic-green.svg" alt="Branch">
   <img src="https://img.shields.io/badge/AI--assisted-Modding-purple.svg" alt="AI Assisted">
 </p>
 
@@ -19,7 +19,7 @@
 Integrates transport-v, an authentic Crimson Guard troop transport gunship into Haven City's ambient high-altitude traffic lanes, pilotable by Jak with a functional turret, chasing during alerts, and hovering to drop squads.
 
 - **Target Game:** Jak 2
-- **Active Branch:** `jak2/features/transport_traffic`
+- **Active Branch:** `jak2/features/transport-ag/traffic`
 
 ## ✨ Key Features
 - **Ambient High-Altitude Gunship:**  Dual-hull troop transport navigating city flight lanes with seated pilot and minimap icon.
@@ -57,6 +57,19 @@ task boot-game
 ```
 *(Or iterate fast via the OpenGOAL REPL using `task repl`, then hot-reload with `(mi)` and `(r)`).*
 
+### 5. Enable the Mod (OFF by default)
+This mod ships **disabled** — a fresh install has stock Haven City traffic (no
+transport gunship) and stock Crimson Guard behaviour. Open the in-game debug
+menu and go to:
+
+```
+Debug ▸ Mods ▸ transport-ag-traffic ▸ Enable
+```
+
+The choice persists across level reloads and **takes effect on the next city
+load** (the traffic want-count is read when the city loads). Turn it off and
+reload the city to restore vanilla traffic.
+
 ## 🎥 Demonstration Video
 [![Demonstration Video](https://img.youtube.com/vi/MnqnybexhSA/maxresdefault.jpg)](https://youtu.be/MnqnybexhSA)
 
@@ -74,7 +87,7 @@ For the complete technical breakdown, architecture, and developer notes, refer t
 Intègre transport-v, un véritable vaisseau de transport de troupes de la Garde Grenat dans le trafic aérien ambiant d'Abriville, pilotable par Jak avec tourelle fonctionnelle, poursuites d'alerte et largage de troupes.
 
 - **Jeu Ciblé :** Jak 2
-- **Branche Active :** `jak2/features/transport_traffic`
+- **Branche Active :** `jak2/features/transport-ag/traffic`
 
 ## ✨ Fonctionnalités Clés
 - **Canonnière dans le Trafic Aérien  :**  Vaisseau de transport à double coque naviguant dans les voies aériennes avec pilote assis et icône minimap.
@@ -111,6 +124,19 @@ Lancez le jeu nativement :
 task boot-game
 ```
 *(Ou itérez rapidement via le REPL OpenGOAL avec `task repl`, puis rechargez à chaud avec `(mi)` et `(r)`).*
+
+### 5. Activer le Mod (DÉSACTIVÉ par défaut)
+Ce mod est livré **désactivé** — une installation neuve a le trafic d'Abriville
+d'origine (pas de canonnière de transport) et le comportement d'origine des
+Gardes Grenat. Ouvrez le menu debug en jeu et allez dans :
+
+```
+Debug ▸ Mods ▸ transport-ag-traffic ▸ Enable
+```
+
+Le choix persiste au rechargement des niveaux et **prend effet au prochain
+chargement de la ville** (le want-count du trafic est lu au chargement de la
+ville). Désactivez-le et rechargez la ville pour rétablir le trafic d'origine.
 
 ## 🎥 Encart Vidéo Démonstrative
 [![Vidéo de Démonstration](https://img.youtube.com/vi/MnqnybexhSA/maxresdefault.jpg)](https://youtu.be/MnqnybexhSA)

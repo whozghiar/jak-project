@@ -11,6 +11,27 @@
 
 (define *traffic-fast-spawn* #f)
 
+;; ============================================================================
+;; MOD: transport-ag / traffic -- runtime on/off switch (Debug > Mods)
+;; ============================================================================
+;; Native non-regression: the Crimson Guard troop-transport gunship (`transport-v`,
+;; car.gc) ships OFF. With this symbol #f:
+;;   * traffic want-count for slot 20 stays 0  => the traffic engine never spawns
+;;     a transport-v, so none of car.gc's transport-v code ever runs;
+;;   * the `enemy-flag vulnerable` toggles added to `crimson-guard` `exit-transport`
+;;     / `enemy-method-93` are skipped, so guards dropped by the RETAIL scripted
+;;     `transport` behave byte-for-byte like stock.
+;; The renamed enum entries (traffic-type-20 -> transport-v, vehicle-type 11) and
+;; the extra `case` arms in `traffic-object-spawn` / `type-from-vehicle-type` are
+;; inert when want-count 20 is 0 (no transport-v is ever constructed).
+;;
+;; `define-perm` (define-extern + define-once): the #t set from the menu survives
+;; file / level reloads. Defined here -- non-debug, CWI-resident next to every
+;; reader -- NOT in the menu file, which is (declare-file (debug)) and stripped
+;; from release. The menu file (goal_src/jak2/pc/debug/transport-ag-traffic-menu.gc,
+;; wired into game.gd after mods-menu.o) only define-externs and flips it.
+(define-perm *mod-transport-ag-traffic-enable* symbol #f)
+
 (deftype traffic-manager (process)
   ((traffic-engine    traffic-engine)
    (fast-spawn        symbol)
@@ -468,9 +489,10 @@
     (set! (-> traffic-want-counts 18) 4)
     ;; hellcat (slot 19) left at the retail want-count 3.
     (set! (-> traffic-want-counts 19) 3)
-    ;; MOD (jak2/features/transport_v2): slot 20 = (traffic-type transport-v).
-    ;; At most 2 troop transports navigating the loaded city at once.
-    (set! (-> traffic-want-counts 20) 2)
+    ;; MOD (jak2/features/transport-ag/traffic): slot 20 = (traffic-type transport-v).
+    ;; At most 2 troop transports in the loaded city at once WHEN the mod is enabled
+    ;; from Debug > Mods; 0 (stock, no transport-v ever spawned) when disabled.
+    (set! (-> traffic-want-counts 20) (if *mod-transport-ag-traffic-enable* 2 0))
     (set! (-> traffic-want-counts 0) 15)
     (set! (-> traffic-want-counts 1) 15)
     (set! (-> traffic-want-counts 2) 14)

@@ -5,6 +5,11 @@
 ;; name in dgo: guard
 ;; dgos: CWI
 
+;; MOD transport-ag/traffic: switch defined (define-perm) in traffic-manager.gc,
+;; also resident in the CWI DGO. Declared here for the gates in `exit-transport`
+;; and `enemy-method-93` below (OFF => stock crimson-guard vulnerability).
+(define-extern *mod-transport-ag-traffic-enable* symbol)
+
 ;; DECOMP BEGINS
 
 (defskelgroup skel-crimson-guard crimson-guard crimson-guard-lod0-jg -1
@@ -3216,8 +3221,13 @@
   0
   (crimson-guard-method-220 this)
   (set! (-> this move-position quad) (-> this target-pos quad))
-  ;; MOD (jak2/features/transport_traffic): restore vulnerability on touchdown from jump
-  (logior! (-> this enemy-flags) (enemy-flag vulnerable))
+  ;; MOD transport-ag/traffic: restore vulnerability on touchdown from jump.
+  ;; Only the mod's transport-v drop makes guards temporarily invulnerable
+  ;; (see `exit-transport` below), so this counterpart is gated too -- OFF keeps
+  ;; stock crimson-guard flags untouched on a jump landing.
+  (when *mod-transport-ag-traffic-enable*
+    (logior! (-> this enemy-flags) (enemy-flag vulnerable))
+    )
   (go (method-of-object this hostile))
   (none)
   )
@@ -3316,8 +3326,12 @@
     (set-time! (-> self state-time))
     (logior! (-> self nav flags) (nav-control-flag output-sphere-hash))
     (logclear! (-> self flags) (citizen-flag hostile))
-    ;; MOD (jak2/features/transport_traffic): immune to damage while exiting transport and jumping
-    (logclear! (-> self enemy-flags) (enemy-flag vulnerable))
+    ;; MOD transport-ag/traffic: immune to damage while exiting the transport and
+    ;; jumping. Gated: the RETAIL scripted `transport` also drops guards through
+    ;; `exit-transport`, and stock never cleared `vulnerable` here -- OFF = stock.
+    (when *mod-transport-ag-traffic-enable*
+      (logclear! (-> self enemy-flags) (enemy-flag vulnerable))
+      )
     (nav-enemy-method-166 self)
     (let ((v1-9 (-> self nav)))
       (set! (-> v1-9 target-speed) (* (-> self speed-scale) (-> self enemy-info run-travel-speed)))
@@ -3328,10 +3342,13 @@
   :exit (behavior ()
     (set-vector! (-> self draw color-mult) 1.0 1.0 1.0 1.0)
     (logclear! (-> self nav flags) (nav-control-flag output-sphere-hash))
-    ;; MOD (jak2/features/transport_traffic): if exit-transport terminates without jumping, restore vulnerability
-    (if (!= (-> self next-state name) 'jump)
-        (logior! (-> self enemy-flags) (enemy-flag vulnerable))
-        )
+    ;; MOD transport-ag/traffic: if exit-transport terminates without jumping,
+    ;; restore the vulnerability the :enter cleared. Gated to match the :enter.
+    (when *mod-transport-ag-traffic-enable*
+      (if (!= (-> self next-state name) 'jump)
+          (logior! (-> self enemy-flags) (enemy-flag vulnerable))
+          )
+      )
     )
   :trans (behavior ()
     (rlet ((acc :class vf)

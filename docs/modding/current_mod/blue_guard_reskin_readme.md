@@ -217,13 +217,22 @@ unmodified `crimson-guard` code — nothing here adds guard-vs-guard retaliation
 | `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | `citizen-init!`, `general-event-handler` overrides + standalone `crimson-blue-guard-attack-guards` function | passivity toward Jak + manual guard-vs-guard trigger — see §5 |
 | `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | `crimson-guard-method-214`/`216`/`222` overrides (gun shot, line-of-sight probe, taser lightning) | purely positional fix: `crimson-blue-guard.glb`'s joint order differs from the native skeleton, so the muzzle/beam origin (native joints 14/15 "blast"/"dirblast") is read from this variant's own joints (28/29) instead — no behavior/timing/range change |
 | `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | `die` state + `crimson-blue-guard-dissolve-sequence` + `enemy-method-78` override | Robust custom actor death dissolution: skips standing die animation if `knocked-fatal?` so guard stays flat on the ground, plays `"enemy-fizz"`, launches purple dissolution particles (`merc-death-spawn 73`) across joints for 60 frames with jitter, and hides mesh on frame 5. Replaces `do-effect 'death-default` to prevent the C++ `generic_merc_death` crash (`exit status 5`) on dummy `build-actor` geometry |
-| `goal_src/jak2/engine/ai/traffic-h.gc` | `(define-extern *mod-city-peaceful?* symbol)` / `(define-extern *mod-city-insurrection?* symbol)` | forward declarations, same idiom as the pre-existing `*traffic-alert-level-force*` a few lines above, so `default-menu-pc.gc` can reference the flags regardless of compile order |
-| `goal_src/jak2/levels/city/traffic/traffic-manager.gc` | `*mod-city-peaceful?*` / `*mod-city-insurrection?*` globals, both default `#f` | mod-wide flags for two planned features (see §9) — defined here rather than in the debug-gated menu file so gameplay code can read them unconditionally; **no code reads them yet**, flipping them currently has zero effect |
-| `goal_src/jak2/pc/debug/default-menu-pc.gc` | new "Mods" debug-menu tab, two mutually-exclusive toggle pick-funcs (`dm-mod-city-peaceful-pick-func` / `dm-mod-city-insurrection-pick-func`) | UI scaffolding for §9 — reversible, additive, does not touch any existing menu entry |
+| `goal_src/jak2/engine/ai/traffic-h.gc` | `(define-extern *mod-city-peaceful?* symbol)` / `(define-extern *mod-city-insurrection?* symbol)` | forward declarations so engine code and the menu file can reference the flags regardless of compile order |
+| `goal_src/jak2/levels/city/traffic/citizen/mod-city-hooks.gc` | `*mod-city-peaceful?*` / `*mod-city-insurrection?*` globals, both default `#f` | CWI-resident non-debug home for the flags. `*mod-city-insurrection?*` is the **master enable** for this branch. |
+| `goal_src/jak2/pc/debug/crimson-blueguard-insurrection-menu.gc` *(new)* | `mod-crimson-blueguard-insurrection-build-menu` + 3 pick-funcs (`…-enable-pick`, `…-district-pick`, `…-music-pick`) + `dm-crimson-blueguard-insurrection-flush-guards`, registered via `(mods-menu-register "crimson-blueguard-insurrection" …)` | the mandatory Debug ▸ Mods toggle: `Enable` / `War zones` submenu / `War music` submenu. **Replaces** the old hand-rolled "Mods" root-menu block in `default-menu-pc.gc` (now reverted to stock). Wired in `game.gd` after `mods-menu.o`. |
+| `goal_src/jak2/dgos/game.gd` | `"crimson-blueguard-insurrection-menu.o"` after `"mods-menu.o"` | menu-file residency in GAME.CGO |
+| `goal_src/jak2/levels/city/traffic/traffic-manager.gc` | `*mod-city-insurrection?*` gate added to: `traffic-want-counts` slots 18/19 (`(if *mod-city-insurrection?* 8 4)` / `… 8 3)`), and the `spawn-all` dark-guard roll's pool-0/2 extension | OFF ⇒ retail want-counts and retail dark-guard eligibility |
+| `goal_src/jak2/levels/city/traffic/citizen/guard.gc` | `*mod-city-insurrection?*` gate added to every previously-ungated addition: the `'touched`/`'touch` melee case, the `'traffic-activate` intercept, `crimson-guard-method-214`'s grenade branch, the `dead` traffic-target drop, guard-type-2 ranged-fire eligibility, the 3→2/0 burst-count change, and both `event-self 'touched` cshape-init sets | OFF ⇒ every stock `crimson-guard` behaves byte-for-byte like retail |
 
-All changes are additive — no native file is emptied, no existing behavior is removed, and every
-new knob defaults to a value that reproduces the original behavior exactly (`native-header #f`,
-`*crimson-blue-guard-ratio*` only ever *substitutes* a spawn that was going to happen anyway).
+**Native non-regression:** with `*mod-city-insurrection?*` `#f` (the shipped default) Haven City is
+byte-for-byte stock Jak 2 — `mod-city-hooks.gc` installs `#f`-returning / stock-delegating hooks,
+`mod-city-insurrection-update-traffic` no-ops until the flag is first set, no `crimson-blue-guard`
+is ever constructed, and all the `guard.gc` war-zone tweaks above are gated. The only always-on
+deltas are cosmetic/harmless: the `crimson-blue-guard` art-group logs in at city load (unused), a
+`citizen` skips its look-at when the focus is `dead`/`inactive` (`citizen.gc`), a dormant
+`blue-guard-frustum` entry is appended to `*minimap-class-list*` (`minimap.gc`, nothing references
+it), and the custom art-group link path in `joint.gc`/`level.gc` is inert. The C++
+`build-actor`/`Tools.cpp` changes are opt-in (`native-header #f` default).
 
 ## 7. How to Test
 
@@ -235,7 +244,11 @@ new knob defaults to a value that reproduces the original behavior exactly (`nat
 3. `task repl`, then `(mi)` — must reach "Successfully built all N targets" with no
    `could not find a master slot to link` / `link-art` errors.
 4. `task boot-game` (or `(r)` from the REPL), reach Haven City.
-5. At the REPL, `(set! *crimson-blue-guard-ratio* 1)` to force every ambient guard spawn blue, or
+4b. **Enable the mod:** `Debug ▸ Mods ▸ crimson-blueguard-insurrection ▸ Enable`. OFF by default —
+    verify first that with it OFF the city shows only red guards, retail traffic density, and
+    normal guard combat (3-round rifle bursts, no grenade launchers). Then set the war zone in the
+    `War zones` submenu (default: Industrial). Toggling re-rolls / purges the city traffic live.
+5. With the mod ON, at the REPL `(set! *crimson-blue-guard-ratio* 1)` to force every ambient guard spawn blue, or
    `(spawn-crimson-blue-guard-debug 0)` / `(...  1)` to force-spawn a baton/gun guard regardless of the ratio;
    confirm it's textured and its idle/walk/run/notice/hostile/knocked/get-up/die animations all
    play correctly and match a regular guard's timing and sound cues 1:1.

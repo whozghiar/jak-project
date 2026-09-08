@@ -261,9 +261,14 @@
                       (logtest? (-> s0-0 flags) (traffic-type-flags trtflags-3))
                       (< v1-21 (-> s0-0 want-count)))
                   (logclear! (-> spawn-params flags) (traffic-spawn-flags dark-guard))
-                  (when (and (or (= (-> spawn-params object-type) (traffic-type crimson-guard-0))
-                                 (= (-> spawn-params object-type) (traffic-type crimson-guard-1))
-                                 (= (-> spawn-params object-type) (traffic-type crimson-guard-2)))
+                  ;; MOD crimson-blueguard-insurrection: extend the dark-guard roll to the
+                  ;; secondary guard pools (0 / 2) and add a flag-driven ratio. Gated so that
+                  ;; with *mod-city-insurrection?* #f this is byte-for-byte the stock test
+                  ;; (crimson-guard-1 only, dark-guard-ratio only).
+                  (when (and (or (= (-> spawn-params object-type) (traffic-type crimson-guard-1))
+                                 (and *mod-city-insurrection?*
+                                      (or (= (-> spawn-params object-type) (traffic-type crimson-guard-0))
+                                          (= (-> spawn-params object-type) (traffic-type crimson-guard-2)))))
                              (or (> (-> this dark-guard-ratio) 0) *mod-city-insurrection?*)
                              (zero? (mod v1-21 (if (> (-> this dark-guard-ratio) 0) (-> this dark-guard-ratio) 5))))
                     (logior! (-> spawn-params flags) (traffic-spawn-flags dark-guard)))
@@ -556,8 +561,12 @@
     (set! (-> traffic-want-counts 14) 7)
     (set! (-> traffic-want-counts 15) 7)
     (set! (-> traffic-want-counts 16) 7)
-    (set! (-> traffic-want-counts 18) 8)
-    (set! (-> traffic-want-counts 19) 8)
+    ;; MOD crimson-blueguard-insurrection: denser ambient guard-vehicle traffic (bike-guard
+    ;; slot 18, hellcat slot 19) for the faction war, but ONLY when the mod is enabled from
+    ;; Debug > Mods. OFF => retail want-counts 4 / 3. (This also seeds *traffic-want-count-base*,
+    ;; which mod-city-insurrection-update-traffic reads, so the OFF restore path is stock too.)
+    (set! (-> traffic-want-counts 18) (if *mod-city-insurrection?* 8 4))
+    (set! (-> traffic-want-counts 19) (if *mod-city-insurrection?* 8 3))
     (set! (-> traffic-want-counts 20) 0)
     (set! (-> traffic-want-counts 0) 15)
     (set! (-> traffic-want-counts 1) 15)

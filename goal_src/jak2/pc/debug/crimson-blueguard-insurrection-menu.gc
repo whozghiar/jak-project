@@ -1,0 +1,159 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+#|
+  ============================================================================
+  crimson-blueguard-insurrection-menu.gc
+    -> Debug > Mods > crimson-blueguard-insurrection
+  ============================================================================
+
+  Registers the Crimson Blue Guard (City Insurrection) mod with the unified
+  "Mods" debug tab (goal_src/jak2/pc/debug/mods-menu.gc), per the mandatory
+  procedure in docs/modding/tools/mods_debug_menu.md and CLAUDE.md's golden
+  rules.
+
+  Replaces the hand-rolled "Mods" root-menu block this branch had added directly
+  to default-menu-pc.gc (now reverted to stock) -- editing the shared menu files
+  is exactly what the mods-menu registry exists to prevent.
+
+    Mods > crimson-blueguard-insurrection >
+      Enable                       -- master on/off (*mod-city-insurrection?*)
+      War zones > <district flags> -- *mod-city-conflict-mask* bitmask
+      War music > <track flags>    -- *mod-city-war-music*
+
+  The flags/helpers live in mod-city-insurrection.gc + mod-city-hooks.gc (both
+  resident in the CWI DGO, non-debug), so the gated engine code links in release
+  builds; this menu file is `(declare-file (debug))` and is stripped from
+  release. It only `define-extern`s what it needs and drives the toggles.
+
+  With *mod-city-insurrection?* #f the city is byte-for-byte stock Jak 2: no blue
+  guards spawn, `mod-city-insurrection-update-traffic` no-ops, want-counts are
+  retail, every *mod-city-*-hook* resolves to its stock branch, and the guard.gc
+  war-zone combat tweaks are all gated off.
+
+  Wiring: "crimson-blueguard-insurrection-menu.o" is listed in
+  goal_src/jak2/dgos/game.gd immediately after "mods-menu.o".
+|#
+
+;; debug-only file: stripped from release builds like the rest of the menu code.
+(declare-file (debug))
+
+;; --- symbols owned by mod-city-insurrection.gc / mod-city-hooks.gc (CWI DGO) ---
+(define-extern *mod-city-insurrection?* symbol)
+(define-extern *mod-city-conflict-mask* int)
+(define-extern *mod-city-war-music* symbol)
+(define-extern city-district->mask (function symbol int))
+(define-extern city-get-current-zone (function symbol))
+(define-extern mod-city-flush-conflict-traffic (function none))
+(define-extern mod-city-war-music-stop (function none))
+
+;; ============================================================================
+;; Toggle side effect: re-roll / purge the city traffic under the new rules.
+;; ============================================================================
+
+(defun dm-crimson-blueguard-insurrection-flush-guards ()
+  "Flush ambient city traffic so it respawns under the current insurrection state.
+   In a war zone, purge non-combatants (civilians + vehicles); otherwise park the
+   guard / guard-vehicle pools so factions re-roll. *traffic-manager* is #f
+   outside the city -- always guard it."
+  (cond
+    ((and *traffic-manager* (= (city-get-current-zone) 'conflict))
+     (mod-city-flush-conflict-traffic)
+     )
+    (*traffic-manager*
+     (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-0))
+     (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-1))
+     (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-2))
+     (send-event *traffic-manager* 'deactivate-by-type (traffic-type guard-bike))
+     (send-event *traffic-manager* 'deactivate-by-type (traffic-type hellcat))
+     )
+    )
+  (none)
+  )
+
+;; ============================================================================
+;; Pick-funcs -- side effects on `press` only, always return the displayed bool.
+;; ============================================================================
+
+(defun mod-crimson-blueguard-insurrection-enable-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Master enable toggle. arg0's `value` slot is *mod-city-insurrection?*."
+  (when (= arg1 (debug-menu-msg press))
+    (set! (-> arg0 value) (not (-> arg0 value)))
+    (when (not (-> arg0 value))
+      (mod-city-war-music-stop)
+      )
+    (dm-crimson-blueguard-insurrection-flush-guards)
+    )
+  (-> arg0 value)
+  )
+
+(defun mod-crimson-blueguard-insurrection-district-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Toggle one district in/out of *mod-city-conflict-mask*. arg0 = the district
+   symbol from the template ('slums, 'industrial, ... or 'all for full-city war)."
+  (let ((mask (city-district->mask arg0)))
+    (when (= arg1 (debug-menu-msg press))
+      (cond
+        ((= arg0 'all)
+         (set! *mod-city-conflict-mask* (if (= *mod-city-conflict-mask* 511) 0 511))
+         )
+        (else
+          (logxor! *mod-city-conflict-mask* mask)
+          )
+        )
+      (dm-crimson-blueguard-insurrection-flush-guards)
+      )
+    (if (= arg0 'all)
+        (= *mod-city-conflict-mask* 511)
+        (logtest? *mod-city-conflict-mask* mask)
+        )
+    )
+  )
+
+(defun mod-crimson-blueguard-insurrection-music-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Pick which battle track plays in armed-conflict zones. arg0 = the track symbol."
+  (when (= arg1 (debug-menu-msg press))
+    (set! *mod-city-war-music* arg0)
+    )
+  (= *mod-city-war-music* arg0)
+  )
+
+;; ============================================================================
+;; Menu builder -- pure: only builds and returns the submenu node.
+;; ============================================================================
+
+(defun mod-crimson-blueguard-insurrection-build-menu ((ctx debug-menu-context))
+  "Return the 'crimson-blueguard-insurrection' submenu node."
+  (debug-menu-make-from-template ctx
+    '(menu "crimson-blueguard-insurrection"
+       (flag "Enable (blue vs red faction war)"
+             *mod-city-insurrection?* mod-crimson-blueguard-insurrection-enable-pick)
+       (menu "War zones"
+         (flag "All City (Full War)"   all         mod-crimson-blueguard-insurrection-district-pick)
+         (flag "Slums"                 slums       mod-crimson-blueguard-insurrection-district-pick)
+         (flag "Water Slums"           water-slums mod-crimson-blueguard-insurrection-district-pick)
+         (flag "Industrial (default)"  industrial  mod-crimson-blueguard-insurrection-district-pick)
+         (flag "Port"                  port        mod-crimson-blueguard-insurrection-district-pick)
+         (flag "Bazaars (Est & Ouest)" bazaars     mod-crimson-blueguard-insurrection-district-pick)
+         (flag "Gardens (Nord & Sud)"  gardens     mod-crimson-blueguard-insurrection-district-pick)
+         (flag "Main Town (residential)" main-town mod-crimson-blueguard-insurrection-district-pick)
+         (flag "Stadium"               stadium     mod-crimson-blueguard-insurrection-district-pick)
+         (flag "Palace"                palace      mod-crimson-blueguard-insurrection-district-pick)
+         )
+       (menu "War music"
+         (flag "Danger 9 (City Combat - default)" danger9  mod-crimson-blueguard-insurrection-music-pick)
+         (flag "Danger 1 (Canyon Battle)"         danger1  mod-crimson-blueguard-insurrection-music-pick)
+         (flag "Battle"                           battle   mod-crimson-blueguard-insurrection-music-pick)
+         (flag "Danger 10 (Drill Mech)"           danger10 mod-crimson-blueguard-insurrection-music-pick)
+         (flag "Danger 11 (Fortress Dump)"        danger11 mod-crimson-blueguard-insurrection-music-pick)
+         (flag "Danger 3 (Onin Minigame)"         danger3  mod-crimson-blueguard-insurrection-music-pick)
+         (flag "None / Disabled"                  none     mod-crimson-blueguard-insurrection-music-pick)
+         )
+       )
+    )
+  )
+
+;; ============================================================================
+;; Register with the unified Mods tab (top-level, runs at file load / (mi)).
+;; ============================================================================
+
+(mods-menu-register "crimson-blueguard-insurrection" mod-crimson-blueguard-insurrection-build-menu)

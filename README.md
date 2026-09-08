@@ -45,7 +45,14 @@ Adds the **Blue Crimson Guard** as its own standalone entity (`crimson-blue-guar
 - **Independent Faction Logic:** Passive towards Jak by default; does not join general police alerts against him. Defends itself without raising the city-wide alarm.
 
 ### ⚔️ City Insurrection Mode
-Toggled from `Debug Menu ▸ Mods ▸ City Insurrection`:
+
+**The mod ships OFF.** It is enabled from `Debug ▸ Mods ▸ crimson-blueguard-insurrection ▸ Enable`.
+With it **off, Haven City is byte-for-byte stock Jak 2** — no blue guards, retail guard density,
+retail alerts and guard combat. The `War zones` submenu (district bitmask, default Industrial) and
+`War music` picker sit in the same submenu. Toggling the mod re-rolls / purges the city traffic on
+the spot; the choice persists across level reloads.
+
+When enabled:
 - **Territorial District Zoning:**
   - **Slums (`ctysluma/b/c`):** Insurgent stronghold. 100% blue rebel guards, no police gunships, alarm-free haven.
   - **Loyalist Districts:** Baron Praxis control. 100% red and yellow loyalist police with vanilla enforcement.
@@ -150,7 +157,14 @@ Ce mod introduit le **Garde Crimson Bleu** en tant qu'entité autonome (`crimson
 - **Faction Indépendante :** Neutre envers Jak par défaut ; ne se joint pas aux alertes policières de la ville. Se défend si attaqué directement sans déclencher d'alarme générale.
 
 ### ⚔️ Mode City Insurrection (Guerre Civile)
-Activé depuis `Debug Menu ▸ Mods ▸ City Insurrection` :
+
+**Le mod est livré DÉSACTIVÉ.** Il s'active depuis `Debug ▸ Mods ▸ crimson-blueguard-insurrection ▸ Enable`.
+Désactivé, **Abriville est identique au Jak 2 d'origine** — aucun garde bleu, densité et alertes
+d'origine, combats de gardes d'origine. Les sous-menus `War zones` (masque de quartiers, Industriel
+par défaut) et `War music` sont dans le même sous-menu. La bascule re-tire / purge le trafic
+immédiatement ; le choix persiste au rechargement des niveaux.
+
+Une fois activé :
 - **Zonage Territorial des Quartiers :**
   - **Slums / Bas-fonds (`ctysluma/b/c`) :** Bastion rebelle. 100% de gardes bleus, aucun vaisseau de police, zone refuge sans alerte.
   - **Quartiers Loyalistes :** Contrôle total de Praxis. 100% de gardes rouges et jaunes avec maintien de l'ordre d'origine.

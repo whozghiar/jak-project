@@ -817,70 +817,6 @@
 
 (define *screen-shot-capture-profile* #f)
 
-;; ----------------------------------------------------------------------------------
-;; "Mods" debug menu tab -- City Insurrection (this branch: jak2/features/city-insurrection).
-;; ----------------------------------------------------------------------------------
-
-(defun dm-mod-city-flush-guards ()
-  "Flush ambient city traffic under City Insurrection. If in a war zone, purge all non-combatants
-   (civilians and vehicles) so the street is cleared and memory is freed for blue and red guards."
-  (if (and *traffic-manager* (= (city-get-current-zone) 'conflict))
-      (mod-city-flush-conflict-traffic)
-      (when *traffic-manager*
-        (send-event *traffic-manager* 'deactivate-by-type 4)
-        (send-event *traffic-manager* 'deactivate-by-type 6)
-        (send-event *traffic-manager* 'deactivate-by-type 7)
-        (send-event *traffic-manager* 'deactivate-by-type 18)
-        (send-event *traffic-manager* 'deactivate-by-type 19)
-        )
-      )
-  (none)
-  )
-
-(defun dm-mod-city-insurrection-pick-func ((arg0 symbol) (arg1 debug-menu-msg))
-  "Debug-menu pick-func for the Mods tab: toggles *mod-city-insurrection?*."
-  (when (= arg1 (debug-menu-msg press))
-    (set! *mod-city-insurrection?* (not *mod-city-insurrection?*))
-    (when (not *mod-city-insurrection?*)
-      (mod-city-war-music-stop)
-      )
-    (dm-mod-city-flush-guards)
-    )
-  *mod-city-insurrection?*
-  )
-
-(defun dm-mod-city-conflict-district-toggle-func ((arg0 symbol) (arg1 debug-menu-msg))
-  "Toggle a district in/out of the conflict mask. If 'all, toggle full city war."
-  (let ((mask (city-district->mask arg0)))
-    (when (= arg1 (debug-menu-msg press))
-      (cond
-        ((= arg0 'all)
-         (if (= *mod-city-conflict-mask* 511)
-             (set! *mod-city-conflict-mask* 0)
-             (set! *mod-city-conflict-mask* 511)
-             )
-         )
-        (else
-          (logxor! *mod-city-conflict-mask* mask)
-          )
-        )
-      (dm-mod-city-flush-guards)
-      )
-    (if (= arg0 'all)
-        (= *mod-city-conflict-mask* 511)
-        (logtest? *mod-city-conflict-mask* mask)
-        )
-    )
-  )
-
-(defun dm-mod-city-war-music-pick-func ((arg0 symbol) (arg1 debug-menu-msg))
-  "Pick which battle music plays in armed conflict zones."
-  (when (= arg1 (debug-menu-msg press))
-    (set! *mod-city-war-music* arg0)
-    )
-  (= *mod-city-war-music* arg0)
-  )
-
 (when (-> *debug-menu-context* root-menu)
   ;; (debug-menu-append-item (-> *debug-menu-context* root-menu) (debug-menu-make-load-menu *debug-menu-context*))
   (debug-menu-append-item (-> *debug-menu-context* root-menu) (debug-menu-make-part-menu *debug-menu-context*))
@@ -1076,35 +1012,6 @@
           (flag "Entity Lights" *display-lights* dm-boolean-toggle-pick-func)
           (flag "Debug Font Auto-Scale" #f ,(dm-lambda-boolean-flag (-> *pc-settings* debug-font-scale-auto?)))
           (float-var "Debug Font Scale" #f ,(dm-lambda-float-var (-> *pc-settings* debug-font-scale)) 2 (new 'static 'bfloat :data 0.01) #t (new 'static 'bfloat :data 0.1) 2 0)
-          )
-      )
-    )
-
-  (debug-menu-append-item (-> *debug-menu-context* root-menu)
-    (debug-menu-make-from-template *debug-menu-context*
-      '(menu "Mods"
-          (flag "City Insurrection (blue vs red/yellow war)" #f dm-mod-city-insurrection-pick-func)
-          (menu "Insurrection war zones"
-            (flag "All City in Conflict (Full War)" all dm-mod-city-conflict-district-toggle-func)
-            (flag "Slums" slums dm-mod-city-conflict-district-toggle-func)
-            (flag "Water Slums" water-slums dm-mod-city-conflict-district-toggle-func)
-            (flag "Industrial Section (default)" industrial dm-mod-city-conflict-district-toggle-func)
-            (flag "Port" port dm-mod-city-conflict-district-toggle-func)
-            (flag "Bazaars (Est & Ouest)" bazaars dm-mod-city-conflict-district-toggle-func)
-            (flag "Gardens (Nord & Sud)" gardens dm-mod-city-conflict-district-toggle-func)
-            (flag "Quartier residentiel (Main Town)" main-town dm-mod-city-conflict-district-toggle-func)
-            (flag "Le stade" stadium dm-mod-city-conflict-district-toggle-func)
-            (flag "Palais (Plaza & abords)" palace dm-mod-city-conflict-district-toggle-func)
-            )
-          (menu "War Music"
-            (flag "Danger 9 (City Combat - Default)" danger9 dm-mod-city-war-music-pick-func)
-            (flag "Danger 1 (Canyon Battle)" danger1 dm-mod-city-war-music-pick-func)
-            (flag "Battle" battle dm-mod-city-war-music-pick-func)
-            (flag "Danger 10 (Drill Mech)" danger10 dm-mod-city-war-music-pick-func)
-            (flag "Danger 11 (Fortress Dump)" danger11 dm-mod-city-war-music-pick-func)
-            (flag "Danger 3 (Onin Minigame)" danger3 dm-mod-city-war-music-pick-func)
-            (flag "None / Disabled" none dm-mod-city-war-music-pick-func)
-            )
           )
       )
     )

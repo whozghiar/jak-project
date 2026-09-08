@@ -490,6 +490,11 @@
    @TODO - unsure if there is a pattern for the events and this should have a more specific name"
   (case arg2
     (('touched 'touch)
+     ;; MOD crimson-blueguard-insurrection: melee-on-touch between warring guards. Gated --
+     ;; with *mod-city-insurrection?* #f this case just chains to the stock citizen handler
+     ;; (line below), exactly like the stock `else` arm would for an unmatched event, and the
+     ;; collide-shapes never emit `event-self 'touched` anyway (see the gated cshape inits).
+     (when *mod-city-insurrection?*
      (let ((touch-entry (-> arg3 param 0))
            (other-proc (the-as process-focusable (as-type arg0 process-focusable))))
        (when (and touch-entry other-proc)
@@ -537,6 +542,7 @@
            )
          )
        )
+     ) ;; end (when *mod-city-insurrection?*)
      ((method-of-type citizen general-event-handler) this arg0 arg1 arg2 arg3)
      )
     (('hit 'hit-flinch 'hit-knocked)
@@ -562,11 +568,21 @@
      ((method-of-type nav-enemy general-event-handler) this arg0 arg1 arg2 arg3)
      )
     (('traffic-activate)
+     ;; MOD crimson-blueguard-insurrection: bake the guard's faction/role at activation.
+     ;; Gated -- OFF routes 'traffic-activate exactly like stock (no crimson-guard case =>
+     ;; the `else` arm => citizen general-event-handler, whose return value is preserved).
      (let ((params (the-as traffic-object-spawn-params (-> arg3 param 0))))
-       ((method-of-type citizen general-event-handler) this arg0 arg1 arg2 arg3)
-       (*mod-city-guard-activated-hook* this params)
+       (cond
+         (*mod-city-insurrection?*
+          ((method-of-type citizen general-event-handler) this arg0 arg1 arg2 arg3)
+          (*mod-city-guard-activated-hook* this params)
+          #t
+          )
+         (else
+          ((method-of-type citizen general-event-handler) this arg0 arg1 arg2 arg3)
+          )
+         )
        )
-     #t
      )
     (('event-death)
      (if (zero? (-> this hit-points))
@@ -1255,7 +1271,10 @@
 
 (defmethod crimson-guard-method-214 ((this crimson-guard))
   (cond
-    ((= (-> this guard-type) 2)
+    ;; MOD crimson-blueguard-insurrection: guard-type 2 = grenade launcher (parabolic
+    ;; vehicle-grenade). Gated -- OFF, a guard-type-2 guard falls through to the stock
+    ;; `else` (verbatim retail guard-shot laser bolt), so stock is unchanged.
+    ((and *mod-city-insurrection?* (= (-> this guard-type) 2))
      ;; Grenade launcher (guard-type 2): fire vehicle-grenade with parabolic arc
      (let* ((target-pos (-> this target-pos-predict-miss))
             (muzzle (vector<-cspace! (new 'stack-no-clear 'vector) (-> this node-list data 14)))
@@ -1973,10 +1992,17 @@
     (let* ((s5-0 (-> self traffic-target-status))
            (gp-0 (as-type (handle->process (-> s5-0 handle)) process-focusable))
            )
-      (if (or (focus-test? gp-0 inactive) (focus-test? gp-0 disable) (focus-test? gp-0 dead))
+      ;; MOD crimson-blueguard-insurrection: also drop a `dead` guard-vs-guard target (and
+      ;; null the handle) so a war-zone guard doesn't idle in stop-and-shoot on a corpse.
+      ;; Gated -- OFF restores the stock inactive/disable-only test.
+      (if (or (focus-test? gp-0 inactive)
+              (focus-test? gp-0 disable)
+              (and *mod-city-insurrection?* (focus-test? gp-0 dead)))
           (begin
             (set! gp-0 (the-as process-focusable #f))
-            (set! (-> s5-0 handle) (the-as handle #f))
+            (when *mod-city-insurrection?*
+              (set! (-> s5-0 handle) (the-as handle #f))
+              )
             )
           )
       (cond
@@ -2022,7 +2048,10 @@
                   )
                 (let ((v1-78 (-> self guard-type)))
                   (cond
-                    ((or (= v1-78 1) (= v1-78 2))
+                    ;; MOD crimson-blueguard-insurrection: guard-type 2 shares the ranged
+                    ;; branch. Gated -- OFF, guard-type 2 falls to the stock `(zero? v1-78)` /
+                    ;; default arms exactly as retail.
+                    ((or (= v1-78 1) (and *mod-city-insurrection?* (= v1-78 2)))
                      (when (and (< (-> self target-self-xz-dist) 163840.0)
                                 (or (< 40960.0 (-> self target-self-xz-dist))
                                     *mod-city-insurrection?*
@@ -2300,8 +2329,9 @@
     (label cfg-10)
     (when v1-35
       (set-time! (-> self state-time))
-      ;; Single shot for grenade launcher (guard-type 2), 3-burst for rifle (guard-type 1)
-      (let ((gp-0 (if (= (-> self guard-type) 2) 0 2)))
+      ;; MOD crimson-blueguard-insurrection: single shot for grenade launcher (guard-type 2),
+      ;; shorter 2+1 burst for rifle. Gated -- OFF keeps the stock 3+1 burst for every guard.
+      (let ((gp-0 (if *mod-city-insurrection?* (if (= (-> self guard-type) 2) 0 2) 3)))
         (until #f
           (ja-channel-push! 1 (seconds 0.1))
           (ja-no-eval :group! (-> self draw art-group data (-> self anim-shoot 1 anim-index)) :num! min)
@@ -3689,7 +3719,12 @@
       (set! (-> s5-0 backup-collide-with) (-> v1-21 prim-core collide-with))
       )
     (set! (-> s5-0 max-iteration-count) (the-as uint 3))
-    (set! (-> s5-0 event-self) 'touched)
+    ;; MOD crimson-blueguard-insurrection: route collide-shape touches through this guard's
+    ;; general-event-handler ('touched) for inter-faction melee. Gated -- OFF, stock guards
+    ;; never emit 'touched (retail leaves event-self unset).
+    (when *mod-city-insurrection?*
+      (set! (-> s5-0 event-self) 'touched)
+      )
     (set! (-> this root) s5-0)
     )
   0
@@ -3804,7 +3839,9 @@
   (let ((t9-0 (method-of-type citizen citizen-init!)))
     (t9-0 this)
     )
-  (when (-> this root)
+  ;; MOD crimson-blueguard-insurrection: see the cshape-init note above -- gated so stock
+  ;; guards keep their retail (unset) event-self.
+  (when (and *mod-city-insurrection?* (-> this root))
     (set! (-> this root event-self) 'touched)
     )
   (if (logtest? (-> this flags) (citizen-flag dark-guard))

@@ -1,0 +1,62 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+#|
+  ============================================================================
+  yakow-killable-menu.gc -- Debug > Mods > yakow-killable
+  ============================================================================
+
+  Registers the yakow_killable mod's on/off switch with the unified "Mods"
+  debug tab (goal_src/jak2/pc/debug/mods-menu.gc), per the mandatory procedure
+  in docs/modding/tools/mods_debug_menu.md and CLAUDE.md's golden rules:
+  every mod ships OFF by default and is switchable at runtime from Debug > Mods.
+
+  WHY THIS LIVES IN GAME.CGO (not in the CFA/CFB farm DGO with yakow.gc)
+  --------------------------------------------------------------------------
+  The mods-menu registry never unregisters an entry. If the builder function
+  were compiled into the streamed farm level, its code pointer would dangle the
+  moment the farm unloads, and the next menu rebuild would jump through it.
+  GAME.CGO is resident for the whole session, so the registration is made once
+  at boot and is always valid.
+
+  THE FLAG
+  --------
+  *mod-yakow-killable-enable* is defined here with `define-perm`: it survives
+  level reloads (so enabling it once sticks even as the farm streams in/out) and
+  defaults to #f. goal_src/jak2/levels/city/farm/yakow.gc only `define-extern`s
+  it and reads it -- every behaviour change in that file is gated on it.
+
+  Wiring: "yakow-killable-menu.o" is listed in goal_src/jak2/dgos/game.gd
+  immediately after "mods-menu.o".
+|#
+
+;; debug-only file: stripped from release builds like the rest of the menu code.
+(declare-file (debug))
+
+;; ============================================================================
+;; The flag (single master switch -- the whole mod is one cohesive feature)
+;; ============================================================================
+;; define-perm: keep the player's choice across farm level reloads; #f on first boot.
+(define-perm *mod-yakow-killable-enable* symbol #f)
+
+;; ============================================================================
+;; Menu builder
+;; ============================================================================
+
+(defun mod-yakow-killable-build-menu ((ctx debug-menu-context))
+  "Return the 'yakow-killable' submenu node. Called by the Mods registry on every
+   rebuild -- pure: only builds and returns a node."
+  (debug-menu-make-from-template ctx
+    '(menu "yakow-killable"
+       ;; plain boolean -- yakow.gc reads *mod-yakow-killable-enable* live every frame,
+       ;; so the stock toggle pick-func (no side effect) is all that's needed.
+       (flag "Enable" *mod-yakow-killable-enable* dm-boolean-toggle-pick-func)
+       )
+    )
+  )
+
+;; ============================================================================
+;; Register with the unified Mods tab (top-level, runs at file load / (mi))
+;; ============================================================================
+
+(mods-menu-register "yakow-killable" mod-yakow-killable-build-menu)

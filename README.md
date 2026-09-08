@@ -55,6 +55,17 @@ task boot-game
 ```
 *(Or iterate fast via the OpenGOAL REPL using `task repl`, then hot-reload with `(mi)` and `(r)`).*
 
+### 5. Enable the Mod (OFF by default)
+This mod ships **disabled** — a fresh install leaves the farm Yakows as the stock
+invulnerable animals. Open the in-game debug menu and go to:
+
+```
+Debug ▸ Mods ▸ yakow-killable ▸ Enable
+```
+
+The choice persists across farm level reloads. Turn it off at any time to restore
+stock Yakow behaviour.
+
 ## 🎥 Demonstration Video
 [![Demonstration Video](https://img.youtube.com/vi/njKxjCuEpcU/maxresdefault.jpg)](https://youtu.be/njKxjCuEpcU)
 
@@ -107,6 +118,18 @@ Lancez le jeu nativement :
 task boot-game
 ```
 *(Ou itérez rapidement via le REPL OpenGOAL avec `task repl`, puis rechargez à chaud avec `(mi)` et `(r)`).*
+
+### 5. Activer le Mod (DÉSACTIVÉ par défaut)
+Ce mod est livré **désactivé** — une installation neuve laisse les Yakows de la
+ferme en animaux invulnérables d'origine. Ouvrez le menu debug en jeu et allez
+dans :
+
+```
+Debug ▸ Mods ▸ yakow-killable ▸ Enable
+```
+
+Le choix persiste au rechargement du niveau de la ferme. Désactivez-le à tout
+moment pour rétablir le comportement d'origine des Yakows.
 
 ## 🎥 Encart Vidéo Démonstrative
 [![Vidéo de Démonstration](https://img.youtube.com/vi/njKxjCuEpcU/maxresdefault.jpg)](https://youtu.be/njKxjCuEpcU)

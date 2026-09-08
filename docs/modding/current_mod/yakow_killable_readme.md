@@ -28,8 +28,10 @@ This mod enhances the Yakow animals located at the Hip Hog farm in Jak 2 by brin
 
 ## 2. Technical Architecture & Tooling
 
-- **Modified Files:**
-  - `goal_src/jak2/levels/city/farm/yakow.gc`: Added `run-away`, `graze`, `graze-kicked`, `kicked`, `die` states; new tracking fields (`grazing`, `walk-run-blend`, `walk-turn-blend`, `run-mode`, `home-base`); overrode `damage-amount-from-attack` and `general-event-handler`.
+- **Modified / Created Files:**
+  - `goal_src/jak2/levels/city/farm/yakow.gc`: Added `run-away`, `graze`, `graze-kicked`, `kicked`, `die` states; new tracking fields (`grazing`, `walk-run-blend`, `walk-turn-blend`, `run-mode`, `home-base`); overrode `damage-amount-from-attack` and `general-event-handler`. Every behaviour change is gated on `*mod-yakow-killable-enable*`.
+  - `goal_src/jak2/pc/debug/yakow-killable-menu.gc` *(new)*: defines the `*mod-yakow-killable-enable*` flag and registers `Debug ▸ Mods ▸ yakow-killable`. Resident in GAME.CGO (see the Modding Changes Log for why it can't live in the farm DGO).
+  - `goal_src/jak2/dgos/game.gd`: adds `yakow-killable-menu.o` right after `mods-menu.o`.
   - `decompiler/config/jak2/ntsc_v1/{joint-node-info.min.json, art-group-info.min.json, type_casts.jsonc}`: Skeleton/joint bindings and type-cast hints for the `yakow` skeleton and its `code`/`method` overrides, required for the decompiler to resolve the animation-driving code cleanly.
   - *No custom external 3D models required:* Uses native in-game Jak 2 models, animations, and sound effects.
 - **Reused Engine Systems (no new engine code needed):**
@@ -52,7 +54,11 @@ This mod enhances the Yakow animals located at the Hip Hog farm in Jak 2 by brin
    ```bash
    task boot-game
    ```
-4. Attack a Yakow with melee punches/spins or weapons to observe:
+4. **Enable the mod** (OFF by default — mandatory non-regression rule): open the
+   debug menu and go to **`Debug ▸ Mods ▸ yakow-killable ▸ Enable`**. With it off,
+   Yakows are the stock invulnerable farm animals. The choice sticks even as the
+   farm level streams in and out (`define-perm`).
+5. Attack a Yakow with melee punches/spins or weapons to observe:
    - The kick animation and fleeing behavior on non-lethal hits.
    - The immediate **Krimzon Guard Alert Level 1** trigger upon striking the animal.
    - On the killing blow (3rd hit): the `"yakow-die"` cry, the purple mesh-dissolve particle effect with its "fizz" sound, and 6 dark eco pills scattering around the corpse's former position.
@@ -76,6 +82,7 @@ This mod enhances the Yakow animals located at the Hip Hog farm in Jak 2 by brin
 | 2025-07-19 | `goal_src/jak2/levels/city/farm/yakow.gc` | Added Jak 1-style states (`run-away`, `graze`, `graze-kicked`, `die`), added tracking fields (`grazing`, `walk-run-blend`, `run-mode`, `home-base`), set `damage-amount-from-attack` to 1. | Recreate Jak 1 Yakow behaviors in Jak 2 with dark eco drop. |
 | 2026-08-13 | `goal_src/jak2/levels/city/farm/yakow.gc` | Polished `kicked` state (traveling vs in-place kick based on nav travel), raised HP to 4 hits, drop 6 dark eco pills, replaced particle effect with `group-land-poof-drt`. | Authentic Jak 1 feel, robust death VFX and balanced reward. |
 | 2026-08-16 | `goal_src/jak2/levels/city/farm/yakow.gc`, `docs/modding/jak2_lisp_instructions.md`, `docs/modding/current_mod/yakow_killable_readme.md` | Replaced the placeholder dust poof (`group-land-poof-drt` + manual `"enemy-fizz"`) in the `die` state's `:code` with `(do-effect (-> self skel effect) 'death-default 0.0 -1)`, the generic engine death-dissolve effect (purple mesh/skeleton-outline particles), followed by a 1s `suspend-for` so it can play out before cleanup. The classic `"yakow-die"` sound was already playing via `(dying self)` in `:enter` and is unaffected. Documented the underlying generic death-effect engine system as a standalone modding tip (kept isolated, the aggregated `jak2_modding_utilities.md` was intentionally left untouched). Relocated this readme from the legacy `docs/mods/` path to the mandated `docs/modding/current_mod/` path and made it fully bilingual. | Give the Yakow the same authentic death VFX used by other Jak II enemies instead of a generic landing-dust placeholder, and bring the mod's documentation into compliance with the modding directive. |
+| 2026-09-08 | `goal_src/jak2/pc/debug/yakow-killable-menu.gc` (new)<br>`goal_src/jak2/dgos/game.gd`<br>`goal_src/jak2/levels/city/farm/yakow.gc` | **Runtime on/off via the unified Debug ▸ Mods tab (mandatory procedure).** Added `*mod-yakow-killable-enable*` (`define-perm`, `#f` default, survives farm level reloads). New resident **GAME.CGO** file `yakow-killable-menu.gc` registers `(mods-menu-register "yakow-killable" …)` and re-declares the flag — it lives in GAME.CGO, not the CFA/CFB farm DGO, because the mods-menu registry never unregisters and a builder compiled into a streamed level would dangle when the farm unloads. `.o` wired into `game.gd` after `mods-menu.o`. Every behavioural delta in `yakow.gc` is now gated on the flag: `damage-amount-from-attack` (→ 0 = stock invulnerable when off), the `'attack` / `'hit-knocked` / `'hit` branches of `general-event-handler` (stock path when off), the `run-away` triggers in `idle`/`active`/`graze` `:post`/`:trans`, the `kicked` state body (stock in-place kick → `active` when off) and its `graze-kicked` redirect, and the `die` override (only its *additions* — the pill drop, default-pickup suppression and purple VFX — are gated; the structural teardown always runs, so a scripted/forced kill of an otherwise-invulnerable yakow still despawns it cleanly with no special drops). Also stripped the leftover `(format #t "yakow: …")` console spam. The `:default-hit-points 4` and `:run-acceleration/​run-turning-acceleration (meters 3)` static bumps are left as-is: both are unobservable while disabled (invulnerable yakow never loses HP; `run-acceleration` is only read by `nav-enemy-method-166`, called solely from the gated `run-away` state). | Comply with CLAUDE.md golden rules #2/#3: mod OFF by default, switchable at runtime from Debug ▸ Mods, without editing `default-menu*.gc`. |
 
 ---
 
@@ -97,8 +104,10 @@ Ce mod enrichit les Yakows présents à la ferme du Hip Hog dans Jak 2 en réint
 
 ## 2. Architecture Technique & Outillage
 
-- **Fichiers Modifiés :**
-  - `goal_src/jak2/levels/city/farm/yakow.gc` : Ajout des états `run-away`, `graze`, `graze-kicked`, `kicked`, `die` ; nouveaux champs de suivi (`grazing`, `walk-run-blend`, `walk-turn-blend`, `run-mode`, `home-base`) ; surcharge de `damage-amount-from-attack` et `general-event-handler`.
+- **Fichiers Modifiés / Créés :**
+  - `goal_src/jak2/levels/city/farm/yakow.gc` : Ajout des états `run-away`, `graze`, `graze-kicked`, `kicked`, `die` ; nouveaux champs de suivi (`grazing`, `walk-run-blend`, `walk-turn-blend`, `run-mode`, `home-base`) ; surcharge de `damage-amount-from-attack` et `general-event-handler`. Chaque changement de comportement est gardé par `*mod-yakow-killable-enable*`.
+  - `goal_src/jak2/pc/debug/yakow-killable-menu.gc` *(nouveau)* : définit le drapeau `*mod-yakow-killable-enable*` et enregistre `Debug ▸ Mods ▸ yakow-killable`. Résident dans GAME.CGO (voir le Journal des Modifications pour la raison).
+  - `goal_src/jak2/dgos/game.gd` : ajoute `yakow-killable-menu.o` juste après `mods-menu.o`.
   - `decompiler/config/jak2/ntsc_v1/{joint-node-info.min.json, art-group-info.min.json, type_casts.jsonc}` : Liaisons de squelette/joints et indices de cast de types pour le squelette `yakow` et ses surcharges de `code`/`method`, nécessaires pour que le décompilateur résolve proprement le code pilotant les animations.
   - *Aucun modèle 3D externe requis :* S'appuie entièrement sur les modèles, animations et sons natifs du jeu de base Jak 2.
 - **Systèmes Moteur Réutilisés (aucun nouveau code moteur requis) :**
@@ -121,7 +130,12 @@ Ce mod enrichit les Yakows présents à la ferme du Hip Hog dans Jak 2 en réint
    ```bash
    task boot-game
    ```
-4. Attaquer un Yakow au corps-à-corps (coups de poing/spin) ou aux armes pour observer :
+4. **Activer le mod** (DÉSACTIVÉ par défaut — règle de non-régression obligatoire) :
+   ouvrir le menu debug et aller dans **`Debug ▸ Mods ▸ yakow-killable ▸ Enable`**.
+   Désactivé, les Yakows restent les animaux de ferme invulnérables d'origine. Le
+   choix persiste même quand le niveau de la ferme se recharge en streaming
+   (`define-perm`).
+5. Attaquer un Yakow au corps-à-corps (coups de poing/spin) ou aux armes pour observer :
    - L'animation de coup de pied et le comportement de fuite lors des coups non mortels.
    - Le déclenchement immédiat de **l'alerte de niveau 1 des Grenadiers Krimzon** dès le premier coup porté.
    - Au coup fatal (3ᵉ coup) : le cri `"yakow-die"`, l'effet de particules violettes de dissolution du maillage avec son son "fizz", et 6 pilules d'éco sombre se dispersant autour de l'ancienne position du corps.
@@ -146,3 +160,4 @@ Ce mod enrichit les Yakows présents à la ferme du Hip Hog dans Jak 2 en réint
 | 2026-07-27 | `goal_src/jak2/levels/city/farm/yakow.gc` | Déclenchement de l'alerte Krimzon Guard (`set-alert-level 1` via `*traffic-manager*`) lors d'une attaque reçue, points de vie calibrés à 3 PV. | Sanctionner le joueur en cas d'attaque contre le troupeau (« Pas touche à la vache ! »). |
 | 2026-08-13 | `goal_src/jak2/levels/city/farm/yakow.gc` | Peaufinage de l'état `kicked` (coup en mouvement vs à l'arrêt selon le déplacement nav), lâcher de 6 pilules d'éco sombre, remplacement de l'effet de particules par `group-land-poof-drt`. | Ressenti Jak 1 authentique, VFX de mort robuste et récompense équilibrée. |
 | 2026-08-16 | `goal_src/jak2/levels/city/farm/yakow.gc`, `docs/modding/jak2_lisp_instructions.md`, `docs/modding/current_mod/yakow_killable_readme.md` | Remplacement du poof de poussière placeholder (`group-land-poof-drt` + `"enemy-fizz"` manuel) dans le `:code` de l'état `die` par `(do-effect (-> self skel effect) 'death-default 0.0 -1)`, l'effet générique moteur de dissolution de mort (particules violettes du contour du maillage/squelette), suivi d'un `suspend-for` d'1s pour le laisser se dérouler avant le nettoyage. Le son classique `"yakow-die"` était déjà joué via `(dying self)` dans `:enter` et reste inchangé. Documentation du système générique de mort du moteur en tant que tip de modding autonome et isolé (le fichier agrégé `jak2_modding_utilities.md` a volontairement été laissé intact). Relocalisation de ce readme depuis l'ancien chemin `docs/mods/` vers le chemin mandaté `docs/modding/current_mod/`, et passage en bilingue complet. | Offrir au Yakow le même VFX de mort authentique que les autres ennemis de Jak II au lieu d'un placeholder générique de poussière, et mettre la documentation du mod en conformité avec la directive de modding. |
+| 2026-09-08 | `goal_src/jak2/pc/debug/yakow-killable-menu.gc` (nouveau)<br>`goal_src/jak2/dgos/game.gd`<br>`goal_src/jak2/levels/city/farm/yakow.gc` | **Activation/désactivation à la volée via l'onglet Debug ▸ Mods unifié (procédure obligatoire).** Ajout de `*mod-yakow-killable-enable*` (`define-perm`, `#f` par défaut, survit aux rechargements du niveau de la ferme). Nouveau fichier **résident GAME.CGO** `yakow-killable-menu.gc` qui appelle `(mods-menu-register "yakow-killable" …)` et redéclare le drapeau — il est dans GAME.CGO, et non dans le DGO de niveau CFA/CFB, car le registre mods-menu ne désenregistre jamais et un builder compilé dans un niveau streamé pointerait dans le vide au déchargement de la ferme. `.o` câblé dans `game.gd` après `mods-menu.o`. Chaque changement de comportement de `yakow.gc` est désormais gardé par le drapeau : `damage-amount-from-attack` (→ 0 = invulnérable d'origine si off), les branches `'attack` / `'hit-knocked` / `'hit` de `general-event-handler` (chemin d'origine si off), les déclencheurs `run-away` dans `idle`/`active`/`graze` `:post`/`:trans`, le corps de l'état `kicked` (coup à l'arrêt → `active` si off) et sa redirection `graze-kicked`, et la surcharge `die` (seuls ses *ajouts* — lâcher de pilules, suppression du pickup par défaut et VFX violette — sont gardés ; le démontage structurel s'exécute toujours, donc un kill scripté/forcé d'un yakow par ailleurs invulnérable le fait quand même disparaître proprement sans drop spécial). Suppression aussi du spam console `(format #t "yakow: …")` résiduel. Les bumps statiques `:default-hit-points 4` et `:run-acceleration/​run-turning-acceleration (meters 3)` sont conservés tels quels : tous deux sont inobservables quand le mod est désactivé (un yakow invulnérable ne perd jamais de PV ; `run-acceleration` n'est lu que par `nav-enemy-method-166`, appelé uniquement depuis l'état `run-away` gardé). | Respecter les règles d'or #2/#3 de CLAUDE.md : mod DÉSACTIVÉ par défaut, activable à la volée depuis Debug ▸ Mods, sans éditer `default-menu*.gc`. |

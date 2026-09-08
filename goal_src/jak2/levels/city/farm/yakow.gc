@@ -9,6 +9,24 @@
 ;; Adds: run-away, graze, graze-kicked states, walk/run animation blending,
 ;;       dark eco pill drops on death, generic purple "death-default" particle
 ;;       dissolve effect + classic yakow-die cry on death
+;;
+;; NON-REGRESSION / Debug ▸ Mods: every behaviour change below is gated behind
+;; *mod-yakow-killable-enable*, which ships #f. With the flag off, yakows are
+;; invulnerable (damage-amount-from-attack -> 0), never flee, never die and drop
+;; nothing special -- byte-identical to stock. The flag is defined (define-perm,
+;; survives level reloads) and toggled from the resident GAME.CGO menu file
+;; goal_src/jak2/pc/debug/yakow-killable-menu.gc, which registers it with the
+;; unified Mods tab via (mods-menu-register "yakow-killable" ...). That file must
+;; stay in GAME.CGO, not in this level DGO: the mods-menu registry never unregisters,
+;; so a builder compiled into a streamed level would dangle once the farm unloads.
+;; See docs/modding/tools/mods_debug_menu.md.
+;;
+;; define-perm (not define-extern): the value survives every farm level reload -- so
+;; enabling the mod once sticks as the farm streams in and out -- and the flag stays
+;; bound even in the unlikely event the debug menu file is stripped from a build. #f
+;; on first boot. The menu file also define-perm's it (redundant, harmless) so it is
+;; bound from boot, before the farm has ever loaded.
+(define-perm *mod-yakow-killable-enable* symbol #f)
 
 ;; DECOMP BEGINS
 
@@ -210,10 +228,17 @@
 
 (set! (-> *yakow-nav-enemy-info* fact-defaults) *fact-info-enemy-defaults*)
 
-;; og:preserve-this Changed: returns 1 damage per hit instead of 0 so yakow can die
+;; og:preserve-this Changed: returns 1 damage per hit (instead of the stock 0) so the
+;; yakow can actually lose HP and die -- ONLY while the mod is enabled. Flag off -> 0,
+;; i.e. the stock invulnerable yakow. This is the single switch that makes the whole
+;; feature inert: with 0 damage HP never drops, so the die state and every HP check
+;; below are unreachable.
 (defmethod damage-amount-from-attack ((this yakow) (arg0 process) (arg1 event-message-block))
   "@returns the amount of damage taken from an attack.  This can come straight off the [[attack-info]] or via [[penetrate-using->damage]]"
-  1
+  (if *mod-yakow-killable-enable*
+      1
+      0
+      )
   )
 
 (defmethod general-event-handler ((this yakow) (arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
@@ -221,33 +246,49 @@
 @TODO - unsure if there is a pattern for the events and this should have a more specific name"
   (case arg2
     (('attack)
-     ;; og:preserve-this Let the parent handle damage processing (HP decrement, death check)
-     ;; The parent will then send 'hit-knocked or 'hit which we intercept below
-     (format #t "yakow: received 'attack event, HP=~D, grazing=~A~%" (-> this hit-points) (-> this grazing))
-     
-     ;; og:preserve-this Trigger Krimzon Guard alert when hitting a yakow! (Crime contre la nature)
-     (if *traffic-manager*
-         (send-event *traffic-manager* 'set-alert-level 1)
-     )
-     ((method-of-type nav-enemy general-event-handler) this arg0 arg1 arg2 arg3)
-     )
-    (('hit-knocked 'hit)
-     ;; og:preserve-this Intercept hit/knocked events from parent's attack processing
-     ;; If HP > 0, go to kicked/graze-kicked. If HP = 0, let die happen.
-     (format #t "yakow: received '~A event, HP=~D, grazing=~A~%" arg2 (-> this hit-points) (-> this grazing))
      (cond
-       ((zero? (-> this hit-points))
-        ;; Dead - let the parent handler trigger die
-        (format #t "yakow: HP is 0, going to die!~%")
+       (*mod-yakow-killable-enable*
+        ;; og:preserve-this MOD path: trigger a Krimzon Guard alert ("hands off the cow!")
+        ;; then let the parent nav-enemy handler do the real damage processing (HP decrement,
+        ;; death check). It will send us back 'hit-knocked / 'hit, handled below.
+        (if *traffic-manager*
+            (send-event *traffic-manager* 'set-alert-level 1)
+            )
         ((method-of-type nav-enemy general-event-handler) this arg0 arg1 arg2 arg3)
         )
        (else
-        ;; Still alive - go to our custom kicked states
-        (format #t "yakow: HP > 0, going to kicked/graze-kicked~%")
-        (if (-> this grazing)
-            (go (method-of-object this graze-kicked))
+        ;; STOCK path: bounce to the (harmless) kicked animation once per attack id, no damage.
+        (let ((v1-1 (the-as object (-> arg3 param 1))))
+          (when (!= (-> (the-as attack-info v1-1) id) (-> this incoming-attack-id))
+            (set! (-> this incoming-attack-id) (-> (the-as attack-info v1-1) id))
             (go (method-of-object this kicked))
             )
+          )
+        )
+       )
+     )
+    (('hit-knocked 'hit)
+     (cond
+       (*mod-yakow-killable-enable*
+        ;; og:preserve-this MOD path: the parent's attack processing has already applied damage.
+        ;; HP 0 -> hand back to the parent so it triggers our die state; HP > 0 -> play our
+        ;; custom kicked / graze-kicked reaction.
+        (cond
+          ((zero? (-> this hit-points))
+           ((method-of-type nav-enemy general-event-handler) this arg0 arg1 arg2 arg3)
+           )
+          (else
+           (if (-> this grazing)
+               (go (method-of-object this graze-kicked))
+               (go (method-of-object this kicked))
+               )
+           )
+          )
+        )
+       (else
+        ;; STOCK: yakow has no 'hit-knocked/'hit handling of its own -> defer to the parent,
+        ;; exactly as if this case were not here.
+        ((method-of-type nav-enemy general-event-handler) this arg0 arg1 arg2 arg3)
         )
        )
      )
@@ -354,8 +395,10 @@
         (set-time! (-> self last-draw-time))
         )
     (enemy-method-129 self)
-    ;; og:preserve-this If player is near and not facing them, go to run-away
-    (when (and *target*
+    ;; og:preserve-this MOD only: if the player is near and the yakow isn't facing them, flee.
+    ;; Gated -- stock yakows just stand and graze regardless of the player.
+    (when (and *mod-yakow-killable-enable*
+               *target*
                (< (vector-vector-distance (-> self root trans) (get-trans *target* 0)) (meters 10))
                (not (yakow-facing-player? 21845.334))
                )
@@ -368,11 +411,13 @@
 ;; ==========================================
 ;; GRAZE STATE - Dedicated grazing behavior (inspired by Jak 1)
 ;; ==========================================
+;; NOTE: nothing currently transitions into `graze` (no `go-virtual graze` anywhere),
+;; so this is inert either way. Kept as-is (minus debug spam); its :post flee check is
+;; gated like the others so it stays stock-safe if it is ever wired up.
 (defstate graze (yakow)
   :virtual #t
   :event enemy-event-handler
   :enter (behavior ()
-    (format #t "yakow: entering GRAZE state~%")
     (set-time! (-> self state-time))
     (set! (-> self grazing) #t)
     (let ((v1-2 self))
@@ -382,7 +427,6 @@
     0
     )
   :exit (behavior ()
-    (format #t "yakow: exiting GRAZE state~%")
     (set! (-> self grazing) #f)
     )
   :code (behavior ()
@@ -408,8 +452,9 @@
     #f
     )
   :post (behavior ()
-    ;; Check if player is near - if so, stop grazing and flee
-    (when (and *target*
+    ;; Check if player is near - if so, stop grazing and flee (mod only)
+    (when (and *mod-yakow-killable-enable*
+               *target*
                (< (vector-vector-distance (-> self root trans) (get-trans *target* 0)) (meters 10))
                (not (yakow-facing-player? 21845.334))
                )
@@ -422,11 +467,12 @@
 ;; ==========================================
 ;; GRAZE-KICKED STATE - Hit while grazing (inspired by Jak 1)
 ;; ==========================================
+;; Only reachable while the mod is enabled (via general-event-handler / kicked :enter,
+;; both gated), so no internal flag check is needed here.
 (defstate graze-kicked (yakow)
   :virtual #t
   :event #f
   :enter (behavior ()
-    (format #t "yakow: entering GRAZE-KICKED state~%")
     (let ((v1-0 self))
       (set! (-> v1-0 enemy-flags) (the-as enemy-flag (logclear (-> v1-0 enemy-flags) (enemy-flag enemy-flag36))))
       (set! (-> v1-0 nav callback-info) *nav-enemy-null-callback-info*)
@@ -435,7 +481,6 @@
     (set-time! (-> self state-time))
     )
   :code (behavior ()
-    (format #t "yakow: playing graze-kicked animation~%")
     (ja-channel-push! 1 (seconds 0.05))
     (ja-no-eval :group! yakow-kicked-in-place-ja :num! (seek!) :frame-num 0.0)
     (until (ja-done? 0)
@@ -458,8 +503,9 @@
       (if (< (the-as int (-> self focus aware)) 1)
           (go-virtual idle)
           )
-      ;; og:preserve-this If player is near and yakow not facing them, flee
-      (when (and *target*
+      ;; og:preserve-this MOD only: if the player is near and the yakow isn't facing them, flee.
+      (when (and *mod-yakow-killable-enable*
+                 *target*
                  (< (vector-vector-distance (-> self root trans) (get-trans *target* 0)) (meters 10))
                  (not (yakow-facing-player? 21845.334))
                  )
@@ -551,19 +597,21 @@
 ;; ==========================================
 ;; KICKED STATE - Inspired by Jak 1 yakow-kicked
 ;; ==========================================
+;; The yakow `kicked` state is entered in BOTH modes (stock: on every 'attack;
+;; mod: only while HP > 0), so its body branches on the flag: mod = grunt + Jak-1
+;; traveling/in-place kick anim + flee; stock = the plain in-place kick then back to active.
 (defstate kicked (yakow)
   :virtual #t
   :event #f
   :enter (behavior ()
-    (format #t "yakow: entering KICKED state, HP=~D, grazing=~A~%" (-> self hit-points) (-> self grazing))
     (let ((v1-0 self))
       (set! (-> v1-0 enemy-flags) (the-as enemy-flag (logclear (-> v1-0 enemy-flags) (enemy-flag enemy-flag36))))
       (set! (-> v1-0 nav callback-info) *nav-enemy-null-callback-info*)
       )
     0
     (set-time! (-> self state-time))
-    ;; og:preserve-this If we were grazing, redirect to graze-kicked
-    (if (-> self grazing)
+    ;; og:preserve-this MOD only: if we were grazing, redirect to graze-kicked
+    (if (and *mod-yakow-killable-enable* (-> self grazing))
         (go-virtual graze-kicked)
         )
     )
@@ -574,24 +622,37 @@
     '()
     )
   :code (behavior ()
-    (sound-play "grunt-hit")
-    (ja-channel-push! 1 (seconds 0.05))
-    ;; og:preserve-this Jak 1 parity: play the traveling kick anim if the yakow was already
-    ;; moving when hit (e.g. mid-walk/graze-walk), otherwise the stationary in-place kick anim
     (cond
-      ((< 40.96 (vector-length (-> self nav state travel)))
-       (ja-no-eval :group! yakow-kicked-ja :num! (seek!) :frame-num 0.0)
+      (*mod-yakow-killable-enable*
+       ;; og:preserve-this MOD: Jak 1 parity - grunt, play the traveling kick anim if the yakow
+       ;; was already moving when hit (else the stationary one), then flee.
+       (sound-play "grunt-hit")
+       (ja-channel-push! 1 (seconds 0.05))
+       (cond
+         ((< 40.96 (vector-length (-> self nav state travel)))
+          (ja-no-eval :group! yakow-kicked-ja :num! (seek!) :frame-num 0.0)
+          )
+         (else
+           (ja-no-eval :group! yakow-kicked-in-place-ja :num! (seek!) :frame-num 0.0)
+           )
+         )
+       (until (ja-done? 0)
+         (suspend)
+         (ja :num! (seek!))
+         )
+       (go-virtual run-away)
        )
       (else
-        (ja-no-eval :group! yakow-kicked-in-place-ja :num! (seek!) :frame-num 0.0)
-        )
+       ;; STOCK: plain in-place kick reaction, then resume wandering.
+       (ja-channel-push! 1 (seconds 0.05))
+       (ja-no-eval :group! yakow-kicked-in-place-ja :num! (seek!) :frame-num 0.0)
+       (until (ja-done? 0)
+         (suspend)
+         (ja :num! (seek!))
+         )
+       (go-virtual active)
+       )
       )
-    (until (ja-done? 0)
-      (suspend)
-      (ja :num! (seek!))
-      )
-    ;; og:preserve-this After kick animation, flee like Jak 1
-    (go-virtual run-away)
     )
   :post ja-post
   )
@@ -599,11 +660,15 @@
 ;; ==========================================
 ;; RUN-AWAY STATE - Flee from player (inspired by Jak 1 yakow-run-away)
 ;; ==========================================
+;; Only reachable while the mod is enabled (every go-virtual run-away is gated), so no
+;; internal flag check is needed. nav-enemy-method-166 pulls run-acceleration /
+;; run-turning-acceleration from *yakow-nav-enemy-info* here -- the only reader of those
+;; two fields anywhere -- which is why the bumped (meters 3) values are inert with the
+;; mod off (a stock yakow never runs).
 (defstate run-away (yakow)
   :virtual #t
   :event enemy-event-handler
   :enter (behavior ()
-    (format #t "yakow: entering RUN-AWAY state~%")
     (set-time! (-> self state-time))
     (set! (-> self grazing) #f)
     ;; Set up run speed via nav-enemy-method-166
@@ -674,11 +739,18 @@
 ;; ==========================================
 ;; DIE STATE - Drop dark eco pills and disappear
 ;; ==========================================
+;; Overrides the inherited enemy/nav-enemy death. With the mod OFF the yakow is
+;; invulnerable (damage-amount-from-attack -> 0), so combat never brings it here; the
+;; only way in is a scripted / forced kill ('death, 'set-hit-points 0, fated-time).
+;; To stay stock-safe in that case only the mod's *additions* are gated -- the dark
+;; eco pill drop, the default-pickup suppression, and the purple death-dissolve VFX.
+;; The structural teardown (dying / collide clear / cleanup-for-death) runs either
+;; way, so a forced kill still despawns the yakow cleanly (and, notably, without the
+;; broken :die-anim -1 array access the truly-inherited enemy `die` :code would hit).
 (defstate die (yakow)
   :virtual #t
   :event enemy-event-handler
   :enter (behavior ()
-    (format #t "yakow: entering DIE state! HP=~D~%" (-> self hit-points))
     (dying self)
     (let ((v1-3 (-> self root root-prim)))
       (set! (-> v1-3 prim-core collide-as) (collide-spec))
@@ -687,28 +759,30 @@
     0
     (set-time! (-> self state-time))
     (set! (-> self hit-points) 0)
-    ;; og:preserve-this Spawn dark eco pills around our position
-    (format #t "yakow: spawning 6 dark eco pills around position~%")
-    (let ((s5-0 (new 'stack-no-clear 'vector)))
-      (dotimes (s4-0 6)
-        (set! (-> s5-0 quad) (-> self root trans quad))
-        ;; Disperse in a ~1.5 meter radius (6144.0)
-        (+! (-> s5-0 x) (rnd-float-range self -6144.0 6144.0))
-        (+! (-> s5-0 z) (rnd-float-range self -6144.0 6144.0))
-        ;; Add a bit of vertical offset
-        (+! (-> s5-0 y) (rnd-float-range self 0.0 4096.0))
-        (birth-pickup-at-point s5-0 (pickup-type eco-pill-dark) 1.0 #t *entity-pool* (-> self fact))
+    (when *mod-yakow-killable-enable*
+      ;; og:preserve-this MOD reward: spawn 6 dark eco pills around our position and stop the
+      ;; engine dropping the default pickup-type during cleanup.
+      (let ((s5-0 (new 'stack-no-clear 'vector)))
+        (dotimes (s4-0 6)
+          (set! (-> s5-0 quad) (-> self root trans quad))
+          ;; Disperse in a ~1.5 meter radius (6144.0)
+          (+! (-> s5-0 x) (rnd-float-range self -6144.0 6144.0))
+          (+! (-> s5-0 z) (rnd-float-range self -6144.0 6144.0))
+          ;; Add a bit of vertical offset
+          (+! (-> s5-0 y) (rnd-float-range self 0.0 4096.0))
+          (birth-pickup-at-point s5-0 (pickup-type eco-pill-dark) 1.0 #t *entity-pool* (-> self fact))
+          )
         )
+      (set! (-> self fact pickup-type) (pickup-type none))
       )
-    ;; Prevent the engine from dropping the default pickup-type during cleanup
-    (set! (-> self fact pickup-type) (pickup-type none))
     )
   :code (behavior ()
-    ;; og:preserve-this Standard enemy death effect: purple particles tracing the mesh/skeleton
-    ;; outline as it dissolves (same generic merc-death system used by civilians/crimson guards),
-    ;; paired with the "enemy-fizz" fizz sound baked into the death-default preset. The classic
-    ;; "yakow-die" cry is already played by (dying self) above in :enter.
-    (do-effect (-> self skel effect) 'death-default 0.0 -1)
+    ;; og:preserve-this MOD only: generic engine death-dissolve (purple mesh/skeleton-outline
+    ;; particles + baked "enemy-fizz"). The classic "yakow-die" cry already played via
+    ;; (dying self) in :enter, in both modes.
+    (if *mod-yakow-killable-enable*
+        (do-effect (-> self skel effect) 'death-default 0.0 -1)
+        )
     (suspend-for (seconds 1))
     (send-event self 'death-end)
     (while (-> self child)

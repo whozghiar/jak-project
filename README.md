@@ -33,8 +33,11 @@ guard traffic, alongside the regular red guards.
 | `jak2/features/city-insurrection` | three-front **territorial civil war** — district zoning, autonomous inter-faction combat, alert-free zones, debug-menu war-zone picker |
 | `jak2/features/blueguard` | both modes together (mutually exclusive at runtime) |
 
-`City Peaceful` is toggled from `Debug ▸ Mods ▸ City Peaceful`. Off = plain ambient blue guards
-(the `blueguard-traffic` behaviour).
+**The mod ships OFF.** It is enabled from `Debug ▸ Mods ▸ crimson-blueguard-peaceful ▸ Enable`.
+With it **off, Haven City is byte-for-byte stock Jak 2** — no blue guards spawn, ambient
+guard-vehicle counts are the retail values, alerts and civilians behave normally. Turning it
+**on** enables the whole package at once: blue ambient guards **and** the neutral patrol-squad
+behaviour. The choice re-rolls the ambient guards on the spot and persists across level reloads.
 
 ## ✨ Key Features
 - **New standalone entity:** `crimson-blue-guard` is a real GOAL type (subtype of
@@ -138,8 +141,12 @@ mélangé au trafic ambiant normal, aux côtés des gardes rouges classiques.
 | `jak2/features/city-insurrection` | **guerre civile territoriale** à trois fronts — zonage par quartier, combat inter-factions autonome, zones sans alerte, sélecteur de quartier de guerre |
 | `jak2/features/blueguard` | les deux modes ensemble (mutuellement exclusifs au runtime) |
 
-`City Peaceful` se bascule depuis `Debug ▸ Mods ▸ City Peaceful`. Off = gardes bleus ambiants
-simples (le comportement de `blueguard-traffic`).
+**Le mod est livré DÉSACTIVÉ.** Il s'active depuis `Debug ▸ Mods ▸ crimson-blueguard-peaceful ▸ Enable`.
+Désactivé, **Abriville est identique au Jak 2 d'origine** — aucun garde bleu, les effectifs de
+véhicules-gardes ambiants sont ceux du jeu d'origine, alertes et civils normaux. L'**activer**
+enclenche tout le paquet d'un coup : gardes bleus ambiants **et** comportement d'escouades de
+patrouille neutres. Le choix re-tire les gardes ambiants immédiatement et persiste au
+rechargement des niveaux.
 
 ## ✨ Fonctionnalités Clés
 - **Nouvelle entité à part entière :** `crimson-blue-guard` est un vrai type GOAL (sous-type de

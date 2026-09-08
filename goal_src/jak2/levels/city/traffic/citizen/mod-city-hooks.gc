@@ -31,8 +31,11 @@
   )
 
 (defun mod-city-hook-guard-spawn-blue? ((params traffic-object-spawn-params))
-  "default *mod-city-guard-spawn-blue-hook*: stock id-parity blue/red mix."
-  (logtest? (-> params id) 1)
+  "*mod-city-guard-spawn-blue-hook* (City Peaceful branch): id-parity blue/red mix
+   in the ambient guard pool -- but ONLY while the mod is enabled from Debug > Mods.
+   With *mod-city-peaceful?* #f this returns #f for every spawn, so the traffic
+   engine builds a stock red `crimson-guard` every time (native non-regression)."
+  (and *mod-city-peaceful?* (logtest? (-> params id) 1))
   )
 
 (defun mod-city-hook-alert-blocked? ()

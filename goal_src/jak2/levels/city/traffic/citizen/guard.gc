@@ -1861,10 +1861,17 @@
     (let* ((s5-0 (-> self traffic-target-status))
            (gp-0 (as-type (handle->process (-> s5-0 handle)) process-focusable))
            )
-      (if (or (focus-test? gp-0 inactive) (focus-test? gp-0 disable) (focus-test? gp-0 dead))
+      ;; MOD crimson-blueguard-peaceful: also drop a `dead` traffic-target (and null the
+      ;; handle) so a blue guard doesn't idle in stop-and-shoot on a corpse from an
+      ;; inter-faction skirmish. Gated -- OFF restores the stock (inactive/disable only) test.
+      (if (or (focus-test? gp-0 inactive)
+              (focus-test? gp-0 disable)
+              (and *mod-city-peaceful?* (focus-test? gp-0 dead)))
           (begin
             (set! gp-0 (the-as process-focusable #f))
-            (set! (-> s5-0 handle) (the-as handle #f))
+            (when *mod-city-peaceful?*
+              (set! (-> s5-0 handle) (the-as handle #f))
+              )
             )
           )
       (cond

@@ -465,8 +465,10 @@
          )
        )
       (((traffic-type crimson-guard-0))
-       ;; Secondary stock pool -- id-parity blue/red mix.
-       (let ((spawn-blue? (logtest? (-> arg1 id) 1)))
+       ;; Secondary stock pool -- id-parity blue/red mix, but ONLY when the mod is
+       ;; enabled from Debug > Mods. OFF (*mod-city-peaceful?* #f) => stock red guard,
+       ;; exactly like retail Jak 2.
+       (let ((spawn-blue? (and *mod-city-peaceful?* (logtest? (-> arg1 id) 1))))
          (set! v0-0 (citizen-spawn
                        arg0
                        (if spawn-blue? crimson-blue-guard crimson-guard)
@@ -555,8 +557,11 @@
     (set! (-> traffic-want-counts 14) 7)
     (set! (-> traffic-want-counts 15) 7)
     (set! (-> traffic-want-counts 16) 7)
-    (set! (-> traffic-want-counts 18) 8)
-    (set! (-> traffic-want-counts 19) 8)
+    ;; MOD crimson-blueguard-peaceful: denser ambient guard-vehicle traffic (bike-guard
+    ;; slot 18, hellcat slot 19) so blue patrol squads have more vehicles to ride, but
+    ;; ONLY when the mod is enabled from Debug > Mods. OFF => retail want-counts 4 / 3.
+    (set! (-> traffic-want-counts 18) (if *mod-city-peaceful?* 8 4))
+    (set! (-> traffic-want-counts 19) (if *mod-city-peaceful?* 8 3))
     (set! (-> traffic-want-counts 20) 0)
     (set! (-> traffic-want-counts 0) 15)
     (set! (-> traffic-want-counts 1) 15)

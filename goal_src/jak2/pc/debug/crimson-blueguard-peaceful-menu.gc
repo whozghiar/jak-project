@@ -1,0 +1,90 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+#|
+  ============================================================================
+  crimson-blueguard-peaceful-menu.gc -- Debug > Mods > crimson-blueguard-peaceful
+  ============================================================================
+
+  Registers the Crimson Blue Guard (City Peaceful) mod's master on/off switch
+  with the unified "Mods" debug tab (goal_src/jak2/pc/debug/mods-menu.gc), per
+  the mandatory procedure in docs/modding/tools/mods_debug_menu.md and
+  CLAUDE.md's golden rules.
+
+  Replaces the earlier hand-rolled "Mods" root-menu block that this branch had
+  added directly to default-menu-pc.gc (now reverted to stock) -- editing the
+  shared menu files is exactly what the mods-menu registry exists to avoid.
+
+  The flag is *mod-city-peaceful?*, defined (plain `define`, #f) in
+  goal_src/jak2/levels/city/traffic/citizen/mod-city-hooks.gc -- a non-debug
+  file resident in the CWI DGO next to every engine site that reads it, so the
+  gated code links in release builds too (this menu file is
+  `(declare-file (debug))` and is stripped from release).
+
+  With *mod-city-peaceful?* #f the city is byte-for-byte stock Jak 2: no blue
+  guards spawn (see traffic-object-spawn), ambient guard-vehicle want-counts are
+  the retail 4 / 3 (see init-params), and every *mod-city-*-hook* resolves to
+  its stock-equivalent default. Turning it on enables the whole package: blue
+  ambient guards + neutral patrol squads + civilian alert suppression.
+
+  Wiring: "crimson-blueguard-peaceful-menu.o" is listed in
+  goal_src/jak2/dgos/game.gd immediately after "mods-menu.o".
+|#
+
+;; debug-only file: stripped from release builds like the rest of the menu code.
+(declare-file (debug))
+
+;; the flag lives in mod-city-hooks.gc; just declare its type for this file.
+(define-extern *mod-city-peaceful?* symbol)
+
+;; ============================================================================
+;; Toggle side effect: re-roll the ambient guards under the new mode.
+;; ============================================================================
+
+(defun dm-crimson-blueguard-peaceful-flush-guards ()
+  "Park every ambient city guard so the traffic engine respawns them (within a
+   second or two) under whichever mode is now active. The crimson-guard traffic
+   pools hold both red and blue guard processes, so deactivating the pools is
+   what re-rolls each guard's faction / squad / weapon per the new rules.
+   *traffic-manager* is #f outside the city -- always guard it."
+  (when *traffic-manager*
+    (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-0))
+    (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-1))
+    (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-2))
+    )
+  (none)
+  )
+
+;; ============================================================================
+;; Pick-func: side effects on `press` only, always return the bool.
+;; ============================================================================
+
+(defun mod-crimson-blueguard-peaceful-enable-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Master enable toggle for the Crimson Blue Guard (City Peaceful) mod.
+   arg0 is the quoted flag symbol -- its `value` slot is *mod-city-peaceful?*."
+  (when (= arg1 (debug-menu-msg press))
+    (set! (-> arg0 value) (not (-> arg0 value)))
+    (dm-crimson-blueguard-peaceful-flush-guards)
+    )
+  (-> arg0 value)
+  )
+
+;; ============================================================================
+;; Menu builder -- pure: only builds and returns the submenu node.
+;; ============================================================================
+
+(defun mod-crimson-blueguard-peaceful-build-menu ((ctx debug-menu-context))
+  "Return the 'crimson-blueguard-peaceful' submenu node."
+  (debug-menu-make-from-template ctx
+    '(menu "crimson-blueguard-peaceful"
+       (flag "Enable (blue guards + neutral patrol squads)"
+             *mod-city-peaceful?* mod-crimson-blueguard-peaceful-enable-pick)
+       )
+    )
+  )
+
+;; ============================================================================
+;; Register with the unified Mods tab (top-level, runs at file load / (mi)).
+;; ============================================================================
+
+(mods-menu-register "crimson-blueguard-peaceful" mod-crimson-blueguard-peaceful-build-menu)

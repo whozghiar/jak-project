@@ -804,7 +804,10 @@
   ;; update-sound-banks; Jak 2 has the same sound-bank-load primitive natively
   ;; (engine/sound/gsound.gc), so it's simpler to call it directly here, where the board bank
   ;; is actually needed, guarded by *board-sound-bank-loaded?* above.
-  (when (not *board-sound-bank-loaded?*)
+  ;; NON-REGRESSION: gated on the mod master flag - stock play never requested this bank, so
+  ;; with the mod disabled we must not load it either (keeps boot/sound state identical to
+  ;; vanilla). Once the mod is enabled from Debug > Mods, the next board mount loads it.
+  (when (and *jak3-jetboard-enable* (not *board-sound-bank-loaded?*))
     (sound-bank-load (static-sound-name "board"))
     (set! *board-sound-bank-loaded?* #t)
     ;; jak3 board port: TEMPORARY - fires exactly once per session (same guard as the load call
@@ -1991,88 +1994,100 @@
               )
             )
           )
-        ;; jak3 board port: charged jump (hold l1, release x)
-        (cond
-          ((cpad-pressed? (-> self control cpad number) l1)
-           (set-time! (-> self board charge-start-time))
-           )
-          ((cpad-hold? (-> self control cpad number) l1)
-           (when (board-on-ground?)
-             (set-time! (-> self board charge-time))
+        ;; jak3 board port: charged jump (hold l1, release x) -- gated behind Debug > Mods
+        ;; > jak3-jetboard > "Loaded Jump". While disabled, charge-progress is never
+        ;; touched here, so it stays 0.0 and the L1-release bonus in board-states.gc is
+        ;; likewise inert -- stock L1 behaviour on the board is unchanged.
+        (when (and *jak3-jetboard-enable* *jak3-jetboard-loaded-jump*)
+          (cond
+            ((cpad-pressed? (-> self control cpad number) l1)
+             (set-time! (-> self board charge-start-time))
+             )
+            ((cpad-hold? (-> self control cpad number) l1)
+             (when (board-on-ground?)
+               (set-time! (-> self board charge-time))
+               (seek!
+                 (-> self board charge-progress)
+                 1.0
+                 (* (/ 300.0 (the float (-> *TARGET_BOARD-bank* charge-jump-time))) (seconds-per-frame))
+                 )
+               )
+             (sound-play-by-name
+               (static-sound-name "board-charge")
+               (-> self board charge-sound-id)
+               (the int (* 1024.0 (-> self board charge-progress)))
+               0
+               0
+               (sound-group)
+               (-> self control trans)
+               )
+             )
+            ((!= (-> self board charge-progress) 0.0)
              (seek!
                (-> self board charge-progress)
-               1.0
-               (* (/ 300.0 (the float (-> *TARGET_BOARD-bank* charge-jump-time))) (seconds-per-frame))
+               0.0
+               (* (/ 300.0 (the float (-> *TARGET_BOARD-bank* charge-jump-fade-time))) (seconds-per-frame))
                )
-             )
-           (sound-play-by-name
-             (static-sound-name "board-charge")
-             (-> self board charge-sound-id)
-             (the int (* 1024.0 (-> self board charge-progress)))
-             0
-             0
-             (sound-group)
-             (-> self control trans)
-             )
-           )
-          ((!= (-> self board charge-progress) 0.0)
-           (seek!
-             (-> self board charge-progress)
-             0.0
-             (* (/ 300.0 (the float (-> *TARGET_BOARD-bank* charge-jump-fade-time))) (seconds-per-frame))
-             )
-           (if (= (-> self board charge-progress) 0.0)
-               (sound-stop (-> self board charge-sound-id))
-               )
-           )
-          )
-        ;; jak3 board port: charge-up glow, spawned every frame charge-progress is active (ramps
-        ;; up while L1 is held, fades back out on release) - mirrors Jak3's target-board.gc exactly,
-        ;; including the draw-status/active-channels guard so it doesn't spawn while not rendered
-        (if (and (!= (-> self board charge-progress) 0.0)
-                 (not (or (logtest? (-> self draw status) (draw-control-status no-draw no-draw-temp no-draw-bounds no-draw-bounds2))
-                          (zero? (-> self skel active-channels))
-                          )
-                      )
+             (if (= (-> self board charge-progress) 0.0)
+                 (sound-stop (-> self board charge-sound-id))
                  )
-            (spawn
-              (-> self board charge-part)
-              (vector<-cspace! (new 'stack-no-clear 'vector) (joint-node jakb-lod0-jg board))
-              )
-            )
-        ;; jak3 board port: circle-button area attack (board-zap)
-        (cond
-          ((and (cpad-pressed? (-> self control cpad number) circle)
-                (time-elapsed?
-                  (-> self board zap-start-time)
-                  (+ (-> *TARGET_BOARD-bank* zap-duration) (-> *TARGET_BOARD-bank* zap-reset-time))
-                  )
-                (not (-> self control danger-mode))
-                (not (logtest? (-> self state-flags) (state-flags prevent-attack)))
-                (not (and (-> self next-state) (let ((v1-board-zap (-> self next-state name)))
-                                                 (or (= v1-board-zap 'target-board-get-on) (= v1-board-zap 'target-board-get-off))
-                                                 )
-                          )
-                     )
-                (not (logtest? (-> self focus-status) (focus-status dead hit grabbed)))
-                )
-           (sound-play "board-zap")
-           (target-start-attack)
-           (target-danger-set! 'board-zap #f)
-           (set-time! (-> self board zap-start-time))
-           (part-tracker-spawn
-             :to self
-             :group group-board-zap-attack
-             :callback part-tracker-track-target
-             :mat-joint (vector<-cspace! (new 'stack-no-clear 'vector) (-> self node-list data (joint-node-index jakb-lod0-jg board)))
              )
-           (target-timed-invulnerable (-> *TARGET_BOARD-bank* zap-duration) self 2)
-           )
-          ((and (-> self control danger-mode)
-                (time-elapsed? (-> self board zap-start-time) (-> *TARGET_BOARD-bank* zap-duration))
+            )
+          ;; jak3 board port: charge-up glow, spawned every frame charge-progress is active (ramps
+          ;; up while L1 is held, fades back out on release) - mirrors Jak3's target-board.gc exactly,
+          ;; including the draw-status/active-channels guard so it doesn't spawn while not rendered
+          (if (and (!= (-> self board charge-progress) 0.0)
+                   (-> self board charge-part)
+                   (not (or (logtest? (-> self draw status) (draw-control-status no-draw no-draw-temp no-draw-bounds no-draw-bounds2))
+                            (zero? (-> self skel active-channels))
+                            )
+                        )
+                   )
+              (spawn
+                (-> self board charge-part)
+                (vector<-cspace! (new 'stack-no-clear 'vector) (joint-node jakb-lod0-jg board))
                 )
-           (target-danger-set! 'harmless #f)
-           )
+              )
+          )
+        ;; jak3 board port: circle-button area attack (board-zap) -- gated behind Debug >
+        ;; Mods > jak3-jetboard > "Zap Attack". While disabled, danger-mode is never set
+        ;; to 'board-zap, so the 'board-zap branches in target-handler.gc / target-util.gc
+        ;; and the spin-attack suppression above are all unreachable -- Circle on the board
+        ;; keeps its stock (no-op) behaviour.
+        (when (and *jak3-jetboard-enable* *jak3-jetboard-zap*)
+          (cond
+            ((and (cpad-pressed? (-> self control cpad number) circle)
+                  (time-elapsed?
+                    (-> self board zap-start-time)
+                    (+ (-> *TARGET_BOARD-bank* zap-duration) (-> *TARGET_BOARD-bank* zap-reset-time))
+                    )
+                  (not (-> self control danger-mode))
+                  (not (logtest? (-> self state-flags) (state-flags prevent-attack)))
+                  (not (and (-> self next-state) (let ((v1-board-zap (-> self next-state name)))
+                                                   (or (= v1-board-zap 'target-board-get-on) (= v1-board-zap 'target-board-get-off))
+                                                   )
+                            )
+                       )
+                  (not (logtest? (-> self focus-status) (focus-status dead hit grabbed)))
+                  )
+             (sound-play "board-zap")
+             (target-start-attack)
+             (target-danger-set! 'board-zap #f)
+             (set-time! (-> self board zap-start-time))
+             (part-tracker-spawn
+               :to self
+               :group group-board-zap-attack
+               :callback part-tracker-track-target
+               :mat-joint (vector<-cspace! (new 'stack-no-clear 'vector) (-> self node-list data (joint-node-index jakb-lod0-jg board)))
+               )
+             (target-timed-invulnerable (-> *TARGET_BOARD-bank* zap-duration) self 2)
+             )
+            ((and (-> self control danger-mode)
+                  (time-elapsed? (-> self board zap-start-time) (-> *TARGET_BOARD-bank* zap-duration))
+                  )
+             (target-danger-set! 'harmless #f)
+             )
+            )
           )
         (do-rotations2)
         (reverse-conversions (-> self control transv))

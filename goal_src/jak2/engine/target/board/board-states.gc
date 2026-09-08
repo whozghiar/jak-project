@@ -596,8 +596,12 @@
              )
         (set-time! (-> self board spin-ground-start-time))
         )
-    ;; jak3 board port: triangle turn-around
-    (when (and (can-feet? #t)
+    ;; jak3 board port: triangle turn-around -- gated behind Debug > Mods > jak3-jetboard
+    ;; > "Turn-Around". While disabled the target-board-turn-around state is never entered,
+    ;; so Triangle on the board keeps its stock behaviour (unbound).
+    (when (and *jak3-jetboard-enable*
+               *jak3-jetboard-turn-around*
+               (can-feet? #t)
                (cpad-pressed? (-> self control cpad number) triangle)
                (< (target-height-above-ground) 8192.0)
                )
@@ -945,18 +949,23 @@
     (set! (-> self control dynam gravity-length) 245760.0)
     (set-time! (-> self state-time))
     (let ((f30-0 0.0))
-      ;; jak3 board port: charged jump height bonus
-      (when (and (cpad-hold? (-> self control cpad number) l1) (!= (-> self board charge-progress) 0.0))
-        (+! f30-0 (* (-> self board charge-progress) (-> *TARGET_BOARD-bank* charge-jump-height)))
-        (sound-play "board-launch")
-        (let ((launch-fx-pos (new 'stack-no-clear 'vector)))
-          (set! (-> launch-fx-pos quad) (-> self control trans quad))
-          (+! (-> launch-fx-pos y) 2048.0)
-          (part-tracker-spawn :to self :group group-board-quick-jump :mat-joint launch-fx-pos)
+      ;; jak3 board port: charged jump height bonus -- gated behind Debug > Mods >
+      ;; jak3-jetboard > "Loaded Jump". charge-progress is only ever ramped up by the
+      ;; (identically gated) L1 handler in target-board-real-post, so with the mechanic
+      ;; disabled this whole block is dead weight and the jump height is stock.
+      (when (and *jak3-jetboard-enable* *jak3-jetboard-loaded-jump*)
+        (when (and (cpad-hold? (-> self control cpad number) l1) (!= (-> self board charge-progress) 0.0))
+          (+! f30-0 (* (-> self board charge-progress) (-> *TARGET_BOARD-bank* charge-jump-height)))
+          (sound-play "board-launch")
+          (let ((launch-fx-pos (new 'stack-no-clear 'vector)))
+            (set! (-> launch-fx-pos quad) (-> self control trans quad))
+            (+! (-> launch-fx-pos y) 2048.0)
+            (part-tracker-spawn :to self :group group-board-quick-jump :mat-joint launch-fx-pos)
+            )
           )
+        (set! (-> self board charge-progress) 0.0)
+        (sound-stop (-> self board charge-sound-id))
         )
-      (set! (-> self board charge-progress) 0.0)
-      (sound-stop (-> self board charge-sound-id))
       (cond
         ((and (< 0.0 (-> self board shock-offsetv))
               (not (time-elapsed? (-> self board jump-land-time) (seconds 0.5)))
@@ -1055,8 +1064,16 @@
          )
        (ja-channel-push! 1 (seconds 0.05))
        )
-      ;; jak3 board port: taller jump animation when the charged-jump apex speed is high enough
-      ((>= (the-as float (-> self control unknown-word04)) 20480.0)
+      ;; jak3 board port: taller jump animation when the charged-jump apex speed is high enough.
+      ;; Gated: `unknown-word04` (the computed jump apex height from init-var-jump) can legitimately
+      ;; exceed 20480.0 in stock play too -- e.g. a board jump launched off a fast-moving rider
+      ;; platform picks up an extra impulse there -- so without this flag check a vanilla jump could
+      ;; swap to the imported jakb-board-jump-high-ja animation. Only take this branch when the
+      ;; Loaded Jump mechanic is actually enabled.
+      ((and *jak3-jetboard-enable*
+            *jak3-jetboard-loaded-jump*
+            (>= (the-as float (-> self control unknown-word04)) 20480.0)
+            )
        (ja-channel-push! 1 (seconds 0.05))
        (ja :group! jakb-board-jump-high-ja :num! min)
        (suspend)

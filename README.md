@@ -56,6 +56,18 @@ task boot-game
 ```
 *(Or iterate fast via the OpenGOAL REPL using `task repl`, then hot-reload with `(mi)` and `(r)`).*
 
+### 5. Enable the Mod (OFF by default)
+This mod ships **disabled** — a fresh install plays exactly like stock Jak 2.
+Open the in-game debug menu and go to:
+
+```
+Debug ▸ Mods ▸ jak3-jetboard ▸ Enable (master)
+```
+
+Turning the master toggle ON also arms the three mechanics (`Loaded Jump`,
+`Zap Attack`, `Turn-Around`), each of which can then be switched off
+individually. Turn the master OFF to fully restore stock jetboard behaviour.
+
 ## 🎥 Demonstration Video
 > [!NOTE]
 > *Demonstration videos are hosted on YouTube to avoid repository bloat.*  
@@ -109,6 +121,19 @@ Lancez le jeu nativement :
 task boot-game
 ```
 *(Ou itérez rapidement via le REPL OpenGOAL avec `task repl`, puis rechargez à chaud avec `(mi)` et `(r)`).*
+
+### 5. Activer le Mod (DÉSACTIVÉ par défaut)
+Ce mod est livré **désactivé** — une installation neuve se joue exactement comme
+le Jak 2 d'origine. Ouvrez le menu debug en jeu et allez dans :
+
+```
+Debug ▸ Mods ▸ jak3-jetboard ▸ Enable (master)
+```
+
+Activer l'interrupteur maître arme aussi les trois mécaniques (`Loaded Jump`,
+`Zap Attack`, `Turn-Around`), chacune pouvant ensuite être désactivée
+individuellement. Repassez le maître sur OFF pour rétablir intégralement le
+comportement d'origine du jetboard.
 
 ## 🎥 Encart Vidéo Démonstrative
 [![Demonstration Video](https://img.youtube.com/vi/y-s5oj6Bimo/maxresdefault.jpg)](https://youtu.be/y-s5oj6Bimo)

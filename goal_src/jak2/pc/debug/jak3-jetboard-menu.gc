@@ -1,0 +1,88 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+#|
+  ============================================================================
+  jak3-jetboard-menu.gc -- Debug > Mods > jak3-jetboard
+  ============================================================================
+
+  Registers this mod's on/off switch with the unified "Mods" debug tab
+  (goal_src/jak2/pc/debug/mods-menu.gc), per the mandatory procedure in
+  docs/modding/tools/mods_debug_menu.md and CLAUDE.md's golden rules:
+  every mod ships OFF by default and is switchable at runtime from Debug > Mods.
+
+  This file does NOT hold the flags -- it only flips them. The flags are
+  `(define ...)`d in goal_src/jak2/engine/target/board/board-h.gc (a non-debug
+  header, so the gameplay code in target-board.gc / board-states.gc that reads
+  them always compiles). See the block comment there for the full rationale and
+  the exact gate expression the engine code uses.
+
+  Menu layout:
+
+    Debug > Mods > jak3-jetboard
+      - Enable (master)        *jak3-jetboard-enable*        -- gates the whole mod
+      - Loaded Jump (L1 + X)   *jak3-jetboard-loaded-jump*   -- charged high jump
+      - Zap Attack (Circle)    *jak3-jetboard-zap*           -- radial electric attack
+      - Turn-Around (Triangle) *jak3-jetboard-turn-around*   -- 180 quick turn + boost
+
+  Engine code checks `(and *jak3-jetboard-enable* *jak3-jetboard-<mechanic>*)`,
+  so "Enable (master)" is the real gate and the three per-mechanic rows just let
+  a tester silence one mechanic while keeping the others. Turning the master ON
+  also arms all three mechanics (mod-jak3-jetboard-enable-pick), so a single
+  click enables the full mod; turning it OFF disarms them again.
+
+  Wiring: "jak3-jetboard-menu.o" is listed in goal_src/jak2/dgos/game.gd
+  immediately after "mods-menu.o" (so mods-menu-register is defined at compile
+  time). No shared menu file is edited.
+|#
+
+;; debug-only file: stripped from release builds like the rest of the menu code.
+(declare-file (debug))
+
+;; ============================================================================
+;; Pick-functions
+;; ============================================================================
+
+(defun mod-jak3-jetboard-enable-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Master on/off for the jak3-jetboard port. On press: flip *jak3-jetboard-enable*
+   and mirror the new state onto all three per-mechanic flags, so enabling the mod
+   takes one click and disabling it fully stops every added code path. On update:
+   just report the current state for the checkmark. Always returns the bool."
+  (when (= arg1 (debug-menu-msg press))
+    (let ((on (not (-> arg0 value))))
+      (set! (-> arg0 value) on)
+      ;; arm / disarm every mechanic together with the master switch
+      (set! *jak3-jetboard-loaded-jump* on)
+      (set! *jak3-jetboard-zap* on)
+      (set! *jak3-jetboard-turn-around* on)
+      )
+    )
+  (-> arg0 value)
+  )
+
+;; The three per-mechanic rows are plain booleans -- the stock
+;; dm-boolean-toggle-pick-func (default-menu.gc) toggles their `value` slot with
+;; no side effect, which is all they need: the gameplay code reads them live.
+
+;; ============================================================================
+;; Menu builder
+;; ============================================================================
+
+(defun mod-jak3-jetboard-build-menu ((ctx debug-menu-context))
+  "Return the 'jak3-jetboard' submenu node. Called by the Mods registry on every
+   rebuild -- pure: only builds and returns a node, never spawns anything."
+  (debug-menu-make-from-template ctx
+    '(menu "jak3-jetboard"
+       (flag "Enable (master)"        *jak3-jetboard-enable*        mod-jak3-jetboard-enable-pick)
+       (flag "Loaded Jump (L1 + X)"   *jak3-jetboard-loaded-jump*   dm-boolean-toggle-pick-func)
+       (flag "Zap Attack (Circle)"    *jak3-jetboard-zap*           dm-boolean-toggle-pick-func)
+       (flag "Turn-Around (Triangle)" *jak3-jetboard-turn-around*   dm-boolean-toggle-pick-func)
+       )
+    )
+  )
+
+;; ============================================================================
+;; Register with the unified Mods tab (top-level, runs at file load / (mi))
+;; ============================================================================
+
+(mods-menu-register "jak3-jetboard" mod-jak3-jetboard-build-menu)

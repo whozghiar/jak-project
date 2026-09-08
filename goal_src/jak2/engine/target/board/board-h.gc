@@ -265,6 +265,40 @@
                               )
         )
 
+;; ============================================================================
+;; jak3 board port -- runtime enable flags (Debug > Mods > jak3-jetboard)
+;; ============================================================================
+;; Golden rule / non-regression: every behaviour this mod adds ships OFF by
+;; default and is gated behind these flags. A stock install with the mod compiled
+;; but every flag left #f plays byte-for-byte like vanilla Jak 2 -- none of the
+;; charged-jump / zap / turn-around code paths, nor the forced board sound-bank
+;; load, are reachable while `*jak3-jetboard-enable*` is #f.
+;;
+;; They live HERE (a non-debug header, first board file loaded) rather than in the
+;; debug-only menu file so the engine code that reads them (`target-board.gc`,
+;; `board-states.gc`) always compiles, debug build or release. The menu file
+;; `pc/debug/jak3-jetboard-menu.gc` only flips their `value` slots -- it is the
+;; single source of the on/off switch, registered through the unified Mods tab
+;; with `(mods-menu-register "jak3-jetboard" ...)`; see
+;; docs/modding/tools/mods_debug_menu.md.
+;;
+;; Gate expression used everywhere in gameplay code:
+;;   (and *jak3-jetboard-enable* *jak3-jetboard-<mechanic>*)
+;; -- the master flag is the real gate; the three per-mechanic flags let a tester
+;; disable one mechanic while keeping the others. Toggling the master ON in the
+;; menu also arms all three (see mod-jak3-jetboard-enable-pick), so a single
+;; click enables the whole mod.
+
+;; master on/off for the entire jetboard port
+(define *jak3-jetboard-enable* #f)
+;; L1-charge + release-X "loaded" high jump (charge ramp, launch impulse, board-charge/
+;; board-launch audio, charge-up glow, jakb-board-jump-high-ja playback)
+(define *jak3-jetboard-loaded-jump* #f)
+;; Circle radial electric zap attack (AoE damage, i-frames, board-zap audio + VFX)
+(define *jak3-jetboard-zap* #f)
+;; Triangle 180-degree quick turn-around state + exit speed boost
+(define *jak3-jetboard-turn-around* #f)
+
 (defbehavior want-to-board? target ()
   (and (logtest? (-> self game features) (game-feature board))
        (or (and (cpad-pressed? (-> self control cpad number) r2)

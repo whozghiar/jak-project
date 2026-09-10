@@ -51943,6 +51943,7 @@ Consists of a header and a list of [[merc-effect]]s."
   (evan-test-bike 8)
   (test-bike 9)
   (test-car 10)
+  (paddywagon-v 11)
   )
 ;; ---vehicle-h:vehicle-type
 

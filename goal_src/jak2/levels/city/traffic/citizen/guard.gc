@@ -1124,7 +1124,11 @@
           (set! (-> v1-64 frame-group) (the-as art-joint-anim (-> this draw art-group data 35)))
           )
         )
-       ((14 15 16 19)
+       ;; MOD (jak2/features/paddywagon/traffic): 20 = paddywagon-v. The paddy
+       ;; wagon is a box-bodied van, so a guard knocked out of it should use the
+       ;; CAR knock-off animation, not the bike one. Inert with the mod off --
+       ;; no vehicle with `info object-type` 20 is ever built.
+       ((14 15 16 19 20)
         (logior! (-> this flags) (citizen-flag knocked-out-car))
         (let ((v1-70 (-> this skel root-channel 0)))
           (set! (-> v1-70 frame-group) (the-as art-joint-anim (-> this draw art-group data 36)))

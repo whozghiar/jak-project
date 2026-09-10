@@ -36,6 +36,9 @@
   (evan-test-bike 8)
   (test-bike 9)
   (test-car 10)
+  ;; MOD (jak2/features/paddywagon/traffic): Crimson Guard prisoner transport,
+  ;; a `vehicle-guard` hover van. See levels/city/traffic/vehicle/paddywagon-v.gc.
+  (paddywagon-v 11)
   )
 
 

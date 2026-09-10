@@ -50,7 +50,14 @@
   (tt17 17)
   (guard-bike 18)
   (hellcat 19)
-  (traffic-type-20 20)
+  ;; MOD (jak2/features/paddywagon/traffic): repurpose the spare traffic slot 20
+  ;; for the Crimson Guard prisoner-transport (paddy wagon) in ambient city traffic.
+  ;; Slot 20 was already wired as a `ctywide`-level, VEHICLE-tracker type by
+  ;; `traffic-engine::reset-and-init-from-manager` (it sets `object-type-info-array 20
+  ;; level` to 'ctywide and gives indices 11..20 tracker-index 0 = the vehicle tracker);
+  ;; it simply had want-count 0 and no spawn handler. Slot 21 is NOT usable: every
+  ;; engine loop is `(dotimes ... 21)` and `object-type-info-array` is 21 entries.
+  (paddywagon-v 20)
   (traffic-type-21 21)
   )
 ;; ---traffic-h:traffic-type

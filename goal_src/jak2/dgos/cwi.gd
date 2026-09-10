@@ -20,6 +20,7 @@
   "transport.o"
   "bike.o"
   "car.o"
+  "paddywagon-v.o" ;; added (MOD paddywagon/traffic) -- levels/city/traffic/vehicle/paddywagon-v.gc
   "test-bike.o"
   "test-car.o"
   "citizen.o"

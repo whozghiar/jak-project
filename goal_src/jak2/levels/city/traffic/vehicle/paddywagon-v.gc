@@ -1,0 +1,811 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: paddywagon-v.gc
+;; name in dgo: paddywagon-v
+;; dgos: CWI
+
+#|
+  ============================================================================
+  paddywagon-v.gc -- MOD jak2/features/paddywagon/traffic
+  ============================================================================
+
+  Puts the Krimzon Guard PADDY WAGON (prisoner transport) into Haven City's
+  ambient ground traffic, carrying a random civilian prisoner in its rear cage
+  and piloted by a Crimson Guard -- drivable and stealable exactly like every
+  other guard vehicle.
+
+  WHY A NEW TYPE INSTEAD OF REUSING `paddywagon`
+  ----------------------------------------------
+  The retail `paddywagon` type lives in levels/city/meet-brutter/meet-brutter.gc,
+  which ships in LMEETBRT.DGO -- a *borrowed* mission level. It is not loaded in
+  free roam, and it is deliberately un-stealable:
+    * `init-skel-and-rigid-body` re-homes the process onto 'lmeetbrt (so its art
+      resolves from the mission DGO) and sets `rigid-body-object-flag no-hijack`,
+      which is what `vehicle-util.gc`'s boarding probe tests before it will even
+      show the "press triangle" prompt;
+    * `vehicle-method-134` / `vehicle-method-108` / the `hostile` + `active` state
+      overrides implement the meet-brutter chase, not city traffic behaviour;
+    * its `object-type` is #x13 -- it impersonates the hellcat.
+  So this file defines a sibling, `paddywagon-v`, that is a plain traffic
+  `vehicle-guard`: same hull, same physics constants, none of the mission
+  scaffolding. Retail `paddywagon` is left completely untouched, so the
+  meet-brutter mission is bit-for-bit unchanged.
+
+  WHAT COMES FOR FREE FROM `vehicle-guard`
+  ----------------------------------------
+    | need                     | inherited from                                |
+    |--------------------------|-----------------------------------------------|
+    | Crimson Guard pilot      | `vehicle-guard::vehicle-method-137` spawns a  |
+    |                          | `crimson-guard-rider` into seat 0.             |
+    | red dot on the minimap   | `vehicle-guard::vehicle-method-128`            |
+    |                          | (`minimap-class guard`, icon 14).              |
+    | follows the city lanes   | `vehicle-guard-choose-branch`, installed by    |
+    |                          | `vehicle-guard::alloc-and-init-rigid-body-...` |
+    | hostile pursuit on alert | slot 20 already receives `trtflags-0` in       |
+    |                          | `traffic-engine::restore-default-settings`, so |
+    |                          | it is sent 'alert-begin / 'alert-end and never |
+    |                          | parks -- retail already wired this slot as a   |
+    |                          | ctywide guard-vehicle slot.                    |
+    | player boards and drives | `vehicle::check-player-get-on` (we simply do   |
+    |                          | NOT set `no-hijack`).                          |
+    | STEALING IT IS A CRIME   | knocking the `crimson-guard-rider` off raises  |
+    |                          | the city alert to 2 and drops a `crimson-guard`|
+    |                          | -- see `vehicle-rider-event-handler`'s         |
+    |                          | 'knocked-off case, flag bit 3. Identical to a  |
+    |                          | stolen hellcat / guard-bike.                   |
+
+  UNARMED BY DESIGN: the `paddy-wagon` skeleton has no gun joint (only
+  "steering", "hatch", "main", "prejoint", "align"), so `turret info` is left at
+  0. `turret-control-method-11` is guarded by `(when (nonzero? (-> this info)))`,
+  so the inherited guard AI simply never fires. A prisoner van rams and pursues;
+  it does not shoot.
+
+  ASSET RESIDENCY (both circuits -- see
+  docs/modding/tools/model_and_entity_level_injection_guide.md):
+    * Circuit 1 (GOAL heap): "paddy-wagon-ag.go" + "tpage-2438.go" added to
+      lwidea.gd / lwideb.gd / lwidec.gd. Traffic vehicles are re-homed onto the
+      lwide level by `vehicle-init-by-other`'s `(lwide-entity-hack)`, so the art
+      group must be resident in whichever lwide level is loaded.
+    * Circuit 2 (Merc renderer): `extra_art_groups_by_dgo` in jak2_config.jsonc
+      bakes "paddy-wagon-ag:LMEETBRT.DGO" into all three lwide .fr3 files.
+      Requires `task extract`.
+|#
+
+;; ============================================================================
+;; Skeleton
+;; ============================================================================
+;; Identical to retail `skel-paddywagon` (meet-brutter.gc) but under a distinct
+;; name so the two never collide in `art-group-get-by-name` while the
+;; meet-brutter mission has LMEETBRT borrowed in. `paddy-wagon` only ever had a
+;; single LOD mesh, already declared out to 999999m, so there is no LOD-vanishing
+;; problem to work around here.
+(defskelgroup skel-paddywagon-v paddy-wagon paddy-wagon-lod0-jg paddy-wagon-idle-ja
+              ((paddy-wagon-lod0-mg (meters 999999)))
+              :bounds (static-spherem 0 0 0 6.4)
+              :shadow paddy-wagon-shadow-mg
+              :origin-joint-index 3
+              )
+
+;; ============================================================================
+;; Flight / handling constants
+;; ============================================================================
+;; A verbatim copy of retail `*paddywagon-constants*` (meet-brutter.gc). Every
+;; physics figure -- mass, inertial tensor, cm-offset-joint, thrusters,
+;; stabilisers, camera string, seats -- is retail data and MUST be left alone:
+;; moving `cm-offset-joint` without moving every control-point array by the same
+;; vector is what flips a hover vehicle onto its back. The ONLY edit is
+;; `object-type`, documented inline below.
+;;
+;; Notable retail values this mod depends on and deliberately keeps:
+;;   :flags #xc          -- bit 3 set => the hull has a real collide-MESH prim,
+;;                          so `vehicle::alloc-and-init-rigid-body-control` gives
+;;                          the mesh `jak`/`player-list` and Jak can stand on and
+;;                          board the van. Bit 6 (flight level) is NOT set, so it
+;;                          rides the low ground lanes with the cars rather than
+;;                          the hellcats' high air lane -- this is city traffic.
+;;   :guard-type #x5     -- the hellcat guard slot: alert pacing and aim settings
+;;                          come from `get-traffic-guard-type-settings` (see
+;;                          `vehicle-guard::vehicle-method-82`).
+;;   :seat-count 2       -- seat 0 (flags 1, angle 0) is the driver / player seat;
+;;                          seat 1 (flags 4, angle #x8000 = 180 deg, y 819.2,
+;;                          z -13107.2) is the REAR CAGE, facing backwards. This
+;;                          is the seat retail drops the captured lurker into
+;;                          during meet-brutter, and it is where this mod's
+;;                          civilian prisoner stands.
+;;   :rider-stance #x1   -- same as cara/carb/carc and the hellcat, so the
+;;                          `crimson-guard-rider` uses its regular vehicle pose.
+(define *paddywagon-v-constants*
+  (new 'static 'rigid-body-vehicle-constants
+    :info (new 'static 'rigid-body-info
+      :mass 10.0
+      :inv-mass 0.1
+      :linear-damping 0.995
+      :angular-damping 0.995
+      :bounce-factor 0.1
+      :friction-factor 0.05
+      :cm-offset-joint (new 'static 'vector :y 2048.0 :z -2048.0 :w 1.0)
+      :inertial-tensor-box (new 'static 'array meters 3 (meters 6) (meters 3) (meters 7))
+      )
+    :extra (new 'static 'rigid-body-object-extra-info
+      :max-time-step 0.033333335
+      :gravity (meters 40)
+      :idle-distance (meters 50)
+      :attack-force-scale 1.0
+      )
+    :name '*paddywagon-v-constants*
+    :flags #xc
+    ;; MOD: retail's mission paddywagon impersonates the hellcat (#x13 = 19) so the
+    ;; guard system treats it as one. The traffic version owns slot 20 instead --
+    ;; this is the field `traffic-object-spawn-params`/`traffic-engine` key off, and
+    ;; what `crimson-guard`'s knock-off `case` in guard.gc reads. guard-type stays
+    ;; #x5 (the hellcat guard slot) so alert pacing/aim settings are the hellcat's.
+    :object-type #x14
+    :guard-type #x5
+    :max-engine-thrust (meters 50)
+    :inv-max-engine-thrust 0.0000048828124
+    :engine-response-rate 60.0
+    :engine-intake-factor 1.5
+    :brake-factor 3.5
+    :turbo-boost-factor 1.0
+    :max-xz-speed (meters 40)
+    :ground-probe-distance (meters 4.5)
+    :cos-ground-effect-angle 0.42261824
+    :spring-lift-factor 0.3
+    :air-drag-factor 1.0
+    :steering-thruster-factor 5.0
+    :steering-thruster-max-gain 4.0
+    :steering-thruster-half-gain-speed (meters 15)
+    :tire-friction-factor 0.5
+    :tire-static-friction 0.55
+    :tire-dynamic-friction 0.4
+    :tire-dynamic-friction-speed (meters 2)
+    :tire-inv-max-friction-speed 0.000034877234
+    :airfoil-factor 1.0
+    :drag-force-factor 1.0
+    :speed-scrubbing-drag 10.0
+    :speed-limiting-drag 0.5
+    :pitch-control-factor 0.5
+    :roll-control-factor 1.0
+    :jump-thrust-factor 0.5
+    :buoyancy-factor 1.0
+    :player-weight 163840.0
+    :player-shift-x (meters 0.6)
+    :player-shift-z (meters 1)
+    :target-speed-offset (meters -2)
+    :turning-accel (meters 45)
+    :toughness-factor 1.0
+    :damage-factor 6.0
+    :camera-string-min-height (meters 4.5)
+    :camera-string-max-height (meters 4.5)
+    :camera-string-min-length (meters 5)
+    :camera-string-max-length (meters 12.5)
+    :camera-min-fov 15109.688
+    :camera-max-fov 17476.268
+    :camera-head-offset 8192.0
+    :camera-foot-offset 4096.0
+    :camera-normal-max-angle-offset 182.04445
+    :camera-air-max-angle-offset 5461.3335
+    :camera-max-lookaround-speed 40960.0
+    :seat-count 2
+    :rider-stance #x1
+    :grab-rail-array #f
+    :seat-array (new 'static 'inline-array vehicle-seat-info 4
+      (new 'static 'vehicle-seat-info :position (new 'static 'vector :y 9420.8 :z 2457.6 :w (the-as float #x10000)))
+      (new 'static 'vehicle-seat-info
+        :position (new 'static 'vector :y 819.2 :z -13107.2 :w (the-as float #x48000))
+        )
+      (new 'static 'vehicle-seat-info)
+      (new 'static 'vehicle-seat-info)
+      )
+    :rider-hand-offset (new 'static 'inline-array vector 2
+      (new 'static 'vector :x 2457.6 :y 409.6 :z 4710.4 :w 1.0)
+      (new 'static 'vector :x -2457.6 :y 409.6 :z 4710.4 :w 1.0)
+      )
+    :explosion #f
+    :engine-pitch-scale 0.25
+    :engine-pitch-mod-amp 0.025
+    :engine-sound-select 8
+    :engine-sound (static-sound-name "vehicle-engine")
+    :thrust-sound (static-sound-name "bike-thrust")
+    :scrape-sound (static-sound-name "car-scrape-stn")
+    :glance-sound (static-sound-name "car-glance-stn")
+    :impact-sound (static-sound-name "car-impact-stn")
+    :extra-sound (static-sound-name "car-by-1")
+    :explosion-part #xa1
+    :headlight-count 2
+    :taillight-count 2
+    :thruster-flame-width (meters 0.4)
+    :thruster-flame-length (meters 2)
+    :thruster-local-pos (new 'static 'inline-array vector 2
+      (new 'static 'vector :x 15769.6 :y 4096.0 :z -15155.2 :w 1.0)
+      (new 'static 'vector :x -15769.6 :y 4096.0 :z -15155.2 :w 1.0)
+      )
+    :exhaust-local-pos (new 'static 'inline-array vector 2
+      (new 'static 'vector :x 15769.6 :y 4096.0 :z -15155.2 :w 1.0)
+      (new 'static 'vector :x -15769.6 :y 4096.0 :z -15155.2 :w 1.0)
+      )
+    :exhaust-local-dir (new 'static 'inline-array vector 2 (new 'static 'vector :z -1.0 :w 1.0) (new 'static 'vector :z -1.0 :w 1.0))
+    :smoke-local-pos (new 'static 'inline-array vector 2
+      (new 'static 'vector :x 15769.6 :y 4096.0 :z -15155.2 :w 1.0)
+      (new 'static 'vector :x -15769.6 :y 4096.0 :z -15155.2 :w 1.0)
+      )
+    :smoke-local-vel (new 'static 'inline-array vector 2
+      (new 'static 'vector :z -2048.0 :w 1.0)
+      (new 'static 'vector :z -2048.0 :w 1.0)
+      )
+    :headlight-local-pos (new 'static 'inline-array vector 3
+      (new 'static 'vector :x 12288.0 :y 9216.0 :z -5734.4 :w 1.0)
+      (new 'static 'vector :x -12288.0 :y 9216.0 :z -5734.4 :w 1.0)
+      (new 'static 'vector)
+      )
+    :taillight-local-pos (new 'static 'inline-array vector 2
+      (new 'static 'vector :x 15564.8 :y 9216.0 :z -17203.2 :w 1.0)
+      (new 'static 'vector :x -15564.8 :y 9216.0 :z -17203.2 :w 1.0)
+      )
+    :lift-thruster-count 2
+    :roll-thruster-count 2
+    :steering-thruster-count 2
+    :stabilizer-count 4
+    :inv-lift-thruster-count 0.5
+    :lift-thruster-array (new 'static 'inline-array vehicle-control-point 2
+      (new 'static 'vehicle-control-point
+        :local-pos (new 'static 'vector :y 2048.0 :z 8192.0 :w 1.0)
+        :normal (new 'static 'vector :y -1.0 :w 1.0)
+        )
+      (new 'static 'vehicle-control-point
+        :local-pos (new 'static 'vector :y 2048.0 :z -12288.0 :w 1.0)
+        :normal (new 'static 'vector :y -1.0 :w 1.0)
+        )
+      )
+    :roll-thruster-array (new 'static 'inline-array vehicle-control-point 2
+      (new 'static 'vehicle-control-point
+        :local-pos (new 'static 'vector :x 6963.2 :y 2867.2 :z -2048.0 :w 1.0)
+        :normal (new 'static 'vector :x 0.3 :y -0.6 :w 1.0)
+        )
+      (new 'static 'vehicle-control-point
+        :local-pos (new 'static 'vector :x -6963.2 :y 2867.2 :z -2048.0 :w 1.0)
+        :normal (new 'static 'vector :x -0.3 :y -0.6 :w 1.0)
+        )
+      )
+    :steering-thruster-array (new 'static 'inline-array vehicle-control-point 2
+      (new 'static 'vehicle-control-point
+        :local-pos (new 'static 'vector :y 2048.0 :z 5734.4 :w 1.0)
+        :normal (new 'static 'vector :x 1.0 :w 1.0)
+        )
+      (new 'static 'vehicle-control-point
+        :local-pos (new 'static 'vector :y 2048.0 :z -9830.4 :w 1.0)
+        :normal (new 'static 'vector :x -1.0 :w 1.0)
+        )
+      )
+    :stabilizer-array (new 'static 'inline-array vehicle-control-point 6
+      (new 'static 'vehicle-control-point
+        :local-pos (new 'static 'vector :y 2048.0 :z -10240.0 :w 1.0)
+        :normal (new 'static 'vector :x 1.0 :w 1.0)
+        )
+      (new 'static 'vehicle-control-point
+        :local-pos (new 'static 'vector :y 2048.0 :z 6144.0 :w 1.0)
+        :normal (new 'static 'vector :x 1.0 :w 0.5)
+        )
+      (new 'static 'vehicle-control-point
+        :local-pos (new 'static 'vector :y 2048.0 :z -2048.0 :w 1.0)
+        :normal (new 'static 'vector :x 1.0 :w 2.0)
+        )
+      (new 'static 'vehicle-control-point
+        :local-pos (new 'static 'vector :y 2048.0 :z -10240.0 :w 1.0)
+        :normal (new 'static 'vector :y 1.0 :w 1.0)
+        )
+      (new 'static 'vehicle-control-point)
+      (new 'static 'vehicle-control-point)
+      )
+    :engine-thrust-local-pos (new 'static 'vector :y 2048.0 :z -7782.4 :w 1.0)
+    :brake-local-pos (new 'static 'vector :z -5734.4 :w 1.0)
+    :color-option-count 1
+    :color-option-array (new 'static 'inline-array vector 1 (new 'static 'vector :x 1.0 :y 1.0 :z 1.0 :w 1.0))
+    )
+  )
+;; ============================================================================
+;; The prisoner
+;; ============================================================================
+;; A `vehicle-rider` -- the same lightweight, seat-parented, nav-mesh-free actor
+;; retail uses for the citizens riding in cars (`citizen-norm-rider`) and for
+;; guard pilots (`crimson-guard-rider`). Everything about pooling comes for free:
+;; `vehicle-method-127` broadcasts 'traffic-off to every child (rider hides and
+;; releases its seat) and `vehicle-method-128` broadcasts 'traffic-on (rider
+;; re-seats itself through `vehicle-rider-method-33`).
+;;
+;; Unlike `citizen-norm-rider` -- which uses the dedicated, stripped-down
+;; `citizen-norm-rider-ag` art group whose only poses are idle / bike-stance /
+;; car-stance -- the prisoner uses the FULL civilian art groups, because those
+;; are the only ones that carry the standing arms-crossed pose:
+;;   citizen-norm-ag  elt 8  = citizen-norm-arms-crossed-ja
+;;   citizen-fat-ag   elt 8  = citizen-fat-arms-crossed-ja
+;;   citizen-chick-ag elt 10 = citizen-chick-idle-ja
+;; NOTE: `citizen-chick` genuinely has NO arms-crossed animation in retail (see
+;; engine/data/art-elts.gc) -- its only standing poses are idle, shuffle and
+;; riding-stance. The female prisoner therefore stands at ease instead.
+
+;; +++paddywagon-prisoner-variant
+(defenum paddywagon-prisoner-variant
+  :type int8
+  (norm 0)
+  (fat 1)
+  (chick 2)
+  )
+;; ---paddywagon-prisoner-variant
+
+;; Art-group elt index of the pose each variant holds while riding.
+(define *paddywagon-prisoner-norm-anim* 8)   ;; citizen-norm-arms-crossed-ja
+(define *paddywagon-prisoner-fat-anim* 8)    ;; citizen-fat-arms-crossed-ja
+(define *paddywagon-prisoner-chick-anim* 10) ;; citizen-chick-idle-ja (no arms-crossed exists)
+
+;; Seat the prisoner occupies: seat 1, the rear cage (flags 4, rotated 180 deg).
+(define *paddywagon-prisoner-seat* 1)
+
+(deftype paddywagon-prisoner (vehicle-rider)
+  ((variant  paddywagon-prisoner-variant)
+   )
+  )
+
+(defun paddywagon-prisoner-art-group-loaded? ((lvl level) (name string))
+  "Is the art group `name` resident in `lvl`?
+
+   `skeleton-group->draw-control` resolves a model through
+   `(-> (-> proc level) art-group)` -- the process's OWN level -- and calls
+   `go process-drawable-art-error` when the lookup misses. Traffic riders are
+   re-homed onto the lwide level by `(lwide-entity-hack)`, and retail only ships
+   `citizen-fat-ag` in LWIDEA and `citizen-chick-ag` in LWIDEA + LWIDEC, so the
+   fat / chick variants are simply not available in every city zone. This reads
+   the level's art-group directory WITHOUT going through `art-group-load-check`,
+   which would attempt a disk load in debug builds and so behave differently
+   from a release build.
+
+   @returns #t if the art group can be initialized from `lvl`, #f otherwise."
+  (when lvl
+    (let ((dir (-> lvl art-group)))
+      (when dir
+        (dotimes (i (-> dir string-array length))
+          (if (string= name (-> dir string-array i))
+              (return #t)
+              )
+          )
+        )
+      )
+    )
+  #f
+  )
+
+(defun paddywagon-prisoner-pick-variant ((this paddywagon-prisoner))
+  "Roll a random civilian body type for the prisoner, restricted to the variants
+   whose art group is actually resident in this process's level (see
+   `paddywagon-prisoner-art-group-loaded?`). `citizen-norm` ships in all three
+   lwide levels and is the guaranteed fallback.
+
+   @returns a `paddywagon-prisoner-variant`."
+  (let ((lvl (-> this level))
+        (fat? #f)
+        (chick? #f)
+        )
+    (set! fat? (paddywagon-prisoner-art-group-loaded? lvl "citizen-fat"))
+    (set! chick? (paddywagon-prisoner-art-group-loaded? lvl "citizen-chick"))
+    (cond
+      ;; all three body types available (LWIDEA)
+      ((and fat? chick?)
+       (case (rand-vu-int-count 3)
+         ((1) (paddywagon-prisoner-variant fat))
+         ((2) (paddywagon-prisoner-variant chick))
+         (else (paddywagon-prisoner-variant norm))
+         )
+       )
+      ;; norm + chick (LWIDEC)
+      (chick?
+        (if (zero? (rand-vu-int-count 2))
+            (paddywagon-prisoner-variant norm)
+            (paddywagon-prisoner-variant chick)
+            )
+        )
+      ;; norm + fat
+      (fat?
+        (if (zero? (rand-vu-int-count 2))
+            (paddywagon-prisoner-variant norm)
+            (paddywagon-prisoner-variant fat)
+            )
+        )
+      ;; norm only (LWIDEB)
+      (else
+        (paddywagon-prisoner-variant norm)
+        )
+      )
+    )
+  )
+
+(defmethod vehicle-rider-method-33 ((this paddywagon-prisoner))
+  "Re-seat the prisoner and re-roll its clothing submeshes.
+
+   Called on first spawn AND every time the wagon is re-activated out of the
+   traffic pool ('traffic-on), so each traffic life gets a freshly dressed
+   prisoner. The parent method clears/sets rider flag 4 from the vehicle's
+   `rider-stance`, seats us via `put-rider-in-seat` (using `seat-index`, which
+   `vehicle-rider-method-32` has already pointed at the rear cage) and rolls the
+   idle animation speed.
+
+   The `setup-masks` groups below are transcribed from each civilian's own
+   `citizen-init!` (citizen-norm.gc / citizen-fat.gc / citizen-chick.gc) so the
+   prisoner is dressed from exactly the same wardrobe as the pedestrians in the
+   street. `rnd-int-count` is a `citizen` method we do not have here, so the
+   equivalent `rand-vu-int-count` is used instead."
+  (call-parent-method this)
+  (setup-masks (-> this draw) 0 -1)
+  (case (-> this variant)
+    ;; ---- fat -----------------------------------------------------------
+    (((paddywagon-prisoner-variant fat))
+     (cond
+       ((zero? (rand-vu-int-count 2))
+        (setup-masks (-> this draw) 8 0)
+        (case (rand-vu-int-count 3)
+          ((1) (setup-masks (-> this draw) 256 0))
+          ((2) (setup-masks (-> this draw) #x8000 0))
+          (else (setup-masks (-> this draw) 4 0))
+          )
+        (case (rand-vu-int-count 4)
+          ((1) (setup-masks (-> this draw) 128 0))
+          ((2) (setup-masks (-> this draw) 130 0))
+          (else (setup-masks (-> this draw) 2 0))
+          )
+        (setup-masks (-> this draw) 512 0)
+        (case (rand-vu-int-count 3)
+          ((1) (setup-masks (-> this draw) 4096 0))
+          ((2) (setup-masks (-> this draw) 8192 0))
+          (else (setup-masks (-> this draw) 64 0))
+          )
+        (case (rand-vu-int-count 3)
+          ((1) (setup-masks (-> this draw) 2048 0))
+          ((2) (setup-masks (-> this draw) #x20000 0))
+          (else (setup-masks (-> this draw) 32 0))
+          )
+        (case (rand-vu-int-count 3)
+          ((1) (setup-masks (-> this draw) 1024 0))
+          ((2) (setup-masks (-> this draw) #x10000 0))
+          (else (setup-masks (-> this draw) 16 0))
+          )
+        )
+       (else
+         (setup-masks (-> this draw) #x400000 0)
+         (setup-masks (-> this draw) #x200000 0)
+         (if (zero? (rand-vu-int-count 2))
+             (setup-masks (-> this draw) 4096 0)
+             (setup-masks (-> this draw) #x80000 0)
+             )
+         (if (zero? (rand-vu-int-count 2))
+             (setup-masks (-> this draw) 256 0)
+             (setup-masks (-> this draw) #x100000 0)
+             )
+         (case (rand-vu-int-count 4)
+           ((1) (setup-masks (-> this draw) 128 0))
+           ((2) (setup-masks (-> this draw) 130 0))
+           (else (setup-masks (-> this draw) 2 0))
+           )
+         (setup-masks (-> this draw) #x20000 0)
+         (case (rand-vu-int-count 3)
+           ((1) (setup-masks (-> this draw) 1024 0))
+           ((2) (setup-masks (-> this draw) #x10000 0))
+           (else (setup-masks (-> this draw) 16 0))
+           )
+         )
+       )
+     )
+    ;; ---- chick ---------------------------------------------------------
+    (((paddywagon-prisoner-variant chick))
+     (setup-masks (-> this draw) 16 0)
+     (setup-masks (-> this draw) 8 0)
+     (case (rand-vu-int-count 3)
+       ((1) (setup-masks (-> this draw) #x4000 0))
+       ((2) (setup-masks (-> this draw) #x8000 0))
+       (else (setup-masks (-> this draw) 32 0))
+       )
+     (case (rand-vu-int-count 3)
+       ((1) (setup-masks (-> this draw) 1024 0))
+       ((2) (setup-masks (-> this draw) #x10000 0))
+       (else (setup-masks (-> this draw) 64 0))
+       )
+     (case (rand-vu-int-count 3)
+       ((1) (setup-masks (-> this draw) 512 0))
+       ((2) (setup-masks (-> this draw) 4096 0))
+       (else (setup-masks (-> this draw) 4 0))
+       )
+     (case (rand-vu-int-count 3)
+       ((1) (setup-masks (-> this draw) 256 0))
+       ((2)
+        (setup-masks (-> this draw) 2048 0)
+        (if (zero? (rand-vu-int-count 2))
+            (setup-masks (-> this draw) 128 0)
+            (setup-masks (-> this draw) 8192 0)
+            )
+        )
+       (else
+         (setup-masks (-> this draw) 2 0)
+         (if (zero? (rand-vu-int-count 2))
+             (setup-masks (-> this draw) 128 0)
+             (setup-masks (-> this draw) 8192 0)
+             )
+         )
+       )
+     )
+    ;; ---- norm ----------------------------------------------------------
+    (else
+      (setup-masks (-> this draw) 32 0)
+      (case (rand-vu-int-count 4)
+        ((1) (setup-masks (-> this draw) 2048 0))
+        ((2) (setup-masks (-> this draw) #x10000 0))
+        ((3) (setup-masks (-> this draw) #x200000 0))
+        (else (setup-masks (-> this draw) 64 0))
+        )
+      (case (rand-vu-int-count 3)
+        ((1) (setup-masks (-> this draw) 8192 0))
+        ((2) (setup-masks (-> this draw) #x40000 0))
+        (else (setup-masks (-> this draw) 2 0))
+        )
+      (case (rand-vu-int-count 4)
+        ((1) (setup-masks (-> this draw) 1024 0))
+        ((2) (setup-masks (-> this draw) #x8000 0))
+        ((3) (setup-masks (-> this draw) #x100000 0))
+        (else (setup-masks (-> this draw) 8 0))
+        )
+      (case (rand-vu-int-count 5)
+        ((1) (setup-masks (-> this draw) 512 0))
+        ((2) (setup-masks (-> this draw) #x4000 0))
+        ((3) (setup-masks (-> this draw) #x80000 0))
+        (else (setup-masks (-> this draw) 4 0))
+        )
+      (case (rand-vu-int-count 4)
+        ((1) (setup-masks (-> this draw) 4096 0))
+        ((2) (setup-masks (-> this draw) #x20000 0))
+        ((3) (setup-masks (-> this draw) #x400000 0))
+        (else (setup-masks (-> this draw) 128 0))
+        )
+      (setup-masks (-> this draw) 16 0)
+      (if (zero? (rand-vu-int-count 4))
+          (setup-masks (-> this draw) 256 0)
+          )
+      )
+    )
+  0
+  (none)
+  )
+
+(defmethod vehicle-rider-method-32 ((this paddywagon-prisoner) (arg0 traffic-object-spawn-params))
+  "One-time setup: pick a body type, load its skeleton, pick the standing pose,
+   and claim the rear cage seat.
+
+   Deliberately does NOT call the parent method: the base version hard-codes
+   `seat-index` 0 (the driver seat, which the `crimson-guard-rider` owns) and a
+   4-entry LOD table the civilian art groups do not have.
+
+   Rider `flags` bit 0 = 'this seat wants a rider'. Bit 3 is deliberately NOT
+   set: that bit is what makes `vehicle-rider-event-handler`'s 'knocked-off case
+   raise the city alert and respawn a Crimson Guard. A prisoner is not a guard."
+  (set! (-> this variant) (paddywagon-prisoner-pick-variant this))
+  (case (-> this variant)
+    (((paddywagon-prisoner-variant fat))
+     (initialize-skeleton
+       this
+       (the-as skeleton-group (art-group-get-by-name *level* "skel-citizen-fat" (the-as (pointer uint32) #f)))
+       (the-as pair 0)
+       )
+     (set! (-> this riding-anim) *paddywagon-prisoner-fat-anim*)
+     )
+    (((paddywagon-prisoner-variant chick))
+     (initialize-skeleton
+       this
+       (the-as skeleton-group (art-group-get-by-name *level* "skel-citizen-chick" (the-as (pointer uint32) #f)))
+       (the-as pair 0)
+       )
+     (set! (-> this riding-anim) *paddywagon-prisoner-chick-anim*)
+     )
+    (else
+      (initialize-skeleton
+        this
+        (the-as skeleton-group (art-group-get-by-name *level* "skel-citizen-norm" (the-as (pointer uint32) #f)))
+        (the-as pair 0)
+        )
+      (set! (-> this riding-anim) *paddywagon-prisoner-norm-anim*)
+      )
+    )
+  (logior! (-> this flags) 1)
+  (set! (-> this draw lod-set lod 0 dist) 122880.0)
+  (set! (-> this draw lod-set lod 1 dist) 286720.0)
+  (set! (-> this seat-index) *paddywagon-prisoner-seat*)
+  (set! (-> this anim-t) 0.0)
+  (vehicle-rider-method-33 this)
+  0
+  (none)
+  )
+
+(defmethod vehicle-rider-method-34 ((this paddywagon-prisoner))
+  "Per-frame animation post.
+
+   The base `vehicle-rider` version pins the channel to `num-func-identity` and
+   drives `frame-num` off a sine wave blended with the vehicle's steering input
+   -- that is the lean a driver/passenger does into a turn. A prisoner standing
+   with his arms crossed should just hold the pose, so the channel is left to
+   play the plain loop that the `active` state's :enter installed
+   (`:num! (loop!)`). Seat position and the 180-degree cage orientation are
+   applied by the wagon's `vehicle-method-119`, not here."
+  (ja-post)
+  0
+  (none)
+  )
+
+(defbehavior paddywagon-prisoner-event-handler paddywagon-prisoner ((arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+  "Rider events, with one deviation from stock.
+
+   When Jak boards a vehicle, `target-pilot` walks EVERY seat and sends
+   'knocked-off to whoever is in it. For the `crimson-guard-rider` in seat 0
+   that is exactly what we want -- the guard is thrown clear, the city alert
+   goes to 2 and a Crimson Guard respawns on the street. For the prisoner it is
+   not: he is locked in the cage, so he stays put and rides along with whoever
+   is at the controls.
+
+   Returning #f matters twice over: `target-pilot` only frees the seat when
+   `send-event` comes back truthy
+   ((if (and a0-20 (send-event a0-20 'knocked-off)) (put-rider-in-seat ... #f))),
+   so refusing the event keeps the prisoner registered in `rider-array` and
+   therefore still positioned every frame by `vehicle-method-119`."
+  (case arg2
+    (('knocked-off)
+     #f
+     )
+    (else
+      (vehicle-rider-event-handler arg0 arg1 arg2 arg3)
+      )
+    )
+  )
+
+(defstate active (paddywagon-prisoner)
+  :virtual #t
+  :event paddywagon-prisoner-event-handler
+  :enter (behavior ()
+    (ja-channel-push! 1 (seconds 0.05))
+    ;; plain 1.0x loop of the standing pose -- unlike the base `vehicle-rider`
+    ;; `active` state, no sine lean is driven on top of it (see
+    ;; `vehicle-rider-method-34` below).
+    (ja :group! (-> self draw art-group data (-> self riding-anim)) :num! (loop!))
+    )
+  :code sleep-code
+  :post (behavior ()
+    (vehicle-rider-method-34 self)
+    )
+  )
+
+(defstate inactive (paddywagon-prisoner)
+  :virtual #t
+  :event paddywagon-prisoner-event-handler
+  :enter (behavior ()
+    (logior! (-> self draw status) (draw-control-status no-draw))
+    )
+  :exit (behavior ()
+    (logclear! (-> self draw status) (draw-control-status no-draw))
+    )
+  :code sleep-code
+  )
+
+;; ============================================================================
+;; The wagon
+;; ============================================================================
+
+(deftype paddywagon-v (vehicle-guard)
+  ()
+  )
+
+(defmethod allocate-and-init-cshape ((this paddywagon-v))
+  "Collision shape -- a verbatim copy of retail `paddywagon`'s
+   (meet-brutter.gc). Five solid spheres wrapping the box hull plus the
+   collide-MESH prim (transform-index 3, the 'main' joint) which carries
+   `rideable` so Jak can stand on the roof and board it. The group root is
+   `solid rideable` with a 6.5m sphere; `nav-radius` 20480 is the retail figure
+   and is what keeps the van from jamming on corners in traffic."
+  (let ((s5-0 (new 'process 'collide-shape-moving this (collide-list-enum usually-hit-by-player))))
+    (set! (-> s5-0 dynam) (copy *standard-dynamics* 'process))
+    (set! (-> s5-0 reaction) cshape-reaction-default)
+    (set! (-> s5-0 no-reaction)
+          (the-as (function collide-shape-moving collide-query vector vector object) nothing)
+          )
+    (set! (-> s5-0 penetrate-using) (penetrate vehicle))
+    (let ((s4-0 (new 'process 'collide-shape-prim-group s5-0 (the-as uint 6) 0)))
+      (set! (-> s5-0 total-prims) (the-as uint 7))
+      (set! (-> s4-0 prim-core action) (collide-action solid rideable))
+      (set-vector! (-> s4-0 local-sphere) 0.0 0.0 0.0 26624.0)
+      (set! (-> s5-0 root-prim) s4-0)
+      )
+    (let ((v1-11 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 0))))
+      (set! (-> v1-11 prim-core action) (collide-action solid))
+      (set! (-> v1-11 transform-index) 0)
+      (set-vector! (-> v1-11 local-sphere) 0.0 8192.0 -14336.0 11468.8)
+      )
+    (let ((v1-13 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 0))))
+      (set! (-> v1-13 prim-core action) (collide-action solid))
+      (set! (-> v1-13 transform-index) 0)
+      (set-vector! (-> v1-13 local-sphere) 12288.0 7372.8 -12288.0 8192.0)
+      )
+    (let ((v1-15 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 0))))
+      (set! (-> v1-15 prim-core action) (collide-action solid))
+      (set! (-> v1-15 transform-index) 0)
+      (set-vector! (-> v1-15 local-sphere) -12288.0 7372.8 -12288.0 8192.0)
+      )
+    (let ((v1-17 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 0))))
+      (set! (-> v1-17 prim-core action) (collide-action solid))
+      (set! (-> v1-17 transform-index) 0)
+      (set-vector! (-> v1-17 local-sphere) 0.0 8192.0 0.0 6144.0)
+      )
+    (let ((v1-19 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 0))))
+      (set! (-> v1-19 prim-core action) (collide-action solid))
+      (set! (-> v1-19 transform-index) 0)
+      (set-vector! (-> v1-19 local-sphere) 0.0 9011.2 7372.8 4915.2)
+      )
+    (let ((v1-21 (new 'process 'collide-shape-prim-mesh s5-0 (the-as uint 0) (the-as uint 0))))
+      (set! (-> v1-21 prim-core action) (collide-action solid rideable))
+      (set! (-> v1-21 transform-index) 3)
+      (set-vector! (-> v1-21 local-sphere) 0.0 0.0 0.0 26624.0)
+      )
+    (set! (-> s5-0 nav-radius) 20480.0)
+    (let ((v1-23 (-> s5-0 root-prim)))
+      (set! (-> s5-0 backup-collide-as) (-> v1-23 prim-core collide-as))
+      (set! (-> s5-0 backup-collide-with) (-> v1-23 prim-core collide-with))
+      )
+    (set! (-> this root) s5-0)
+    )
+  0
+  (none)
+  )
+
+(defmethod init-skel-and-rigid-body ((this paddywagon-v))
+  "Load the hull and install the physics constants.
+
+   Three deliberate omissions relative to retail `paddywagon`:
+     1. NO (set! (-> pp level) (level-get *level* 'lmeetbrt)). Traffic vehicles
+        are re-homed onto the resident lwide level by `vehicle-init-by-other`'s
+        `(lwide-entity-hack)`, which is where this mod puts `paddy-wagon-ag.go`.
+        Forcing 'lmeetbrt here would make the van invisible (or art-error) in
+        free roam, since LMEETBRT is only borrowed during the mission.
+     2. NO `rigid-body-object-flag no-hijack`. That flag is what
+        `vehicle-util.gc`'s boarding probe tests before offering the 'press
+        triangle' prompt -- not setting it is the whole reason this van is
+        stealable.
+     3. NO `choose-branch-callback` override. Retail forces
+        `choose-next-branch-no-exit-level` so the mission van never leaves its
+        scripted level; an ambient traffic van should follow the ordinary
+        `vehicle-guard-choose-branch` that
+        `vehicle-guard::alloc-and-init-rigid-body-control` installs.
+
+   The turret is intentionally left uninitialised (`info` = 0): the `paddy-wagon`
+   skeleton has no gun joint, and `turret-control-method-11` no-ops on a zero
+   `info`, so the inherited guard AI pursues without ever firing."
+  (initialize-skeleton
+    this
+    (the-as skeleton-group (art-group-get-by-name *level* "skel-paddywagon-v" (the-as (pointer uint32) #f)))
+    (the-as pair 0)
+    )
+  (alloc-and-init-rigid-body-control this *paddywagon-v-constants*)
+  ;; retail figure: hold LOD0 out to 200m (the hull has no lower-detail mesh)
+  (set! (-> this draw lod-set lod 0 dist) 819200.0)
+  0
+  (none)
+  )
+
+(defmethod vehicle-method-137 ((this paddywagon-v) (arg0 traffic-object-spawn-params))
+  "Populate the wagon when the traffic engine pools it.
+
+   Called by `vehicle-spawn` for any vehicle carrying `trsflags-01` -- i.e.
+   every pooled traffic vehicle. The parent (`vehicle-guard`) spawns the
+   `crimson-guard-rider` driver into seat 0; this override adds the civilian
+   prisoner into seat 1, the rear cage.
+
+   Both riders are spawned with `behavior` 1 by the traffic engine, so
+   `vehicle-rider-init-by-other` immediately hides them; they are revealed by
+   the 'traffic-on broadcast in `vehicle-method-128` when the wagon actually
+   enters the world."
+  (call-parent-method this arg0)
+  (vehicle-rider-spawn this paddywagon-prisoner arg0)
+  0
+  (none)
+  )

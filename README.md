@@ -1,4 +1,4 @@
-# Paddywagon/traffic — Jak 2
+# Paddy Wagon Traffic — Jak 2
 
 <p align="center">
   <img src="https://img.shields.io/badge/OpenGOAL-Mod-blue.svg" alt="OpenGOAL Mod">
@@ -16,15 +16,37 @@
 # 🇬🇧 English Version
 
 ## 📖 Overview
-Brief, simple description of what this mod introduces or modifies in the game.
+
+The Krimzon Guard **paddy wagon** — the armoured prisoner van you chase during
+*Escort Brutter* — now drives Haven City's ordinary street traffic, with a
+**civilian prisoner standing arms-crossed in the rear cage** and a **Crimson
+Guard at the controls**. It is a real guard vehicle: red dot on the minimap,
+joins the hunt during an alert, and **can be boarded and driven** — stealing it
+raises the city alarm exactly like stealing a hellcat or a guard bike.
 
 - **Target Game:** Jak 2
 - **Active Branch:** `jak2/features/paddywagon/traffic`
 
 ## ✨ Key Features
-- **Feature 1:** Simple description of the first key feature.
-- **Feature 2:** Simple description of the second key feature.
-- **Feature 3:** Simple description of the third key feature.
+
+- **A paddy wagon in ordinary traffic.** `paddywagon-v` is a `vehicle-guard`
+  woven into the city's ground traffic pool (up to 2 at a time). It uses the
+  retail `paddy-wagon` hull and its retail physics constants, so it drives and
+  handles exactly like the mission van.
+- **A random civilian prisoner in the cage.** Every wagon carries a `norm`,
+  `fat` or `chick` citizen standing in the rear compartment, dressed from the
+  same random wardrobe as the pedestrians in the street. `norm` and `fat` hold
+  the retail *arms-crossed* pose; `chick` stands at ease (retail has no
+  arms-crossed animation for that body type).
+- **Crimson Guard driver.** The regular red `crimson-guard-rider`, in the same
+  pose it uses in a hellcat.
+- **Drivable and stealable like any guard ship.** Board it, the guard is thrown
+  clear, the city alert jumps and a Crimson Guard respawns on the street — all
+  the stock guard-vehicle theft behaviour. The prisoner stays locked in his cage
+  and rides along with you.
+- **Unarmed.** The `paddy-wagon` skeleton has no gun joint, so the wagon rams
+  and pursues but never shoots.
+- **OFF by default,** switchable from `Debug ▸ Mods ▸ paddywagon-traffic`.
 
 ## 🚀 Step-by-Step Guide to Run the Mod
 
@@ -35,29 +57,36 @@ task set-game-jak2
 ```
 
 ### 2. Binary Compilation
-- **Status:** [Not required (GOAL-only mod, standard binaries sufficient) / `task build-release-game` (engine or compiler C++ changed) / `task build-release` + `task extract` (decompiler or decompiler/config changed)]
-- **Details:** [Specify which C++ layer was modified — see `docs/modding/tools/build_and_iteration_workflow.md`]
-```bash
-# GOAL-only mod: nothing to build — go straight to the REPL below.
-# Engine / compiler C++ changed:
-task build-release-game
-# Decompiler or decompiler/config changed (then step 3 is mandatory):
-task build-release-decomp
-```
+- **Status:** Not required — no C++ was changed. The stock `gk` / `goalc` /
+  `decompiler` binaries are sufficient.
+- **Details:** This mod only touches GOAL sources, `.gd` DGO manifests and one
+  `decompiler/config` **data** key (`extra_art_groups_by_dgo`), which the
+  existing decompiler already understands. If your `out/build` is empty, build
+  once with `task build-release`.
 
 ### 3. Asset Extraction
-- **Status:** [Required (`task extract`) / Standard extraction sufficient]
-- **Details:** [Specify if custom 3D models, textures, or sound banks require extraction]
+- **Status:** **Required — `task extract`.**
+- **Details:** The paddy wagon's merc geometry only ever shipped in
+  `LMEETBRT.DGO`. `extra_art_groups_by_dgo` bakes it into `lwidea.fr3`,
+  `lwideb.fr3` and `lwidec.fr3` so the model is renderable in free roam.
+  **Without this step the wagon is completely invisible** (the process still
+  runs — sounds, collision and the riders are all there).
 ```bash
 task extract
 ```
 
 ### 4. Launch the Game
-Run the game natively:
 ```bash
 task boot-game
 ```
 *(Or launch via the OpenGOAL REPL using `task repl`, then compile and run with `(mi)` and `(r)`).*
+
+### 5. Enable the Mod
+The mod ships **OFF**. In game:
+`Debug ▸ Mods ▸ paddywagon-traffic ▸ Enable`, then **reload the city** (walk
+into an interior and back out, or warp) so the traffic manager re-reads its
+want-counts. Drive around Haven City and watch for a boxy armoured van in the
+car lanes with a figure standing in the back.
 
 ## 🎥 Demonstration Video
 
@@ -69,31 +98,54 @@ task boot-game
 > *Demonstration videos must be hosted externally on YouTube to prevent repository bloating. Replace `YOUR_VIDEO_ID` with the YouTube video ID (e.g. `MnqnybexhSA`) and `https://www.youtube.com/watch?v=YOUR_VIDEO_ID` with the video URL (e.g. `https://youtu.be/MnqnybexhSA`).*
 
 ## ✅ Compliance Checklist
-- [ ] **Native non-regression:** with the mod compiled but its toggle OFF, the game plays identically to stock.
-- [ ] **Debug ▸ Mods toggle:** the mod registers at least one enable/disable entry via `(mods-menu-register "paddywagon/traffic" ...)` (Jak 2) or a `paddywagon/traffic`-prefixed debug submenu (Jak 1/3). See [`docs/modding/tools/mods_debug_menu.md`](docs/modding/tools/mods_debug_menu.md).
-- [ ] **No direct `default-menu*.gc` edits.**
-- [ ] **Symbols prefixed** with the mod slug (`*mod-paddywagon/traffic-*`, `mod-paddywagon/traffic-*`).
-- [ ] **Verified Lisp instructions** used by this mod are present in `docs/modding/jak[x]_lisp_instructions.md` (landed on `master-dev` via `task modding-land-doc`).
-- [ ] **In-code comments** on every new/overridden type, method, state, macro.
+- [x] **Native non-regression:** with the mod compiled but its toggle OFF, the traffic want-count for slot 20 is 0, so no `paddywagon-v` is ever constructed and no code in `paddywagon-v.gc` runs. The retail `paddywagon` type and the *Escort Brutter* mission are untouched.
+- [x] **Debug ▸ Mods toggle:** registered via `(mods-menu-register "paddywagon-traffic" ...)` in [`goal_src/jak2/pc/debug/paddywagon-traffic-menu.gc`](goal_src/jak2/pc/debug/paddywagon-traffic-menu.gc). See [`docs/modding/tools/mods_debug_menu.md`](docs/modding/tools/mods_debug_menu.md).
+- [x] **No direct `default-menu*.gc` edits.**
+- [x] **Symbols prefixed** with the mod slug (`*mod-paddywagon-traffic-enable*`, `mod-paddywagon-traffic-build-menu`, `paddywagon-v*`, `paddywagon-prisoner*`).
+- [ ] **Verified Lisp instructions** used by this mod are present in `docs/modding/jak2_lisp_instructions.md` (landed on `master-dev` via `task modding-land-doc`).
+- [x] **In-code comments** on every new/overridden type, method, state, macro.
 
 ## 📖 Technical Documentation
 For the complete technical breakdown, architecture, and developer notes, refer to:
-- 📄 [`docs/modding/current_mod/paddywagon/traffic_readme.md`](docs/modding/current_mod/paddywagon/traffic_readme.md)
+- 📄 [`docs/modding/current_mod/paddywagon_traffic_readme.md`](docs/modding/current_mod/paddywagon_traffic_readme.md)
 
 ---
 
 # 🇫🇷 Version Française
 
 ## 📖 Présentation du Mod
-Description simple et accessible de ce que ce mod apporte ou modifie dans le jeu.
+
+Le **fourgon cellulaire** de la Garde Grenat — le véhicule blindé que l'on
+poursuit pendant *Escorter Brutter* — circule désormais dans le trafic urbain
+ordinaire d'Abriville, avec un **civil prisonnier debout, bras croisés, dans la
+cage arrière** et un **Garde Grenat aux commandes**. C'est un véritable véhicule
+de garde : point rouge sur la carte, il rejoint la chasse pendant une alerte, et
+il **peut être pris en main et conduit** — le voler déclenche l'alarme de la
+ville exactement comme voler un hellcat ou une moto de garde.
 
 - **Jeu Ciblé :** Jak 2
 - **Branche Active :** `jak2/features/paddywagon/traffic`
 
 ## ✨ Fonctionnalités Clés
-- **Fonctionnalité 1 :** Description simple de la première fonctionnalité.
-- **Fonctionnalité 2 :** Description simple de la deuxième fonctionnalité.
-- **Fonctionnalité 3 :** Description simple de la troisième fonctionnalité.
+
+- **Un fourgon cellulaire dans le trafic ordinaire.** `paddywagon-v` est un
+  `vehicle-guard` intégré au pool de trafic terrestre de la ville (2 au maximum
+  simultanément). Il utilise la coque `paddy-wagon` d'origine et ses constantes
+  physiques d'origine : il se conduit exactement comme le fourgon de mission.
+- **Un prisonnier civil aléatoire dans la cage.** Chaque fourgon transporte un
+  citoyen `norm`, `fat` ou `chick` debout dans le compartiment arrière, habillé
+  dans la même garde-robe aléatoire que les piétons de la rue. `norm` et `fat`
+  tiennent la pose *bras croisés* d'origine ; `chick` se tient au repos (le jeu
+  d'origine ne possède aucune animation bras croisés pour ce gabarit).
+- **Chauffeur Garde Grenat.** Le `crimson-guard-rider` rouge habituel, dans la
+  même posture que dans un hellcat.
+- **Conductible et volable comme tout vaisseau grenagarde.** Montez à bord : le
+  garde est éjecté, l'alerte de la ville monte et un Garde Grenat réapparaît
+  dans la rue — tout le comportement standard de vol d'un véhicule de garde. Le
+  prisonnier, lui, reste enfermé dans sa cage et vous accompagne.
+- **Non armé.** Le squelette `paddy-wagon` ne possède aucun joint d'arme : le
+  fourgon percute et poursuit, mais ne tire jamais.
+- **Désactivé par défaut,** activable depuis `Debug ▸ Mods ▸ paddywagon-traffic`.
 
 ## 🚀 Guide Pas à Pas pour Lancer le Mod
 
@@ -104,50 +156,55 @@ task set-game-jak2
 ```
 
 ### 2. Compilation des Binaires
-- **Statut :** [Non requise (mod GOAL uniquement, binaires standards suffisants) / `task build-release-game` (C++ moteur ou compilateur modifié) / `task build-release` + `task extract` (décompilateur ou decompiler/config modifié)]
-- **Détails :** [Précisez quelle couche C++ a été modifiée — voir `docs/modding/tools/build_and_iteration_workflow.md`]
-```bash
-# Mod GOAL uniquement : rien à compiler — passez directement au REPL ci-dessous.
-# C++ moteur / compilateur modifié :
-task build-release-game
-# Décompilateur ou decompiler/config modifié (l'étape 3 devient obligatoire) :
-task build-release-decomp
-```
+- **Statut :** Non requise — aucun C++ n'a été modifié. Les binaires `gk` /
+  `goalc` / `decompiler` standards suffisent.
+- **Détails :** Ce mod ne touche que des sources GOAL, des manifestes DGO `.gd`
+  et une clé de **données** dans `decompiler/config`
+  (`extra_art_groups_by_dgo`), que le décompilateur existant sait déjà lire. Si
+  votre `out/build` est vide, compilez une fois avec `task build-release`.
 
 ### 3. Extraction des Données (Assets)
-- **Statut :** [Requise (`task extract`) / Extraction standard suffisante]
-- **Détails :** [Précisez si des modèles 3D, textures ou sons personnalisés nécessitent une extraction]
+- **Statut :** **Requise — `task extract`.**
+- **Détails :** La géométrie merc du fourgon n'a jamais existé que dans
+  `LMEETBRT.DGO`. `extra_art_groups_by_dgo` la cuit dans `lwidea.fr3`,
+  `lwideb.fr3` et `lwidec.fr3` pour que le modèle soit affichable en monde
+  ouvert. **Sans cette étape, le fourgon est totalement invisible** (le process
+  tourne pourtant : sons, collisions et occupants sont bien là).
 ```bash
 task extract
 ```
 
 ### 4. Lancer le Jeu
-Lancez le jeu nativement :
 ```bash
 task boot-game
 ```
-*(Ou via le REPL OpenGOAL avec `task repl`, puis `(mi)` et `(r)`).*
+*(Ou lancez via le REPL OpenGOAL avec `task repl`, puis compilez et lancez avec `(mi)` et `(r)`).*
 
-## 🎥 Encart Vidéo Démonstrative
+### 5. Activer le Mod
+Le mod est livré **désactivé**. En jeu :
+`Debug ▸ Mods ▸ paddywagon-traffic ▸ Enable`, puis **rechargez la ville**
+(entrez dans un intérieur et ressortez, ou téléportez-vous) pour que le
+gestionnaire de trafic relise ses quotas. Roulez dans Abriville et guettez un
+van blindé anguleux dans les voies de circulation, avec une silhouette debout à
+l'arrière.
 
-[![Vidéo de Démonstration](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
+## 🎥 Vidéo Démonstrative
 
-▶️ **[Visionner la vidéo de démonstration sur YouTube](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)**
+[![Vidéo Démonstrative](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
+
+▶️ **[Voir la vidéo de démonstration sur YouTube](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)**
 
 > [!NOTE]
-> *Les vidéos de démonstration doivent être hébergées sur YouTube pour éviter d'alourdir le dépôt Git. Remplacez `YOUR_VIDEO_ID` par l'identifiant de la vidéo YouTube (ex : `MnqnybexhSA`) et `https://www.youtube.com/watch?v=YOUR_VIDEO_ID` par l'URL de la vidéo (ex : `https://youtu.be/MnqnybexhSA`).*
+> *Les vidéos de démonstration doivent être hébergées sur YouTube afin d'éviter d'alourdir le dépôt. Remplacez `YOUR_VIDEO_ID` par l'identifiant de la vidéo YouTube (ex. `MnqnybexhSA`) et `https://www.youtube.com/watch?v=YOUR_VIDEO_ID` par l'URL (ex. `https://youtu.be/MnqnybexhSA`).*
 
 ## ✅ Checklist de Conformité
-- [ ] **Non-régression native :** mod compilé mais bascule sur OFF → le jeu se joue à l'identique du jeu d'origine.
-- [ ] **Bascule Debug ▸ Mods :** le mod enregistre au moins une entrée activer/désactiver via `(mods-menu-register "paddywagon/traffic" ...)` (Jak 2) ou un sous-menu debug préfixé `paddywagon/traffic` (Jak 1/3). Voir [`docs/modding/tools/mods_debug_menu.md`](docs/modding/tools/mods_debug_menu.md).
-- [ ] **Aucune édition directe de `default-menu*.gc`.**
-- [ ] **Symboles préfixés** par le slug du mod (`*mod-paddywagon/traffic-*`, `mod-paddywagon/traffic-*`).
-- [ ] **Instructions Lisp vérifiées** utilisées par ce mod présentes dans `docs/modding/jak[x]_lisp_instructions.md` (intégrées sur `master-dev` via `task modding-land-doc`).
-- [ ] **Commentaires dans le code** sur chaque type/méthode/état/macro ajouté ou surchargé.
+- [x] **Non-régression native :** mod compilé mais toggle OFF, le quota de trafic du slot 20 vaut 0 : aucun `paddywagon-v` n'est jamais construit et aucun code de `paddywagon-v.gc` ne s'exécute. Le type `paddywagon` d'origine et la mission *Escorter Brutter* sont intacts.
+- [x] **Toggle Debug ▸ Mods :** enregistré via `(mods-menu-register "paddywagon-traffic" ...)` dans [`goal_src/jak2/pc/debug/paddywagon-traffic-menu.gc`](goal_src/jak2/pc/debug/paddywagon-traffic-menu.gc). Voir [`docs/modding/tools/mods_debug_menu.md`](docs/modding/tools/mods_debug_menu.md).
+- [x] **Aucune édition directe de `default-menu*.gc`.**
+- [x] **Symboles préfixés** par le slug du mod (`*mod-paddywagon-traffic-enable*`, `mod-paddywagon-traffic-build-menu`, `paddywagon-v*`, `paddywagon-prisoner*`).
+- [ ] **Instructions Lisp vérifiées** utilisées par ce mod présentes dans `docs/modding/jak2_lisp_instructions.md` (déposées sur `master-dev` via `task modding-land-doc`).
+- [x] **Commentaires dans le code** sur chaque type, méthode, état, macro ajouté ou surchargé.
 
 ## 📖 Documentation Technique
-Pour l'audit technique approfondi, l'architecture et les détails d'implémentation, consultez :
-- 📄 [`docs/modding/current_mod/paddywagon/traffic_readme.md`](docs/modding/current_mod/paddywagon/traffic_readme.md)
-
----
-*(AI-assisted)*
+Pour le détail technique complet, l'architecture et les notes de développement :
+- 📄 [`docs/modding/current_mod/paddywagon_traffic_readme.md`](docs/modding/current_mod/paddywagon_traffic_readme.md)

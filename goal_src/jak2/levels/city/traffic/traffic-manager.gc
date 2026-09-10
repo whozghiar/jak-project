@@ -11,6 +11,34 @@
 
 (define *traffic-fast-spawn* #f)
 
+;; ============================================================================
+;; MOD: paddywagon / traffic -- runtime on/off switch (Debug > Mods)
+;; ============================================================================
+;; Native non-regression: the Krimzon Guard paddy wagon (`paddywagon-v`, see
+;; levels/city/traffic/vehicle/paddywagon-v.gc) ships OFF. With this symbol #f
+;; the traffic want-count for slot 20 stays 0, so the traffic engine never
+;; constructs a `paddywagon-v`; no code in paddywagon-v.gc ever runs, no
+;; `paddywagon-prisoner` is ever spawned, and Haven City traffic is stock.
+;;
+;; The rest of the wiring is inert rather than gated, because none of it can be
+;; reached without a slot-20 object existing:
+;;   * the renamed enum entries (traffic-type-20 -> paddywagon-v, vehicle-type
+;;     paddywagon-v 11) are pure naming;
+;;   * the extra `case` arms in `traffic-object-spawn` / `type-from-vehicle-type`
+;;     below only match object-type 20;
+;;   * guard.gc's knock-off animation `case` only matches `info object-type` 20.
+;;
+;; The want-count is read by `traffic-manager::init-params`, which runs when the
+;; city (re)loads -- so THE TOGGLE APPLIES ON THE NEXT CITY LOAD, not instantly.
+;;
+;; `define-perm` (define-extern + define-once) so a #t set from the debug menu
+;; survives file / level reloads. It lives here -- a non-debug file resident in
+;; the CWI DGO next to every reader -- and NOT in the menu file, which is
+;; `(declare-file (debug))` and stripped from release builds. The menu file
+;; (goal_src/jak2/pc/debug/paddywagon-traffic-menu.gc, wired into game.gd after
+;; mods-menu.o) only define-externs this symbol and flips it.
+(define-perm *mod-paddywagon-traffic-enable* symbol #f)
+
 (deftype traffic-manager (process)
   ((traffic-engine    traffic-engine)
    (fast-spawn        symbol)
@@ -349,6 +377,10 @@
       (((traffic-type hellcat))
        (set! v0-0 (vehicle-spawn arg0 hellcat arg1))
        )
+      ;; MOD (jak2/features/paddywagon/traffic): Krimzon Guard prisoner transport.
+      (((traffic-type paddywagon-v))
+       (set! v0-0 (vehicle-spawn arg0 paddywagon-v arg1))
+       )
       (((traffic-type citizen-norm-1))
        (set! v0-0 (citizen-spawn arg0 citizen-norm arg1))
        )
@@ -407,6 +439,10 @@
     (((vehicle-type hellcat))
      hellcat
      )
+    ;; MOD (jak2/features/paddywagon/traffic)
+    (((vehicle-type paddywagon-v))
+     paddywagon-v
+     )
     (((vehicle-type evan-test-bike))
      evan-test-bike
      )
@@ -459,7 +495,11 @@
     (set! (-> traffic-want-counts 16) 7)
     (set! (-> traffic-want-counts 18) 4)
     (set! (-> traffic-want-counts 19) 3)
-    (set! (-> traffic-want-counts 20) 0)
+    ;; MOD (jak2/features/paddywagon/traffic): slot 20 = (traffic-type paddywagon-v).
+    ;; At most 2 paddy wagons in the loaded city at once WHEN the mod is enabled
+    ;; from Debug > Mods; 0 (stock -- no paddywagon-v is ever built) when disabled.
+    ;; Read on city load, so the toggle applies on the next city (re)load.
+    (set! (-> traffic-want-counts 20) (if *mod-paddywagon-traffic-enable* 2 0))
     (set! (-> traffic-want-counts 0) 15)
     (set! (-> traffic-want-counts 1) 15)
     (set! (-> traffic-want-counts 2) 14)

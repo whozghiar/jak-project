@@ -136,7 +136,26 @@
   // merc's texture ids are home-level-relative). Omitted -> first level DGO the art
   // group shipped in is auto-picked (unreliable). Wrong/missing -> untextured model.
   // Example: "LWIDEA.DGO": ["transport-ag:LPROTECT.DGO"]
-  "extra_art_groups_by_dgo": {},
+  // MOD (jak2/features/paddywagon/traffic): the paddy wagon's merc geometry only
+  // ever shipped in LMEETBRT.DGO (the borrowed meet-brutter mission level), so in
+  // free roam the model would be completely invisible even with paddy-wagon-ag.go
+  // listed in the lwide .gd files (Circuit 1 loads the skeleton; the Merc2
+  // renderer reads geometry out of the resident .fr3 -- Circuit 2). Baking it
+  // into all three Haven City traffic levels fixes that; ":LMEETBRT.DGO" tells
+  // the extractor to resolve the texture ids through LMEETBRT's remap table
+  // (tpage lmeetbrt-pris), without which the van renders untextured/white.
+  // Requires `task extract` to rebuild lwide{a,b,c}.fr3.
+  "extra_art_groups_by_dgo": {
+    "LWIDEA.DGO": [
+      "paddy-wagon-ag:LMEETBRT.DGO"
+    ],
+    "LWIDEB.DGO": [
+      "paddy-wagon-ag:LMEETBRT.DGO"
+    ],
+    "LWIDEC.DGO": [
+      "paddy-wagon-ag:LMEETBRT.DGO"
+    ]
+  },
   // turn this on if you want extracted levels to be saved out as .glb files in decompiler_out/<game>/levels
   "rip_levels": false,
   // should we also extract collision meshes to the .fr3 files?

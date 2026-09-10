@@ -926,7 +926,12 @@
 
    The turret is intentionally left uninitialised (`info` = 0): the `paddy-wagon`
    skeleton has no gun joint, and `turret-control-method-11` no-ops on a zero
-   `info`, so the inherited guard AI pursues without ever firing."
+   `info`, so the inherited guard AI pursues without ever firing.
+   WARNING: the PLAYER path is NOT so forgiving --
+   `vehicle-guard::vehicle-method-94` uses the turret unguarded and crashes the
+   runtime on a null `info`. That is why `paddywagon-v` overrides
+   `vehicle-method-94` below. If you ever give this wagon a real gun, call
+   `set-info` here and drop that override."
   (initialize-skeleton
     this
     (the-as skeleton-group (art-group-get-by-name *level* "skel-paddywagon-v" (the-as (pointer uint32) #f)))
@@ -949,6 +954,71 @@
   (set! (-> this controller choose-branch-callback)
         (the-as (function vehicle-controller vehicle nav-branch) paddywagon-v-choose-branch)
         )
+  0
+  (none)
+  )
+
+(defmethod vehicle-method-94 ((this paddywagon-v))
+  "Read the player's driving input. **This override exists to stop a hard crash.**
+
+   `vehicle-guard::vehicle-method-94` aims and fires the hull turret before
+   delegating to `vehicle::vehicle-method-94` (the actual stick/pedal read), and
+   it does so COMPLETELY UNGUARDED:
+
+     (set! (-> this turret inaccuracy) 0.0)
+     (turret-control-method-9 (-> this turret) this ...)      ;; every frame
+     (when (cpad-hold? 0 r1) ... (turret-control-method-17 (-> this turret) this))
+
+   `turret-control-method-9` immediately does
+   `(-> arg0 node-list data (-> this info joint-index) bone transform)`. On this
+   wagon `turret info` is 0 -- the `paddy-wagon` skeleton has no gun joint, so
+   `init-skel-and-rigid-body` deliberately never calls `set-info` -- and that
+   expression dereferences a null `info`, reads a garbage joint index and
+   indexes `node-list` with it. The runtime dies instantly, with no GOAL error.
+
+   Retail never reaches this: the only two `vehicle-guard`s the player can
+   actually pilot, `hellcat` (car.gc) and `guard-bike` (bike.gc), both call
+   `set-info` on their turret in `init-skel-and-rigid-body`; and the mission
+   `paddywagon` is `no-hijack`, so nobody ever drove a turret-less
+   `vehicle-guard` before this mod. Note the AI path was always safe --
+   `vehicle-guard-method-153` goes through `turret-control-method-11`, which IS
+   wrapped in `(when (nonzero? (-> this info)) ...)` -- which is why AI paddy
+   wagons drive around the city perfectly happily.
+
+   So: skip `vehicle-guard`'s turret block entirely and call `vehicle`'s player
+   input read directly. An unarmed van has nothing to aim."
+  ((method-of-type vehicle vehicle-method-94) this)
+  0
+  (none)
+  )
+
+(defmethod vehicle-method-87 ((this paddywagon-v))
+  "Camera setup plus the one-shot 'the player just took the controls' hook.
+
+   The base method's body is guarded by `rigid-body-object-flag camera`, so it
+   runs exactly once per boarding even though it is called from both
+   `check-player-get-on` and `player-control` :enter. Sample that flag before
+   delegating so the alert is raised exactly once as well.
+
+   Stealing a guard vehicle already raises the city alert through stock code:
+   the `crimson-guard-rider` driver carries `vehicle-rider` `flags` bit 3, so
+   `vehicle-rider-event-handler`'s 'knocked-off branch sends
+   'increase-alert-level 2 to `*traffic-manager*` and respawns a Crimson Guard
+   on the street. But that path needs a driver still aboard to knock off --
+   shoot the pilot first, or take a wagon whose rider was already cleared, and
+   the theft goes completely unnoticed. A Krimzon Guard prisoner transport
+   vanishing is not something the city shrugs at, so raise it here too.
+
+   Safe to double up: `traffic-engine::increase-alert-level` takes the `max` of
+   the current and requested level, so the two paths cannot fight each other.
+   It is also internally gated on the `target-jak` alert flag, so this stays
+   inert during scripted missions."
+  (let ((first-time? (not (logtest? (-> this flags) (rigid-body-object-flag camera)))))
+    (call-parent-method this)
+    (when first-time?
+      (send-event *traffic-manager* 'increase-alert-level 2)
+      )
+    )
   0
   (none)
   )

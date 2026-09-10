@@ -229,6 +229,59 @@ Tunables (all REPL-editable): `*paddywagon-v-flee-duration*` (12 s),
 `*paddywagon-v-flee-speed-boost*` (`(meters 15)`),
 `*paddywagon-v-flee-damage-threshold*` (0.1).
 
+### 4c. Two crash-adjacent hazards of an unarmed, pilotable `vehicle-guard`
+
+**The turret crash (fixed).** `paddywagon-v` is the first `vehicle-guard` the
+player can pilot that has **no turret**. The `paddy-wagon` skeleton has no gun
+joint (only "steering", "hatch", "main", "prejoint", "align"), so
+`init-skel-and-rigid-body` never calls `set-info` and `turret info` stays 0.
+
+The AI path tolerates that — `vehicle-guard-method-153` goes through
+`turret-control-method-11`, whose whole body is wrapped in
+`(when (nonzero? (-> this info)) …)`. That is why AI paddy wagons drive around
+the city perfectly happily.
+
+The **player** path does not. `vehicle-guard::vehicle-method-94` aims and fires
+the hull turret before delegating to `vehicle::vehicle-method-94` (the actual
+stick read), completely unguarded:
+
+```lisp
+(set! (-> this turret inaccuracy) 0.0)
+(turret-control-method-9 (-> this turret) this ...)   ;; every frame
+(when (cpad-hold? 0 r1) ... (turret-control-method-17 (-> this turret) this))
+```
+
+and `turret-control-method-9`'s first act is
+
+```lisp
+(-> arg0 node-list data (-> this info joint-index) bone transform)
+```
+
+— a dereference of a null `info`, producing a garbage joint index that is then
+used to index `node-list`. The runtime dies instantly with **no GOAL error**.
+The call chain is `player-control` :post → `vehicle-method-124` →
+`vehicle-method-94`, so it fires on the very first frame after `pilot-on`.
+
+Retail never reaches it: the only two pilotable `vehicle-guard`s, `hellcat`
+(car.gc) and `guard-bike` (bike.gc), both `set-info` their turret, and the
+mission `paddywagon` is `no-hijack`. `paddywagon-v` therefore overrides
+`vehicle-method-94` to skip `vehicle-guard`'s turret block and call
+`vehicle::vehicle-method-94` directly. **If this wagon is ever given a real gun,
+call `set-info` in `init-skel-and-rigid-body` and delete that override.**
+
+**Theft alert (hardened).** Stealing a guard vehicle already raises the city
+alert through stock code: the `crimson-guard-rider` driver carries
+`vehicle-rider` `flags` bit 3, so `vehicle-rider-event-handler`'s `knocked-off`
+branch sends `increase-alert-level 2` to `*traffic-manager*` and respawns a
+Crimson Guard on the street. That path needs a driver still aboard to knock off,
+though — shoot the pilot first, or take a wagon whose rider was already cleared,
+and the theft goes unnoticed. `paddywagon-v` overrides `vehicle-method-87` (the
+one-shot boarding hook, self-guarded by `rigid-body-object-flag camera`) to send
+the same event itself. `traffic-engine::increase-alert-level` takes the `max` of
+current and requested level, so the two paths cannot fight; it is also gated
+internally on the `target-jak` alert flag, so it stays inert during scripted
+missions.
+
 ### 5. Traffic-type wiring
 
 - `engine/ai/traffic-h.gc` — renames the spare `(traffic-type-20 20)` →
@@ -326,23 +379,12 @@ See [`docs/modding/tools/model_and_entity_level_injection_guide.md`](../tools/mo
 
 ### 8. Current State & Known Tradeoffs
 
-- **Seen in game:** the wagon spawns and renders in city traffic (2026-09-10).
-  The grab rails and the flee behaviour compile clean but have **not** been
-  observed in game yet.
-- **The "press triangle" prompt has no source-level blocker.** Everything
-  `check-player-get-on` tests is satisfied: `no-hijack` is never set (a repo-wide
-  grep finds it only in `helldog.gc` and `meet-brutter.gc`), `hit-points` is 1.0
-  from `vehicle-method-82` so the HUD-chooser priority is non-zero, seat 0
-  carries `flags` 1 so `(get-best-seat-for-vehicle … 1 0)` returns it, the
-  offer radius is *larger* than a car's, and `vehicle-guard`'s `active` :post
-  calls `check-player-get-on` exactly as it does for a hellcat. **The grab rails
-  fix hanging, not the prompt** — the two paths are independent and the direct
-  path takes priority on flat ground. If the prompt is still absent, the next
-  thing to check in the REPL, standing next to a live wagon, is:
-  `(-> *setting-control* user-current vehicle-hijacking)` (must be non-#f, and
-  gates every vehicle) and
-  `(logtest? (-> (the-as paddywagon-v (process-by-name "paddywagon-v" *active-pool*)) flags) (rigid-body-object-flag no-hijack))`
-  (must be #f).
+- **Seen in game (2026-09-10):** the wagon spawns, renders and drives the city
+  lanes; the grab rails work (`pilot-edge-grab` accepted, Jak hangs off a flank);
+  boarding works. The turret-crash fix and the flee behaviour compile clean but
+  have **not** been observed in game yet.
+- **The flee behaviour is still unverified in game** — the branch chooser in
+  particular has only been reasoned about, not watched.
 - **Slot 20 is shared with `jak2/features/transport-ag/traffic`.** Both mods
   claim the same last free traffic slot, so as written they are **mutually
   exclusive**. Merging them would require extending `traffic-engine`'s
@@ -373,6 +415,7 @@ See [`docs/modding/tools/model_and_entity_level_injection_guide.md`](../tools/mo
 
 | Date | Touched/Created Files | Technical Description | Objective |
 | :--- | :--- | :--- | :--- |
+| 2026-09-10 | `levels/city/traffic/vehicle/paddywagon-v.gc` | **Fixed the hijack crash + hardened the theft alert (second in-game feedback round).** (1) **Crash:** stealing the wagon killed the runtime one frame after `pilot-on`, with no GOAL error. Cause: `vehicle-guard::vehicle-method-94` (reached every frame from `player-control` :post → `vehicle-method-124`) aims and fires the hull turret *unguarded*, and `turret-control-method-9` opens with `(-> arg0 node-list data (-> this info joint-index) bone transform)`. This wagon's `turret info` is 0 — the `paddy-wagon` skeleton has no gun joint — so that dereferences null and indexes `node-list` with garbage. The AI path was always safe because `vehicle-guard-method-153` goes through `turret-control-method-11`, which *is* wrapped in `(when (nonzero? (-> this info)) …)`. Retail never hits it: `hellcat` and `guard-bike`, the only pilotable `vehicle-guard`s, both `set-info` their turret, and the mission `paddywagon` is `no-hijack`. Fixed by overriding `vehicle-method-94` to skip `vehicle-guard`'s turret block and call `vehicle::vehicle-method-94` directly. (2) **Alert:** added a `vehicle-method-87` override (one-shot, self-guarded by `rigid-body-object-flag camera`) that sends `increase-alert-level 2` on boarding, so the theft is noticed even when no `crimson-guard-rider` is left aboard to trigger the stock `knocked-off` path. `increase-alert-level` takes a `max` and is gated on the `target-jak` flag, so the two paths cannot fight and it stays inert in scripted missions. | Make the wagon actually drivable, and make stealing it always raise the alarm rather than only when a driver happened to still be aboard. |
 | 2026-09-10 | `levels/city/traffic/vehicle/paddywagon-v.gc` | **Grab rails + flee-under-fire (first in-game feedback round).** (1) Retail `*paddywagon-constants*` ships `:grab-rail-array #f` / no `:grab-rail-count`, so `check-player-get-on`'s `(dotimes (s2-1 (-> this info grab-rail-count)) …)` ran zero times and the `pilot-edge-grab` path — Jak hanging off the side before committing to the theft — could never fire. Added 4 rails (front, both flanks, rear) at `y` 9216, the body's light/window line per the retail headlight/taillight positions. (2) New flee behaviour: `apply-damage` override starts a flee above `*paddywagon-v-flee-damage-threshold*` and records the attacker position; `vehicle-method-120` override boosts `target-speed-offset`, sets `ignore-others` and clears `pursuit-target` + `alert`/`in-pursuit`/`target-in-sight`/`rammed-target` each frame (so `vehicle-guard`'s `hostile` :post falls through `vehicle-guard-method-151` to `vehicle-method-109` and it drives rather than fights); new `paddywagon-v-choose-branch` controller callback picks the nav-branch heading most directly away from `flee-from`; `vehicle-method-134` refuses pursuit targets while fleeing; `vehicle-method-128` resets flee state per traffic life. | A prisoner transport must be approachable the way every other city vehicle is (hang on it, then decide to steal it), and must run from a firefight instead of joining one — it is carrying a civilian. |
 | 2026-09-10 | `levels/city/traffic/vehicle/paddywagon-v.gc` *(new)*<br>`engine/ai/traffic-h.gc`<br>`levels/city/traffic/vehicle/vehicle-h.gc`<br>`engine/entity/entity-h.gc`<br>`decompiler/config/jak2/all-types.gc`<br>`levels/city/traffic/traffic-manager.gc`<br>`levels/city/traffic/citizen/guard.gc`<br>`pc/debug/paddywagon-traffic-menu.gc` *(new)*<br>`dgos/{cwi,game,lwidea,lwideb,lwidec}.gd`<br>`decompiler/config/jak2/jak2_config.jsonc`<br>`levels/city/{ctywide-tasks,protect/protect,slums/kor/hal3-course,kiddogescort/hal4-course}.gc` | **Initial implementation.** New `paddywagon-v` (`vehicle-guard`) on traffic slot 20, reusing retail `paddy-wagon` hull + `*paddywagon-constants*` verbatim except `object-type` → `#x14`; no `no-hijack`, no `'lmeetbrt` re-home, no `choose-branch-callback` override, so it is an ordinary stealable traffic guard vehicle. New `paddywagon-prisoner` (`vehicle-rider`) in retail seat 1 (the rear cage, flags 4 / 180°): rolls `norm`/`fat`/`chick` among the art groups actually resident in the process's lwide level, holds `*-arms-crossed-ja` (idle for chick), re-rolls the retail `setup-masks` wardrobe on every `'traffic-on`, drops the base sine "lean", and refuses `'knocked-off` so it stays caged when Jak steals the van. `vehicle-method-137` override spawns both riders. Merc `.fr3` injection of `paddy-wagon-ag:LMEETBRT.DGO` into the three lwide levels + `paddy-wagon-ag.go`/`tpage-2438.go` in their `.gd`. Mandatory `Debug ▸ Mods ▸ paddywagon-traffic` toggle via `define-perm *mod-paddywagon-traffic-enable*` gating `want-count[20]`. | Put the Krimzon Guard prisoner van into ambient city traffic with a civilian prisoner and a Crimson Guard driver, drivable and stealable under the same conditions as every other guard vehicle — while leaving stock Haven City and the *Escort Brutter* mission untouched when the toggle is OFF. |
 
@@ -604,6 +647,62 @@ et quitte la zone au lieu de se comporter comme un véhicule de trafic ordinaire
 Réglages (tous éditables au REPL) : `*paddywagon-v-flee-duration*` (12 s),
 `*paddywagon-v-flee-speed-boost*` (`(meters 15)`),
 `*paddywagon-v-flee-damage-threshold*` (0,1).
+
+### 4c. Deux pièges d'un `vehicle-guard` pilotable et non armé
+
+**Le crash de la tourelle (corrigé).** `paddywagon-v` est le premier
+`vehicle-guard` pilotable par le joueur à n'avoir **aucune tourelle**. Le
+squelette `paddy-wagon` n'a pas de joint d'arme (seulement « steering »,
+« hatch », « main », « prejoint », « align »), donc `init-skel-and-rigid-body`
+n'appelle jamais `set-info` et `turret info` reste à 0.
+
+Le chemin IA le tolère : `vehicle-guard-method-153` passe par
+`turret-control-method-11`, dont tout le corps est enveloppé dans
+`(when (nonzero? (-> this info)) …)`. C'est pour ça que les paddy wagons IA
+circulent sans problème.
+
+Le chemin **joueur**, non. `vehicle-guard::vehicle-method-94` vise et fait tirer
+la tourelle de coque avant de déléguer à `vehicle::vehicle-method-94` (la vraie
+lecture du stick), sans aucune garde :
+
+```lisp
+(set! (-> this turret inaccuracy) 0.0)
+(turret-control-method-9 (-> this turret) this ...)   ;; chaque frame
+(when (cpad-hold? 0 r1) ... (turret-control-method-17 (-> this turret) this))
+```
+
+et la première chose que fait `turret-control-method-9` est
+
+```lisp
+(-> arg0 node-list data (-> this info joint-index) bone transform)
+```
+
+— un déréférencement d'`info` nul, qui produit un index de joint aberrant ensuite
+utilisé pour indexer `node-list`. Le runtime meurt instantanément, **sans erreur
+GOAL**. La chaîne d'appel est `player-control` :post → `vehicle-method-124` →
+`vehicle-method-94` : ça part dès la première frame après `pilot-on`.
+
+Le jeu d'origine n'y arrive jamais : les deux seuls `vehicle-guard` pilotables,
+`hellcat` (car.gc) et `guard-bike` (bike.gc), appellent tous deux `set-info` sur
+leur tourelle, et le `paddywagon` de mission est `no-hijack`. `paddywagon-v`
+surcharge donc `vehicle-method-94` pour sauter le bloc tourelle de
+`vehicle-guard` et appeler directement `vehicle::vehicle-method-94`. **Si ce
+fourgon reçoit un jour une vraie arme, appelez `set-info` dans
+`init-skel-and-rigid-body` et supprimez cette surcharge.**
+
+**Alerte au vol (fiabilisée).** Voler un véhicule de garde déclenche déjà
+l'alerte via le code d'origine : le chauffeur `crimson-guard-rider` porte le bit
+3 des `flags` de `vehicle-rider`, donc la branche `knocked-off` de
+`vehicle-rider-event-handler` envoie `increase-alert-level 2` à
+`*traffic-manager*` et fait réapparaître un Garde Grenat dans la rue. Mais ce
+chemin exige qu'un chauffeur soit encore à bord pour être éjecté — abattez le
+pilote d'abord, ou prenez un fourgon dont le rider avait déjà été retiré, et le
+vol passe inaperçu. `paddywagon-v` surcharge `vehicle-method-87` (le hook
+d'embarquement one-shot, auto-gardé par `rigid-body-object-flag camera`) pour
+envoyer l'événement lui-même. `traffic-engine::increase-alert-level` prend le
+`max` du niveau courant et du niveau demandé : les deux chemins ne peuvent pas
+se contredire ; il est aussi gardé en interne par le drapeau d'alerte
+`target-jak`, donc il reste inerte pendant les missions scriptées.
 
 ### 5. Câblage du type de trafic
 

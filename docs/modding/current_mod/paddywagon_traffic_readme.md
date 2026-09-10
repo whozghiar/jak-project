@@ -163,6 +163,72 @@ groups transcribed from each civilian's own `citizen-init!`
 runs on first spawn **and** on every `'traffic-on`, so each traffic life gets a
 freshly dressed prisoner.
 
+### 4b. Boarding, hanging, and fleeing under fire
+
+**Grab rails.** Retail `*paddywagon-constants*` carries `:grab-rail-array #f`
+and no `:grab-rail-count` — zero rails — because the mission van is `no-hijack`
+and Jak is never meant to touch it. Every stealable city vehicle has them
+(cara 6, carb 5, carc 9, hellcat 6, the bikes 2). `check-player-get-on` offers a
+vehicle two different ways:
+
+| path | condition | triangle sends |
+|---|---|---|
+| direct board | Jak roughly level with the hull (`floats2 > -14336`) | `change-mode pilot` — he gets in |
+| grab rail | Jak more than 2m **below** the hull origin (`floats2 < -8192`) **and** not already edge-grabbing | `pilot-edge-grab` — he **hangs off the side** |
+
+The rail loop is `(dotimes (s2-1 (-> this info grab-rail-count)) …)`, so with no
+rails the second path could never fire and the wagon could never be hung off.
+This mod adds four rails (front bumper, both flanks, rear above the cage doors)
+at `y` 9216 — the body's real light/window line, taken from the retail
+headlight/taillight positions in the same constants block. **These four figures
+are estimates**; if Jak hangs clipped into the bodywork or floating off it, they
+are the only values to nudge.
+
+**Fleeing under fire.** The wagon is carrying a prisoner, so it breaks off and
+leaves the area rather than behaving like an ordinary traffic vehicle:
+
+- `apply-damage` override — `vehicle::apply-damage` is the single funnel for
+  every kind of damage (gunfire and explosions via
+  `rigid-body-object-method-46`'s attack branch, ramming via the impulse branch
+  in `vehicle.gc`). Anything at or above
+  `*paddywagon-v-flee-damage-threshold*` (0.1) starts a flee and records Jak's
+  position in `flee-from`. The threshold lets every projectile hit through
+  (they arrive as 1.0 / 0.25 / 0.125) while ignoring ordinary bumper contact
+  from other traffic. Skipped while the player is driving it, and once it is
+  dead.
+- `vehicle-method-120` override — the per-frame tick (run from
+  `vehicle-method-122`, which `vehicle-guard`'s `active` state calls in its
+  :post). While fleeing it (a) pushes `controller target-speed-offset` to
+  `*paddywagon-v-flee-speed-boost*` (the retail value is `(meters -2)` — a paddy
+  wagon normally trundles *below* the lane limit), (b) sets `ignore-others` so
+  it barges past slower traffic instead of queueing, and (c) clears
+  `pursuit-target` plus the `alert` / `in-pursuit` / `target-in-sight` /
+  `rammed-target` flags every frame. That last part is what makes it **flee
+  rather than fight**: with `pursuit-target` cleared, `vehicle-guard`'s
+  `hostile` :post finds no target through `vehicle-guard-method-151` and calls
+  `vehicle-method-109`, dropping it back to ordinary traffic driving. Both
+  controller settings are re-asserted every frame because `vehicle-method-109`
+  itself clears `ignore-others`.
+- `paddywagon-v-choose-branch` — the controller's nav-branch chooser, installed
+  in `init-skel-and-rigid-body`. Normally defers to the stock
+  `vehicle-guard-choose-branch`; while fleeing it picks the branch whose heading
+  points most directly **away** from `flee-from`, so the wagon actually leaves
+  the area instead of looping back past its attacker. Falls back to the stock
+  chooser if the attacker is right on top of it (no meaningful direction to
+  normalise). Safe across pooling: only `vehicle-controller-method-9` resets
+  `choose-branch-callback`, and it runs once inside
+  `alloc-and-init-rigid-body-control`.
+- `vehicle-method-134` override — refuses to accept a pursuit target while
+  fleeing, otherwise the ram branch of
+  `vehicle-guard::rigid-body-object-method-46` would re-acquire Jak the moment
+  he clipped the fleeing wagon.
+- `vehicle-method-128` override — flee state is per-traffic-life, so a recycled
+  hull starts calm.
+
+Tunables (all REPL-editable): `*paddywagon-v-flee-duration*` (12 s),
+`*paddywagon-v-flee-speed-boost*` (`(meters 15)`),
+`*paddywagon-v-flee-damage-threshold*` (0.1).
+
 ### 5. Traffic-type wiring
 
 - `engine/ai/traffic-h.gc` — renames the spare `(traffic-type-20 20)` →
@@ -217,10 +283,21 @@ See [`docs/modding/tools/model_and_entity_level_injection_guide.md`](../tools/mo
    red dot on the minimap.
 6. **Alert:** aggro a guard. The wagon joins the pursuit like a hellcat but
    never fires.
-7. **Steal it:** press triangle. The guard is thrown clear, the **city alarm
+7. **Steal it:** walk up — "press triangle to use" should appear from up to
+   ~12.75m away (`floats4` = 8192 + the 6.5m root sphere, ×1.5 while
+   AI-driving). Press triangle. The guard is thrown clear, the **city alarm
    sounds (alert level 2)**, a Crimson Guard respawns on the street, and the
    **prisoner is still standing in the back** as you drive off.
-8. **Destroy one:** it explodes like any guard vehicle.
+8. **Hang off it:** get *below* the wagon (a ramp, a walkway, or jump at one
+   passing overhead) so Jak is more than 2m under the hull origin — that is the
+   `floats2 < -8192` gate — and press triangle. He should grab a flank rail and
+   hang there. Note the direct-board path takes priority whenever Jak is roughly
+   level with the hull, so on flat ground you get straight in rather than
+   hanging; that is stock `check-player-get-on` behaviour, identical for cars.
+9. **Shoot one:** it should immediately speed up, push past traffic and take the
+   turns that lead away from you, without ever turning to fight — for
+   `*paddywagon-v-flee-duration*` (12 s) after the last hit.
+10. **Destroy one:** it explodes like any guard vehicle.
 9. From the REPL:
    `(send-event *traffic-manager* 'set-object-target-count (traffic-type paddywagon-v) 4)`
    for more of them.
@@ -249,9 +326,23 @@ See [`docs/modding/tools/model_and_entity_level_injection_guide.md`](../tools/mo
 
 ### 8. Current State & Known Tradeoffs
 
-- **Verified by build only.** `CWI.DGO`, `LWIDEA/B/C.DGO`, `GAME.CGO` and the
-  full `(build-game)` all compile clean. In-game behaviour has **not** been
-  observed yet — that needs `task extract` first.
+- **Seen in game:** the wagon spawns and renders in city traffic (2026-09-10).
+  The grab rails and the flee behaviour compile clean but have **not** been
+  observed in game yet.
+- **The "press triangle" prompt has no source-level blocker.** Everything
+  `check-player-get-on` tests is satisfied: `no-hijack` is never set (a repo-wide
+  grep finds it only in `helldog.gc` and `meet-brutter.gc`), `hit-points` is 1.0
+  from `vehicle-method-82` so the HUD-chooser priority is non-zero, seat 0
+  carries `flags` 1 so `(get-best-seat-for-vehicle … 1 0)` returns it, the
+  offer radius is *larger* than a car's, and `vehicle-guard`'s `active` :post
+  calls `check-player-get-on` exactly as it does for a hellcat. **The grab rails
+  fix hanging, not the prompt** — the two paths are independent and the direct
+  path takes priority on flat ground. If the prompt is still absent, the next
+  thing to check in the REPL, standing next to a live wagon, is:
+  `(-> *setting-control* user-current vehicle-hijacking)` (must be non-#f, and
+  gates every vehicle) and
+  `(logtest? (-> (the-as paddywagon-v (process-by-name "paddywagon-v" *active-pool*)) flags) (rigid-body-object-flag no-hijack))`
+  (must be #f).
 - **Slot 20 is shared with `jak2/features/transport-ag/traffic`.** Both mods
   claim the same last free traffic slot, so as written they are **mutually
   exclusive**. Merging them would require extending `traffic-engine`'s
@@ -282,6 +373,7 @@ See [`docs/modding/tools/model_and_entity_level_injection_guide.md`](../tools/mo
 
 | Date | Touched/Created Files | Technical Description | Objective |
 | :--- | :--- | :--- | :--- |
+| 2026-09-10 | `levels/city/traffic/vehicle/paddywagon-v.gc` | **Grab rails + flee-under-fire (first in-game feedback round).** (1) Retail `*paddywagon-constants*` ships `:grab-rail-array #f` / no `:grab-rail-count`, so `check-player-get-on`'s `(dotimes (s2-1 (-> this info grab-rail-count)) …)` ran zero times and the `pilot-edge-grab` path — Jak hanging off the side before committing to the theft — could never fire. Added 4 rails (front, both flanks, rear) at `y` 9216, the body's light/window line per the retail headlight/taillight positions. (2) New flee behaviour: `apply-damage` override starts a flee above `*paddywagon-v-flee-damage-threshold*` and records the attacker position; `vehicle-method-120` override boosts `target-speed-offset`, sets `ignore-others` and clears `pursuit-target` + `alert`/`in-pursuit`/`target-in-sight`/`rammed-target` each frame (so `vehicle-guard`'s `hostile` :post falls through `vehicle-guard-method-151` to `vehicle-method-109` and it drives rather than fights); new `paddywagon-v-choose-branch` controller callback picks the nav-branch heading most directly away from `flee-from`; `vehicle-method-134` refuses pursuit targets while fleeing; `vehicle-method-128` resets flee state per traffic life. | A prisoner transport must be approachable the way every other city vehicle is (hang on it, then decide to steal it), and must run from a firefight instead of joining one — it is carrying a civilian. |
 | 2026-09-10 | `levels/city/traffic/vehicle/paddywagon-v.gc` *(new)*<br>`engine/ai/traffic-h.gc`<br>`levels/city/traffic/vehicle/vehicle-h.gc`<br>`engine/entity/entity-h.gc`<br>`decompiler/config/jak2/all-types.gc`<br>`levels/city/traffic/traffic-manager.gc`<br>`levels/city/traffic/citizen/guard.gc`<br>`pc/debug/paddywagon-traffic-menu.gc` *(new)*<br>`dgos/{cwi,game,lwidea,lwideb,lwidec}.gd`<br>`decompiler/config/jak2/jak2_config.jsonc`<br>`levels/city/{ctywide-tasks,protect/protect,slums/kor/hal3-course,kiddogescort/hal4-course}.gc` | **Initial implementation.** New `paddywagon-v` (`vehicle-guard`) on traffic slot 20, reusing retail `paddy-wagon` hull + `*paddywagon-constants*` verbatim except `object-type` → `#x14`; no `no-hijack`, no `'lmeetbrt` re-home, no `choose-branch-callback` override, so it is an ordinary stealable traffic guard vehicle. New `paddywagon-prisoner` (`vehicle-rider`) in retail seat 1 (the rear cage, flags 4 / 180°): rolls `norm`/`fat`/`chick` among the art groups actually resident in the process's lwide level, holds `*-arms-crossed-ja` (idle for chick), re-rolls the retail `setup-masks` wardrobe on every `'traffic-on`, drops the base sine "lean", and refuses `'knocked-off` so it stays caged when Jak steals the van. `vehicle-method-137` override spawns both riders. Merc `.fr3` injection of `paddy-wagon-ag:LMEETBRT.DGO` into the three lwide levels + `paddy-wagon-ag.go`/`tpage-2438.go` in their `.gd`. Mandatory `Debug ▸ Mods ▸ paddywagon-traffic` toggle via `define-perm *mod-paddywagon-traffic-enable*` gating `want-count[20]`. | Put the Krimzon Guard prisoner van into ambient city traffic with a civilian prisoner and a Crimson Guard driver, drivable and stealable under the same conditions as every other guard vehicle — while leaving stock Haven City and the *Escort Brutter* mission untouched when the toggle is OFF. |
 
 ---
@@ -446,6 +538,72 @@ transcrits depuis le `citizen-init!` de chaque civil (`citizen-norm.gc` /
 la méthode `rnd-int-count` réservée aux `citizen`. Cela s'exécute à la création
 **et** à chaque `'traffic-on` : chaque vie de trafic donne un prisonnier
 fraîchement habillé.
+
+### 4b. Embarquement, suspension et fuite sous le feu
+
+**Rambardes d'accroche.** Le `*paddywagon-constants*` d'origine porte
+`:grab-rail-array #f` et aucun `:grab-rail-count` — zéro rambarde — parce que le
+fourgon de mission est `no-hijack` et que Jak n'est jamais censé y toucher. Tous
+les véhicules urbains volables en ont (cara 6, carb 5, carc 9, hellcat 6, motos
+2). `check-player-get-on` propose un véhicule de deux façons :
+
+| chemin | condition | triangle envoie |
+|---|---|---|
+| embarquement direct | Jak à peu près au niveau de la coque (`floats2 > -14336`) | `change-mode pilot` — il monte |
+| rambarde | Jak à plus de 2 m **sous** l'origine de la coque (`floats2 < -8192`) et pas déjà en edge-grab | `pilot-edge-grab` — il **se suspend au flanc** |
+
+La boucle des rambardes est `(dotimes (s2-1 (-> this info grab-rail-count)) …)` :
+sans rambarde, ce second chemin ne pouvait jamais se déclencher et le fourgon ne
+pouvait pas être agrippé. Ce mod ajoute quatre rambardes (pare-chocs avant, les
+deux flancs, arrière au-dessus des portes de cage) à `y` 9216 — la vraie ligne
+de feux/vitres de la carrosserie, reprise des positions de phares et feux
+arrière du même bloc de constantes. **Ces quatre valeurs sont des estimations** ;
+si Jak se suspend en clippant dans la carrosserie ou en flottant à côté, ce sont
+les seules à ajuster.
+
+**Fuite sous le feu.** Le fourgon transporte un prisonnier : il rompt le contact
+et quitte la zone au lieu de se comporter comme un véhicule de trafic ordinaire.
+
+- Surcharge d'`apply-damage` — `vehicle::apply-damage` est l'entonnoir unique de
+  tous les dégâts (tirs et explosions via la branche d'attaque de
+  `rigid-body-object-method-46`, percussions via la branche d'impulsion de
+  `vehicle.gc`). Tout ce qui atteint `*paddywagon-v-flee-damage-threshold*`
+  (0,1) déclenche une fuite et mémorise la position de Jak dans `flee-from`. Le
+  seuil laisse passer chaque impact de projectile (1,0 / 0,25 / 0,125) tout en
+  ignorant les frottements de pare-chocs du trafic ordinaire. Ignoré quand le
+  joueur le conduit, et une fois le véhicule mort.
+- Surcharge de `vehicle-method-120` — le tick par frame (appelé depuis
+  `vehicle-method-122`, que l'état `active` de `vehicle-guard` exécute dans son
+  :post). En fuite : (a) `controller target-speed-offset` passe à
+  `*paddywagon-v-flee-speed-boost*` (la valeur d'origine est `(meters -2)` — un
+  fourgon roule normalement *sous* la limite de voie), (b) `ignore-others` est
+  posé pour forcer le passage au lieu de faire la queue, et (c) `pursuit-target`
+  ainsi que les drapeaux `alert` / `in-pursuit` / `target-in-sight` /
+  `rammed-target` sont effacés à chaque frame. C'est ce dernier point qui le
+  fait **fuir plutôt que combattre** : `pursuit-target` vidé, le :post de
+  `hostile` de `vehicle-guard` ne trouve plus de cible via
+  `vehicle-guard-method-151` et appelle `vehicle-method-109`, ce qui le remet en
+  conduite de trafic ordinaire. Les deux réglages du contrôleur sont ré-affirmés
+  chaque frame car `vehicle-method-109` efface lui-même `ignore-others`.
+- `paddywagon-v-choose-branch` — le sélecteur de nav-branch du contrôleur,
+  installé dans `init-skel-and-rigid-body`. Il délègue normalement au
+  `vehicle-guard-choose-branch` d'origine ; en fuite il choisit la branche dont
+  le cap s'éloigne le plus directement de `flee-from`, pour que le fourgon
+  quitte réellement la zone au lieu de repasser devant son agresseur. Repli sur
+  le sélecteur d'origine si l'agresseur est collé au véhicule (aucune direction
+  à normaliser). Sûr vis-à-vis du pooling : seul `vehicle-controller-method-9`
+  réinitialise `choose-branch-callback`, et il ne s'exécute qu'une fois dans
+  `alloc-and-init-rigid-body-control`.
+- Surcharge de `vehicle-method-134` — refuse toute cible de poursuite pendant la
+  fuite, sans quoi la branche de percussion de
+  `vehicle-guard::rigid-body-object-method-46` re-désignerait Jak dès qu'il
+  toucherait le fourgon en fuite.
+- Surcharge de `vehicle-method-128` — l'état de fuite est par vie de trafic :
+  une coque recyclée repart calme.
+
+Réglages (tous éditables au REPL) : `*paddywagon-v-flee-duration*` (12 s),
+`*paddywagon-v-flee-speed-boost*` (`(meters 15)`),
+`*paddywagon-v-flee-damage-threshold*` (0,1).
 
 ### 5. Câblage du type de trafic
 

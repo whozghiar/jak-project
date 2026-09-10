@@ -40,10 +40,15 @@ raises the city alarm exactly like stealing a hellcat or a guard bike.
   arms-crossed animation for that body type).
 - **Crimson Guard driver.** The regular red `crimson-guard-rider`, in the same
   pose it uses in a hellcat.
-- **Drivable and stealable like any guard ship.** Board it, the guard is thrown
-  clear, the city alert jumps and a Crimson Guard respawns on the street — all
-  the stock guard-vehicle theft behaviour. The prisoner stays locked in his cage
-  and rides along with you.
+- **Drivable and stealable like any guard ship.** Walk up for the "press
+  triangle" prompt, or hang off a flank rail first if it is passing above you,
+  then take it. The guard is thrown clear, the city alert jumps and a Crimson
+  Guard respawns on the street — all the stock guard-vehicle theft behaviour.
+  The prisoner stays locked in his cage and rides along with you.
+- **It runs when you shoot it.** A van carrying a prisoner does not stop to
+  fight: take a shot at one and it floors the throttle, pushes past traffic and
+  takes every turn that leads away from you for the next 12 seconds, never
+  turning to give chase.
 - **Unarmed.** The `paddy-wagon` skeleton has no gun joint, so the wagon rams
   and pursues but never shoots.
 - **OFF by default,** switchable from `Debug ▸ Mods ▸ paddywagon-traffic`.
@@ -139,10 +144,16 @@ ville exactement comme voler un hellcat ou une moto de garde.
   d'origine ne possède aucune animation bras croisés pour ce gabarit).
 - **Chauffeur Garde Grenat.** Le `crimson-guard-rider` rouge habituel, dans la
   même posture que dans un hellcat.
-- **Conductible et volable comme tout vaisseau grenagarde.** Montez à bord : le
-  garde est éjecté, l'alerte de la ville monte et un Garde Grenat réapparaît
-  dans la rue — tout le comportement standard de vol d'un véhicule de garde. Le
-  prisonnier, lui, reste enfermé dans sa cage et vous accompagne.
+- **Conductible et volable comme tout vaisseau grenagarde.** Approchez-vous pour
+  l'invite « triangle », ou suspendez-vous d'abord à une rambarde latérale s'il
+  passe au-dessus de vous, puis emparez-vous-en. Le garde est éjecté, l'alerte
+  de la ville monte et un Garde Grenat réapparaît dans la rue — tout le
+  comportement standard de vol d'un véhicule de garde. Le prisonnier, lui, reste
+  enfermé dans sa cage et vous accompagne.
+- **Il fuit quand on lui tire dessus.** Un fourgon qui transporte un prisonnier
+  ne s'arrête pas pour combattre : tirez dessus et il accélère à fond, force le
+  passage dans le trafic et prend systématiquement les virages qui l'éloignent
+  de vous pendant 12 secondes, sans jamais se retourner pour vous poursuivre.
 - **Non armé.** Le squelette `paddy-wagon` ne possède aucun joint d'arme : le
   fourgon percute et poursuit, mais ne tire jamais.
 - **Désactivé par défaut,** activable depuis `Debug ▸ Mods ▸ paddywagon-traffic`.

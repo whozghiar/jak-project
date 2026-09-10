@@ -189,7 +189,68 @@
     :camera-max-lookaround-speed 40960.0
     :seat-count 2
     :rider-stance #x1
-    :grab-rail-array #f
+    ;; ------------------------------------------------------------------------
+    ;; MOD: grab rails -- THE ONLY functional edit to the retail constants.
+    ;; ------------------------------------------------------------------------
+    ;; Retail `*paddywagon-constants*` has `:grab-rail-array #f` and no
+    ;; `:grab-rail-count`, i.e. ZERO rails, because the mission van is
+    ;; `no-hijack` and Jak is never meant to touch it. Every stealable city
+    ;; vehicle has them: cara 6, carb 5, carc 9, hellcat 6, the bikes 2.
+    ;;
+    ;; They matter because `vehicle::check-player-get-on` has two ways to offer
+    ;; a vehicle, and rails drive the second one:
+    ;;   * direct board  -> triangle sends 'change-mode 'pilot (Jak gets in);
+    ;;   * grab rail     -> triangle sends 'pilot-edge-grab, which is Jak
+    ;;                      HANGING off the side of a moving vehicle before he
+    ;;                      decides to climb in. `(dotimes (s2-1 (-> this info
+    ;;                      grab-rail-count)) ...)` runs zero times with no
+    ;;                      rails, so that path could never fire.
+    ;; Without these, the paddy wagon can never be hung off.
+    ;;
+    ;; Geometry is in joint-0 local space and derived from the hull landmarks
+    ;; already present in these retail constants: headlights sit at x +-12288
+    ;; y 9216, taillights at x +-15564.8 y 9216 z -17203.2, and the front
+    ;; collision sphere reaches z 12288 -- so y 9216 is the body's real
+    ;; light/window line and a natural place to grab. Winding matches cara's
+    ;; (front +x->-x, right -z->+z, left +z->-z, rear -x->+x) with each
+    ;; `normal` pointing out of the hull.
+    ;; TUNABLE: if Jak hangs clipped into the bodywork or floating off it,
+    ;; these four rails are the only figures to nudge.
+    :grab-rail-count 4
+    :grab-rail-array (new 'static 'inline-array vehicle-grab-rail-info 4
+      ;; front bumper rail
+      (new 'static 'vehicle-grab-rail-info
+        :local-pos (new 'static 'inline-array vector 2
+          (new 'static 'vector :x 8192.0 :y 9216.0 :z 10240.0 :w 1.0)
+          (new 'static 'vector :x -8192.0 :y 9216.0 :z 10240.0 :w 1.0)
+          )
+        :normal (new 'static 'vector :z 1.0 :w 1.0)
+        )
+      ;; right flank, running the length of the box body
+      (new 'static 'vehicle-grab-rail-info
+        :local-pos (new 'static 'inline-array vector 2
+          (new 'static 'vector :x 14336.0 :y 9216.0 :z -14336.0 :w 1.0)
+          (new 'static 'vector :x 14336.0 :y 9216.0 :z 6144.0 :w 1.0)
+          )
+        :normal (new 'static 'vector :x 1.0 :w 1.0)
+        )
+      ;; left flank
+      (new 'static 'vehicle-grab-rail-info
+        :local-pos (new 'static 'inline-array vector 2
+          (new 'static 'vector :x -14336.0 :y 9216.0 :z 6144.0 :w 1.0)
+          (new 'static 'vector :x -14336.0 :y 9216.0 :z -14336.0 :w 1.0)
+          )
+        :normal (new 'static 'vector :x -1.0 :w 1.0)
+        )
+      ;; rear, above the cage doors
+      (new 'static 'vehicle-grab-rail-info
+        :local-pos (new 'static 'inline-array vector 2
+          (new 'static 'vector :x -8192.0 :y 9216.0 :z -16384.0 :w 1.0)
+          (new 'static 'vector :x 8192.0 :y 9216.0 :z -16384.0 :w 1.0)
+          )
+        :normal (new 'static 'vector :z -1.0 :w 1.0)
+        )
+      )
     :seat-array (new 'static 'inline-array vehicle-seat-info 4
       (new 'static 'vehicle-seat-info :position (new 'static 'vector :y 9420.8 :z 2457.6 :w (the-as float #x10000)))
       (new 'static 'vehicle-seat-info
@@ -694,7 +755,93 @@
 ;; ============================================================================
 
 (deftype paddywagon-v (vehicle-guard)
-  ()
+  ((fleeing?           symbol)      ;; currently running from an attacker?
+   (flee-start-time    time-frame)  ;; when the current flee began
+   (flee-from          vector :inline) ;; world position it is running away from
+   (base-speed-offset  meters)      ;; the traffic speed offset to restore afterwards
+   )
+  )
+
+;; ----------------------------------------------------------------------------
+;; Flee tuning -- all REPL-editable
+;; ----------------------------------------------------------------------------
+
+;; How long the wagon keeps running after the last hit it took.
+(define *paddywagon-v-flee-duration* (seconds 12))
+
+;; `controller target-speed-offset` while fleeing. The retail constant is
+;; (meters -2) -- a paddy wagon normally trundles slightly BELOW the lane speed
+;; limit; this pushes it well above.
+(define *paddywagon-v-flee-speed-boost* (meters 15))
+
+;; Minimum `apply-damage` amount that counts as "being attacked". Projectile
+;; hits arrive as 1.0 / 0.25 / 0.125 (vehicle.gc), while traffic love-taps come
+;; through the impulse branch as a small fraction, so 0.1 lets every gunshot
+;; through and ignores ordinary bumper contact.
+(define *paddywagon-v-flee-damage-threshold* 0.1)
+
+(defun paddywagon-v-choose-branch ((arg0 vehicle-controller) (arg1 paddywagon-v))
+  "Nav-branch chooser installed on this wagon's controller.
+
+   Normally defers to the stock `vehicle-guard-choose-branch`. While fleeing it
+   picks, among the branches leaving the current destination node, the one whose
+   heading points most directly AWAY from `flee-from` -- so the wagon actually
+   leaves the area instead of looping past its attacker.
+
+   @returns the chosen `nav-branch`, or #f if the node offers none."
+  (cond
+    ((not (-> arg1 fleeing?))
+     (vehicle-guard-choose-branch arg0 arg1)
+     )
+    (else
+      (let ((best (the-as nav-branch #f))
+            (best-score -2.0)
+            (away (new 'stack-no-clear 'vector))
+            (here (new 'stack-no-clear 'vector))
+            (dir (new 'stack-no-clear 'vector))
+            (dest (new 'stack-no-clear 'vector))
+            )
+        (set! (-> here quad) (-> arg1 root trans quad))
+        (vector-! away here (-> arg1 flee-from))
+        (set! (-> away y) 0.0)
+        (set! (-> away w) 1.0)
+        ;; degenerate case (attacker on top of us): no meaningful direction, so
+        ;; let the stock chooser handle it rather than normalising a zero vector.
+        (cond
+          ((< (vector-length away) 1.0)
+           (vehicle-guard-choose-branch arg0 arg1)
+           )
+          (else
+            (vector-normalize! away 1.0)
+            (let ((node (-> arg0 branch dest-node)))
+              (dotimes (i (-> node branch-count))
+                (let ((br (-> node branch-array i)))
+                  (when (!= (-> br dest-node id) #xffff)
+                    (set! (-> dest quad) (-> br dest-node position quad))
+                    (set! (-> dest y) 0.0)
+                    (set! (-> dest w) 1.0)
+                    (vector-! dir dest here)
+                    (set! (-> dir y) 0.0)
+                    (vector-normalize! dir 1.0)
+                    (let ((score (vector-dot away dir)))
+                      (when (< best-score score)
+                        (set! best-score score)
+                        (set! best br)
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            (if best
+                best
+                (vehicle-guard-choose-branch arg0 arg1)
+                )
+            )
+          )
+        )
+      )
+    )
   )
 
 (defmethod allocate-and-init-cshape ((this paddywagon-v))
@@ -788,6 +935,116 @@
   (alloc-and-init-rigid-body-control this *paddywagon-v-constants*)
   ;; retail figure: hold LOD0 out to 200m (the hull has no lower-detail mesh)
   (set! (-> this draw lod-set lod 0 dist) 819200.0)
+  ;; MOD: flee state. `alloc-and-init-rigid-body-control` has just randomised
+  ;; `target-speed-offset` from the constants, so capture it now -- that is the
+  ;; value `vehicle-method-120` restores when the wagon calms down.
+  (set! (-> this fleeing?) #f)
+  (set! (-> this base-speed-offset) (-> this controller target-speed-offset))
+  (vector-reset! (-> this flee-from))
+  ;; MOD: swap in the flee-aware branch chooser. `vehicle-guard`'s
+  ;; `alloc-and-init-rigid-body-control` (called above) installed
+  ;; `vehicle-guard-choose-branch`; ours delegates to it unless fleeing.
+  ;; Safe across traffic pooling: only `vehicle-controller-method-9` resets this
+  ;; field and it runs once, inside `alloc-and-init-rigid-body-control`.
+  (set! (-> this controller choose-branch-callback)
+        (the-as (function vehicle-controller vehicle nav-branch) paddywagon-v-choose-branch)
+        )
+  0
+  (none)
+  )
+
+(defmethod apply-damage ((this paddywagon-v) (arg0 float) (arg1 rigid-body-impact))
+  "Take damage, then run.
+
+   `vehicle::apply-damage` is the single funnel for every kind of damage a
+   vehicle takes -- gunfire and explosions come in through
+   `rigid-body-object-method-46`'s 'attack branch, ramming through the
+   impulse branch in `vehicle.gc`. This wagon is carrying a prisoner, so
+   anything above `*paddywagon-v-flee-damage-threshold*` makes it break off and
+   leave the area instead of behaving like an ordinary traffic vehicle.
+
+   Not while the player is driving it (his own crashes must not steer the van
+   for him), and not once it is dead."
+  (call-parent-method this arg0 arg1)
+  (when (and (>= arg0 *paddywagon-v-flee-damage-threshold*)
+             *target*
+             (not (logtest? (-> this flags) (rigid-body-object-flag player-driving)))
+             (not (focus-test? this dead))
+             )
+    (set! (-> this flee-from quad) (-> (target-pos 0) quad))
+    (set! (-> this fleeing?) #t)
+    (set-time! (-> this flee-start-time))
+    )
+  0
+  (none)
+  )
+
+(defmethod vehicle-method-120 ((this paddywagon-v))
+  "Per-frame AI/nav tick -- drives the flee behaviour.
+
+   Called every frame from `vehicle-method-122`, which `vehicle-guard`'s
+   `active` state runs in its :post (and from the physics update paths in
+   vehicle.gc), so this is the natural place to hold the flee state.
+
+   While fleeing the wagon (a) runs well above the lane speed limit,
+   (b) sets `ignore-others` so it barges past slower traffic instead of queueing
+   behind it, and (c) drops every pursuit flag each frame. That last part is
+   what makes it *flee* rather than *fight*: with `pursuit-target` cleared,
+   `vehicle-guard`'s `hostile` :post finds no target through
+   `vehicle-guard-method-151` and calls `vehicle-method-109`, which returns it
+   to ordinary traffic driving -- now steered away by
+   `paddywagon-v-choose-branch`.
+
+   Note `vehicle-method-109` also clears `ignore-others`, which is why both
+   controller settings are re-asserted here every frame rather than once."
+  (call-parent-method this)
+  (when (-> this fleeing?)
+    (cond
+      ((or (time-elapsed? (-> this flee-start-time) *paddywagon-v-flee-duration*)
+           (logtest? (-> this flags) (rigid-body-object-flag player-driving))
+           )
+       ;; calmed down (or hijacked mid-flight): back to stock traffic behaviour
+       (set! (-> this fleeing?) #f)
+       (set! (-> this controller target-speed-offset) (-> this base-speed-offset))
+       (logclear! (-> this controller flags) (vehicle-controller-flag ignore-others))
+       )
+      (else
+        (set! (-> this controller target-speed-offset) *paddywagon-v-flee-speed-boost*)
+        (logior! (-> this controller flags) (vehicle-controller-flag ignore-others))
+        (set! (-> this pursuit-target) (the-as handle #f))
+        (logclear! (-> this flags)
+                   (rigid-body-object-flag alert in-pursuit target-in-sight rammed-target)
+                   )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+(defmethod vehicle-method-134 ((this paddywagon-v) (arg0 process))
+  "Engage `arg0` as a pursuit target.
+
+   Refused while fleeing: a prisoner transport under fire does not turn around
+   and give chase. Without this the ram branch of
+   `vehicle-guard::rigid-body-object-method-46` would re-acquire Jak as a
+   pursuit target the moment he clipped the fleeing wagon."
+  (if (not (-> this fleeing?))
+      (call-parent-method this arg0)
+      )
+  0
+  (none)
+  )
+
+(defmethod vehicle-method-128 ((this paddywagon-v))
+  "Re-activation out of the traffic pool.
+
+   The parent chain re-adds the red guard minimap icon and re-seats the riders.
+   Flee state is per-traffic-life, so a recycled hull starts calm."
+  (call-parent-method this)
+  (set! (-> this fleeing?) #f)
+  (set! (-> this controller target-speed-offset) (-> this base-speed-offset))
+  (logclear! (-> this controller flags) (vehicle-controller-flag ignore-others))
   0
   (none)
   )

@@ -263,7 +263,7 @@
     )
   )
 
-(define *minimap-class-list* (new 'static 'inline-array minimap-class-node 71
+(define *minimap-class-list* (new 'static 'inline-array minimap-class-node 72
                                (new 'static 'minimap-class-node
                                  :default-position (new 'static 'vector :w 1.0)
                                  :flags (minimap-flag trail bigmap)
@@ -823,6 +823,17 @@
                                  :icon-xy (new 'static 'vector2ub :data (new 'static 'array uint8 2 #x0 #x1))
                                  :scale 1.0
                                  :color (new 'static 'rgba :r #x7f :b #x7f :a #x80)
+                                 )
+                               ;; mod (crimson blue guard): identical to `guard-frustum` (class 32) --
+                               ;; same dot icon, same scale, same view-cone flag -- only the tint differs,
+                               ;; so a blue guard reads as a blue blip/cone on the minimap and the bigmap.
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :w 1.0)
+                                 :flags (minimap-flag frustum)
+                                 :name "blue-guard-frustum"
+                                 :icon-xy (new 'static 'vector2ub :data (new 'static 'array uint8 2 #x0 #x1))
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :r 0 :g #x40 :b #xff :a #x80)
                                  )
                                )
         )

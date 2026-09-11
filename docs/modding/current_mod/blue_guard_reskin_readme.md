@@ -224,13 +224,19 @@ unmodified `crimson-guard` code — nothing here adds guard-vs-guard retaliation
 | `goal_src/jak2/levels/city/traffic/traffic-manager.gc` | `*mod-city-peaceful?*` gate added to: the `crimson-guard-0` blue-pick, `traffic-want-counts` slots 18/19 (`(if *mod-city-peaceful?* 8 4)` / `… 8 3)`) | native non-regression — OFF restores retail spawning and vehicle counts |
 | `goal_src/jak2/levels/city/traffic/citizen/mod-city-hooks.gc` | `mod-city-hook-guard-spawn-blue?` now returns `(and *mod-city-peaceful?* (logtest? id 1))` | OFF ⇒ the ambient guard pool builds a stock red `crimson-guard` every time |
 | `goal_src/jak2/levels/city/traffic/citizen/guard.gc` | `*mod-city-peaceful?*` gate on the `dead` traffic-target drop in `stop-and-shoot` `:trans` | OFF restores the stock `inactive`/`disable`-only test |
+| `goal_src/jak2/engine/ui/minimap-h.gc` | `(blue-guard-frustum 71)` appended to the `minimap-class` enum + `(define-extern *minimap-class-list* ...)` | gives the blue guard its own minimap class id instead of reusing the red `guard-frustum` (32) |
+| `goal_src/jak2/engine/ui/minimap.gc` | `*minimap-class-list*` grown 71 -> 72 with a `blue-guard-frustum` node: same `icon-xy`, same `scale`, same `(minimap-flag frustum)` as `guard-frustum`, only `:color` differs (`r 0 / g #x40 / b #xff`) | the icon blip and the view-cone are both tinted from `(-> arg1 class color)` (`draw-frustum-1` / the icon draw path), so a blue class is all it takes to make a blue guard read blue on the minimap and bigmap |
+| `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | `citizen-init!` claims the minimap slot with `blue-guard-frustum` **before** delegating to `crimson-guard`; `die` `:enter` fades the icon out | the parent only adds the red icon while `minimap` is still `#f`, so taking the slot first is what overrides the color; the `die` fade-out mirrors what the stock `inactive` state does |
 
 **Native non-regression:** with `*mod-city-peaceful?*` `#f` (the shipped default) Haven City is
 byte-for-byte stock Jak 2 — no `crimson-blue-guard` is ever constructed, want-counts are retail,
 and every `*mod-city-*-hook*` resolves to its stock-equivalent branch. The only always-on deltas
 are cosmetic/harmless: the `crimson-blue-guard` art-group logs in at city load (unused), a
-`citizen` skips its look-at when the focus is `dead`/`inactive` (`citizen.gc`), and the custom
-art-group link path in `joint.gc`/`level.gc` is inert (empty registration list). The C++
+`citizen` skips its look-at when the focus is `dead`/`inactive` (`citizen.gc`), a dormant
+`blue-guard-frustum` entry sits at the end of `*minimap-class-list*` (`minimap.gc` — only
+`crimson-blue-guard`'s `citizen-init!` ever asks for it, and no blue guard is constructed when the
+flag is off), and the custom art-group link path in `joint.gc`/`level.gc` is inert (empty
+registration list). The C++
 `build-actor`/`Tools.cpp` changes are opt-in (`native-header #f` default).
 
 ## 7. How to Test

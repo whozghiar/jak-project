@@ -163,42 +163,27 @@ Le dépôt sépare le code amont officiel et les branches de modding :
 *L'historique complet des fusions et résolutions est consultable dans [`docs/modding/branch_sync_history.log`](docs/modding/branch_sync_history.log).*
 
 <!-- BRANCH_STATUS_START -->
-> **Dernière mise à jour :** `2026-09-11 13:39:20 UTC`  
-> **Branche source :** `master-dev` (`e2f7032b7`)  
-> **Statut global :** 0/15 synchronisées (0 conflits)
+> **Dernière mise à jour :** `2026-09-11 13:48:24 UTC`  
+> **Branche source :** `master-dev` (`cdbb2096b`)  
+> **Statut global :** 15/15 synchronisées (0 conflits)
 
 | Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |
 | :--- | :---: | :--- | :--- | :--- |
-| `jak2/config/enhanced_spawnrates` | ⚠️ Erreur push | `2d2b11e3a - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
-| `jak2/config/start_menu_wheel` | ⚠️ Erreur push | `50a05cef4 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
-| `jak2/features/crimson-blueguard/city-insurrection` | ⚠️ Erreur push | `2d2dddaa5 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
-| `jak2/features/crimson-blueguard/peaceful` | ⚠️ Erreur push | `104874cfd - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
-| `jak2/features/dark_jak_enhanced` | ⚠️ Erreur push | `2001b0711 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
-| `jak2/features/jak3-jetBoard` | ⚠️ Erreur push | `64a15539d - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
-| `jak2/features/paddywagon/traffic` | ⚠️ Erreur push | `e04301b97 - feat(paddywagon): both traffic lanes + Jak keeps his gun while driving (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
-| `jak2/features/transport-ag/alert` | ⚠️ Erreur push | `c6b130a3b - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
-| `jak2/features/transport-ag/traffic` | ⚠️ Erreur push | `4b3915712 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
-| `jak2/features/yakow_killable` | ⚠️ Erreur push | `417e7a71b - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
-| `jak3/config/memory_increase` | ⚠️ Erreur push | `d60c2ebae - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
-| `jak3/features/city-behavior` | ⚠️ Erreur push | `3842eaae6 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
-| `jak3/features/jak2_skin_secret` | ⚠️ Erreur push | `be88206cf - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
-| `jak3/features/mega_dark_jak` | ⚠️ Erreur push | `cd6220d59 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
-| `jak3/features/redguard-entity` | ⚠️ Erreur push | `ae5334c70 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
-	.github/workflows/sync-upstream.yaml | — |
+| `jak2/config/enhanced_spawnrates` | ✅ À jour | `90728a041 - chore: sync jak2/config/enhanced_spawnrates with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
+| `jak2/config/start_menu_wheel` | ✅ À jour | `08233c0e6 - chore: sync jak2/config/start_menu_wheel with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/crimson-blueguard/city-insurrection` | ✅ À jour | `bb3d007b3 - chore: sync jak2/features/crimson-blueguard/city-insurrection with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/crimson-blueguard/peaceful` | ✅ À jour | `a91eee9c0 - chore: sync jak2/features/crimson-blueguard/peaceful with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/dark_jak_enhanced` | ✅ À jour | `427f19cd8 - chore: sync jak2/features/dark_jak_enhanced with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/jak3-jetBoard` | ✅ À jour | `62debc00c - chore: sync jak2/features/jak3-jetBoard with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/paddywagon/traffic` | ✅ À jour | `a55f28582 - chore: sync jak2/features/paddywagon/traffic with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/transport-ag/alert` | ✅ À jour | `1e2d84f6b - chore: sync jak2/features/transport-ag/alert with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/transport-ag/traffic` | ✅ À jour | `b60c12f8f - chore: sync jak2/features/transport-ag/traffic with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
+| `jak2/features/yakow_killable` | ✅ À jour | `480399e6f - chore: sync jak2/features/yakow_killable with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
+| `jak3/config/memory_increase` | ✅ À jour | `d1b90c9b4 - chore: sync jak3/config/memory_increase with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
+| `jak3/features/city-behavior` | ✅ À jour | `d7a1955af - chore: sync jak3/features/city-behavior with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
+| `jak3/features/jak2_skin_secret` | ✅ À jour | `8123108e9 - chore: sync jak3/features/jak2_skin_secret with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
+| `jak3/features/mega_dark_jak` | ✅ À jour | `b04b08338 - chore: sync jak3/features/mega_dark_jak with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
+| `jak3/features/redguard-entity` | ✅ À jour | `67a4892cf - chore: sync jak3/features/redguard-entity with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
 <!-- BRANCH_STATUS_END -->
 
 ---

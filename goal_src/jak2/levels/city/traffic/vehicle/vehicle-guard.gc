@@ -956,8 +956,21 @@
   )
 
 (defmethod vehicle-method-128 ((this vehicle-guard))
+  ;; Crimson Blue Guard mod: blue minimap dot while the mod is enabled, so a hellcat / guard-bike
+  ;; matches the blue pilot vehicle-rider-method-32 binds into its cockpit. `blue-guard` (72) is a
+  ;; straight retint of the stock `guard` (14) -- same dot, same scale, same (absent) flags.
+  ;;   *mod-crimson-blueguard-enable* : engine/ai/traffic-h.gc
+  ;;   blue-guard / guard             : engine/ui/minimap-h.gc, engine/ui/minimap.gc
   (if (not (-> this minimap))
-      (set! (-> this minimap) (add-icon! *minimap* this (the-as uint 14) (the-as int #f) (the-as vector #t) 0))
+      (set! (-> this minimap)
+            (add-icon! *minimap*
+                       this
+                       (the-as uint (if *mod-crimson-blueguard-enable* (minimap-class blue-guard) (minimap-class guard)))
+                       (the-as int #f)
+                       (the-as vector #t)
+                       0
+                       )
+            )
       )
   ((method-of-type vehicle vehicle-method-128) this)
   (none)

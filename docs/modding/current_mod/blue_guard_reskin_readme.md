@@ -267,6 +267,25 @@ The subtle part is **when** the icon is claimed. `crimson-guard`'s `citizen-init
 code had to be edited. `die` `:enter` fades the icon out, mirroring what the stock `inactive` state
 already does for red guards.
 
+Guard **vehicles** get the same treatment. `vehicle-guard`'s `vehicle-method-128` registered a
+hardcoded class 14 (`guard`, the plain red dot with no view cone), so a hellcat or guard-bike
+flown by a blue pilot still read red. A second new class, `blue-guard` (72), retints `guard` the
+same way, and the call site picks between the two on the mod flag:
+
+```lisp
+(add-icon! *minimap*
+           this
+           (the-as uint (if *mod-crimson-blueguard-enable* (minimap-class blue-guard) (minimap-class guard)))
+           (the-as int #f)
+           (the-as vector #t)
+           0
+           )
+```
+
+`guard-bike` and `hellcat` are the only two `vehicle-guard` subtypes, so that one call site covers
+every guard vehicle in the city. The icon is registered once, at spawn — which is fine here
+because the toggle's `kill-all` + `spawn-all` flush (§7.2) rebuilds the vehicle pools anyway.
+
 ## 6. The optional grenade launcher
 
 `guard-type` is left entirely to the traffic engine, exactly as for a red guard (`0` = taser,
@@ -380,8 +399,9 @@ the flag is off.
 | `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | **new** -- the whole entity (§5, §6). |
 | `goal_src/jak2/pc/debug/crimson-blueguard-menu.gc` | **new** -- the `Debug > Mods` toggle (§7). |
 | `goal_src/jak2/engine/ai/traffic-h.gc` | `(define *mod-crimson-blueguard-enable* #f)` (§7.1). |
-| `goal_src/jak2/engine/ui/minimap-h.gc` | `(blue-guard-frustum 71)` appended to the `minimap-class` enum, plus a `define-extern` for `*minimap-class-list*` (§5.2). |
-| `goal_src/jak2/engine/ui/minimap.gc` | `*minimap-class-list*` grown 71 -> 72 with the `blue-guard-frustum` node — a blue-tinted clone of `guard-frustum` (32). Dormant unless a blue guard exists (§5.2). |
+| `goal_src/jak2/engine/ui/minimap-h.gc` | `(blue-guard-frustum 71)` and `(blue-guard 72)` appended to the `minimap-class` enum, plus a `define-extern` for `*minimap-class-list*` (§5.2). |
+| `goal_src/jak2/engine/ui/minimap.gc` | `*minimap-class-list*` grown 71 -> 73 with `blue-guard-frustum` (clone of `guard-frustum` 32) and `blue-guard` (clone of `guard` 14), both blue-tinted. Dormant while the flag is off (§5.2). |
+| `goal_src/jak2/levels/city/traffic/vehicle/vehicle-guard.gc` | `vehicle-method-128` picks `blue-guard` (72) over `guard` (14) while the flag is on (§5.2). |
 | `goal_src/jak2/levels/city/traffic/traffic-manager.gc` | forward declarations, the guarded faction swap in `traffic-object-spawn`, and the `spawn-crimson-blue-guard-debug` REPL helper (§9). |
 | `goal_src/jak2/levels/city/traffic/vehicle/vehicle-rider.gc` | `crimson-guard-rider` binds the blue rider skeleton-group while the flag is on (§4). |
 | `goal_src/jak2/engine/anim/joint.gc`, `engine/level/level.gc` | generic `register-custom-art-group` / `custom-art-group-to-link?` hook so a `build-actor` art-group built with `:master-art-group` gets its animations linked at level login. Reusable infrastructure; **unused by this mod** (the blue guard keeps its animations in its own art-group), kept because it is generic tooling. |
@@ -441,7 +461,8 @@ launch.
 | Purple death dissolution, standing and knocked-down | ✅ |
 | Ambient pedestrian guards swapped | ✅ |
 | Guard-vehicle riders swapped | ✅ |
-| Blue minimap / bigmap icon (`blue-guard-frustum`) | ✅ |
+| Blue minimap icon, guards on foot (`blue-guard-frustum`) | ✅ |
+| Blue minimap icon, guard vehicles (`blue-guard`) | ✅ |
 | Optional grenade launcher (1 in 3, rate-limited) | ✅ |
 | `Debug > Mods > crimson-blueguard` toggle, live flush | ✅ |
 | OFF by default, including release builds | ✅ |
@@ -715,6 +736,27 @@ l'icône bleue **avant** de déléguer au parent, et le `if` du parent tombe alo
 code d'origine n'a eu besoin d'être modifié. Le `:enter` de `die` fait disparaître l'icône, comme
 l'état `inactive` d'origine le fait déjà pour les gardes rouges.
 
+Les **véhicules** de garde reçoivent le même traitement. Le `vehicle-method-128` de `vehicle-guard`
+enregistrait une classe 14 en dur (`guard`, le simple point rouge sans cône de vision) : un hellcat
+ou une guard-bike pilotée par un garde bleu restait donc rouge. Une seconde nouvelle classe,
+`blue-guard` (72), reteinte `guard` de la même façon, et le site d'appel choisit entre les deux
+selon le drapeau du mod :
+
+```lisp
+(add-icon! *minimap*
+           this
+           (the-as uint (if *mod-crimson-blueguard-enable* (minimap-class blue-guard) (minimap-class guard)))
+           (the-as int #f)
+           (the-as vector #t)
+           0
+           )
+```
+
+`guard-bike` et `hellcat` sont les deux seuls sous-types de `vehicle-guard` : ce site d'appel unique
+couvre donc tous les véhicules de garde de la ville. L'icône n'est enregistrée qu'une fois, au
+spawn — sans conséquence ici, puisque le vidage `kill-all` + `spawn-all` de la bascule
+(§7.2) reconstruit de toute façon les pools de véhicules.
+
 ## 6. Le lance-grenade optionnel
 
 `guard-type` est entièrement laissé au moteur de trafic, exactement comme pour un garde rouge
@@ -832,8 +874,9 @@ comportement d'origine ne change tant que le drapeau est désactivé.
 | `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | **nouveau** — toute l'entité (§5, §6). |
 | `goal_src/jak2/pc/debug/crimson-blueguard-menu.gc` | **nouveau** — la bascule `Debug > Mods` (§7). |
 | `goal_src/jak2/engine/ai/traffic-h.gc` | `(define *mod-crimson-blueguard-enable* #f)` (§7.1). |
-| `goal_src/jak2/engine/ui/minimap-h.gc` | `(blue-guard-frustum 71)` ajouté à la fin de l'enum `minimap-class`, plus un `define-extern` pour `*minimap-class-list*` (§5.2). |
-| `goal_src/jak2/engine/ui/minimap.gc` | `*minimap-class-list*` passe de 71 à 72 avec le nœud `blue-guard-frustum` — un clone bleu de `guard-frustum` (32). Dormant tant qu'aucun garde bleu n'existe (§5.2). |
+| `goal_src/jak2/engine/ui/minimap-h.gc` | `(blue-guard-frustum 71)` et `(blue-guard 72)` ajoutés à la fin de l'enum `minimap-class`, plus un `define-extern` pour `*minimap-class-list*` (§5.2). |
+| `goal_src/jak2/engine/ui/minimap.gc` | `*minimap-class-list*` passe de 71 à 73 avec `blue-guard-frustum` (clone de `guard-frustum` 32) et `blue-guard` (clone de `guard` 14), tous deux teintés en bleu. Dormants tant que le drapeau est éteint (§5.2). |
+| `goal_src/jak2/levels/city/traffic/vehicle/vehicle-guard.gc` | `vehicle-method-128` choisit `blue-guard` (72) plutôt que `guard` (14) quand le drapeau est actif (§5.2). |
 | `goal_src/jak2/levels/city/traffic/traffic-manager.gc` | déclarations anticipées, le swap de faction sous condition dans `traffic-object-spawn`, et l'aide REPL `spawn-crimson-blue-guard-debug` (§9). |
 | `goal_src/jak2/levels/city/traffic/vehicle/vehicle-rider.gc` | `crimson-guard-rider` lie le skeleton-group du pilote bleu quand le drapeau est actif (§4). |
 | `goal_src/jak2/engine/anim/joint.gc`, `engine/level/level.gc` | hook générique `register-custom-art-group` / `custom-art-group-to-link?` pour qu'un art-group `build-actor` construit avec `:master-art-group` voie ses animations liées au login de niveau. Infrastructure réutilisable ; **non utilisée par ce mod** (le garde bleu garde ses animations dans son propre art-group), conservée car c'est de l'outillage générique. |
@@ -894,7 +937,8 @@ fonctionner sous `(mi)` et être cassé au démarrage propre.
 | Dissolution violette à la mort, debout et au sol | ✅ |
 | Gardes piétons ambiants remplacés | ✅ |
 | Pilotes des véhicules de garde remplacés | ✅ |
-| Icône bleue sur minimap / bigmap (`blue-guard-frustum`) | ✅ |
+| Icône bleue sur minimap, gardes à pied (`blue-guard-frustum`) | ✅ |
+| Icône bleue sur minimap, véhicules de garde (`blue-guard`) | ✅ |
 | Lance-grenade optionnel (1 sur 3, cadence limitée) | ✅ |
 | Bascule `Debug > Mods > crimson-blueguard`, vidage à chaud | ✅ |
 | Désactivé par défaut, y compris en build release | ✅ |

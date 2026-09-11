@@ -102,6 +102,8 @@
   (metalhead 70)
   ;; mod (crimson blue guard): blue-tinted clone of `guard-frustum` (32)
   (blue-guard-frustum 71)
+  ;; mod (crimson blue guard): blue-tinted clone of `guard` (14), for guard vehicles
+  (blue-guard 72)
   )
 
 (declare-type process-drawable process)

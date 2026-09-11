@@ -55,9 +55,9 @@ entity live on their own branches:
 - **Faithful death.** Standing collapse or ground knockdown, followed by the authentic purple
   particle dissolution — hand-reproduced, because the engine's native death path crashes on custom
   actors (see the technical doc).
-- **Blue on the minimap too.** A blue guard shows up as a blue blip and a blue view cone on
-  the minimap and the bigmap, instead of the red one every guard normally gets, so you can
-  tell the two factions apart at a glance without looking at them.
+- **Blue on the minimap too.** Guards on foot show up as a blue blip with a blue view cone,
+  and the guard vehicles they fly as blue dots, instead of the red ones the game normally
+  gives them — so you can read the city map at a glance.
 - **Optional grenade launcher.** Roughly one guard in three carries one and lobs `vehicle-grenade`
   projectiles on a ballistic arc instead of firing straight bolts, from the same engagement
   ranges as a rifle guard.
@@ -211,9 +211,9 @@ même entité vivent sur leurs propres branches :
 - **Une mort fidèle.** Effondrement debout ou chute au sol après projection, suivi de l'authentique
   dissolution en particules violettes — reproduite à la main, car le chemin de mort natif du moteur
   plante sur les acteurs personnalisés (voir la doc technique).
-- **Bleu sur la minimap aussi.** Un garde bleu apparaît en point bleu et en cône de vision
-  bleu sur la minimap et la bigmap, au lieu du rouge que reçoit normalement tout garde : on
-  distingue donc les deux factions d'un coup d'œil, sans avoir à les regarder.
+- **Bleu sur la minimap aussi.** Les gardes à pied apparaissent en point bleu avec un cône de
+  vision bleu, et les véhicules de garde qu'ils pilotent en points bleus, au lieu du rouge que
+  le jeu leur donne normalement — la carte se lit donc d'un coup d'œil.
 - **Lance-grenade optionnel.** Environ un garde sur trois en porte un et envoie des projectiles
   `vehicle-grenade` en cloche au lieu de tirer des rafales rectilignes, depuis les mêmes portées
   d'engagement qu'un garde fusil.

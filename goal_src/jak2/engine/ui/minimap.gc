@@ -263,7 +263,7 @@
     )
   )
 
-(define *minimap-class-list* (new 'static 'inline-array minimap-class-node 72
+(define *minimap-class-list* (new 'static 'inline-array minimap-class-node 73
                                (new 'static 'minimap-class-node
                                  :default-position (new 'static 'vector :w 1.0)
                                  :flags (minimap-flag trail bigmap)
@@ -831,6 +831,16 @@
                                  :default-position (new 'static 'vector :w 1.0)
                                  :flags (minimap-flag frustum)
                                  :name "blue-guard-frustum"
+                                 :icon-xy (new 'static 'vector2ub :data (new 'static 'array uint8 2 #x0 #x1))
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :r 0 :g #x40 :b #xff :a #x80)
+                                 )
+                               ;; mod (crimson blue guard): identical to `guard` (class 14), the plain
+                               ;; dot guard vehicles register -- no frustum, no bigmap -- retinted to
+                               ;; the same blue as `blue-guard-frustum` above.
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :w 1.0)
+                                 :name "blue-guard"
                                  :icon-xy (new 'static 'vector2ub :data (new 'static 'array uint8 2 #x0 #x1))
                                  :scale 1.0
                                  :color (new 'static 'rgba :r 0 :g #x40 :b #xff :a #x80)

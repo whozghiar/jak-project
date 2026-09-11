@@ -21,16 +21,11 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DASHBOARD_FILE = os.path.join(REPO_ROOT, "docs", "modding", "tools", "branch_sync_status.md")
 HISTORY_LOG_FILE = os.path.join(REPO_ROOT, "docs", "modding", "tools", "branch_sync_history.md")
 
-def log_event(event_type, branch, details):
-    """Append a structured entry to the persistent sync history markdown file."""
-    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-    os.makedirs(os.path.dirname(HISTORY_LOG_FILE), exist_ok=True)
-    if not os.path.isfile(HISTORY_LOG_FILE):
-        with open(HISTORY_LOG_FILE, "w", encoding="utf-8") as f:
-            f.write("# 📜 Historique des Synchronisations des Branches / Branch Sync History\n\n")
-            f.write("| Date (UTC) | Événement | Branche | Détails |\n")
-            f.write("| :--- | :---: | :--- | :--- |\n")
+EVENT_LOGS = []
 
+def log_event(event_type, branch, details):
+    """Buffer a structured log entry."""
+    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     icon_map = {
         "CONFLICT": "⚠️ Conflit",
         "AUTO-MERGE": "🔄 Auto-fusion",
@@ -40,8 +35,21 @@ def log_event(event_type, branch, details):
     event_label = icon_map.get(event_type, event_type)
     line = f"| `{timestamp}` | {event_label} | `{branch}` | {details} |"
     print(f"  [LOG] {event_type} - {branch}: {details}")
+    EVENT_LOGS.append(line)
+
+def flush_event_logs():
+    """Write all buffered log entries to persistent history file."""
+    if not EVENT_LOGS:
+        return
+    os.makedirs(os.path.dirname(HISTORY_LOG_FILE), exist_ok=True)
+    if not os.path.isfile(HISTORY_LOG_FILE):
+        with open(HISTORY_LOG_FILE, "w", encoding="utf-8") as f:
+            f.write("# 📜 Historique des Synchronisations des Branches / Branch Sync History\n\n")
+            f.write("| Date (UTC) | Événement | Branche | Détails |\n")
+            f.write("| :--- | :---: | :--- | :--- |\n")
     with open(HISTORY_LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(line + "\n")
+        for line in EVENT_LOGS:
+            f.write(line + "\n")
 
 def get_previous_statuses():
     """Parse previous branch statuses from existing branch_sync_status.md if available."""
@@ -131,7 +139,7 @@ def merge_and_push_branch(branch, source_ref):
     """Perform actual merge on a temporary ref and push to remote, auto-resolving mod doc conflicts."""
     temp_branch = f"temp-sync-{branch.replace('/', '-')}"
     try:
-        checkout_res = run_cmd(f"git checkout -B {temp_branch} origin/{branch}")
+        checkout_res = run_cmd(f"git checkout --force -B {temp_branch} origin/{branch}")
         if checkout_res.returncode != 0:
             err = (checkout_res.stderr or checkout_res.stdout).strip()
             return False, f"Échec checkout: {err[:120]}"
@@ -166,7 +174,7 @@ def merge_and_push_branch(branch, source_ref):
             return False, f"Échec git push: {err[:120]}"
         return True, "Fusionnée et poussée avec succès"
     finally:
-        run_cmd("git checkout master-dev")
+        run_cmd("git checkout --force master-dev")
         run_cmd(f"git branch -D {temp_branch}")
 
 def generate_dashboard(results, source_ref, source_sha, updated_at):
@@ -341,7 +349,8 @@ def main():
 
     print(f"\nGenerating dashboard at {DASHBOARD_FILE}...")
     generate_dashboard(results, source_branch, source_sha, now_str)
-    print("Dashboard generated successfully.")
+    flush_event_logs()
+    print("Dashboard and history log generated successfully.")
 
 if __name__ == "__main__":
     main()

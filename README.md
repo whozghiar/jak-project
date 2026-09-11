@@ -130,32 +130,27 @@ Le dépôt sépare le code amont officiel et les branches de modding :
 *L'historique complet des fusions et résolutions est consultable dans [`docs/modding/branch_sync_history.log`](docs/modding/branch_sync_history.log).*
 
 <!-- BRANCH_STATUS_START -->
-> **Dernière mise à jour :** `2026-09-04 10:18:42 UTC`  
-> **Branche source :** `master-dev` (`471b23aa6`)  
-> **Statut global :** 20/20 synchronisées (0 conflits)
+> **Dernière mise à jour :** `2026-09-11 13:29:24 UTC`  
+> **Branche source :** `master-dev` (`19d3c3f99`)  
+> **Statut global :** 0/15 synchronisées (15 conflits)
 
 | Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |
 | :--- | :---: | :--- | :--- | :--- |
-| `jak2/config/custom_animation_and_sound` | ✅ À jour | `02efde7a7 - chore: merge master-dev build tooling and update README for LAYER_1_2 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/config/enhanced_spawnrates` | ✅ À jour | `d334b81e9 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/config/memory_increase` | ✅ À jour | `23a90b2d5 - chore: merge master-dev build tooling and update README for LAYER_1 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/config/start_menu_wheel` | ✅ À jour | `5abcb0c18 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/blueguard` | ✅ À jour | `265bc0c14 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/dark_jak_enhanced` | ✅ À jour | `d9c09817c - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/enhanced_city_traffic_v2` | ✅ À jour | `babbf6420 - chore: merge master-dev build tooling and update README for LAYER_2 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/jak3-jetBoard` | ✅ À jour | `0fbdcd148 - chore: merge master-dev build tooling and update README for LAYER_1_2 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/merc-fr3-injection-poc` | ✅ À jour | `e8f3a927e - chore: merge master-dev build tooling and update README for LAYER_2 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/multiplayer` | ✅ À jour | `2df03f7f5 - chore: merge master-dev build tooling and update README for LAYER_1 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/paddy_wagon_v2` | ✅ À jour | `1cf0c6d0b - chore: merge master-dev build tooling and update README for LAYER_2 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/transport_alert` | ✅ À jour | `60141c0ee - docs: establish mod README with Layer 1 & 2 build instructions (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/transport_traffic` | ✅ À jour | `d83fda313 - docs: update README build instructions for Layer 1 & 2 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/transport_v2` | ✅ À jour | `3f75566e2 - chore: merge master-dev build tooling and update README for LAYER_2 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/yakow_killable` | ✅ À jour | `e520aa06c - chore: merge master-dev build tooling and update README for Layer 3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak3/config/memory_increase` | ✅ À jour | `2c0cadd28 - chore: merge master-dev build tooling and update README for LAYER_1 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/city-behavior` | ✅ À jour | `b49f9461e - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/jak2_skin_secret` | ✅ À jour | `63cd4c961 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/mega_dark_jak` | ✅ À jour | `fa58df047 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/redguard-entity` | ✅ À jour | `4177d0b5b - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/config/enhanced_spawnrates` | ⚠️ Conflit | `2d2b11e3a - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak2/config/enhanced_spawnrates && git merge origin/master-dev` |
+| `jak2/config/start_menu_wheel` | ⚠️ Conflit | `50a05cef4 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak2/config/start_menu_wheel && git merge origin/master-dev` |
+| `jak2/features/crimson-blueguard/city-insurrection` | ⚠️ Conflit | `2d2dddaa5 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak2/features/crimson-blueguard/city-insurrection && git merge origin/master-dev` |
+| `jak2/features/crimson-blueguard/peaceful` | ⚠️ Conflit | `104874cfd - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak2/features/crimson-blueguard/peaceful && git merge origin/master-dev` |
+| `jak2/features/dark_jak_enhanced` | ⚠️ Conflit | `2001b0711 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak2/features/dark_jak_enhanced && git merge origin/master-dev` |
+| `jak2/features/jak3-jetBoard` | ⚠️ Conflit | `64a15539d - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak2/features/jak3-jetBoard && git merge origin/master-dev` |
+| `jak2/features/paddywagon/traffic` | ⚠️ Conflit | `e04301b97 - feat(paddywagon): both traffic lanes + Jak keeps his gun while driving (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak2/features/paddywagon/traffic && git merge origin/master-dev` |
+| `jak2/features/transport-ag/alert` | ⚠️ Conflit | `c6b130a3b - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak2/features/transport-ag/alert && git merge origin/master-dev` |
+| `jak2/features/transport-ag/traffic` | ⚠️ Conflit | `4b3915712 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak2/features/transport-ag/traffic && git merge origin/master-dev` |
+| `jak2/features/yakow_killable` | ⚠️ Conflit | `417e7a71b - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak2/features/yakow_killable && git merge origin/master-dev` |
+| `jak3/config/memory_increase` | ⚠️ Conflit | `d60c2ebae - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak3/config/memory_increase && git merge origin/master-dev` |
+| `jak3/features/city-behavior` | ⚠️ Conflit | `3842eaae6 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak3/features/city-behavior && git merge origin/master-dev` |
+| `jak3/features/jak2_skin_secret` | ⚠️ Conflit | `be88206cf - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak3/features/jak2_skin_secret && git merge origin/master-dev` |
+| `jak3/features/mega_dark_jak` | ⚠️ Conflit | `cd6220d59 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak3/features/mega_dark_jak && git merge origin/master-dev` |
+| `jak3/features/redguard-entity` | ⚠️ Conflit | `ae5334c70 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | • `README.md`<br>• `docs/modding/branch_audit.md` | `git checkout jak3/features/redguard-entity && git merge origin/master-dev` |
 <!-- BRANCH_STATUS_END -->
 
 ---

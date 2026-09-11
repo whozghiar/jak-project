@@ -55,3 +55,18 @@ Ce document consigne l'historique complet des tentatives de fusions automatiques
 | `2026-09-04 10:18:43` | ✅ Conflit Résolu | `jak3/features/jak2_skin_secret` | Conflit résolu manuellement. Synchronisée avec origin/master-dev (`63cd4c961 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)`) |
 | `2026-09-04 10:18:44` | ✅ Conflit Résolu | `jak3/features/mega_dark_jak` | Conflit résolu manuellement. Synchronisée avec origin/master-dev (`fa58df047 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)`) |
 | `2026-09-04 10:18:44` | ✅ Conflit Résolu | `jak3/features/redguard-entity` | Conflit résolu manuellement. Synchronisée avec origin/master-dev (`4177d0b5b - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)`) |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/config/enhanced_spawnrates` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/config/start_menu_wheel` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/crimson-blueguard/city-insurrection` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/crimson-blueguard/peaceful` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/dark_jak_enhanced` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/jak3-jetBoard` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/paddywagon/traffic` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/transport-ag/alert` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/transport-ag/traffic` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/yakow_killable` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak3/config/memory_increase` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak3/features/city-behavior` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak3/features/jak2_skin_secret` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak3/features/mega_dark_jak` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak3/features/redguard-entity` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |

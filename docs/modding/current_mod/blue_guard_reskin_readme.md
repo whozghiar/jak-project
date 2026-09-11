@@ -219,7 +219,7 @@ unmodified `crimson-guard` code — nothing here adds guard-vs-guard retaliation
 | `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | `die` state + `crimson-blue-guard-dissolve-sequence` + `enemy-method-78` override | Robust custom actor death dissolution: skips standing die animation if `knocked-fatal?` so guard stays flat on the ground, plays `"enemy-fizz"`, launches purple dissolution particles (`merc-death-spawn 73`) across joints for 60 frames with jitter, and hides mesh on frame 5. Replaces `do-effect 'death-default` to prevent the C++ `generic_merc_death` crash (`exit status 5`) on dummy `build-actor` geometry |
 | `goal_src/jak2/engine/ai/traffic-h.gc` | `(define-extern *mod-city-peaceful?* symbol)` / `(define-extern *mod-city-insurrection?* symbol)` | forward declarations so engine code and the menu file can reference the flags regardless of compile order |
 | `goal_src/jak2/levels/city/traffic/citizen/mod-city-hooks.gc` | `*mod-city-peaceful?*` / `*mod-city-insurrection?*` globals, both default `#f` | CWI-resident non-debug home for the flags. `*mod-city-insurrection?*` is the **master enable** for this branch. |
-| `goal_src/jak2/pc/debug/crimson-blueguard-insurrection-menu.gc` *(new)* | `mod-crimson-blueguard-insurrection-build-menu` + 3 pick-funcs (`…-enable-pick`, `…-district-pick`, `…-music-pick`) + `dm-crimson-blueguard-insurrection-flush-guards`, registered via `(mods-menu-register "crimson-blueguard-insurrection" …)` | the mandatory Debug ▸ Mods toggle: `Enable` / `War zones` submenu / `War music` submenu. **Replaces** the old hand-rolled "Mods" root-menu block in `default-menu-pc.gc` (now reverted to stock). Wired in `game.gd` after `mods-menu.o`. |
+| `goal_src/jak2/pc/debug/crimson-blueguard-insurrection-menu.gc` *(new)* | `mod-crimson-blueguard-insurrection-build-menu` + 3 pick-funcs (`…-enable-pick`, `…-district-pick`, `…-music-pick`) + two flushes — `dm-…-rebuild-guards` (`'kill-all` + `'spawn-all`, used by `Enable`) and `dm-…-flush-guards` (light park, used by the war-zone picker) — registered via `(mods-menu-register "crimson-blueguard-insurrection" …)` | the mandatory Debug ▸ Mods toggle: `Enable` / `War zones` submenu / `War music` submenu. **Replaces** the old hand-rolled "Mods" root-menu block in `default-menu-pc.gc` (now reverted to stock). Wired in `game.gd` after `mods-menu.o`. |
 | `goal_src/jak2/dgos/game.gd` | `"crimson-blueguard-insurrection-menu.o"` after `"mods-menu.o"` | menu-file residency in GAME.CGO |
 | `goal_src/jak2/levels/city/traffic/traffic-manager.gc` | `*mod-city-insurrection?*` gate added to: `traffic-want-counts` slots 18/19 (`(if *mod-city-insurrection?* 8 4)` / `… 8 3)`), and the `spawn-all` dark-guard roll's pool-0/2 extension | OFF ⇒ retail want-counts and retail dark-guard eligibility |
 | `goal_src/jak2/levels/city/traffic/citizen/guard.gc` | `*mod-city-insurrection?*` gate added to every previously-ungated addition: the `'touched`/`'touch` melee case, the `'traffic-activate` intercept, `crimson-guard-method-214`'s grenade branch, the `dead` traffic-target drop, guard-type-2 ranged-fire eligibility, the 3→2/0 burst-count change, and both `event-self 'touched` cshape-init sets | OFF ⇒ every stock `crimson-guard` behaves byte-for-byte like retail |
@@ -247,7 +247,10 @@ it), and the custom art-group link path in `joint.gc`/`level.gc` is inert. The C
 4b. **Enable the mod:** `Debug ▸ Mods ▸ crimson-blueguard-insurrection ▸ Enable`. OFF by default —
     verify first that with it OFF the city shows only red guards, retail traffic density, and
     normal guard combat (3-round rifle bursts, no grenade launchers). Then set the war zone in the
-    `War zones` submenu (default: Industrial). Toggling re-rolls / purges the city traffic live.
+    `War zones` submenu (default: Industrial). Toggling re-rolls / purges the city traffic live
+    — `Enable` destroys and rebuilds every pool, so blue guards must appear within a second or
+    two **without reloading a save**. If they only show up after a reload, the rebuild is not
+    running.
 5. With the mod ON, at the REPL `(set! *crimson-blue-guard-ratio* 1)` to force every ambient guard spawn blue, or
    `(spawn-crimson-blue-guard-debug 0)` / `(...  1)` to force-spawn a baton/gun guard regardless of the ratio;
    confirm it's textured and its idle/walk/run/notice/hostile/knocked/get-up/die animations all
@@ -398,11 +401,19 @@ When toggled on in the Mods menu:
     frame Jak is in either zone, so any alert he *carried in* drops instantly.
   - Loyalist gunships (`guard-bike` 18, `hellcat` 19) are kept out of the Slums and the war zone
     (`want-count` 0). Hitting a blue guard still triggers only that guard's personal self-defense.
-- **Live mode / config switching** (`dm-mod-city-flush-guards` in `default-menu-pc.gc`): toggling
-  any Mods entry — mode toggle or war-zone pick — parks all three crimson-guard pools (4, 6, 7)
-  and the guard vehicles (18, 19); they respawn within a second or two rebuilt under the
-  newly-selected rules — squads for Peaceful, lone factioned guards for Insurrection, the
-  stock mix for off.
+- **Live mode / config switching** (`crimson-blueguard-insurrection-menu.gc`), in two strengths:
+  - `Enable` runs `dm-…-rebuild-guards`: a full `'kill-all` + `'spawn-all` on the traffic
+    manager. This is the only thing that works, because the traffic engine allocates each
+    pool's processes once at city load and then parks and reuses them — a `crimson-guard` that
+    already exists keeps its GOAL type forever, so merely parking the pools handed the same
+    red guards back and the mod appeared to do nothing until you reloaded a save. Destroying
+    and rebuilding is what re-runs `*mod-city-guard-spawn-blue-hook*`. Guard vehicles and
+    their riders come along for free. Standing in a war zone, the rebuild is followed by
+    `mod-city-flush-conflict-traffic` to purge the non-combatants `'spawn-all` just recreated.
+  - The `War zones` picker keeps the lighter `dm-…-flush-guards`: it only parks the three
+    crimson-guard pools (4, 6, 7) and the guard vehicles (18, 19). The pooled processes
+    already have the right types there, and district changes are handled incrementally by
+    `mod-city-insurrection-update-traffic` — a full rebuild has no business fighting that.
 - **Crash fixed (`ctyport → ctyinda` transition):** `city-level-name-at-pos` used to probe
   `sphere-in-grid?` on every loaded level's raw `(-> lev bsp city-level-info)` pointer. During a
   level transition an outgoing city level's `-vis` heap is freed while the traffic manager keeps
@@ -762,11 +773,22 @@ Lorsque cette option est activée dans le menu Mods :
     instantanément.
   - Les vaisseaux loyalistes (`guard-bike` 18, `hellcat` 19) sont tenus hors des Slums et de la
     zone de guerre (`want-count` 0). Frapper un garde bleu ne déclenche que l'autodéfense de ce garde.
-- **Bascule à chaud du mode / config** (`dm-mod-city-flush-guards` dans `default-menu-pc.gc`) :
-  basculer une entrée Mods — bascule de mode ou choix de zone de guerre — parque les trois pools de
-  crimson-guards (4, 6, 7) et les vaisseaux de gardes (18, 19) ; ils réapparaissent en une seconde
-  ou deux selon les nouvelles règles — escouades pour Peaceful, gardes solitaires à faction pour
-  Insurrection, mélange classique pour off.
+- **Bascule à chaud du mode / config** (`crimson-blueguard-insurrection-menu.gc`), en deux forces :
+  - `Enable` appelle `dm-…-rebuild-guards` : un `'kill-all` + `'spawn-all` complet sur le
+    traffic manager. C'est la seule chose qui fonctionne : le moteur de trafic alloue les
+    processus de chaque pool une seule fois, au chargement de la ville, puis les parque et les
+    réutilise — un `crimson-guard` déjà existant garde son type GOAL pour toute la session, donc
+    se contenter de parquer les pools rendait les mêmes gardes rouges et le mod semblait sans
+    effet jusqu'à rechargement d'une sauvegarde. Détruire puis reconstruire est ce qui rejoue
+    `*mod-city-guard-spawn-blue-hook*`. Les véhicules de garde et leurs pilotes suivent
+    gratuitement. En zone de guerre, la reconstruction est suivie de
+    `mod-city-flush-conflict-traffic` pour purger les non-combattants que `'spawn-all` vient de
+    recréer.
+  - Le sélecteur `War zones` garde le `dm-…-flush-guards` léger : il ne parque que les trois
+    pools de crimson-guards (4, 6, 7) et les véhicules de garde (18, 19). Là, les processus des
+    pools ont déjà le bon type, et les changements de district sont traités de façon
+    incrémentale par `mod-city-insurrection-update-traffic` — une reconstruction complète n'a
+    rien à faire là-dedans.
 - **Crash corrigé (transition `ctyport → ctyinda`) :** `city-level-name-at-pos` sondait
   `sphere-in-grid?` sur le pointeur `(-> lev bsp city-level-info)` brut de chaque niveau chargé.
   Pendant une transition de niveau, le tas `-vis` d'un niveau de ville sortant est libéré alors que

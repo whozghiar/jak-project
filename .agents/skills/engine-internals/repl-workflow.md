@@ -86,3 +86,25 @@ Whenever you create a new `.gc` file:
    (cgo-file "engine/mods/my-mod-feature.gc")
    ```
 3. Ensure dependent type definitions are declared in files listed **above** your file in `.gp`.
+
+---
+
+## 5. Save Slot 1 Auto-Load & PC Settings/Cheats Persistence
+
+### Default Auto-Load (Save Slot 1)
+- On startup (`task boot-game` / cold boot), OpenGOAL reads the virtual memory card in `%APPDATA%/OpenGOAL/jak[x]/saves/BASCUS-.../`.
+- If an existing save file is present in **Slot 1** (`bank0.bin` / `bank1.bin`), the engine **restores Save Slot 1 by default**.
+- **Testing Tip:** If testing a clean, unmodified initial state without prior quest progression, start a new game via the title menu or temporarily rename/remove `bank0.bin` / `bank1.bin`.
+
+### OpenGOAL Cheats & PC Settings Persistence
+- OpenGOAL settings and toggled cheats are saved on disk in `%APPDATA%/OpenGOAL/jak[x]/settings/pc-settings.gc`.
+- When cheats (such as `city-peace`, `turbo-board`, `music-player`) are toggled via the in-game Debug menu (`Game > OpenGOAL Cheats`) or the Pause Secrets menu, `(pc-settings-save)` writes the active cheat bitmask directly to `pc-settings.gc`:
+  ```lisp
+  (cheats #x8041)  ;; e.g. #x8000 = city-peace, #x40 = music-player, #x1 = turbo-board
+  ```
+- **Result:** Cheats remain **permanently active on every subsequent launch** until toggled off in-game or cleared from `pc-settings.gc`.
+- To deactivate via REPL or code:
+  ```lisp
+  (logclear! (-> *pc-settings* cheats) (pc-cheats city-peace))
+  (pc-settings-save)
+  ```

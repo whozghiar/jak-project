@@ -119,6 +119,10 @@ Whenever you add a new `.gc` source file, you **must register it** in the corres
 - Jak 3: `goal_src/jak3/jak3-game.gp`
 Ensure that dependent type files are listed **before** files that consume them.
 
+### Default Save Slot 1 & Settings/Cheats Persistence
+- **Default Auto-Load:** When the game boots (`task boot-game` / cold boot), OpenGOAL automatically reads the simulated memory card and **restores Save Slot 1 by default** if a save file exists (`%APPDATA%/OpenGOAL/jak[x]/saves/BASCUS-.../bank0.bin`). If you need to test fresh, unprogressed game behavior, start a new game or temporarily clear/rename Slot 1.
+- **Persistent PC Settings & Cheats:** OpenGOAL settings and toggled cheats (e.g. `city-peace`, `turbo-board`, `music-player`) are saved to disk in `%APPDATA%/OpenGOAL/jak[x]/settings/pc-settings.gc`. Once a cheat is enabled (via the in-game Debug menu or Secrets menu), it is written to the `(cheats ...)` bitmask in `pc-settings.gc` and remains **permanently active across subsequent launches** until toggled off in-game or cleared in the file.
+
 ---
 
 ## 6. Strict Modding Instructions & Guardrails

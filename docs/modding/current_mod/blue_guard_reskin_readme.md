@@ -182,7 +182,7 @@ technical requirement of a `build-actor` custom actor:
 | Override | Why it exists |
 | --- | --- |
 | `init-enemy!` | binds `skel-crimson-blue-guard` instead of `skel-crimson-guard` -- the blue mesh, i.e. the whole point of the mod. Every stat still comes from `*crimson-guard-nav-enemy-info*`. |
-| `citizen-init!` | calls the parent, then rolls the grenade launcher (§6). `guard-type`, `hit-points`, collide-spec, minimap icon and alert reaction are all left to the parent. |
+| `citizen-init!` | registers the blue `blue-guard-frustum` minimap icon (§5.2), then calls the parent and rolls the grenade launcher (§6). `guard-type`, `hit-points`, collide-spec and alert reaction are all left to the parent. |
 | `die` + `enemy-method-78` | replicate the native purple dissolution by hand (§5.1). |
 | `crimson-guard-method-214` | the optional grenade launcher (§6). |
 
@@ -228,6 +228,44 @@ The `die` state reproduces the native look by hand instead (same approach as the
 `knocked-fatal?` -- set from `enemy-method-78` when the killing blow was a knockdown -- makes the
 `die` state skip the standing-collapse animation, so a knocked-down guard dissolves lying on the
 ground exactly like the native crimson-guard.
+
+### 5.2 The other deliberate deviation: the minimap icon
+
+Purely cosmetic, and the natural companion to the blue mesh: a blue guard should read blue on the
+minimap and on the bigmap too.
+
+The minimap never asks an actor what color it is. Every blip and every view cone is tinted from
+`(-> connection class color)` — the `minimap-class-node` the icon was registered with — in both
+`draw-frustum-1` and the icon draw path of `minimap.gc`. So the whole change is one new class:
+
+```lisp
+;; minimap-h.gc -- new class id at the end of the minimap-class enum
+(blue-guard-frustum 71)
+
+;; minimap.gc -- *minimap-class-list* grown 71 -> 72; a clone of `guard-frustum` (32),
+;; same icon-xy, same scale, same `frustum` flag, only the tint differs
+(new 'static 'minimap-class-node
+  :default-position (new 'static 'vector :w 1.0)
+  :flags (minimap-flag frustum)
+  :name "blue-guard-frustum"
+  :icon-xy (new 'static 'vector2ub :data (new 'static 'array uint8 2 #x0 #x1))
+  :scale 1.0
+  :color (new 'static 'rgba :r 0 :g #x40 :b #xff :a #x80)
+  )
+```
+
+The subtle part is **when** the icon is claimed. `crimson-guard`'s `citizen-init!` ends with:
+
+```lisp
+(if (not (-> this minimap))
+    (set! (-> this minimap) (add-icon! *minimap* this (the-as uint 32) (the-as int #f) (the-as vector #t) 0))
+    )
+```
+
+— it only adds the red icon while the slot is still `#f`. So the override registers the blue icon
+**before** delegating to the parent, and the parent's `if` then falls through untouched. No stock
+code had to be edited. `die` `:enter` fades the icon out, mirroring what the stock `inactive` state
+already does for red guards.
 
 ## 6. The optional grenade launcher
 
@@ -342,6 +380,8 @@ the flag is off.
 | `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | **new** -- the whole entity (§5, §6). |
 | `goal_src/jak2/pc/debug/crimson-blueguard-menu.gc` | **new** -- the `Debug > Mods` toggle (§7). |
 | `goal_src/jak2/engine/ai/traffic-h.gc` | `(define *mod-crimson-blueguard-enable* #f)` (§7.1). |
+| `goal_src/jak2/engine/ui/minimap-h.gc` | `(blue-guard-frustum 71)` appended to the `minimap-class` enum, plus a `define-extern` for `*minimap-class-list*` (§5.2). |
+| `goal_src/jak2/engine/ui/minimap.gc` | `*minimap-class-list*` grown 71 -> 72 with the `blue-guard-frustum` node — a blue-tinted clone of `guard-frustum` (32). Dormant unless a blue guard exists (§5.2). |
 | `goal_src/jak2/levels/city/traffic/traffic-manager.gc` | forward declarations, the guarded faction swap in `traffic-object-spawn`, and the `spawn-crimson-blue-guard-debug` REPL helper (§9). |
 | `goal_src/jak2/levels/city/traffic/vehicle/vehicle-rider.gc` | `crimson-guard-rider` binds the blue rider skeleton-group while the flag is on (§4). |
 | `goal_src/jak2/engine/anim/joint.gc`, `engine/level/level.gc` | generic `register-custom-art-group` / `custom-art-group-to-link?` hook so a `build-actor` art-group built with `:master-art-group` gets its animations linked at level login. Reusable infrastructure; **unused by this mod** (the blue guard keeps its animations in its own art-group), kept because it is generic tooling. |
@@ -401,6 +441,7 @@ launch.
 | Purple death dissolution, standing and knocked-down | ✅ |
 | Ambient pedestrian guards swapped | ✅ |
 | Guard-vehicle riders swapped | ✅ |
+| Blue minimap / bigmap icon (`blue-guard-frustum`) | ✅ |
 | Optional grenade launcher (1 in 3, rate-limited) | ✅ |
 | `Debug > Mods > crimson-blueguard` toggle, live flush | ✅ |
 | OFF by default, including release builds | ✅ |
@@ -586,7 +627,7 @@ contrainte technique dure des acteurs personnalisés `build-actor` :
 | Surcharge | Pourquoi elle existe |
 | --- | --- |
 | `init-enemy!` | lie `skel-crimson-blue-guard` au lieu de `skel-crimson-guard` — le mesh bleu, c'est-à-dire tout l'objet du mod. Toutes les stats viennent toujours de `*crimson-guard-nav-enemy-info*`. |
-| `citizen-init!` | appelle le parent, puis tire le lance-grenade (§6). `guard-type`, `hit-points`, collide-spec, icône de minimap et réaction d'alerte sont entièrement laissés au parent. |
+| `citizen-init!` | enregistre l'icône de minimap bleue `blue-guard-frustum` (§5.2), puis appelle le parent et tire le lance-grenade (§6). `guard-type`, `hit-points`, collide-spec et réaction d'alerte sont entièrement laissés au parent. |
 | `die` + `enemy-method-78` | reproduisent à la main la dissolution violette native (§5.1). |
 | `crimson-guard-method-214` | le lance-grenade optionnel (§6). |
 
@@ -633,6 +674,46 @@ L'état `die` reproduit donc le rendu natif à la main (même approche que la br
 `knocked-fatal?` — posé depuis `enemy-method-78` quand le coup fatal était une projection au sol —
 fait sauter à l'état `die` l'animation d'effondrement debout, de sorte qu'un garde mis au sol se
 dissout couché, exactement comme le crimson-guard natif.
+
+### 5.2 L'autre déviation volontaire : l'icône de minimap
+
+Purement cosmétique, et le complément naturel du maillage bleu : un garde bleu doit aussi se lire
+bleu sur la minimap et sur la bigmap.
+
+La minimap ne demande jamais sa couleur à l'acteur. Chaque point et chaque cône de vision est
+teinté depuis `(-> connection class color)` — le `minimap-class-node` avec lequel l'icône a été
+enregistrée — aussi bien dans `draw-frustum-1` que dans le chemin de dessin des icônes de
+`minimap.gc`. Tout le changement tient donc dans une nouvelle classe :
+
+```lisp
+;; minimap-h.gc -- nouvel id de classe a la fin de l'enum minimap-class
+(blue-guard-frustum 71)
+
+;; minimap.gc -- *minimap-class-list* passe de 71 a 72 ; un clone de `guard-frustum` (32),
+;; meme icon-xy, meme scale, meme flag `frustum`, seule la teinte change
+(new 'static 'minimap-class-node
+  :default-position (new 'static 'vector :w 1.0)
+  :flags (minimap-flag frustum)
+  :name "blue-guard-frustum"
+  :icon-xy (new 'static 'vector2ub :data (new 'static 'array uint8 2 #x0 #x1))
+  :scale 1.0
+  :color (new 'static 'rgba :r 0 :g #x40 :b #xff :a #x80)
+  )
+```
+
+Le point subtil est **le moment** où l'icône est réservée. Le `citizen-init!` de `crimson-guard`
+se termine par :
+
+```lisp
+(if (not (-> this minimap))
+    (set! (-> this minimap) (add-icon! *minimap* this (the-as uint 32) (the-as int #f) (the-as vector #t) 0))
+    )
+```
+
+— il n'ajoute l'icône rouge que tant que le slot vaut encore `#f`. L'override enregistre donc
+l'icône bleue **avant** de déléguer au parent, et le `if` du parent tombe alors dans le vide. Aucun
+code d'origine n'a eu besoin d'être modifié. Le `:enter` de `die` fait disparaître l'icône, comme
+l'état `inactive` d'origine le fait déjà pour les gardes rouges.
 
 ## 6. Le lance-grenade optionnel
 
@@ -751,6 +832,8 @@ comportement d'origine ne change tant que le drapeau est désactivé.
 | `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | **nouveau** — toute l'entité (§5, §6). |
 | `goal_src/jak2/pc/debug/crimson-blueguard-menu.gc` | **nouveau** — la bascule `Debug > Mods` (§7). |
 | `goal_src/jak2/engine/ai/traffic-h.gc` | `(define *mod-crimson-blueguard-enable* #f)` (§7.1). |
+| `goal_src/jak2/engine/ui/minimap-h.gc` | `(blue-guard-frustum 71)` ajouté à la fin de l'enum `minimap-class`, plus un `define-extern` pour `*minimap-class-list*` (§5.2). |
+| `goal_src/jak2/engine/ui/minimap.gc` | `*minimap-class-list*` passe de 71 à 72 avec le nœud `blue-guard-frustum` — un clone bleu de `guard-frustum` (32). Dormant tant qu'aucun garde bleu n'existe (§5.2). |
 | `goal_src/jak2/levels/city/traffic/traffic-manager.gc` | déclarations anticipées, le swap de faction sous condition dans `traffic-object-spawn`, et l'aide REPL `spawn-crimson-blue-guard-debug` (§9). |
 | `goal_src/jak2/levels/city/traffic/vehicle/vehicle-rider.gc` | `crimson-guard-rider` lie le skeleton-group du pilote bleu quand le drapeau est actif (§4). |
 | `goal_src/jak2/engine/anim/joint.gc`, `engine/level/level.gc` | hook générique `register-custom-art-group` / `custom-art-group-to-link?` pour qu'un art-group `build-actor` construit avec `:master-art-group` voie ses animations liées au login de niveau. Infrastructure réutilisable ; **non utilisée par ce mod** (le garde bleu garde ses animations dans son propre art-group), conservée car c'est de l'outillage générique. |
@@ -811,6 +894,7 @@ fonctionner sous `(mi)` et être cassé au démarrage propre.
 | Dissolution violette à la mort, debout et au sol | ✅ |
 | Gardes piétons ambiants remplacés | ✅ |
 | Pilotes des véhicules de garde remplacés | ✅ |
+| Icône bleue sur minimap / bigmap (`blue-guard-frustum`) | ✅ |
 | Lance-grenade optionnel (1 sur 3, cadence limitée) | ✅ |
 | Bascule `Debug > Mods > crimson-blueguard`, vidage à chaud | ✅ |
 | Désactivé par défaut, y compris en build release | ✅ |

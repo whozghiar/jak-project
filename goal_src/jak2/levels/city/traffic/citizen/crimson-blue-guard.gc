@@ -141,9 +141,19 @@
   )
 
 (defmethod citizen-init! ((this crimson-blue-guard))
-  "Stock crimson-guard initialization -- guard-type, collide-spec, hit-points, alert reaction and
-   minimap icon are all left to the parent, so a fresh blue guard is indistinguishable from a red
-   one -- then roll this guard's grenade launcher (1 in 3). See WEAPONS in the file header."
+  "Stock crimson-guard initialization -- guard-type, collide-spec, hit-points and alert reaction
+   are all left to the parent, so a fresh blue guard behaves exactly like a red one -- then roll
+   this guard's grenade launcher (1 in 3). See WEAPONS in the file header. The one deliberate
+   difference is cosmetic: this variant registers the blue `blue-guard-frustum` minimap icon
+   instead of the red `guard-frustum` one."
+  ;; Claim the minimap slot with the blue frustum class *before* delegating: the parent only adds
+  ;; the red `guard-frustum` icon while `minimap` is still #f, so taking the slot first is what
+  ;; makes this guard read blue on the minimap and the bigmap.
+  (if (not (-> this minimap))
+      (set! (-> this minimap)
+            (add-icon! *minimap* this (the-as uint (minimap-class blue-guard-frustum)) (the-as int #f) (the-as vector #t) 0)
+            )
+      )
   ((method-of-type crimson-guard citizen-init!) this)
   (set! (-> this knocked-fatal?) #f)
   (set! (-> this grenade-launcher?) (zero? (rand-vu-int-count 3)))
@@ -254,6 +264,11 @@
   :virtual #t
   :event enemy-event-handler
   :enter (behavior ()
+    ;; drop the blue minimap icon as soon as the guard dies, like the stock `inactive` state does
+    (when (-> self minimap)
+      (logior! (-> self minimap flags) (minimap-flag fade-out))
+      (set! (-> self minimap) #f)
+      )
     (dying self)
     (let ((v1-3 (-> self root root-prim)))
       (set! (-> v1-3 prim-core collide-as) (collide-spec))

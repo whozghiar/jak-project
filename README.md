@@ -120,9 +120,28 @@ task boot-game
 
 ---
 
+<<<<<<< HEAD
 ## 📖 Technical Documentation
 For complete technical notes, engine modifications, and architecture:
 - 📄 [`docs/modding/current_mod/blue_guard_reskin_readme.md`](docs/modding/current_mod/blue_guard_reskin_readme.md)
+=======
+## 📂 Directory Overview
+
+| [`AGENTS.md`](AGENTS.md) | Unified AI agent directives and modding rules (branching, golden rules, REPL workflow, task reference). |
+| [`.agents/skills/`](.agents/skills/) | Modularized developer and agent skills (GOAL Lisp, engine internals, 3D assets/actors, texture modding). |
+| [`docs/modding/`](docs/modding/README.md) | Modding documentation hub (verified Lisp references, engine primer, engineering workflows, tools). |
+| [`docs/modding/jak1_lisp_instructions.md`](docs/modding/jak1_lisp_instructions.md) · [`jak2`](docs/modding/jak2_lisp_instructions.md) · [`jak3`](docs/modding/jak3_lisp_instructions.md) | **Verified** OpenGOAL Lisp reference per game — consult before coding. |
+| [`docs/modding/engine_generic_concepts.md`](docs/modding/engine_generic_concepts.md) | Shared non-Lisp engine primer (memory, heaps, DGOs, level streaming, process life cycle). |
+| [`docs/modding/tools/`](docs/modding/tools/) | Tool & pipeline guides (build workflow, custom assets, [Debug ▸ Mods menu](docs/modding/tools/mods_debug_menu.md)). |
+| [`docs/modding/templates/`](docs/modding/templates/) | [`MOD_README.template.md`](docs/modding/templates/MOD_README.template.md), [`mod_debug_menu.template.gc`](docs/modding/templates/mod_debug_menu.template.gc). |
+| [`docs/modding/branch_audit.md`](docs/modding/branch_audit.md) | Generated per-branch compliance report (`task modding-audit`). |
+| [`scripts/modding/`](scripts/modding/) | Python automation (branch creation, branch/doc sync, doc landing, branch audit). |
+| [`goal_src/`](goal_src/) | Decompiled and modified GOAL source code by game (`jak1/`, `jak2/`, `jak3/`). |
+| [`goalc/`](goalc/) | OpenGOAL compiler with modding adjustments. |
+| [`game/`](game/) | C++ runtime simulating the Emotion Engine memory on PC. |
+| [`decompiler/`](decompiler/) | Asset extraction and decompiler tools. |
+| [`custom_assets/`](custom_assets/) | Custom texture replacements and models. |
+>>>>>>> origin/master-dev
 
 ---
 
@@ -198,10 +217,51 @@ Une fois activé :
 
 [![Démonstration Vidéo](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
 
+<<<<<<< HEAD
 ▶️ **[Regarder la vidéo de démonstration sur YouTube](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)**
 
 > [!NOTE]
 > *Les vidéos de démonstration doivent être hébergées sur YouTube pour éviter d'alourdir le dépôt git. Remplacez `YOUR_VIDEO_ID` par l'identifiant de la vidéo une fois mise en ligne.*
+=======
+<!-- BRANCH_STATUS_START -->
+> **Dernière mise à jour :** `2026-09-11 13:39:20 UTC`  
+> **Branche source :** `master-dev` (`e2f7032b7`)  
+> **Statut global :** 0/15 synchronisées (0 conflits)
+
+| Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |
+| :--- | :---: | :--- | :--- | :--- |
+| `jak2/config/enhanced_spawnrates` | ⚠️ Erreur push | `2d2b11e3a - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+| `jak2/config/start_menu_wheel` | ⚠️ Erreur push | `50a05cef4 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+| `jak2/features/crimson-blueguard/city-insurrection` | ⚠️ Erreur push | `2d2dddaa5 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+| `jak2/features/crimson-blueguard/peaceful` | ⚠️ Erreur push | `104874cfd - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+| `jak2/features/dark_jak_enhanced` | ⚠️ Erreur push | `2001b0711 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+| `jak2/features/jak3-jetBoard` | ⚠️ Erreur push | `64a15539d - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+| `jak2/features/paddywagon/traffic` | ⚠️ Erreur push | `e04301b97 - feat(paddywagon): both traffic lanes + Jak keeps his gun while driving (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+| `jak2/features/transport-ag/alert` | ⚠️ Erreur push | `c6b130a3b - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+| `jak2/features/transport-ag/traffic` | ⚠️ Erreur push | `4b3915712 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+| `jak2/features/yakow_killable` | ⚠️ Erreur push | `417e7a71b - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+| `jak3/config/memory_increase` | ⚠️ Erreur push | `d60c2ebae - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+| `jak3/features/city-behavior` | ⚠️ Erreur push | `3842eaae6 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+| `jak3/features/jak2_skin_secret` | ⚠️ Erreur push | `be88206cf - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+| `jak3/features/mega_dark_jak` | ⚠️ Erreur push | `cd6220d59 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+| `jak3/features/redguard-entity` | ⚠️ Erreur push | `ae5334c70 - docs: sync documentation architecture and agent skills from master-dev (AI-assisted)` | Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml | — |
+<!-- BRANCH_STATUS_END -->
+>>>>>>> origin/master-dev
 
 ---
 

@@ -5,6 +5,7 @@ the current working branch, WITHOUT rebasing or pulling in unrelated changes.
 
 What it syncs:
     - docs/modding/**   (the whole modding docs tree)
+    - .agents/**        (modular skills and memory discoveries)
     - AGENTS.md, CLAUDE.md  (agent guidance kept in lockstep with the docs)
 
 It also PRUNES: files that no longer exist under docs/modding/ on master-dev are
@@ -22,7 +23,7 @@ import argparse
 import subprocess
 import sys
 
-SYNCED_PATHS = ["docs/modding", "AGENTS.md", "CLAUDE.md"]
+SYNCED_PATHS = [".agents", "docs/modding", "AGENTS.md", "CLAUDE.md"]
 
 
 def run_cmd(cmd, check=True):

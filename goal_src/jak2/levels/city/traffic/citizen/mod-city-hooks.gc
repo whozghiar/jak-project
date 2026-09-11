@@ -150,4 +150,4 @@
 (define *mod-city-guard-rider-type-hook* mod-city-pea-guard-rider-type)
 (define *mod-city-guard-vehicle-icon-hook* mod-city-pea-guard-vehicle-icon)
 (define *mod-city-citizen-alert-blocked-hook* mod-city-pea-citizen-alert-blocked?)
-(define *mod-city-vehicle-alert-blocked-hook* (the-as (function process-focusable symbol) mod-city-pea-vehicle-alert-blocked?))
+(define *mod-city-vehicle-alert-blocked-hook* mod-city-pea-vehicle-alert-blocked?)

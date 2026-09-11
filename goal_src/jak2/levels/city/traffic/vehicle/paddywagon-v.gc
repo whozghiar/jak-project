@@ -98,12 +98,10 @@
 ;; `object-type`, documented inline below.
 ;;
 ;; Notable retail values this mod depends on and deliberately keeps:
-;;   :flags #xc          -- bit 3 set => the hull has a real collide-MESH prim,
-;;                          so `vehicle::alloc-and-init-rigid-body-control` gives
-;;                          the mesh `jak`/`player-list` and Jak can stand on and
-;;                          board the van. Bit 6 (flight level) is NOT set, so it
-;;                          rides the low ground lanes with the cars rather than
-;;                          the hellcats' high air lane -- this is city traffic.
+;;   :flags              -- retail #xc, raised to #x6c by this mod (bit 5 = the
+;;                          player keeps his gun out, bit 6 = the high/low
+;;                          flight-lane switch). Fully annotated at the field
+;;                          itself below.
 ;;   :guard-type #x5     -- the hellcat guard slot: alert pacing and aim settings
 ;;                          come from `get-traffic-guard-type-settings` (see
 ;;                          `vehicle-guard::vehicle-method-82`).
@@ -134,7 +132,44 @@
       :attack-force-scale 1.0
       )
     :name '*paddywagon-v-constants*
-    :flags #xc
+    ;; ------------------------------------------------------------------------
+    ;; MOD: flags -- retail #xc (bits 2,3) plus bit 5 (gun) and bit 6 (flight zones)
+    ;; ------------------------------------------------------------------------
+    ;; #x6c = 4 | 8 | 32 | 64. The two retail bits are kept; the two added ones
+    ;; are what make the wagon properly PILOTABLE, which retail never needed
+    ;; because the mission paddywagon is `no-hijack`.
+    ;;
+    ;;   bit 2 (4)  [retail] -- while `ai-driving`, being shot makes the vehicle
+    ;;                acquire Jak as a pursuit target
+    ;;                (`rigid-body-object-method-46`, vehicle.gc). Left on; the
+    ;;                flee tick in `vehicle-method-120` clears `pursuit-target`
+    ;;                every frame, so a hit still ends in flight, not a chase.
+    ;;   bit 3 (8)  [retail] -- the hull has a real collide-MESH prim, so
+    ;;                `vehicle::alloc-and-init-rigid-body-control` gives the mesh
+    ;;                `jak`/`player-list` and Jak can stand on and board the van.
+    ;;   bit 5 (32) [ADDED] -- `gun?`. Read once in `target-pilot`'s
+    ;;                `enter-vehicle`: `(-> s5-0 gun?) (logtest? ... info flags 32)`.
+    ;;                When clear, boarding runs `(target-gun-end-mode arg1)` and
+    ;;                Jak holsters -- that is why he could not shoot from the
+    ;;                wagon. Set, he keeps the gun out and fires while driving,
+    ;;                exactly like cara/carb/carc (#x68), which are the retail
+    ;;                vehicles you can shoot from. The hellcat (#x4c) is the
+    ;;                retail example of this bit being deliberately OFF.
+    ;;   bit 6 (64) [ADDED] -- gates `switch-zone-high!` / `switch-zone-low!`
+    ;;                (vehicle-util.gc); both are a no-op without it. Those are
+    ;;                what move a vehicle between `flight-level-index` 1 (hover
+    ;;                at `flight-level` + 6144, the traffic height map's AIR
+    ;;                lane) and 0 (ground probes, the LOW lane) -- see
+    ;;                vehicle-physics.gc. `vehicle::active` :enter sets
+    ;;                `flight-level-index` 1, so every traffic vehicle starts
+    ;;                high; without this bit the wagon was permanently stuck
+    ;;                there and R2 did nothing. It also fixes a latent bug:
+    ;;                `player-control` :exit calls `vehicle-method-83`, which
+    ;;                forces `flight-level-index` to 0, and only
+    ;;                `switch-zone-high!` (from `vehicle-method-93` / the guard
+    ;;                AI tick, both gated on this bit) puts it back -- so a
+    ;;                wagon Jak abandoned used to stay stuck in the low lane.
+    :flags #x6c
     ;; MOD: retail's mission paddywagon impersonates the hellcat (#x13 = 19) so the
     ;; guard system treats it as one. The traffic version owns slot 20 instead --
     ;; this is the field `traffic-object-spawn-params`/`traffic-engine` key off, and
@@ -986,7 +1021,20 @@
    wagons drive around the city perfectly happily.
 
    So: skip `vehicle-guard`'s turret block entirely and call `vehicle`'s player
-   input read directly. An unarmed van has nothing to aim."
+   input read directly. An unarmed van has nothing to aim.
+
+   Two things depend on this call going to `vehicle::vehicle-method-94` and NOT
+   being trimmed further:
+     * it carries the **R2 flight-lane toggle**
+       `(if (zero? (-> this flight-level-index)) (switch-zone-high! this)
+                                                 (switch-zone-low! this))`,
+       which is how the player moves the wagon between the high air lane and the
+       low one (needs `info flags` bit 6, set in the constants above);
+     * it is the actual throttle / steering / brake read.
+   Skipping `vehicle-guard`'s block also frees **R1**, which that block used for
+   turret fire — R1 is Jak's own gun while piloting, and this wagon now sets
+   `info flags` bit 5 so he keeps it out. The two would have fought over the
+   same button."
   ((method-of-type vehicle vehicle-method-94) this)
   0
   (none)

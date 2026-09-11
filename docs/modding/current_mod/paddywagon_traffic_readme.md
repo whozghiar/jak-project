@@ -282,6 +282,68 @@ current and requested level, so the two paths cannot fight; it is also gated
 internally on the `target-jak` alert flag, so it stays inert during scripted
 missions.
 
+### 4d. Making it a proper player vehicle — `info flags` #xc → #x6c
+
+Retail `*paddywagon-constants*` carries `:flags #xc` (bits 2 and 3). That was
+enough for a `no-hijack` mission van but not for one the player drives, so the
+mod raises it to **`#x6c` = 4 | 8 | 32 | 64**:
+
+| bit | value | source | what it does |
+|---|---|---|---|
+| 2 | 4 | retail | while `ai-driving`, being shot makes the vehicle acquire Jak as a pursuit target (`rigid-body-object-method-46`). Kept — the flee tick clears `pursuit-target` every frame, so a hit still ends in flight. |
+| 3 | 8 | retail | the hull has a real collide-MESH prim, so `alloc-and-init-rigid-body-control` gives the mesh `jak`/`player-list` and Jak can stand on and board it. |
+| 5 | 32 | **added** | `gun?` |
+| 6 | 64 | **added** | flight-lane switching |
+
+**Bit 5 — Jak keeps his gun.** `target-pilot`'s `enter-vehicle` reads it once:
+`(set! (-> s5-0 gun?) (logtest? (-> vehicle info flags) 32))`, and then
+
+```lisp
+(when (not (-> s5-0 gun?))
+  (if arg1 (logior! (-> self control current-surface flags) (surface-flag gun-fast-exit)))
+  (target-gun-end-mode arg1))
+```
+
+— with the bit clear, boarding holsters the gun, which is why Jak could not
+shoot from the wagon. `target-pilot-init` optimistically sets `gun?` to `#t`
+beforehand, but `enter-vehicle` overwrites it from the flag, so this bit is the
+single switch. cara/carb/carc (`#x68`) are the retail vehicles you can shoot
+from; the hellcat (`#x4c`) is the retail example of the bit being deliberately
+off.
+
+**Bit 6 — the high/low lane switch.** It gates `switch-zone-high!` /
+`switch-zone-low!` (vehicle-util.gc), both of which begin
+`(when (and (logtest? (-> this info flags) 64) …))` and are otherwise no-ops.
+Those two methods move a vehicle between the two `flight-level-index` modes that
+vehicle-physics.gc implements:
+
+- **index 1** — the lift thrusters target `flight-level + 6144`, i.e. the
+  `*traffic-height-map*` **air lane**, and `on-flight-level` gets set;
+- **index 0** — the thrusters use ordinary ground probes, i.e. the **low lane**.
+
+`vehicle::active` :enter sets `flight-level-index` to 1, so every traffic vehicle
+starts high — which is why the wagon was always in the upper lane and R2 did
+nothing. The player toggle lives in `vehicle::vehicle-method-94`:
+
+```lisp
+(when (and (cpad-pressed? 0 r2) (not *pause-lock*))
+  (if (zero? (-> this flight-level-index)) (switch-zone-high! this) (switch-zone-low! this)))
+```
+
+which this mod's `vehicle-method-94` override still routes to (see §4c — that
+override skips `vehicle-guard`'s turret block but keeps the `vehicle` base).
+
+> Setting bit 6 also fixes a latent bug that predates the player being able to
+> drive at all: `player-control` :exit calls `vehicle-method-83`, which forces
+> `flight-level-index` to 0, and only `switch-zone-high!` — reached from
+> `vehicle-method-93` and the `vehicle-guard` AI tick, both gated on this bit —
+> puts it back. Without bit 6, a wagon Jak abandoned would have stayed stuck in
+> the low lane for the rest of its traffic life.
+
+**Button budget:** R1 is Jak's gun now, and `vehicle-guard::vehicle-method-94`'s
+turret block used R1 too. The §4c override removes that block entirely, so the
+two never compete.
+
 ### 5. Traffic-type wiring
 
 - `engine/ai/traffic-h.gc` — renames the spare `(traffic-type-20 20)` →
@@ -350,7 +412,12 @@ See [`docs/modding/tools/model_and_entity_level_injection_guide.md`](../tools/mo
 9. **Shoot one:** it should immediately speed up, push past traffic and take the
    turns that lead away from you, without ever turning to fight — for
    `*paddywagon-v-flee-duration*` (12 s) after the last hit.
-10. **Destroy one:** it explodes like any guard vehicle.
+10. **While driving:** tap **R2** — the wagon should drop out of the high air
+    lane down to the low one (with the "bike-down" sound) and back up on the
+    next press. Hold **R1** — Jak should still have his gun out and fire it.
+11. **Get out and watch it leave:** the abandoned wagon should climb back to the
+    air lane and rejoin traffic rather than staying low (see §4d).
+12. **Destroy one:** it explodes like any guard vehicle.
 9. From the REPL:
    `(send-event *traffic-manager* 'set-object-target-count (traffic-type paddywagon-v) 4)`
    for more of them.
@@ -405,9 +472,15 @@ See [`docs/modding/tools/model_and_entity_level_injection_guide.md`](../tools/mo
   `citizen-chick-ag` into LWIDEB/LWIDEC too, which changes ordinary pedestrian
   residency — deliberately out of scope.
 - **Unarmed by design** — no gun joint on the skeleton (see §1).
-- **The wagon rides the low ground lanes,** not the hellcats' air lane, because
-  retail `*paddywagon-constants*` `flags` `#xc` does not carry bit 6 (the
-  flight-level bit the hellcat has). That is what "city traffic" means here.
+- **Lane correction (2026-09-11).** An earlier revision of this document claimed
+  the wagon "rides the low ground lanes, not the hellcats' air lane, because
+  retail `flags` `#xc` does not carry bit 6". **That was wrong**, and observation
+  in game disproved it: `vehicle::active` :enter sets `flight-level-index` to 1
+  unconditionally, so every traffic vehicle hovers at the
+  `*traffic-height-map*` air lane regardless of bit 6. All bit 6 controls is
+  whether `switch-zone-high!` / `switch-zone-low!` can *change* that. Without
+  it, the wagon was **stuck** in the upper lane, not held in the lower one. See
+  §4d.
 
 ---
 
@@ -415,6 +488,7 @@ See [`docs/modding/tools/model_and_entity_level_injection_guide.md`](../tools/mo
 
 | Date | Touched/Created Files | Technical Description | Objective |
 | :--- | :--- | :--- | :--- |
+| 2026-09-11 | `levels/city/traffic/vehicle/paddywagon-v.gc` | **Player vehicle flags: `info flags` #xc → #x6c.** Added bit 5 (32) and bit 6 (64) to the retail constants. Bit 5 is `gun?`, read once by `target-pilot`'s `enter-vehicle`; with it clear, boarding ran `(target-gun-end-mode arg1)` and holstered Jak's weapon — set, he keeps it out and fires with R1 while driving, like cara/carb/carc (#x68). Bit 6 gates `switch-zone-high!` / `switch-zone-low!`, which are no-ops without it; those move the vehicle between `flight-level-index` 1 (lift thrusters target `flight-level` + 6144, the `*traffic-height-map*` air lane) and 0 (ground probes, the low lane), and the R2 toggle for them lives in `vehicle::vehicle-method-94` — still reached through this mod's `vehicle-method-94` override. `vehicle::active` :enter sets index 1, so the wagon was permanently stuck in the upper lane. Bit 6 also fixes a latent bug: `player-control` :exit forces index 0 via `vehicle-method-83`, and only `switch-zone-high!` (gated on this bit) restores it, so an abandoned wagon used to stay stuck low. No R1 conflict because the §4c override already removed `vehicle-guard`'s turret block, which also used R1. | Let the player fly the wagon in both city traffic lanes and shoot while driving it. |
 | 2026-09-10 | `levels/city/traffic/vehicle/paddywagon-v.gc` | **Fixed the hijack crash + hardened the theft alert (second in-game feedback round).** (1) **Crash:** stealing the wagon killed the runtime one frame after `pilot-on`, with no GOAL error. Cause: `vehicle-guard::vehicle-method-94` (reached every frame from `player-control` :post → `vehicle-method-124`) aims and fires the hull turret *unguarded*, and `turret-control-method-9` opens with `(-> arg0 node-list data (-> this info joint-index) bone transform)`. This wagon's `turret info` is 0 — the `paddy-wagon` skeleton has no gun joint — so that dereferences null and indexes `node-list` with garbage. The AI path was always safe because `vehicle-guard-method-153` goes through `turret-control-method-11`, which *is* wrapped in `(when (nonzero? (-> this info)) …)`. Retail never hits it: `hellcat` and `guard-bike`, the only pilotable `vehicle-guard`s, both `set-info` their turret, and the mission `paddywagon` is `no-hijack`. Fixed by overriding `vehicle-method-94` to skip `vehicle-guard`'s turret block and call `vehicle::vehicle-method-94` directly. (2) **Alert:** added a `vehicle-method-87` override (one-shot, self-guarded by `rigid-body-object-flag camera`) that sends `increase-alert-level 2` on boarding, so the theft is noticed even when no `crimson-guard-rider` is left aboard to trigger the stock `knocked-off` path. `increase-alert-level` takes a `max` and is gated on the `target-jak` flag, so the two paths cannot fight and it stays inert in scripted missions. | Make the wagon actually drivable, and make stealing it always raise the alarm rather than only when a driver happened to still be aboard. |
 | 2026-09-10 | `levels/city/traffic/vehicle/paddywagon-v.gc` | **Grab rails + flee-under-fire (first in-game feedback round).** (1) Retail `*paddywagon-constants*` ships `:grab-rail-array #f` / no `:grab-rail-count`, so `check-player-get-on`'s `(dotimes (s2-1 (-> this info grab-rail-count)) …)` ran zero times and the `pilot-edge-grab` path — Jak hanging off the side before committing to the theft — could never fire. Added 4 rails (front, both flanks, rear) at `y` 9216, the body's light/window line per the retail headlight/taillight positions. (2) New flee behaviour: `apply-damage` override starts a flee above `*paddywagon-v-flee-damage-threshold*` and records the attacker position; `vehicle-method-120` override boosts `target-speed-offset`, sets `ignore-others` and clears `pursuit-target` + `alert`/`in-pursuit`/`target-in-sight`/`rammed-target` each frame (so `vehicle-guard`'s `hostile` :post falls through `vehicle-guard-method-151` to `vehicle-method-109` and it drives rather than fights); new `paddywagon-v-choose-branch` controller callback picks the nav-branch heading most directly away from `flee-from`; `vehicle-method-134` refuses pursuit targets while fleeing; `vehicle-method-128` resets flee state per traffic life. | A prisoner transport must be approachable the way every other city vehicle is (hang on it, then decide to steal it), and must run from a firefight instead of joining one — it is carrying a civilian. |
 | 2026-09-10 | `levels/city/traffic/vehicle/paddywagon-v.gc` *(new)*<br>`engine/ai/traffic-h.gc`<br>`levels/city/traffic/vehicle/vehicle-h.gc`<br>`engine/entity/entity-h.gc`<br>`decompiler/config/jak2/all-types.gc`<br>`levels/city/traffic/traffic-manager.gc`<br>`levels/city/traffic/citizen/guard.gc`<br>`pc/debug/paddywagon-traffic-menu.gc` *(new)*<br>`dgos/{cwi,game,lwidea,lwideb,lwidec}.gd`<br>`decompiler/config/jak2/jak2_config.jsonc`<br>`levels/city/{ctywide-tasks,protect/protect,slums/kor/hal3-course,kiddogescort/hal4-course}.gc` | **Initial implementation.** New `paddywagon-v` (`vehicle-guard`) on traffic slot 20, reusing retail `paddy-wagon` hull + `*paddywagon-constants*` verbatim except `object-type` → `#x14`; no `no-hijack`, no `'lmeetbrt` re-home, no `choose-branch-callback` override, so it is an ordinary stealable traffic guard vehicle. New `paddywagon-prisoner` (`vehicle-rider`) in retail seat 1 (the rear cage, flags 4 / 180°): rolls `norm`/`fat`/`chick` among the art groups actually resident in the process's lwide level, holds `*-arms-crossed-ja` (idle for chick), re-rolls the retail `setup-masks` wardrobe on every `'traffic-on`, drops the base sine "lean", and refuses `'knocked-off` so it stays caged when Jak steals the van. `vehicle-method-137` override spawns both riders. Merc `.fr3` injection of `paddy-wagon-ag:LMEETBRT.DGO` into the three lwide levels + `paddy-wagon-ag.go`/`tpage-2438.go` in their `.gd`. Mandatory `Debug ▸ Mods ▸ paddywagon-traffic` toggle via `define-perm *mod-paddywagon-traffic-enable*` gating `want-count[20]`. | Put the Krimzon Guard prisoner van into ambient city traffic with a civilian prisoner and a Crimson Guard driver, drivable and stealable under the same conditions as every other guard vehicle — while leaving stock Haven City and the *Escort Brutter* mission untouched when the toggle is OFF. |
@@ -704,6 +778,71 @@ envoyer l'événement lui-même. `traffic-engine::increase-alert-level` prend le
 se contredire ; il est aussi gardé en interne par le drapeau d'alerte
 `target-jak`, donc il reste inerte pendant les missions scriptées.
 
+### 4d. En faire un vrai véhicule joueur — `info flags` #xc → #x6c
+
+Le `*paddywagon-constants*` d'origine porte `:flags #xc` (bits 2 et 3). Suffisant
+pour un fourgon de mission `no-hijack`, pas pour un véhicule que le joueur
+conduit : le mod le passe à **`#x6c` = 4 | 8 | 32 | 64**.
+
+| bit | valeur | origine | rôle |
+|---|---|---|---|
+| 2 | 4 | retail | en `ai-driving`, se faire tirer dessus fait désigner Jak comme cible de poursuite (`rigid-body-object-method-46`). Conservé — le tick de fuite vide `pursuit-target` chaque frame, donc un tir se solde toujours par une fuite. |
+| 3 | 8 | retail | la coque a une vraie prim collide-MESH : `alloc-and-init-rigid-body-control` lui donne `jak`/`player-list` et Jak peut monter dessus et embarquer. |
+| 5 | 32 | **ajouté** | `gun?` |
+| 6 | 64 | **ajouté** | bascule de couloir de vol |
+
+**Bit 5 — Jak garde son arme.** L'`enter-vehicle` de `target-pilot` le lit une
+fois : `(set! (-> s5-0 gun?) (logtest? (-> vehicle info flags) 32))`, puis
+
+```lisp
+(when (not (-> s5-0 gun?))
+  (if arg1 (logior! (-> self control current-surface flags) (surface-flag gun-fast-exit)))
+  (target-gun-end-mode arg1))
+```
+
+— bit éteint, l'embarquement range l'arme : c'est pour ça que Jak ne pouvait pas
+tirer depuis le fourgon. `target-pilot-init` met bien `gun?` à `#t` au préalable,
+mais `enter-vehicle` l'écrase depuis le drapeau : ce bit est donc l'unique
+interrupteur. cara/carb/carc (`#x68`) sont les véhicules d'origine depuis
+lesquels on peut tirer ; le hellcat (`#x4c`) est l'exemple d'origine où le bit
+est volontairement éteint.
+
+**Bit 6 — la bascule couloir haut / couloir bas.** Il conditionne
+`switch-zone-high!` / `switch-zone-low!` (vehicle-util.gc), qui commencent toutes
+deux par `(when (and (logtest? (-> this info flags) 64) …))` et ne font rien
+sinon. Ces deux méthodes font passer le véhicule entre les deux modes de
+`flight-level-index` implémentés dans vehicle-physics.gc :
+
+- **index 1** — les propulseurs de sustentation visent `flight-level + 6144`,
+  c'est-à-dire le **couloir aérien** de `*traffic-height-map*`, et
+  `on-flight-level` est posé ;
+- **index 0** — les propulseurs utilisent les sondes de sol ordinaires, soit le
+  **couloir bas**.
+
+Le `:enter` de `vehicle::active` met `flight-level-index` à 1 : tout véhicule du
+trafic démarre donc en haut — d'où le fourgon toujours dans le couloir supérieur
+et R2 sans effet. La bascule joueur vit dans `vehicle::vehicle-method-94` :
+
+```lisp
+(when (and (cpad-pressed? 0 r2) (not *pause-lock*))
+  (if (zero? (-> this flight-level-index)) (switch-zone-high! this) (switch-zone-low! this)))
+```
+
+vers laquelle la surcharge `vehicle-method-94` de ce mod continue de router (voir
+§4c : elle saute le bloc tourelle de `vehicle-guard` mais conserve la base
+`vehicle`).
+
+> Poser le bit 6 corrige aussi un bug latent antérieur à la conduite par le
+> joueur : le `:exit` de `player-control` appelle `vehicle-method-83`, qui force
+> `flight-level-index` à 0, et seul `switch-zone-high!` — atteint depuis
+> `vehicle-method-93` et le tick IA de `vehicle-guard`, tous deux conditionnés par
+> ce bit — le remonte. Sans le bit 6, un fourgon abandonné par Jak restait coincé
+> dans le couloir bas pour le reste de sa vie de trafic.
+
+**Budget de touches :** R1 est désormais l'arme de Jak, et le bloc tourelle de
+`vehicle-guard::vehicle-method-94` utilisait R1 aussi. La surcharge du §4c
+supprime ce bloc, les deux ne se disputent donc jamais la touche.
+
 ### 5. Câblage du type de trafic
 
 - `engine/ai/traffic-h.gc` — renomme `(traffic-type-20 20)` → `(paddywagon-v 20)`.
@@ -794,7 +933,12 @@ sont ajoutés aux trois `lwide*.gd`. Voir
   `citizen-chick-ag` dans LWIDEB/LWIDEC, ce qui modifierait la résidence des
   piétons ordinaires — délibérément hors périmètre.
 - **Non armé par conception** — aucun joint d'arme sur le squelette (voir §1).
-- **Le fourgon roule dans les voies terrestres basses,** pas dans la voie
-  aérienne des hellcats, car les `flags` `#xc` du `*paddywagon-constants*`
-  d'origine ne portent pas le bit 6 (le bit de niveau de vol qu'a le hellcat).
-  C'est ce que « trafic urbain » signifie ici.
+- **Correction sur les couloirs (11/09/2026).** Une révision antérieure de ce
+  document affirmait que le fourgon « roule dans les voies terrestres basses,
+  pas dans la voie aérienne des hellcats, car les `flags` `#xc` ne portent pas le
+  bit 6 ». **C'était faux**, et l'observation en jeu l'a démenti : le `:enter` de
+  `vehicle::active` met `flight-level-index` à 1 sans condition, donc tout
+  véhicule du trafic plane au couloir aérien de `*traffic-height-map*`,
+  indépendamment du bit 6. Le bit 6 ne contrôle que la possibilité de *changer*
+  de couloir via `switch-zone-high!` / `switch-zone-low!`. Sans lui, le fourgon
+  était **coincé** dans le couloir haut, pas maintenu dans le bas. Voir §4d.

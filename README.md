@@ -49,6 +49,25 @@ raises the city alarm exactly like stealing a hellcat or a guard bike.
   fight: take a shot at one and it floors the throttle, pushes past traffic and
   takes every turn that leads away from you for the next 12 seconds, never
   turning to give chase.
+- **Both traffic lanes, and your gun stays out.** Once you are driving, **R2**
+  drops the wagon from the high air lane down to the low one and back up, and
+  **R1** fires Jak's own weapon — the wagon handles like a car in that respect,
+  not like a hellcat.
+
+## 🎮 Controls & Usage
+
+Only while Jak is piloting the paddy wagon:
+
+| Input | Action |
+|---|---|
+| **Triangle** (near the wagon) | Board it — or grab a side rail and hang, if it is passing above you |
+| **Triangle** (while hanging) | Climb in and take the controls (this is the theft — the alarm goes off) |
+| **R2** | Toggle between the **high air lane** (the default) and the **low lane** |
+| **R1** | Fire Jak's equipped gun while driving |
+| **Triangle** (while driving) | Get out |
+
+Everything else — throttle, steering, brake, boost — is the standard city
+vehicle control set.
 - **Unarmed.** The `paddy-wagon` skeleton has no gun joint, so the wagon rams
   and pursues but never shoots.
 - **OFF by default,** switchable from `Debug ▸ Mods ▸ paddywagon-traffic`.
@@ -154,6 +173,25 @@ ville exactement comme voler un hellcat ou une moto de garde.
   ne s'arrête pas pour combattre : tirez dessus et il accélère à fond, force le
   passage dans le trafic et prend systématiquement les virages qui l'éloignent
   de vous pendant 12 secondes, sans jamais se retourner pour vous poursuivre.
+- **Les deux couloirs de circulation, arme au poing.** Une fois aux commandes,
+  **R2** fait descendre le fourgon du couloir aérien haut vers le couloir bas et
+  inversement, et **R1** tire avec l'arme de Jak — de ce point de vue le fourgon
+  se comporte comme une voiture, pas comme un hellcat.
+
+## 🎮 Commandes & Utilisation
+
+Uniquement lorsque Jak pilote le fourgon :
+
+| Touche | Action |
+|---|---|
+| **Triangle** (près du fourgon) | Monter à bord — ou agripper une rambarde latérale et se suspendre, s'il passe au-dessus de vous |
+| **Triangle** (suspendu) | Grimper et prendre les commandes (c'est le vol — l'alarme se déclenche) |
+| **R2** | Basculer entre le **couloir aérien haut** (par défaut) et le **couloir bas** |
+| **R1** | Tirer avec l'arme équipée de Jak tout en conduisant |
+| **Triangle** (en conduisant) | Descendre |
+
+Tout le reste — accélérateur, direction, frein, boost — correspond aux commandes
+standard des véhicules urbains.
 - **Non armé.** Le squelette `paddy-wagon` ne possède aucun joint d'arme : le
   fourgon percute et poursuit, mais ne tire jamais.
 - **Désactivé par défaut,** activable depuis `Debug ▸ Mods ▸ paddywagon-traffic`.

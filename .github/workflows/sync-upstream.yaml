@@ -37,6 +37,8 @@ jobs:
           git config --global checkout.defaultRemote origin
 
       - name: Sync master with upstream/master (Fast-Forward)
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           echo "Fetching upstream official repository..."
           git remote add upstream https://github.com/open-goal/jak-project.git || true
@@ -46,9 +48,13 @@ jobs:
           git checkout -B master origin/master
           if git merge --ff-only upstream/master; then
             echo "Pushing updated master to origin..."
-            if ! git push origin master; then
-              echo "::warning::Could not push master to origin (likely due to upstream workflow updates that GITHUB_TOKEN is restricted from pushing). The dev branch and mod branches will still be synced!"
+            if [ -n "$GH_PAT" ]; then
+              git remote set-url origin https://x-access-token:${GH_PAT}@github.com/${{ github.repository }}
             fi
+            if ! git push origin master; then
+              echo "::warning::Could not push master to origin (likely due to upstream workflow updates that GITHUB_TOKEN is restricted from pushing). To automate this, create a PAT with repo+workflow scope and set it as secret GH_PAT."
+            fi
+            git remote set-url origin https://github.com/${{ github.repository }}
           fi
 
       - name: Sync master-dev with master

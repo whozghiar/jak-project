@@ -82,14 +82,28 @@ def check_ancestor(ancestor, branch):
     res = run_cmd(f"git merge-base --is-ancestor {ancestor} {branch}")
     return res.returncode == 0
 
+def is_auto_resolvable(filepath):
+    """Check if a conflicted file has a deterministic modding rule."""
+    if filepath == "README.md":
+        return True  # Always preserve mod's root README
+    if filepath == "docs/modding/branch_audit.md":
+        return True  # Take latest audit from base branch
+    if filepath.startswith("docs/modding/tools/"):
+        return True  # Take latest modding tools/dashboards
+    if filepath.startswith("docs/modding/current_mod/"):
+        return True  # Preserve mod's technical documentation
+    if filepath.startswith(".github/workflows/"):
+        return True  # Drop unwanted workflows
+    return False
+
 def test_merge_tree(source_ref, branch_ref):
     """
     Test merge in memory with git merge-tree --write-tree.
-    Returns (clean: bool, conflicting_files: list, raw_output: str)
+    Returns (clean: bool, real_conflicts: list, all_conflicts: list, raw_output: str)
     """
     res = run_cmd(f"git merge-tree --write-tree {source_ref} {branch_ref}")
     if res.returncode == 0:
-        return True, [], res.stdout
+        return True, [], [], res.stdout
     
     # Extract conflicting files
     conflicts = []
@@ -101,12 +115,20 @@ def test_merge_tree(source_ref, branch_ref):
     if not conflicts:
         for line in (res.stdout + "\n" + res.stderr).splitlines():
             if "CONFLICT" in line:
-                conflicts.append(line.strip())
+                m2 = re.search(r"CONFLICT \(.*?\):\s*(.*?)\s+(?:deleted|modified|renamed)", line)
+                if m2:
+                    conflicts.append(m2.group(1).strip())
+                else:
+                    conflicts.append(line.strip())
                 
-    return False, list(dict.fromkeys(conflicts)), res.stdout
+    conflicts = list(dict.fromkeys(conflicts))
+    real_conflicts = [f for f in conflicts if not is_auto_resolvable(f)]
+    # Clean if there are no real code conflicts
+    clean = (len(real_conflicts) == 0)
+    return clean, real_conflicts, conflicts, res.stdout
 
 def merge_and_push_branch(branch, source_ref):
-    """Perform actual merge on a temporary ref and push to remote."""
+    """Perform actual merge on a temporary ref and push to remote, auto-resolving mod doc conflicts."""
     temp_branch = f"temp-sync-{branch.replace('/', '-')}"
     try:
         checkout_res = run_cmd(f"git checkout -B {temp_branch} origin/{branch}")
@@ -114,10 +136,29 @@ def merge_and_push_branch(branch, source_ref):
             err = (checkout_res.stderr or checkout_res.stdout).strip()
             return False, f"Échec checkout: {err[:120]}"
 
-        merge_res = run_cmd(f'git merge {source_ref} -m "chore: sync {branch} with latest {source_ref} (AI-assisted)"')
+        merge_res = run_cmd(f'git merge {source_ref} --no-commit')
         if merge_res.returncode != 0:
-            run_cmd("git merge --abort")
-            return False, "Échec lors de la fusion locale"
+            unmerged = [l.strip() for l in run_cmd("git diff --name-only --diff-filter=U").stdout.splitlines() if l.strip()]
+            for f in unmerged:
+                if f == "README.md" or f.startswith("docs/modding/current_mod/"):
+                    # Preserve mod's own README and technical documentation
+                    run_cmd(f'git checkout HEAD -- "{f}" 2>/dev/null || true')
+                    run_cmd(f'git add "{f}"')
+                elif f == "docs/modding/branch_audit.md" or f.startswith("docs/modding/tools/"):
+                    # Take base branch global audit/status
+                    run_cmd(f'git checkout MERGE_HEAD -- "{f}" 2>/dev/null || true')
+                    run_cmd(f'git add "{f}"')
+                elif f.startswith(".github/workflows/"):
+                    # Drop unwanted workflows
+                    run_cmd(f'git rm -rf "{f}" 2>/dev/null || rm -rf "{f}"')
+
+            # Verify if any real code conflict remains
+            remaining = [l.strip() for l in run_cmd("git diff --name-only --diff-filter=U").stdout.splitlines() if l.strip()]
+            if remaining:
+                run_cmd("git merge --abort")
+                return False, f"Vrais conflits de code: {', '.join(remaining)}"
+
+        run_cmd(f'git commit -m "chore: sync {branch} with latest {source_ref} (AI-assisted)"')
         
         push_res = run_cmd(f"git push origin {temp_branch}:{branch}")
         if push_res.returncode != 0:
@@ -255,9 +296,12 @@ def main():
             continue
 
         # In-memory merge test
-        clean, conflicts, raw_out = test_merge_tree(source_ref, branch_ref)
+        clean, real_conflicts, all_conflicts, raw_out = test_merge_tree(source_ref, branch_ref)
         if clean:
-            print("  -> Clean merge possible (0 conflicts).")
+            if all_conflicts:
+                print(f"  -> Clean merge possible (mod docs auto-protected, 0 real code conflicts).")
+            else:
+                print("  -> Clean merge possible (0 conflicts).")
             if args.push:
                 print(f"  -> Merging and pushing to {branch}...")
                 success, msg = merge_and_push_branch(branch, source_ref)
@@ -281,18 +325,18 @@ def main():
                     "status": "🟢 Prête à fusionner",
                     "last_commit": last_commit,
                     "conflicts": [],
-                    "details": "Aucun conflit détecté"
+                    "details": "Aucun conflit de code détecté"
                 })
         else:
-            print(f"  -> Conflicts detected in {len(conflicts)} file(s): {', '.join(conflicts)}")
-            confl_fmt = ", ".join([f"`{f}`" for f in conflicts])
-            log_event("CONFLICT", branch, f"Conflit détecté lors de la fusion avec {source_ref} dans: {confl_fmt}")
+            print(f"  -> Real code conflicts detected in {len(real_conflicts)} file(s): {', '.join(real_conflicts)}")
+            confl_fmt = ", ".join([f"`{f}`" for f in real_conflicts])
+            log_event("CONFLICT", branch, f"Conflit de code détecté lors de la fusion avec {source_ref} dans: {confl_fmt}")
             results.append({
                 "branch": branch,
                 "status": "⚠️ Conflit",
                 "last_commit": last_commit,
-                "conflicts": conflicts,
-                "details": f"{len(conflicts)} fichier(s) en conflit"
+                "conflicts": real_conflicts,
+                "details": f"{len(real_conflicts)} fichier(s) de code en conflit"
             })
 
     print(f"\nGenerating dashboard at {DASHBOARD_FILE}...")

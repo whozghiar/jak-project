@@ -2,8 +2,9 @@ name: Sync Upstream Mirror & Dev
 
 on:
   schedule:
-    # Run daily at 04:00 UTC
-    - cron: '0 4 * * *'
+    # Exécution quotidienne à 12:00 (Heure de Paris UTC+2 = 10:00 UTC en heure d'été)
+    # Remplacez par '0 12 * * *' si vous préférez 12:00 UTC (14:00 Paris)
+    - cron: '0 10 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -66,8 +67,8 @@ jobs:
           echo "Synchronizing clean mod branches with master, logging history, and updating dashboard..."
           python scripts/modding/sync_branches_with_master.py --push
 
-          if [ -n "$(git status --porcelain docs/modding/branch_sync_status.md docs/modding/branch_sync_history.log README.md)" ]; then
-            git add docs/modding/branch_sync_status.md docs/modding/branch_sync_history.log README.md
+          if [ -n "$(git status --porcelain docs/modding/tools/branch_sync_status.md docs/modding/tools/branch_sync_history.md README.md)" ]; then
+            git add docs/modding/tools/branch_sync_status.md docs/modding/tools/branch_sync_history.md README.md
             git commit -m "docs: update mod branches sync dashboard and history log (AI-assisted)"
             git push origin master-dev
           fi

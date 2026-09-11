@@ -79,53 +79,32 @@
 
 (define-extern *traffic-alert-level-force* symbol)
 
-(define-extern *crimson-blue-guard-ratio* int)
-(define-extern find-nearest-enemy-guard (function process-focusable symbol float process-focusable))
-
 ;; ------------------------------------------------------------------------------------------------
-;; Blue Crimson Guard mod -- optional "city mode" hook layer.
+;; Crimson Blue Guard mod -- master on/off switch.
 ;;
-;; The shared traffic / guard engine files (traffic-engine.gc, traffic-manager.gc, guard.gc,
-;; crimson-blue-guard.gc) call these function-pointer globals instead of testing mode flags inline.
-;; A small per-branch wiring file, mod-city-hooks.gc (present on every branch), (define)s them --
-;; to no-op / stock defaults on the base `blueguard-traffic` branch, or to functions pulled from
-;; mod-city-peaceful.gc / mod-city-insurrection.gc on a feature branch. The engine files therefore
-;; stay byte-identical across the whole mod family; only the set of registered mode libraries and
-;; the contents of mod-city-hooks.gc differ per branch.
+;; Branch: jak2/features/crimson-blueguard/crimson-redguard-behavior
 ;;
-;; The two mode flags stay too -- the debug-menu pick-funcs need to clear the other one, so both
-;; symbols exist on every branch (defined in mod-city-hooks.gc, default #f).
-(define-extern *mod-city-peaceful?* symbol)
-(define-extern *mod-city-insurrection?* symbol)
-;; City Insurrection war-zone district ('industrial default; see mod-city-insurrection.gc). Only
-;; the insurrection library defines it; only the debug menu's war-zone picker reads it.
-(define-extern *mod-city-conflict-district* symbol)
+;; When #t, every ambient Haven City crimson guard spawns as the blue-reskinned variant
+;; `crimson-blue-guard` (levels/city/traffic/citizen/crimson-blue-guard.gc) instead of the stock
+;; red one -- on foot AND riding the guard vehicles. Behaviour is unchanged: the blue guard is a
+;; plain subtype of `crimson-guard` that inherits every state, alert reaction and stat.
+;;
+;; The flag is DEFINED here, in an always-loaded engine header, rather than in the debug-only
+;; menu file that flips it, for two reasons:
+;;   1. the symbol then exists (and reads #f) at boot and in release builds, where the whole
+;;      debug menu is stripped -- so the mod ships OFF by default, as required;
+;;   2. a `(define ...)` in a level DGO file would be re-run and reset the flag every time that
+;;      level reloaded, silently switching the mod back off mid-session.
+;;
+;; Flipped from: Debug > Mods > crimson-blueguard > Enable  (pc/debug/crimson-blueguard-menu.gc)
+;; Read by:      traffic-manager.gc (traffic-object-spawn) and
+;;               levels/city/traffic/vehicle/vehicle-rider.gc (crimson-guard-rider skeleton).
+;; ------------------------------------------------------------------------------------------------
+(define *mod-crimson-blueguard-enable* #f)
 
 (declare-type nav-mesh basic)
-
 (declare-type nav-branch structure)
 (declare-type traffic-manager process)
-(declare-type crimson-guard process-focusable)
-(declare-type crimson-blue-guard crimson-guard)
-
-;; the *mod-city-*-hook* function pointers (need the forward-declared types above)
-;; per-frame traffic shaping, called from traffic-manager::update (arg: traffic-manager)
-(define-extern *mod-city-traffic-update-hook* (function traffic-manager none))
-;; faction pick for one ambient city-guard spawn -- #t = blue (arg: traffic-object-spawn-params)
-(define-extern *mod-city-guard-spawn-blue-hook* (function object symbol))
-;; pull a process to activate from a guard pool's inactive list (args: traffic-tracker, traffic-type)
-(define-extern *mod-city-guard-activate-hook* (function object traffic-type handle))
-;; #t => block this frame's alert-level rise (Slums / war-zone safe havens)
-(define-extern *mod-city-alert-blocked-hook* (function symbol))
-;; crimson-blue-guard 'traffic-activate: the hook adds mode behaviour after stock activation (args: this, params)
-(define-extern *mod-city-blue-activated-hook* (function crimson-blue-guard object symbol))
-;; per-frame active-state scan (guard.gc + crimson-blue-guard.gc active:trans)
-(define-extern *mod-city-guard-active-trans-hook* (function crimson-guard none))
-;; per-frame search-state scan (guard.gc search:trans): 'engaged = re-acquired a foe,
-;; 'idle = drop back to patrol, #f = not applicable
-(define-extern *mod-city-guard-search-trans-hook* (function crimson-guard symbol))
-;; #t => keep this guard-vs-guard traffic-target instead of clearing it (crimson-guard-method-220)
-(define-extern *mod-city-keep-guard-target-hook* (function process-focusable symbol))
 
 ;; DECOMP BEGINS
 

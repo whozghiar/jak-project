@@ -7,29 +7,20 @@
 
 ;; DECOMP BEGINS
 
-;; forward-declare the blue crimson-guard variant (custom mod entity, defined in
-;; levels/city/traffic/citizen/crimson-blue-guard.gc) so traffic-object-spawn below can
-;; reference it regardless of file compile order -- same idiom as crimson-guard's own
-;; (declare-type crimson-guard citizen) in traffic-engine.gc.
+;; ------------------------------------------------------------------------------------------------
+;; Crimson Blue Guard mod -- forward declarations.
+;;
+;; `crimson-blue-guard` lives in levels/city/traffic/citizen/crimson-blue-guard.gc, which is
+;; listed AFTER this file in cwi.gd, so `traffic-object-spawn` below cannot see the real type at
+;; compile time. Same idiom the stock decomp uses for `crimson-guard` itself in traffic-engine.gc.
+;; `*mod-crimson-blueguard-enable*` is defined in engine/ai/traffic-h.gc (always loaded).
+;; ------------------------------------------------------------------------------------------------
 (declare-type crimson-blue-guard crimson-guard)
 (define-extern activate-inactive-crimson-blue-guard (function traffic-engine traffic-object-spawn-params crimson-blue-guard))
 
 (define *traffic-engine* (the-as traffic-engine #f))
 
 (define *traffic-fast-spawn* #f)
-
-;; how often ambient traffic spawns the blue crimson-guard variant (crimson-blue-guard, see
-;; levels/city/traffic/citizen/crimson-blue-guard.gc) instead of the stock one -- 1 in N spawns,
-;; using the same "N sets a ratio" convention as traffic-manager's dark-guard-ratio field just
-;; below. 0 disables it (always spawns the stock crimson-guard).
-(define *crimson-blue-guard-ratio* 2)
-
-;; --- Blue Crimson Guard mod: "city mode" hook layer ---------------------------------------------
-;; The *mod-city-*-hook* function pointers (declared in engine/ai/traffic-h.gc) let the optional
-;; City Peaceful / City Insurrection mode libraries (mod-city-peaceful.gc / mod-city-insurrection.gc)
-;; extend the traffic engine without this file knowing anything about them. mod-city-hooks.gc
-;; (always registered) wires each hook to a no-op default or a mode-library function per branch.
-;; This file's only hook call sites: traffic-manager::update and traffic-object-spawn below.
 
 (deftype traffic-manager (process)
   ((traffic-engine    traffic-engine)
@@ -74,9 +65,6 @@
 
 (defmethod update ((this traffic-manager))
   (update-traffic (-> this traffic-engine))
-  ;; Blue Crimson Guard mod: let an optional city-mode library (mod-city-insurrection.gc) re-shape
-  ;; ambient traffic for Jak's current district BEFORE the kill/spawn pass. No-op by default.
-  (*mod-city-traffic-update-hook* this)
   (kill-excess-once this)
   (spawn-all this)
   (if *debug-segment*
@@ -261,8 +249,7 @@
                       (logtest? (-> s0-0 flags) (traffic-type-flags trtflags-3))
                       (< v1-21 (-> s0-0 want-count)))
                   (logclear! (-> spawn-params flags) (traffic-spawn-flags dark-guard))
-                  (when (and (or (= (-> spawn-params object-type) (traffic-type crimson-guard-1))
-                                 (= (-> spawn-params object-type) (traffic-type crimson-guard-2)))
+                  (when (and (= (-> spawn-params object-type) (traffic-type crimson-guard-1))
                              (> (-> this dark-guard-ratio) 0)
                              (zero? (mod v1-21 (-> this dark-guard-ratio))))
                     (logior! (-> spawn-params flags) (traffic-spawn-flags dark-guard)))
@@ -346,16 +333,23 @@
     )
   )
 
-;; DEBUG: spawn a crimson-blue-guard a few meters in front of the player, bypassing the
-;; ambient traffic system entirely (calls citizen-spawn directly, exactly like
-;; traffic-object-spawn does for a real ambient guard). Call from the REPL once booted into
-;; any city level:
-;; Helper for debugging/testing crimson-blue-guard from the OpenGOAL REPL:
-;;   (spawn-crimson-blue-guard-debug 0)   ;; baton/taser guard (short-range `attack` state)
-;;   (spawn-crimson-blue-guard-debug 1)   ;; gun-equipped guard (`gun-shoot`, laser bolts)
-;;   (spawn-crimson-blue-guard-debug 2)   ;; grenade launcher guard (`gun-shoot`, vehicle-grenade)
-;;   (spawn-crimson-blue-guard-debug -1)  ;; random weapon among 0, 1, 2 (same as ambient traffic)
+;; ------------------------------------------------------------------------------------------------
+;; Crimson Blue Guard mod -- REPL test helper.
+;;
+;; Drops one crimson-blue-guard ~8m in front of Jak, bypassing the ambient traffic density logic,
+;; so the actor (mesh, animations, weapon, death dissolve) can be inspected without waiting for a
+;; street spawn. Boot into any city level and call it from the goalc REPL:
+;;
+;;   (spawn-crimson-blue-guard-debug -1)   ;; weapon as ambient traffic would roll it
+;;   (spawn-crimson-blue-guard-debug 0)    ;; taser guard (charges, `attack` state)
+;;   (spawn-crimson-blue-guard-debug 1)    ;; rifle guard (`gun-shoot`, laser bolts)
+;;
+;; Whether the rifle guard carries the grenade launcher is rolled per-guard in citizen-init!
+;; (see crimson-blue-guard.gc); this helper does not force it.
+;; ------------------------------------------------------------------------------------------------
 (defun spawn-crimson-blue-guard-debug ((guard-type int))
+  "Spawn one crimson-blue-guard in front of Jak. `guard-type` -1 keeps the rolled weapon,
+   0 forces the taser, 1 forces the rifle. Returns the new process, or #f."
   (let* ((params (new 'stack-no-clear 'traffic-object-spawn-params))
          (fwd (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> *target* root quat)))
          )
@@ -363,9 +357,9 @@
     (set! (-> params behavior) (the-as uint 2))
     (set! (-> params id) (the-as uint 0))
     (vector+float*! (-> params position) (target-pos 0) fwd 8192.0)
-    ;; a real nav-mesh is required here -- citizen's 'traffic-activate handler only runs
-    ;; citizen-init!/set-behavior! (the calls that actually make it visible and behave) when
-    ;; spawn-params nav-mesh is non-#f. Same lookup ctywide-obs.gc uses for a real spawn point.
+    ;; a real nav-mesh is mandatory: citizen's 'traffic-activate handler only runs
+    ;; citizen-init! / set-behavior! -- the calls that actually make the guard visible and make it
+    ;; behave -- when spawn-params nav-mesh is non-#f. Same lookup a real street spawn uses.
     (set! (-> params nav-mesh) (find-nearest-nav-mesh (-> params position) (the-as float #x7f800000)))
     (set! (-> params nav-branch) #f)
     (quaternion-copy! (-> params rotation) (-> *target* root quat))
@@ -377,31 +371,25 @@
     (set! (-> params proc) #f)
     (let ((proc (the-as process-drawable #f)))
       (cond
+        ;; preferred path: recycle an inactive blue guard already held by the traffic pool, so the
+        ;; process count stays within the engine's budget.
         (*traffic-engine*
-         (set! proc (activate-inactive-crimson-blue-guard *traffic-engine* params))
-         )
+          (set! proc (activate-inactive-crimson-blue-guard *traffic-engine* params))
+          )
         (else
-         (set! proc (citizen-spawn *target* crimson-blue-guard params))
-         (when proc
-           (send-event proc 'traffic-activate params *traffic-engine*)
-           )
-         )
-        )
-      (when proc
-        ;; If a specific guard-type is requested (>= 0), force it explicitly.
-        ;; If guard-type is negative (-1), keep the random weapon rolled in citizen-init!.
-        (if (>= guard-type 0)
-            (crimson-guard-method-225 (the-as crimson-guard proc) (the-as uint guard-type) #f)
+          (set! proc (citizen-spawn *target* crimson-blue-guard params))
+          (when proc
+            (send-event proc 'traffic-activate params *traffic-engine*)
             )
+          )
+        )
+      (when (and proc (>= guard-type 0))
+        (crimson-guard-method-225 (the-as crimson-guard proc) (the-as uint guard-type) #f)
         )
       proc
       )
     )
   )
-
-;; NOTE (Blue Crimson Guard mod): spawn-crimson-blue-guard-squad-debug (REPL squad tool) moved to
-;; mod-city-peaceful.gc; mod-city-insurrection-debug + the ambient guard-faction pick moved to
-;; mod-city-insurrection.gc. The base spawn-crimson-blue-guard-debug (single guard) stays above.
 
 (defun traffic-object-spawn ((arg0 process) (arg1 traffic-object-spawn-params))
   (let ((v0-0 (the-as process-drawable #f)))
@@ -451,28 +439,16 @@
       (((traffic-type metalhead-flitter))
        (set! v0-0 (citizen-spawn arg0 metalhead-flitter arg1))
        )
-      (((traffic-type crimson-guard-1) (traffic-type crimson-guard-2))
-       ;; Ambient city-guard pools. Faction (blue crimson-blue-guard vs stock red crimson-guard)
-       ;; is picked by the *mod-city-guard-spawn-blue-hook* -- stock id-parity blue/red mix by
-       ;; default, per-district under City Insurrection. crimson-guard-2 (7) is a fully-wired but
-       ;; stock-unused pool that mod-city-insurrection.gc drives as the war zone's second pool.
-       (let ((spawn-blue? (*mod-city-guard-spawn-blue-hook* arg1)))
-         (set! v0-0 (citizen-spawn
-                       arg0
-                       (if spawn-blue? crimson-blue-guard crimson-guard)
-                       arg1
-                       ))
-         )
+      (((traffic-type crimson-guard-1))
+       ;; Crimson Blue Guard mod: spawn the blue-reskinned subtype in place of the red guard while
+       ;; the mod is enabled. `crimson-blue-guard` inherits every crimson-guard state and stat, so
+       ;; the swap is purely cosmetic (plus the optional grenade launcher) -- see
+       ;; levels/city/traffic/citizen/crimson-blue-guard.gc.
+       (set! v0-0 (citizen-spawn arg0 (if *mod-crimson-blueguard-enable* crimson-blue-guard crimson-guard) arg1))
        )
       (((traffic-type crimson-guard-0))
-       ;; Secondary stock pool -- id-parity blue/red mix.
-       (let ((spawn-blue? (logtest? (-> arg1 id) 1)))
-         (set! v0-0 (citizen-spawn
-                       arg0
-                       (if spawn-blue? crimson-blue-guard crimson-guard)
-                       arg1
-                       ))
-         )
+       ;; Second ambient guard pool -- same swap.
+       (set! v0-0 (citizen-spawn arg0 (if *mod-crimson-blueguard-enable* crimson-blue-guard crimson-guard) arg1))
        )
       )
     v0-0
@@ -555,8 +531,8 @@
     (set! (-> traffic-want-counts 14) 7)
     (set! (-> traffic-want-counts 15) 7)
     (set! (-> traffic-want-counts 16) 7)
-    (set! (-> traffic-want-counts 18) 8)
-    (set! (-> traffic-want-counts 19) 8)
+    (set! (-> traffic-want-counts 18) 4)
+    (set! (-> traffic-want-counts 19) 3)
     (set! (-> traffic-want-counts 20) 0)
     (set! (-> traffic-want-counts 0) 15)
     (set! (-> traffic-want-counts 1) 15)
@@ -615,8 +591,6 @@
        )
       (('increase-alert-level)
        (when *target*
-         ;; increase-alert-level self-blocks in the Blue Crimson Guard mod's alert-free zones
-         ;; (via *mod-city-alert-blocked-hook*) -- no wrapper needed here.
          (let ((a1-4 (-> arg3 param 0)))
            (increase-alert-level (-> self traffic-engine) (the-as int a1-4) *target*)
            )
@@ -647,11 +621,6 @@
        )
       (('deactivate-all)
        (deactivate-all (-> self traffic-engine))
-       )
-      (('deactivate-by-type)
-       (let ((a1-type (-> arg3 param 0)))
-         (deactivate-by-type (-> self traffic-engine) (the-as traffic-type a1-type))
-         )
        )
       (('set-target-level)
        (let ((f0-0 (the-as float (-> arg3 param 0))))

@@ -546,22 +546,7 @@
     (set! (-> arg0 proc) #f)
     (let ((v1-2 (-> this traffic object-type-info-array gp-0)))
       (when (and (> (-> v1-2 inactive-count) 0) (> (-> v1-2 reserve-count) 0))
-        (let* ((sv-16
-                 (cond
-                   ((or (= gp-0 (traffic-type crimson-guard-0))
-                        (= gp-0 (traffic-type crimson-guard-1))
-                        (= gp-0 (traffic-type crimson-guard-2)))
-                    ;; Blue Crimson Guard mod: an optional city-mode library may want a specific
-                    ;; faction out of the id-parity guard pool (all-blue for City Peaceful; City
-                    ;; Insurrection bakes faction at spawn so it just takes the next). Default is
-                    ;; the stock plain pull.
-                    (*mod-city-guard-activate-hook* this gp-0)
-                    )
-                   (else
-                     (get-from-inactive-by-type this gp-0)
-                     )
-                   )
-                 )
+        (let* ((sv-16 (get-from-inactive-by-type this gp-0))
                (s3-0 (handle->process sv-16))
                )
           (when s3-0
@@ -1818,21 +1803,15 @@
   )
 
 (defmethod increase-alert-level ((this traffic-engine) (arg0 int) (arg1 target))
-  ;; Blue Crimson Guard mod: this is the single choke point for the alert level going up (menu
-  ;; event, citizen::trigger-alert direct call, kill-count escalation). An optional city-mode
-  ;; library can veto a rise this frame -- City Insurrection uses it to make the Slums and the
-  ;; faction war zone alert-free. Default hook returns #f (alerts rise normally).
-  (when (not (*mod-city-alert-blocked-hook*))
-    (when (and (logtest? (-> this alert-state flags) (traffic-alert-flag target-jak))
-               (logtest? (-> arg1 mask) (process-mask target))
-               )
-      (let ((v1-6 (min arg0 (the-as int (-> this alert-state max-level)))))
-        (when #t
-          (set-time! (-> this alert-state start-time))
-          (logclear! (-> this alert-state flags) (traffic-alert-flag alert-ending))
-          )
-        (set! (-> this alert-state level) (the-as uint (max (the-as int (-> this alert-state level)) v1-6)))
+  (when (and (logtest? (-> this alert-state flags) (traffic-alert-flag target-jak))
+             (logtest? (-> arg1 mask) (process-mask target))
+             )
+    (let ((v1-6 (min arg0 (the-as int (-> this alert-state max-level)))))
+      (when #t
+        (set-time! (-> this alert-state start-time))
+        (logclear! (-> this alert-state flags) (traffic-alert-flag alert-ending))
         )
+      (set! (-> this alert-state level) (the-as uint (max (the-as int (-> this alert-state level)) v1-6)))
       )
     )
   0

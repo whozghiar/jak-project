@@ -396,11 +396,21 @@ This commonly includes things such as:
   )
 
 (defmethod vehicle-rider-method-32 ((this crimson-guard-rider) (arg0 traffic-object-spawn-params))
+  ;; Crimson Blue Guard mod: bind the blue-reskinned rider skeleton-group while the mod is enabled,
+  ;; so the guards riding the guard-bike / hellcat match the ones on foot. Both skeleton-groups sit
+  ;; in CWI and share the same 38-bone skeleton and animation slot indices, so `riding-anim` (set
+  ;; in vehicle-rider-method-33 below) and every other numeric slot stay valid either way.
+  ;;   *mod-crimson-blueguard-enable* : engine/ai/traffic-h.gc
+  ;;   skel-crimson-blue-guard-rider  : levels/city/traffic/citizen/crimson-blue-guard.gc
   (initialize-skeleton
     this
     (the-as
       skeleton-group
-      (art-group-get-by-name *level* "skel-crimson-guard-rider" (the-as (pointer uint32) #f))
+      (art-group-get-by-name
+        *level*
+        (if *mod-crimson-blueguard-enable* "skel-crimson-blue-guard-rider" "skel-crimson-guard-rider")
+        (the-as (pointer uint32) #f)
+        )
       )
     (the-as pair 0)
     )

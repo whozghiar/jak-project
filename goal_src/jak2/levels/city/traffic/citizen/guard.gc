@@ -5,8 +5,6 @@
 ;; name in dgo: guard
 ;; dgos: CWI
 
-(declare-type crimson-blue-guard crimson-guard)
-
 ;; DECOMP BEGINS
 
 (defskelgroup skel-crimson-guard crimson-guard crimson-guard-lod0-jg -1
@@ -491,21 +489,10 @@
     (('hit 'hit-flinch 'hit-knocked)
      (speech-control-method-13 *speech-control* (the-as handle this))
      (logior! (-> this flags) (citizen-flag hostile))
-     (let ((s1-0 (the-as process-focusable (as-type (handle->process (-> this incoming attacker-handle)) process-focusable))))
+     (let ((s1-0 (the-as process (as-type (handle->process (-> this incoming attacker-handle)) process-focusable))))
        (when s1-0
-         (cond
-           ((type-type? (-> s1-0 type) crimson-blue-guard)
-            ;; Hit by blue rebel guard in inter-faction skirmish:
-            ;; Target the blue guard directly and retaliate WITHOUT triggering city alarm against Jak!
-            (set! (-> this traffic-target-status handle) (process->handle s1-0))
-            (try-update-focus (-> this focus) s1-0 this)
-            (go-hostile this)
-            )
-           (else
-            (speech-control-method-12 *speech-control* this (speech-type speech-type-11))
-            (trigger-alert this 1 (the-as target s1-0))
-            )
-           )
+         (speech-control-method-12 *speech-control* this (speech-type speech-type-11))
+         (trigger-alert this 1 (the-as target s1-0))
          )
        )
      ((method-of-type nav-enemy general-event-handler) this arg0 arg1 arg2 arg3)
@@ -1222,59 +1209,6 @@
   (none)
   )
 
-(defun find-nearest-enemy-guard ((from-guard process-focusable) (search-blue? symbol) (max-dist float))
-  "Find the nearest opposing guard within max-dist in ambient traffic.
-   If search-blue? is true, searches for a crimson-blue-guard; if false, a red crimson-guard.
-   NOTE: the traffic-engine's two trackers are named backwards in the decomp -- `vehicle-tracker-array`
-   is the one that actually holds pedestrians and guards (traffic-types 0..10), `citizen-tracker-array`
-   holds vehicles (11..20). We scan BOTH `tracker-array` slots so this is robust regardless."
-  (let ((best-proc (the-as process-focusable #f))
-        (best-dist max-dist)
-        (from-pos (-> from-guard root trans))
-        (engine (if (and from-guard (type-type? (-> from-guard type) citizen))
-                    (-> (the-as citizen from-guard) controller traffic)
-                    *traffic-engine*
-                    )
-                )
-        )
-    (when engine
-      (dotimes (tk 2)
-        (let ((tracker (-> engine tracker-array tk)))
-          (dotimes (i (the-as int (-> tracker active-object-count)))
-            (let ((proc (as-type (handle->process (-> tracker active-object-list i)) process-focusable)))
-              (when (and proc
-                         (!= proc from-guard)
-                         (not (focus-test? proc dead inactive disable))
-                         )
-                (let ((is-blue? (type-type? (-> proc type) crimson-blue-guard))
-                      (is-red? (and (type-type? (-> proc type) crimson-guard)
-                                    (not (type-type? (-> proc type) crimson-blue-guard))))
-                      )
-                  (when (or (and search-blue? is-blue?)
-                            (and (not search-blue?) is-red?))
-                    (let ((d (vector-vector-distance from-pos (-> proc root trans))))
-                      (when (< d best-dist)
-                        (set! best-dist d)
-                        (set! best-proc proc)
-                        )
-                      )
-                    )
-                  )
-                )
-              )
-            )
-          )
-        )
-      )
-    best-proc
-    )
-  )
-
-;; NOTE (Blue Crimson Guard mod): crimson-guard-insurrection-scan (the autonomous inter-faction
-;; acquisition helper) moved to levels/city/traffic/citizen/mod-city-insurrection.gc. This file
-;; reaches it through the *mod-city-guard-*-trans-hook* function pointers (engine/ai/traffic-h.gc);
-;; find-nearest-enemy-guard above stays here (generic, extern'd in traffic-h.gc).
-
 (defstate active (crimson-guard)
   :virtual #t
   :enter (behavior ()
@@ -1307,12 +1241,6 @@
           (go-hostile self)
           )
         )
-      )
-    ;; Blue Crimson Guard mod: per-frame active-state scan (City Insurrection hunts the opposing
-    ;; faction on sight in the war zone). No-op by default. Settle 0.5s after entering `active`
-    ;; first so guards don't lock on mid-spawn.
-    (when (time-elapsed? (-> self state-time) (seconds 0.5))
-      (*mod-city-guard-active-trans-hook* self)
       )
     )
   )
@@ -1524,12 +1452,7 @@
           (logclear! (-> this enemy-flags) (enemy-flag multi-focus))
           (let ((v1-21 (the-as process (as-type (handle->process (-> this traffic-target-status handle)) process-focusable)))
                 )
-            (if (and v1-21
-                     (!= (-> v1-21 type) target)
-                     ;; Blue Crimson Guard mod: keep a guard-vs-guard traffic-target (City
-                     ;; Insurrection war zone) instead of clearing it here. Default hook -> #f.
-                     (not (*mod-city-keep-guard-target-hook* (the-as process-focusable v1-21)))
-                     )
+            (if (and v1-21 (!= (-> v1-21 type) target))
                 (set! (-> this traffic-target-status handle) (the-as handle #f))
                 )
             )
@@ -1695,13 +1618,6 @@
   :trans (behavior ()
     (-> self target-flags)
     (crimson-guard-method-220 self)
-    ;; Blue Crimson Guard mod: an optional city-mode library may re-acquire a foe here (City
-    ;; Insurrection: don't let a guard idle in `search` after losing an opposing-faction target in
-    ;; the war zone). 'idle => the hook applies but found nothing, so drop back to patrol.
-    (case (*mod-city-guard-search-trans-hook* self)
-      (('idle) (go-virtual active))
-      (else 0)
-      )
     (cond
       ((logtest? (-> self target-flags) 1)
        (speech-control-method-12 *speech-control* self (speech-type speech-type-3))
@@ -1861,11 +1777,8 @@
     (let* ((s5-0 (-> self traffic-target-status))
            (gp-0 (as-type (handle->process (-> s5-0 handle)) process-focusable))
            )
-      (if (or (focus-test? gp-0 inactive) (focus-test? gp-0 disable) (focus-test? gp-0 dead))
-          (begin
-            (set! gp-0 (the-as process-focusable #f))
-            (set! (-> s5-0 handle) (the-as handle #f))
-            )
+      (if (or (focus-test? gp-0 inactive) (focus-test? gp-0 disable))
+          (set! gp-0 (the-as process-focusable #f))
           )
       (cond
         ((not gp-0)

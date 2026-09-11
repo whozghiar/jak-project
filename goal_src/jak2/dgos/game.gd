@@ -396,6 +396,7 @@
   "anim-tester-x.o" ;; added
   "vag-player.o" ;; added
   "mods-menu.o" ;; added -- unified "Debug > Mods" tab (see pc/debug/mods-menu.gc)
+  "crimson-blueguard-menu.o" ;; added -- Mods > crimson-blueguard toggle (must follow mods-menu.o)
   "default-menu-pc.o" ;; added
   "dir-tpages.go"
   "tpage-11.go"

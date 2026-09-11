@@ -2,7 +2,7 @@
 
 > **Mod Readme / Readme du Mod**
 >
-> - **Branch / Branche :** `jak2/features/blueguard`
+> - **Branch / Branche :** `jak2/features/crimson-blueguard/crimson-redguard-behavior`
 > - **Type :** `features`
 > - **Depends on / Dépend de :** the existing `build-actor` custom-actor pipeline
 >   (`goal_src/jak2/lib/project-lib.gp`, `goalc/build_actor/`)
@@ -17,13 +17,13 @@
 
 ## 1. What this is
 
-A blue-recolored Crimson Guard, added as its **own standalone GOAL entity** (`crimson-blue-guard`)
-rather than a global texture replacement — the stock red `crimson-guard` keeps spawning
-unmodified. The blue variant is identical to `crimson-guard` in every respect (animations, death,
-collision, weapon loadout, ...) except one: it is passive toward Jak by default, and only becomes
-personally hostile toward him if he attacks it directly (no city-wide alarm either way) — see §5.
-A separate, manually-triggered function makes it fight another guard on purpose (also §5). It is
-mixed into Haven City's ambient guard traffic.
+A blue-recolored Crimson Guard, added as its **own standalone GOAL entity**
+(`crimson-blue-guard`) rather than a global texture replacement. While the mod is enabled it
+replaces the stock red `crimson-guard` throughout Haven City's ambient traffic — on foot and
+riding the guard vehicles — and its behaviour is **strictly inherited**: same states, same alert
+reaction after a crime, same arrest and pursuit logic, same stats, same animations, same sounds,
+same death (§5). The single gameplay addition is that a guard may carry a grenade launcher (§6).
+Everything is gated behind one toggle, `Debug ▸ Mods ▸ crimson-blueguard`, off by default (§7).
 
 The source asset is `custom_assets/jak2/models/custom_levels/crimson-blue-guard.glb` (also copied
 to `custom_assets/jak2/models/common/crimson-blue-guard-lod0.glb`, see §4.3): the decompiled native
@@ -121,16 +121,30 @@ working with the exact same numeric indices, unmodified.
 - **Ambient traffic spawning:** `traffic-manager.gc::traffic-object-spawn` is the single place
   where the traffic simulation turns a `(traffic-type crimson-guard-1)` /
   `(traffic-type crimson-guard-0)` pick into a concrete process, via
-  `(citizen-spawn arg0 crimson-guard arg1)`. Both call sites now roll
-  `(-> arg1 id)` (`traffic-object-spawn-params`'s per-spawn counter) against a new global,
-  `*crimson-blue-guard-ratio*` (default `8`, i.e. roughly 1 spawn in 8), substituting
-  `crimson-blue-guard` for `crimson-guard` on the hit — mirroring the pre-existing
-  `dark-guard-ratio` mechanism used for the "dark guard" variant a few lines above. This is the
-  **only** touch point in the whole traffic simulation: the `traffic-type` enum, the
-  `guard-type-info-array` weighting table, and everything else about how/when/where a guard slot
-  gets picked is completely untouched — `crimson-blue-guard` is just an alternate concrete type
-  for an existing spawn decision, so all traffic-engine bookkeeping (nav mesh, alert state,
-  population counts) behaves identically whichever variant lands in that process slot.
+  `(citizen-spawn arg0 crimson-guard arg1)`. Both call sites now read the mod's master flag:
+
+  ```lisp
+  (((traffic-type crimson-guard-1))
+   (set! v0-0 (citizen-spawn arg0 (if *mod-crimson-blueguard-enable* crimson-blue-guard crimson-guard) arg1))
+   )
+  ```
+
+  This is the **only** touch point in the whole traffic simulation. The `traffic-type` enum, the
+  `guard-type-info-array` weighting table, the want-counts and everything else about how / when /
+  where a guard slot gets picked are completely untouched -- `crimson-blue-guard` is just an
+  alternate concrete type for an existing spawn decision, so all traffic-engine bookkeeping
+  (nav mesh, alert state, population counts) behaves identically whichever variant lands in the
+  process slot. It is a full substitution, not a mix: with the mod on there are no red guards left
+  in ambient traffic, with it off there are no blue ones.
+- **Guards riding the guard vehicles:** the guard-bike and hellcat riders are `crimson-guard-rider`
+  (`levels/city/traffic/vehicle/vehicle-rider.gc`), a `vehicle-rider` that is *not* a
+  `crimson-guard` at all -- it only borrows the guard's skeleton-group. So the swap there is one
+  string: `vehicle-rider-method-32` binds `"skel-crimson-blue-guard-rider"` instead of
+  `"skel-crimson-guard-rider"` while the flag is on. Both skeleton-groups live in CWI and share
+  the same 38-bone skeleton and animation slot numbering, so `riding-anim` (35 / 36) and every
+  other numeric slot stay valid either way. A rider knocked off its vehicle respawns through
+  `traffic-object-spawn` as a `(traffic-type crimson-guard-1)`, so it lands on its feet as the
+  matching faction for free.
 - `(declare-type crimson-blue-guard crimson-guard)` was added near the top of `traffic-manager.gc`
   so the reference above compiles independent of file ordering (same idiom as `crimson-guard`'s
   own forward declaration in `traffic-engine.gc`).
@@ -153,242 +167,255 @@ config needed — and bakes the model + all its textures into `GAME.fr3` (`commo
 resident, regardless of level). This is a one-time step (or after any `.glb` model change); it
 does **not** need to be repeated after ordinary `(mi)` GOAL-code iteration.
 
-## 5. Faction behavior
+## 5. Behaviour: identical to the red guard, on purpose
 
-`crimson-blue-guard` is deliberately **100% identical to `crimson-guard` in everything except one
-thing**: it does not fight *for* the Crimson Guard side against Jak by default. Everything else —
-collision, animations, death, movement, weapon loadout, spawn weighting — is whatever
-`crimson-guard` already does, completely untouched. The only overrides, in
-`goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc`, are:
+This is the design rule of the branch, and the thing to protect when editing
+`crimson-blue-guard.gc`:
 
-- **`citizen-init!` override** — forces the "not targeting Jak" `focus collide-with` collide-spec
-  unconditionally (crimson-guard's own version picks it based on the *shared*, city-wide
-  `traffic-alert-flag target-jak` flag, which can't be used to keep just one variant passive). The
-  guard keeps its `enemy` collide-as bit (so it's still a valid target for others), it just never
-  opportunistically treats Jak as a target on its own.
-- **`general-event-handler` override**:
-  - `'hit`/`'hit-flinch`/`'hit-knocked`: matches crimson-guard's own case line for line, with one
-    change — if the attacker is Jak specifically (`(process-mask target)`), the guard remembers him
-    as its target (`traffic-target-status handle` + focus) instead of calling `trigger-alert`, so
-    the city-wide alarm never raises. Either way it still falls through to
-    `(method-of-type nav-enemy general-event-handler)`, the exact same call stock crimson-guard
-    makes — so the actual flinch/knockback/get-up/hostile transition, and everything about how it
-    then fights, is 100% stock. Any non-Jak attacker is identical to stock crimson-guard (already a
-    no-op on the city alert per `traffic-engine::increase-alert-level`'s own
-    `(process-mask target)` check).
-  - `'panic`/`'clear-path`: identical to stock, except danger attributed to Jak (gunfire near the
-    guard, not necessarily a direct hit — see `traffic-engine::update-danger-from-target`, which
-    always stores Jak's handle as the source) never raises the alert either. Without this, firing a
-    weapon near the guard would still sound the alarm even with the `'hit` fix above.
-  - `'alert-begin` is turned into a deliberate no-op: stock crimson-guard's version targets whoever
-    triggered the alert (almost always Jak) and goes hostile toward them — exactly the "attacks Jak
-    during a general alert" behavior this variant must not have.
-- **`crimson-blue-guard-attack-guards`** (plain `defun`, not a method, not called from anywhere
-  automatically) — the one way to make this guard fight another guard on purpose. Finds the nearest
-  other (non-blue) `crimson-guard` within ~40m via the existing `find-nearest-attackable` utility
-  (`engine/collide/find-nearest.gc`), excludes `crimson-blue-guard` itself via `type-type?` so blue
-  guards can't be made to target each other, then sets the target and calls `go-hostile` — same
-  mechanism `'alert-begin`/`'hit` use. Call it from the REPL once you have a handle on the guard
-  (e.g. `(define g (spawn-crimson-blue-guard-debug 0))`, then
-  `(crimson-blue-guard-attack-guards (the-as crimson-blue-guard g))`).
+> `crimson-blue-guard` is a plain subtype of `crimson-guard` that **must behave exactly like the
+> stock red guard**. Same states, same alert reaction after a crime, same arrest and pursuit
+> logic, same stats, same animations, same sounds, same death. The mod is a reskin, not an AI mod.
 
-None of this touches `crimson-guard`/`guard.gc` itself. **Caveat on the manual trigger:** it reuses
-crimson-guard's own combat state machine unmodified, which is generic about *what* the current
-target is (it reads `(-> this focus handle)`/`traffic-target-status handle`, not a hardcoded
-`*target*` check) — but stock `crimson-guard` never actually has occasion to point that machinery at
-another guard, only at Jak, so this exact combination (guard vs. guard) has no native precedent to
-verify against. Whether a red guard that gets shot back fights back is governed entirely by stock,
-unmodified `crimson-guard` code — nothing here adds guard-vs-guard retaliation to the stock type.
+Concretely, the type overrides only four things, and each one is either cosmetic or a hard
+technical requirement of a `build-actor` custom actor:
 
-## 6. Engine Changes Made on This Branch
+| Override | Why it exists |
+| --- | --- |
+| `init-enemy!` | binds `skel-crimson-blue-guard` instead of `skel-crimson-guard` -- the blue mesh, i.e. the whole point of the mod. Every stat still comes from `*crimson-guard-nav-enemy-info*`. |
+| `citizen-init!` | calls the parent, then rolls the grenade launcher (§6). `guard-type`, `hit-points`, collide-spec, minimap icon and alert reaction are all left to the parent. |
+| `die` + `enemy-method-78` | replicate the native purple dissolution by hand (§5.1). |
+| `crimson-guard-method-214` | the optional grenade launcher (§6). |
 
-| File | Change | Why |
-|---|---|---|
-| `goalc/build_actor/jak2/build_actor.h` | `BuildActorParams2` gained `bool native_anim_header = false;` | carries the new opt-in flag |
-| `goalc/build_actor/jak2/build_actor.cpp` | `run_build_actor` emits 2 extra null header slots when the flag is set | matches the native 4-slot art-group header so reskins can reuse original anim indices |
-| `goalc/make/Tools.cpp` | `BuildActor2Tool::needs_run`/`::run` accept a 9th `:in` element, parsed into `native_anim_header`; max input count raised from 8 to 9 | plumbs the flag from the GOAL macro through to the tool |
-| `goal_src/jak2/lib/project-lib.gp` | `build-actor` macro gained `&key (native-header #f)`, appended to the `:in` list | GOAL-side opt-in switch, defaults preserve all existing custom actors |
-| `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` (new) | `deftype`, `def-art-elt` x2, `defskelgroup`, `init-enemy!` override | the new entity itself |
-| `goal_src/jak2/game.gp` | `(build-actor "crimson-blue-guard" ...)` + `(goal-src ...)` registration | builds the art-group, registers the new source file |
-| `goal_src/jak2/dgos/cwi.gd` | `"crimson-blue-guard.o"` added next to `"guard.o"` | code residency |
-| `goal_src/jak2/dgos/{cas,dg1,fdb,fea,fob,fra,lwidea,lwideb,lwidec,pae}.gd` | `"crimson-blue-guard-ag.go"` added next to each `"crimson-guard-ag.go"` | art residency, matching the stock guard's footprint exactly |
-| `goal_src/jak2/levels/city/traffic/traffic-manager.gc` | `(declare-type crimson-blue-guard crimson-guard)`, `*crimson-blue-guard-ratio*`, probabilistic substitution in both `crimson-guard-1`/`crimson-guard-0` arms of `traffic-object-spawn`, `spawn-crimson-blue-guard-debug` REPL helper | mixes the blue variant into ambient city traffic, without touching the traffic-type enum or any weighting table; gives a one-liner to force-spawn one for testing |
-| `custom_assets/jak2/models/common/crimson-blue-guard-lod0.glb` (new) | copy of the build-actor `.glb`, renamed | Circuit 2 — see §4.3 |
-| `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | `citizen-init!`, `general-event-handler` overrides + standalone `crimson-blue-guard-attack-guards` function | passivity toward Jak + manual guard-vs-guard trigger — see §5 |
-| `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | `crimson-guard-method-214`/`216`/`222` overrides (gun shot, line-of-sight probe, taser lightning) | purely positional fix: `crimson-blue-guard.glb`'s joint order differs from the native skeleton, so the muzzle/beam origin (native joints 14/15 "blast"/"dirblast") is read from this variant's own joints (28/29) instead — no behavior/timing/range change |
-| `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | `die` state + `crimson-blue-guard-dissolve-sequence` + `enemy-method-78` override | Robust custom actor death dissolution: skips standing die animation if `knocked-fatal?` so guard stays flat on the ground, plays `"enemy-fizz"`, launches purple dissolution particles (`merc-death-spawn 73`) across joints for 60 frames with jitter, and hides mesh on frame 5. Replaces `do-effect 'death-default` to prevent the C++ `generic_merc_death` crash (`exit status 5`) on dummy `build-actor` geometry |
-| `goal_src/jak2/engine/ai/traffic-h.gc` | `(define-extern *mod-city-peaceful?* symbol)` / `(define-extern *mod-city-insurrection?* symbol)` | forward declarations, same idiom as the pre-existing `*traffic-alert-level-force*` a few lines above, so `default-menu-pc.gc` can reference the flags regardless of compile order |
-| `goal_src/jak2/levels/city/traffic/traffic-manager.gc` | `*mod-city-peaceful?*` / `*mod-city-insurrection?*` globals, both default `#f` | mod-wide flags for two planned features (see §9) — defined here rather than in the debug-gated menu file so gameplay code can read them unconditionally; **no code reads them yet**, flipping them currently has zero effect |
-| `goal_src/jak2/pc/debug/default-menu-pc.gc` | new "Mods" debug-menu tab, two mutually-exclusive toggle pick-funcs (`dm-mod-city-peaceful-pick-func` / `dm-mod-city-insurrection-pick-func`) | UI scaffolding for §9 — reversible, additive, does not touch any existing menu entry |
+There is **no** `general-event-handler` override, no state override, no targeting-method override.
+That is deliberate: any such override would, by definition, be a behaviour difference from the red
+guard. A blue guard reacts to a crime, joins a city alert, arrests Jak, changes weapon on alert
+escalation and pursues exactly like a red one, because it *is* one -- it inherits every one of
+those code paths untouched.
 
-All changes are additive — no native file is emptied, no existing behavior is removed, and every
-new knob defaults to a value that reproduces the original behavior exactly (`native-header #f`,
-`*crimson-blue-guard-ratio*` only ever *substitutes* a spawn that was going to happen anyway).
+### 5.1 The one unavoidable deviation: death
 
-## 7. How to Test
+A custom actor built by `build-actor` carries dummy merc-ctrl geometry (`generate_dummy_merc_ctrl`
+in `build_actor.cpp` literally reuses a hardcoded dummy mesh). Letting the stock death path set
+`death-timer` therefore hands the actor to the Generic Merc C++ routines, which read uninitialized
+fragment memory and crash -- with no GOAL error to catch.
 
-1. `task build-release-game` (or `build-debug-game`) — only needed after a C++ change
-   (`build_actor.cpp`/`Tools.cpp`); not needed for GOAL-only iteration.
-2. `task extract` — required once (or after the `.glb` model changes) to bake Circuit 2, see §4.3.
-   Check the log for `Adding custom model crimson-blue-guard-lod0 to common` and no
-   `merc failed to find texture` for it.
-3. `task repl`, then `(mi)` — must reach "Successfully built all N targets" with no
-   `could not find a master slot to link` / `link-art` errors.
-4. `task boot-game` (or `(r)` from the REPL), reach Haven City.
-5. At the REPL, `(set! *crimson-blue-guard-ratio* 1)` to force every ambient guard spawn blue, or
-   `(spawn-crimson-blue-guard-debug 0)` / `(...  1)` to force-spawn a baton/gun guard regardless of the ratio;
-   confirm it's textured and its idle/walk/run/notice/hostile/knocked/get-up/die animations all
-   play correctly and match a regular guard's timing and sound cues 1:1.
-6. **Passivity:** with no alert active, walk up to / bump a blue guard — it should not attack.
-7. **No alarm on a general alert:** trigger a real city alert some other way (shoot a red guard,
-   commit a crime). A nearby blue guard should stay passive toward Jak — it must not join the
-   alert against him.
-8. **Personal retaliation, no alarm:** hit/shoot a blue guard directly. It should react exactly
-   like a red guard would (flinch/knockback/get-up animation, then fight back at normal range),
-   but the city-wide alert (top-right alarm indicator) should **not** trigger from this.
-9. **Death, collision, everything else:** kill a blue guard, get it hit by a vehicle, shocked
-   (yellow hit), etc. It must look and behave identically to a red guard in every respect — same
-   death animation, no different collision/attack range. Any difference here is a bug (most likely
-   an animation-index drift — see the native-header/reorder pitfall in tip 23).
-10. **Manual guard-vs-guard trigger:** `(define g (spawn-crimson-blue-guard-debug 0))` then
-    `(crimson-blue-guard-attack-guards (the-as crimson-blue-guard g))` near a red guard — it should
-    go hostile and fight. This combination has no native precedent (stock guards never fight each
-    other), so pay attention to whether the approach/attack range looks normal.
-11. Set `*crimson-blue-guard-ratio*` back to `8` (or remove the override) and confirm blue guards
-    still show up occasionally, mixed naturally with red ones.
-12. Regression: boot a couple of other, untouched levels/cities and confirm no new spawn/link-art
-    errors in `log/jak2.<ts>.log`.
+The `die` state reproduces the native look by hand instead (same approach as the
+`jak2/features/yakow_killable` branch):
 
-## 8. Status
+```lisp
+(defbehavior crimson-blue-guard-dissolve-sequence crimson-blue-guard ()
+  (sound-play "enemy-fizz")
+  (let ((node-cnt (-> self node-list length)) ...)
+    (dotimes (frame 60)
+      ;; hide the body once the mist has taken over
+      (when (= frame 5)
+        (logior! (-> self draw status) (draw-control-status no-draw)))
+      ;; 8 purple death sparks per frame, spread over the 38 bones with jitter
+      (dotimes (j 8)
+        (let ((joint-idx (rand-vu-int-count node-cnt)))
+          (vector<-cspace! pos (-> self node-list data joint-idx))
+          (+! (-> pos x) (rnd-float-range self -819.2 819.2))
+          ...
+          (merc-death-spawn 73 pos zero-vec)))
+      (suspend)))
+  ;; mandatory teardown, same as every native enemy death
+  (send-event self 'death-end)
+  (while (-> self child) (suspend))
+  (cleanup-for-death self)
+  (none))
+```
 
-| Item | State |
-|---|---|
-| `build-actor :native-header #t` (C++ + GOAL macro) | ✅ done, compiled and boot-tested |
-| `.glb` animation reordering | ✅ done, verified programmatically and in-game (correct animations play) |
-| `crimson-blue-guard` entity (`deftype`/`defskelgroup`/`init-enemy!`) | ✅ done, compiled and boot-tested |
-| DGO residency (code + art, 11 files) | ✅ done |
-| Ambient traffic mixing | ✅ done, boot-tested |
-| Circuit 2 (`models/common` + `task extract`) | ✅ done — guard renders fully textured |
-| Passivity toward Jak + personal retaliation, no alarm | ✅ done, verified in-game |
-| `crimson-blue-guard-attack-guards` manual trigger | ✅ done, verified in-game |
-| Death dissolve sequence (`die` state override + `merc-death-spawn 73` + `knocked-fatal?`) | ✅ done, verified in-game: solves the C++ `generic_merc_death` exit status 5 crash via direct GOAL particle dissolution loop, plays `"enemy-fizz"`, hides mesh, and keeps knocked-down guards flat on the ground |
-| City Peaceful patrol squads (2-3 members, formation navigation, adaptive speed, leader promotion) | ✅ done, verified in-game: dynamic wing offsets, smooth squad pacing, clean automatic promotion if leader dies |
-| Squad mutual defense & Faction friendly-fire immunity | ✅ done, verified in-game: squad responds as a unit without city sirens; blue members & projectiles are fully immune to friendly fire |
-| Squad weapon loadout diversity | ✅ done, verified in-game: 3-man squads always have 1 Taser, 1 Rifle, 1 Grenade Launcher; 2-man squads have 2 distinct weapons |
-| Faithful Crimson Guard combat AI | ✅ done, verified in-game: standoff distance (~6.5m–9m), reactive laser bursts/parabolic grenades, evasive sideways rolls, emergency-only close attack (< 2.5m) followed by evasive recovery roll |
-| "Mods" debug menu tab (`City Peaceful` / `City Insurrection` + `Insurrection war zone` picker) | ✅ both modes implemented; mutually exclusive; each toggle/pick flushes & respawns the city guards so the new rules apply immediately |
-| City Insurrection — nickname-based district zoning (`city-level-name-at-pos` → `city-district-of-level`) | ✅ done: Slums (`ctysluma/b/c`) = blue, the selected war-zone district = conflict, everything else = red — verified level names, no hardcoded coordinates; probes only the traffic-engine's linked `level-data-array` grids (never a raw `*level*` bsp pointer — that crashed on the `ctyport→ctyinda` transition) |
-| City Insurrection — **configurable war zone** (`*mod-city-conflict-district*`) | ✅ done: `Debug ▸ Mods ▸ Insurrection war zone` cycles the war zone between Industrial (default), Port, Bazaar, Farmland and Market; changing it re-zones and flushes the guards live |
-| City Insurrection — strict per-zone spawning (single-faction pools, faction by district) | ✅ done: `traffic-object-spawn` picks blue in the Slums, red in Loyalist districts, 50/50 in the war zone; a district change is reconciled incrementally (`mod-city-guard-pool-reconcile`, ≤2 wrong-faction retirements per pool per frame) so the pool is always the right faction — no filtering, no wasted slots |
-| City Insurrection — war zone: no civilians/vehicles + dense guard battle | ✅ done: `want-count` for citizens (0–3), metalheads (8–10) and vehicles (11–19) forced to 0 in the war zone (drained by `kill-excess-once` + natural despawn); **two** guard pools — stock `crimson-guard-1` (18/16) + the unused `crimson-guard-2` (16/14) — `inv-density-factor` 2.0 → ~30 guards, 50/50, under the stock 64 nav ceiling; all restored on zone/mode change |
-| City Insurrection — Loyalist district police density | ✅ the stock `crimson-guard-1` pool is left **byte-for-byte vanilla** in Loyalist districts (base `want-count`, alert-scaled `target-count`) |
-| City Insurrection — autonomous inter-faction combat (`crimson-guard-insurrection-scan`) | ✅ done: red hunts blue / blue hunts red within **~60 m** (was 40 m) from `active` **and** `search`, full weapon AI, zero effect on Jak's wanted level; `find-nearest-enemy-guard` scans both trackers (the decomp's `citizen`/`vehicle` tracker aliases are swapped — guards are in `vehicle-tracker-array`) |
-| City Insurrection — alert-free zones (`increase-alert-level` choke + `set-alert-level 0`) | ✅ done: no alert can start or persist in the Slums **or** the war zone, from any source — hitting a red guard in the war zone raises nothing; only loyalist districts run the wanted system |
+`knocked-fatal?` -- set from `enemy-method-78` when the killing blow was a knockdown -- makes the
+`die` state skip the standing-collapse animation, so a knocked-down guard dissolves lying on the
+ground exactly like the native crimson-guard.
 
-## 9. "Mods" Debug Menu Tab & Features
+## 6. The optional grenade launcher
 
-The debug menu (on by default — `*debug-segment*` defaults to 1, and `task boot-game` runs with
-`-debug`) has a "Mods" tab with two toggles, **City Peaceful** and **City Insurrection**. They are
-mutually exclusive (turning one on clears the other) and freely reversible.
+`guard-type` is left entirely to the traffic engine, exactly as for a red guard (`0` = taser,
+`1` = rifle). On top of that, a guard has a 1-in-3 chance of carrying a grenade launcher:
 
-### 9.1 City Peaceful (✅ Fully Implemented)
-When toggled on in the Mods menu:
-- **Ambient Patrol Squads:** blue guards spawn in tight 2-to-3 member squads walking Haven City in
-  formation (wingmen offset relative to the leader's rotation quaternion). Followers dynamically
-  accelerate (up to 1.5×) or slow down (0.85×) to keep rank, and automatically promote follower 1
-  to squad leader if the leader dies.
-- **Weapon Diversity:** every 3-man squad features exactly one Taser guard (`guard-type 0`), one
-  Rifle guard (`guard-type 1`), and one Grenade Launcher guard (`guard-type 2`). Every 2-man squad
-  has two distinct weapons.
-- **Mutual Defense:** if any squad member is attacked by Jak or another enemy, the entire squad
-  retaliates together in self-defense, without triggering the city-wide alarm or calling red guards.
-- **Friendly-Fire Immunity:** projectiles and attacks originating from blue guards are filtered out
-  within the faction, preventing infighting or fratricidal aggro.
-- **Faithful Combat AI:** ranged guards maintain standoff engagement distance, fire bursts or
-  grenades upon acquiring LOS (up to 50m), and execute evasive sideways rolls (`roll-left` /
-  `roll-right`). Melee rifle-butts are strictly an emergency counter (< 2.5m) immediately followed
-  by an evasive roll.
+```lisp
+(defmethod citizen-init! ((this crimson-blue-guard))
+  ((method-of-type crimson-guard citizen-init!) this)
+  (set! (-> this knocked-fatal?) #f)
+  (set! (-> this grenade-launcher?) (zero? (rand-vu-int-count 3)))
+  (set! (-> this grenade-last-time) 0)
+  (none))
+```
 
-### 9.2 City Insurrection (✅ Fully Implemented)
-Haven City becomes a three-front territorial civil war. Districts are classified by the **loaded
-city-level name** that owns a position — `city-level-name-at-pos` → `city-district-of-level` →
-`city-zone-from-level-name` in
-[`traffic-manager.gc`](../../../goal_src/jak2/levels/city/traffic/traffic-manager.gc) — using
-only verified level names (`level-info.gc`), never hardcoded map coordinates:
+`grenade-launcher?` changes **only what `crimson-guard-method-214` spawns** -- a `vehicle-grenade`
+on a ballistic arc (`traj3d-calc-initial-velocity-using-tilt`, fired from joint 14 `"blast"`)
+instead of a straight `guard-shot`. Every range, state transition, animation and cooldown stays
+that of a stock rifle guard, so a grenade guard is simply a red rifle guard with a different
+projectile.
 
-| Zone | City levels | Rule |
-|---|---|---|
-| **Blue — Slums (Rebel Stronghold)** | `ctysluma`, `ctyslumb`, `ctyslumc` | 100% lone blue guards, random weapons; alert-free safe haven |
-| **Red — Loyalist (Baron's districts)** | every district that is *not* the Slums or the selected war zone | 100% stock red/yellow Crimson Guards, **fully vanilla** density & policing toward Jak |
-| **Conflict — War Zone** | the district picked in `Debug ▸ Mods ▸ Insurrection war zone` — **Industrial (`ctyinda/b`) by default**, or Port / Bazaar / Farmland / Market | ~30 guards, 50/50 blue vs red, **no civilians, no metalheads, no vehicles**; the two factions fight each other on sight; alert-free |
+**Why the rate limit.** The stock `gun-shoot` state hardcodes a four-shot burst
+(`(let ((gp-0 3)) (until #f ...))` in `guard.gc`), which for a launcher would mean four grenades
+per engagement. `grenade-last-time` gates the projectile to one per 2 seconds; suppressed shots
+fire nothing at all while the shoot animation still plays, which reads as the launcher reloading:
 
-When toggled on in the Mods menu:
-- **Configurable war zone** (`*mod-city-conflict-district*`): the `Insurrection war zone` sub-menu
-  is a radio picker over Industrial (default), Port, Bazaar, Farmland and Market. Changing it
-  re-zones the city and re-rolls the guards. The Slums are always the blue haven and are never a
-  war-zone option.
-- **Strict territorial spawning — single-faction pools, faction chosen by district**
-  (`mod-city-guard-spawn-blue?` + `mod-city-insurrection-shape-guard-pools`):
-  `traffic-object-spawn` picks the concrete process type per spawn from the district Jak is in —
-  `crimson-blue-guard` in the Slums, the stock red `crimson-guard` in Loyalist districts, a 50/50
-  roll in the war zone. A district change is reconciled **incrementally** — `mod-city-guard-pool-reconcile`
-  retires up to 2 wrong-faction guards per pool per frame while `spawn-all` refills with the new
-  faction, so the street crossfades over ~1-2 s and a red guard never ends up patrolling the Slums
-  (nor a blue guard a Loyalist district). (`crimson-guard-0` is disabled — it never activates as
-  ambient traffic; `restore-default-settings` clears its auto-activate flag.)
-- **Loyalist police density is vanilla:** in Loyalist districts the stock `crimson-guard-1` pool
-  is left completely untouched (base `want-count`, `target-count` scaled by `update-alert-state`
-  with the wanted level), so the police response there is byte-for-byte the stock game.
-- **War zone = only guards** (`mod-city-insurrection-shape-guard-pools`): while Jak stands in the
-  selected war-zone district, the ambient `want-count` for citizens (`0..3`), metalheads
-  (`8..10`) and every vehicle type (`11..19`) is forced to `0` (`kill-excess-once` + natural
-  despawn drain the ones already out); and **two** guard pools run at once — the stock
-  `crimson-guard-1` (`want` 18 / `target` 16) plus `crimson-guard-2` (16 / 14), a fully-wired
-  pool jak2 never uses as street traffic (`target-count` must be forced because
-  `update-alert-state` recomputes it to ~5 at peace / 0 for the second pool). With
-  `inv-density-factor` dropped to 2.0 this is **~30 guards** brawling in the visible street,
-  50/50 — comfortably under the stock 64 nav-user ceiling (no `nav-mesh.gc` change needed since
-  every non-guard is suppressed there). Everything restores the frame the mode/zone changes.
-- **Crash fixed — district transitions are incremental** ([commit 1](../../../goal_src/jak2/levels/city/traffic/traffic-manager.gc)):
-  an earlier version force-deactivated every civilian + vehicle + hard-killed all three guard
-  pools + fast-spawned on the frame Jak crossed a border — that coincides with the outgoing city
-  level's teardown and hard-crashed the game (`exit status 5`, log ending at
-  `kill #<level active ctysluma>`). Now the crossover is spread over ~1-2 s at a few process ops
-  per frame, so it can never race a level transition.
-- **Autonomous inter-faction warfare** (`crimson-guard-insurrection-scan` in `guard.gc`): in the
-  war zone every guard scans for the nearest **opposing-faction** guard within **~60 m** (raised
-  from 40 m, which read as guards ignoring visible enemies across a street; the faction is derived
-  from `this`, so one helper covers both red and blue). On acquisition it targets the foe directly
-  and goes hostile — laser bursts, parabolic grenades, taser charges — and **never touches Jak's
-  wanted level**. The hook runs from both `active` and `search`, so a guard that loses a foe
-  re-acquires the next nearest one or drops back to patrol instead of idling.
-  `find-nearest-enemy-guard` scans **both** of the traffic engine's trackers — the decomp aliases
-  `citizen-tracker-array` / `vehicle-tracker-array` onto the two `tracker-array` slots *backwards*
-  (guards live in the one called `vehicle-tracker-array`).
-- **Reciprocal retaliation:** a red guard hit (melee *or* projectile — `incoming attacker-handle`
-  resolves a bolt/grenade back to the firing guard via the process parent chain) by a blue guard
-  targets and returns fire on that blue guard directly, no city alarm, no siren. The blue guard
-  side already had this.
-- **Alert-free zones (Slums *and* war zone):**
-  - `increase-alert-level` (`traffic-engine.gc`) is short-circuited whenever Jak is in the blue
-    zone **or** the war zone — the **single choke point** for the alert rising, so it blocks the
-    menu event, the direct `citizen::trigger-alert` path *and* kill-count escalation. Hitting a
-    red guard in the war zone raises nothing. Only loyalist districts run the wanted system.
-  - `mod-city-insurrection-update-traffic` additionally snaps `set-alert-level` to `0` on every
-    frame Jak is in either zone, so any alert he *carried in* drops instantly.
-  - Loyalist gunships (`guard-bike` 18, `hellcat` 19) are kept out of the Slums and the war zone
-    (`want-count` 0). Hitting a blue guard still triggers only that guard's personal self-defense.
-- **Live mode / config switching** (`dm-mod-city-flush-guards` in `default-menu-pc.gc`): toggling
-  any Mods entry — mode toggle or war-zone pick — parks all three crimson-guard pools (4, 6, 7)
-  and the guard vehicles (18, 19); they respawn within a second or two rebuilt under the
-  newly-selected rules — squads for Peaceful, lone factioned guards for Insurrection, the
-  stock mix for off.
-- **Crash fixed (`ctyport → ctyinda` transition):** `city-level-name-at-pos` used to probe
-  `sphere-in-grid?` on every loaded level's raw `(-> lev bsp city-level-info)` pointer. During a
-  level transition an outgoing city level's `-vis` heap is freed while the traffic manager keeps
-  running, so that probe walked freed memory → hard crash with no GOAL error. It now only probes
-  the ≤2 grids the traffic engine has linked in `level-data-array` (the same set `update-traffic`
-  uses) and recovers the level name by pointer identity.
+```lisp
+(cond
+  ((and (-> this grenade-launcher?) (time-elapsed? (-> this grenade-last-time) (seconds 2)))
+   (set-time! (-> this grenade-last-time))
+   ... spawn-projectile vehicle-grenade ...)
+  ((-> this grenade-launcher?) 0)   ;; on cooldown: animation only
+  (else ((method-of-type crimson-guard crimson-guard-method-214) this)))
+```
+
+`vehicle-grenade` and its `eco-canister` art-group both live in `GAME` (`guard-projectile.o`,
+`eco-canister-ag.go`), so they are resident everywhere and need no DGO change.
+
+**Deliberately not used: `guard-type` 2.** The engine does define a third pedestrian guard type,
+`ped-grenade` (`traffic-engine.gc`, `guard-settings-array` index 2), but the stock `hostile` state
+only dispatches on types `0` and `1` -- a `guard-type` 2 pedestrian never enters `gun-shoot` and
+just stands there. Driving the grenade off a flag on top of `guard-type` 1 keeps every inherited
+state transition bit-identical to the red guard's, which is exactly the constraint from §5.
+
+## 7. The one switch: `Debug > Mods > crimson-blueguard`
+
+The mod has a single toggle and it lives in the **unified Mods tab from `master-dev`**
+(`goal_src/jak2/pc/debug/mods-menu.gc`, see
+[`../tools/mods_debug_menu.md`](../tools/mods_debug_menu.md)). This branch therefore never edits
+`default-menu.gc` or `default-menu-pc.gc`, and cannot collide with another mod branch's toggles.
+
+```text
+Debug > Mods > crimson-blueguard > Enable / Disable
+```
+
+`goal_src/jak2/pc/debug/crimson-blueguard-menu.gc` is `(declare-file (debug))` and is registered in
+`game.gd` immediately after `mods-menu.o` (the registry must be defined before the file that calls
+it). It holds nothing but the pick-func and the builder:
+
+```lisp
+(defun mod-crimson-blueguard-enable-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  (case arg1
+    (((debug-menu-msg press))
+     (set! (-> arg0 value) (not (-> arg0 value)))
+     (when *traffic-manager*
+       (send-event *traffic-manager* 'kill-all)
+       (send-event *traffic-manager* 'spawn-all))))
+  (-> arg0 value))
+
+(mods-menu-register "crimson-blueguard" mod-crimson-blueguard-build-menu)
+```
+
+### 7.1 Where the flag lives, and why not here
+
+`*mod-crimson-blueguard-enable*` is **defined in `engine/ai/traffic-h.gc`**, not in the menu file,
+for two reasons -- both of them bugs you would otherwise hit:
+
+1. The menu file is `(declare-file (debug))`, so it is stripped from release builds. Defining the
+   flag there would leave `traffic-object-spawn` reading a symbol that was never initialised.
+   Putting it in an always-loaded engine header means the symbol exists and reads `#f` at boot, so
+   the mod ships **OFF by default** as the project's non-regression rule requires.
+2. A `(define ...)` in a *level* DGO file is re-run every time that level loads. Defining the flag
+   in `crimson-blue-guard.gc` (CWI) would silently reset it to `#f` on the next city load,
+   switching the mod off mid-session.
+
+### 7.2 Why the toggle needs `kill-all` + `spawn-all`, not `deactivate-by-type`
+
+The traffic engine allocates each pool's processes **once** and then recycles them: `spawn-all`
+creates a process through `traffic-object-spawn` only while
+`(+ active-count inactive-count) < want-count`, after which `activate-from-params` just pulls an
+existing handle off the inactive list. A process that already exists therefore keeps its GOAL type
+-- red or blue -- forever, and `deactivate-by-type` (which only moves actives back to inactive)
+would change nothing visible.
+
+`kill-all` destroys the pooled processes (active *and* inactive, via `kill-all-inactive`) and
+`spawn-all` sets `fast-spawn` and immediately re-creates them, at which point
+`traffic-object-spawn` re-reads the flag and hands back the other faction. Vehicle riders come
+along for free: they are children of the guard vehicles, which the same flush re-creates. Both are
+pre-existing stock events, and both use a stack message block -- nothing is allocated on the heap
+from the menu.
+
+`*traffic-manager*` is `#f` outside the city, so the toggle guards on it; the next city load builds
+its pools from the new flag value anyway.
+
+## 8. Engine changes made on this branch
+
+Everything below is append-only or a single guarded substitution. No stock behaviour changes while
+the flag is off.
+
+| File | Change |
+| --- | --- |
+| `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | **new** -- the whole entity (§5, §6). |
+| `goal_src/jak2/pc/debug/crimson-blueguard-menu.gc` | **new** -- the `Debug > Mods` toggle (§7). |
+| `goal_src/jak2/engine/ai/traffic-h.gc` | `(define *mod-crimson-blueguard-enable* #f)` (§7.1). |
+| `goal_src/jak2/levels/city/traffic/traffic-manager.gc` | forward declarations, the guarded faction swap in `traffic-object-spawn`, and the `spawn-crimson-blue-guard-debug` REPL helper (§9). |
+| `goal_src/jak2/levels/city/traffic/vehicle/vehicle-rider.gc` | `crimson-guard-rider` binds the blue rider skeleton-group while the flag is on (§4). |
+| `goal_src/jak2/engine/anim/joint.gc`, `engine/level/level.gc` | generic `register-custom-art-group` / `custom-art-group-to-link?` hook so a `build-actor` art-group built with `:master-art-group` gets its animations linked at level login. Reusable infrastructure; **unused by this mod** (the blue guard keeps its animations in its own art-group), kept because it is generic tooling. |
+| `goal_src/jak2/lib/project-lib.gp`, `goalc/make/Tools.cpp`, `goalc/build_actor/jak2/build_actor.{h,cpp}` | the `:native-header #t` option (§3.1) and the `build-sbk` macro. |
+| `goal_src/jak2/game.gp` | `build-actor` + `goal-src` steps for the blue guard, and the `*file-entry-map*` pre-marks that stop `cgo-file` generating duplicate build steps. |
+| `goal_src/jak2/dgos/game.gd` | `crimson-blueguard-menu.o` after `mods-menu.o`. |
+| `goal_src/jak2/dgos/cwi.gd` | `crimson-blue-guard.o` after `guard.o`. |
+| 10 level DGOs (`cas`, `dg1`, `fdb`, `fea`, `fob`, `fra`, `lwidea`, `lwideb`, `lwidec`, `pae`) | `crimson-blue-guard-ag.go` next to each existing `crimson-guard-ag.go` (§4). |
+
+## 9. How to test
+
+The asset half (`build-actor` + the `.fr3` bake) only needs redoing after a `.glb` change; ordinary
+GOAL iteration is `(mi)` only.
+
+```bash
+task set-game-jak2
+task extract          # only after a .glb change -- bakes crimson-blue-guard-lod0 into GAME.fr3
+task build-release    # only after a C++ change (build_actor / Tools.cpp)
+task repl             # then (mi) for GOAL-only iteration
+```
+
+Then, in game:
+
+1. Open the debug menu and go to `Mods > crimson-blueguard`. The row should read
+   `Enable / Disable` with **no** checkmark -- the mod is off, the city is full of red guards.
+2. Press it. Ambient traffic is flushed and refills within a second or two; every guard on the
+   street, and every guard riding a guard-bike or hellcat, is now blue.
+3. Commit a crime (punch a civilian, shoot, steal a vehicle). The blue guards must raise the wanted
+   level, chase, shoot and try to arrest Jak exactly like the red ones -- that is the acceptance
+   test for §5.
+4. Kill one on its feet, and kill one by knocking it down. Both must dissolve into purple mist,
+   the knocked-down one lying on the ground (§5.1).
+5. Watch a rifle guard for a while: roughly one in three lobs arcing grenades instead of firing
+   bolts, about one grenade per engagement burst (§6).
+6. Press the toggle again. The city must return to 100% red guards, with stock behaviour.
+
+Single-actor inspection from the REPL, bypassing traffic density (boot into any city level first):
+
+```lisp
+(spawn-crimson-blue-guard-debug -1)   ;; weapon as ambient traffic would roll it
+(spawn-crimson-blue-guard-debug 0)    ;; force the taser guard
+(spawn-crimson-blue-guard-debug 1)    ;; force the rifle guard
+```
+
+Per the project's cold-boot rule, finish with `task boot-game` before concluding: hot-reload leaves
+old type layouts and symbols in simulated PS2 memory, so a `deftype` change (this branch adds
+three fields to `crimson-blue-guard`) can appear to work under `(mi)` and be broken on a clean
+launch.
+
+## 10. Status
+
+| Piece | State |
+| --- | --- |
+| Blue mesh + 38-bone skeleton, native animation slot alignment | ✅ |
+| Drawable geometry baked into `GAME.fr3` (Circuit 2) | ✅ |
+| Behaviour strictly inherited from `crimson-guard` | ✅ |
+| Purple death dissolution, standing and knocked-down | ✅ |
+| Ambient pedestrian guards swapped | ✅ |
+| Guard-vehicle riders swapped | ✅ |
+| Optional grenade launcher (1 in 3, rate-limited) | ✅ |
+| `Debug > Mods > crimson-blueguard` toggle, live flush | ✅ |
+| OFF by default, including release builds | ✅ |
+| Cold-boot verification | ⏳ to be run by the maintainer |
+
+### Out of scope on this branch
+
+City Peaceful and City Insurrection (neutral blue patrol squads, the three-front territorial civil
+war, the war-zone district picker and the `*mod-city-*-hook*` extension layer) were removed from
+this branch. They live on their own branches:
+
+- `jak2/features/crimson-blueguard/peaceful`
+- `jak2/features/crimson-blueguard/city-insurrection`
+
+Nothing on this branch should reference them again: this branch is the reskin and nothing else.
 
 ---
 ---
@@ -400,13 +427,13 @@ When toggled on in the Mods menu:
 ## 1. Ce que c'est
 
 Un garde crimson recoloré en bleu, ajouté comme **entité GOAL à part entière**
-(`crimson-blue-guard`) plutôt que comme remplacement de texture global — le garde rouge classique
-(`crimson-guard`) continue d'apparaître sans modification. La variante bleue est identique à
-`crimson-guard` en tout (animations, mort, collision, arsenal, ...) sauf une chose : elle est
-passive envers Jak par défaut, et ne devient personnellement hostile envers lui que s'il l'attaque
-directement (sans alarme de ville dans les deux cas) — voir §5. Une fonction séparée, à déclencher
-manuellement, la fait combattre un autre garde volontairement (également §5). Elle est mélangée au
-trafic de gardes ambiant de Haven City.
+(`crimson-blue-guard`) plutôt que comme remplacement de texture global. Tant que le mod est activé,
+il remplace le garde rouge classique (`crimson-guard`) dans tout le trafic ambiant de Haven City —
+à pied comme à bord des véhicules de garde — et son comportement est **strictement hérité** :
+mêmes états, même réaction d'alerte après un crime, même logique d'arrestation et de poursuite,
+mêmes stats, mêmes animations, mêmes sons, même mort (§5). Le seul ajout de gameplay est qu'un
+garde peut porter un lance-grenade (§6). Tout est conditionné à une unique bascule,
+`Debug ▸ Mods ▸ crimson-blueguard`, désactivée par défaut (§7).
 
 L'asset source est `custom_assets/jak2/models/custom_levels/crimson-blue-guard.glb` (aussi copié
 vers `custom_assets/jak2/models/common/crimson-blue-guard-lod0.glb`, voir §4.3) : le squelette
@@ -492,17 +519,33 @@ fonctionner avec exactement les mêmes indices numériques, sans modification.
 - **Spawn dans le trafic ambiant :** `traffic-manager.gc::traffic-object-spawn` est l'unique
   endroit où la simulation de trafic transforme un choix `(traffic-type crimson-guard-1)` /
   `(traffic-type crimson-guard-0)` en process concret, via
-  `(citizen-spawn arg0 crimson-guard arg1)`. Les deux points d'appel tirent maintenant
-  `(-> arg1 id)` (le compteur de spawn de `traffic-object-spawn-params`) modulo un nouveau global,
-  `*crimson-blue-guard-ratio*` (8 par défaut, soit environ 1 spawn sur 8), substituant
-  `crimson-blue-guard` à `crimson-guard` sur le coup — reprenant le mécanisme préexistant
-  `dark-guard-ratio` utilisé pour la variante « dark guard » quelques lignes plus haut. C'est le
-  **seul** point de contact dans toute la simulation de trafic : l'enum `traffic-type`, la table
-  de pondération `guard-type-info-array`, et tout le reste de la logique de qui/quand/où un slot
-  de garde est choisi restent totalement intouchés — `crimson-blue-guard` n'est qu'un type concret
-  alternatif pour une décision de spawn déjà existante, donc toute la comptabilité du
-  traffic-engine (nav mesh, état d'alerte, comptages de population) se comporte identiquement
-  quelle que soit la variante qui atterrit dans ce slot de process.
+  `(citizen-spawn arg0 crimson-guard arg1)`. Les deux points d'appel lisent désormais le drapeau
+  maître du mod :
+
+  ```lisp
+  (((traffic-type crimson-guard-1))
+   (set! v0-0 (citizen-spawn arg0 (if *mod-crimson-blueguard-enable* crimson-blue-guard crimson-guard) arg1))
+   )
+  ```
+
+  C'est le **seul** point de contact dans toute la simulation de trafic. L'enum `traffic-type`, la
+  table de pondération `guard-type-info-array`, les `want-count` et tout le reste de la logique de
+  qui / quand / où un slot de garde est choisi restent totalement intouchés — `crimson-blue-guard`
+  n'est qu'un type concret alternatif pour une décision de spawn déjà existante, donc toute la
+  comptabilité du traffic-engine (nav mesh, état d'alerte, comptages de population) se comporte
+  identiquement quelle que soit la variante qui atterrit dans le slot de process. C'est une
+  substitution totale, pas un mélange : mod activé, il ne reste aucun garde rouge dans le trafic
+  ambiant ; mod désactivé, aucun bleu.
+- **Gardes à bord des véhicules de garde :** les pilotes du guard-bike et du hellcat sont des
+  `crimson-guard-rider` (`levels/city/traffic/vehicle/vehicle-rider.gc`), un `vehicle-rider` qui
+  n'est *pas du tout* un `crimson-guard` — il emprunte seulement son skeleton-group. Le swap y
+  tient donc en une chaîne de caractères : `vehicle-rider-method-32` lie
+  `"skel-crimson-blue-guard-rider"` au lieu de `"skel-crimson-guard-rider"` quand le drapeau est
+  actif. Les deux skeleton-groups vivent dans CWI et partagent le même squelette 38 os et la même
+  numérotation de slots d'animation, donc `riding-anim` (35 / 36) et tous les autres indices
+  numériques restent valides dans les deux cas. Un pilote éjecté de son véhicule réapparaît via
+  `traffic-object-spawn` en `(traffic-type crimson-guard-1)`, donc il retombe sur ses pieds dans la
+  bonne faction sans code supplémentaire.
 - `(declare-type crimson-blue-guard crimson-guard)` a été ajouté en haut de `traffic-manager.gc`
   pour que la référence ci-dessus compile indépendamment de l'ordre des fichiers (même idiome que
   la déclaration anticipée de `crimson-guard` lui-même dans `traffic-engine.gc`).
@@ -527,233 +570,263 @@ toujours résident, peu importe le niveau). C'est une étape ponctuelle (ou à r
 changement du `.glb`) ; elle n'est **pas** à refaire après une simple itération de code GOAL
 (`(mi)`).
 
-## 5. Comportement de faction
+## 5. Comportement : identique au garde rouge, volontairement
 
-`crimson-blue-guard` est délibérément **100% identique à `crimson-guard` en tout, sauf une seule
-chose** : il ne combat pas *pour* la faction des Crimson Guards contre Jak par défaut. Tout le
-reste — collision, animations, mort, déplacement, arsenal, pondération de spawn — est exactement ce
-que fait déjà `crimson-guard`, sans aucune modification. Les seules surcharges, dans
-`goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc`, sont :
+C'est la règle de conception de la branche, et ce qu'il faut protéger en éditant
+`crimson-blue-guard.gc` :
 
-- **Surcharge de `citizen-init!`** — force sans condition le collide-spec « ne cible pas Jak » (la
-  version de crimson-guard le choisit selon le flag *partagé*, à l'échelle de la ville,
-  `traffic-alert-flag target-jak`, qu'on ne peut pas utiliser pour garder passive une seule
-  variante). Le garde garde son bit `enemy` de collide-as (il reste donc une cible valide pour les
-  autres), il ne traite simplement jamais Jak comme cible de sa propre initiative.
-- **Surcharge de `general-event-handler`** :
-  - `'hit`/`'hit-flinch`/`'hit-knocked` : reproduit ligne à ligne le cas propre de crimson-guard,
-    avec un seul changement — si l'attaquant est Jak spécifiquement (`(process-mask target)`), le
-    garde le mémorise comme cible (`traffic-target-status handle` + focus) au lieu d'appeler
-    `trigger-alert`, donc l'alarme de ville n'est jamais déclenchée. Dans les deux cas, il retombe
-    ensuite sur `(method-of-type nav-enemy general-event-handler)` — exactement le même appel que
-    fait crimson-guard — donc la transition flinch/coup/relevé/hostile, et tout le reste du combat,
-    reste 100% natif. Tout attaquant non-Jak est identique à crimson-guard natif (déjà un no-op sur
-    l'alerte de ville via le contrôle `(process-mask target)` de
-    `traffic-engine::increase-alert-level`).
-  - `'panic`/`'clear-path` : identique au natif, sauf que le danger attribué à Jak (tir d'arme près
-    du garde, pas forcément un coup direct — voir `traffic-engine::update-danger-from-target`, qui
-    stocke toujours le handle de Jak comme source) ne déclenche pas non plus l'alerte. Sans ça,
-    tirer près du garde sonnerait quand même l'alarme malgré le correctif du cas `'hit`.
-  - `'alert-begin` devient un no-op délibéré : la version native de crimson-guard cible qui a
-    déclenché l'alerte (presque toujours Jak) et devient hostile envers lui — exactement le
-    comportement « attaque Jak pendant une alerte générale » que cette variante ne doit pas avoir.
-- **`crimson-blue-guard-attack-guards`** (simple `defun`, pas une méthode, jamais appelée
-  automatiquement nulle part) — le seul moyen de faire combattre ce garde contre un autre
-  volontairement. Cherche le `crimson-guard` (non-bleu) le plus proche dans ~40 m via l'utilitaire
-  existant `find-nearest-attackable` (`engine/collide/find-nearest.gc`), exclut
-  `crimson-blue-guard` lui-même via `type-type?` pour que les gardes bleus ne puissent jamais se
-  cibler entre eux, puis fixe la cible et appelle `go-hostile` — même mécanisme que `'alert-begin`/
-  `'hit`. À appeler au REPL une fois qu'on a un handle sur le garde (ex.
-  `(define g (spawn-crimson-blue-guard-debug 0))`, puis
-  `(crimson-blue-guard-attack-guards (the-as crimson-blue-guard g))`).
+> `crimson-blue-guard` est un simple sous-type de `crimson-guard` qui **doit se comporter
+> exactement comme le garde rouge d'origine**. Mêmes états, même réaction d'alerte après un crime,
+> même logique d'arrestation et de poursuite, mêmes stats, mêmes animations, mêmes sons, même mort.
+> Ce mod est un reskin, pas un mod d'IA.
 
-Rien de tout cela ne touche `crimson-guard`/`guard.gc` lui-même. **Réserve sur le déclencheur
-manuel :** il réutilise tel quel la machine à états de combat de crimson-guard, générique sur
-*quelle* est la cible actuelle (elle lit `(-> this focus handle)`/`traffic-target-status handle`,
-pas un contrôle codé en dur sur `*target*`) — mais le `crimson-guard` natif n'a jamais l'occasion de
-pointer cette machinerie vers un autre garde, seulement vers Jak, donc cette combinaison précise
-(garde contre garde) n'a aucun précédent natif pour la vérifier. Le fait qu'un garde rouge touché en
-retour riposte ou non dépend entièrement du code natif inchangé de `crimson-guard` — rien ici
-n'ajoute de logique de riposte garde-contre-garde au type natif.
+Concrètement, le type ne surcharge que quatre choses, et chacune est soit cosmétique, soit une
+contrainte technique dure des acteurs personnalisés `build-actor` :
 
-## 6. Les Changements Moteur de Cette Branche
+| Surcharge | Pourquoi elle existe |
+| --- | --- |
+| `init-enemy!` | lie `skel-crimson-blue-guard` au lieu de `skel-crimson-guard` — le mesh bleu, c'est-à-dire tout l'objet du mod. Toutes les stats viennent toujours de `*crimson-guard-nav-enemy-info*`. |
+| `citizen-init!` | appelle le parent, puis tire le lance-grenade (§6). `guard-type`, `hit-points`, collide-spec, icône de minimap et réaction d'alerte sont entièrement laissés au parent. |
+| `die` + `enemy-method-78` | reproduisent à la main la dissolution violette native (§5.1). |
+| `crimson-guard-method-214` | le lance-grenade optionnel (§6). |
 
-Voir le tableau en anglais ci-dessus (section 6) — identique, fichier par fichier.
+Il n'y a **aucune** surcharge de `general-event-handler`, aucune surcharge d'état, aucune surcharge
+de méthode de ciblage. C'est délibéré : une telle surcharge serait, par définition, une différence
+de comportement avec le garde rouge. Un garde bleu réagit à un crime, rejoint une alerte de ville,
+tente d'arrêter Jak, change d'arme quand l'alerte monte et poursuit exactement comme un rouge,
+parce qu'il *en est* un — il hérite de chacun de ces chemins de code sans modification.
 
-## 7. Comment Tester
+### 5.1 La seule déviation inévitable : la mort
 
-1. `task build-release-game` (ou `build-debug-game`) — nécessaire seulement après un changement
-   C++ (`build_actor.cpp`/`Tools.cpp`) ; pas nécessaire pour de l'itération GOAL seule.
-2. `task extract` — requis une fois (ou après un changement du `.glb`) pour cuire le Circuit 2,
-   voir §4.3. Vérifier dans le log la ligne `Adding custom model crimson-blue-guard-lod0 to common`
-   et l'absence d'erreur `merc failed to find texture` pour lui.
-3. `task repl`, puis `(mi)` — doit atteindre « Successfully built all N targets » sans erreur
-   `could not find a master slot to link` / `link-art`.
-4. `task boot-game` (ou `(r)` depuis le REPL), rejoindre Haven City.
-5. Au REPL, `(set! *crimson-blue-guard-ratio* 1)` pour forcer chaque spawn de garde ambiant en
-   bleu, ou `(spawn-crimson-blue-guard-debug 0)` / `(... 1)` pour en faire apparaître un (matraque
-   / fusil) devant vous sans dépendre du ratio ; vérifier qu'il est bien texturé et que ses animations
-   idle/walk/run/notice/hostile/knocked/get-up/die jouent toutes correctement et correspondent 1:1
-   au timing et aux sons d'un garde normal.
-6. **Passivité :** sans alerte active, approchez-vous d'un garde bleu / bousculez-le — il ne doit
-   pas attaquer.
-7. **Pas d'alarme sur une alerte générale :** déclenchez une vraie alerte de ville autrement (tirez
-   sur un garde rouge, commettez un délit). Un garde bleu à proximité doit rester passif envers
-   Jak — il ne doit pas rejoindre l'alerte contre lui.
-8. **Riposte personnelle, pas d'alarme :** frappez/tirez directement sur un garde bleu. Il doit
-   réagir exactement comme le ferait un garde rouge (animation de flinch/coup/relevé, puis riposte
-   à portée normale), mais l'alerte de ville (indicateur en haut à droite) ne doit **pas** se
-   déclencher pour autant.
-9. **Mort, collision, tout le reste :** tuez un garde bleu, faites-le renverser par un véhicule,
-   choquer (yellow hit), etc. Il doit se comporter et avoir l'air identique à un garde rouge en
-   tout point — même animation de mort, pas de différence de collision/portée d'attaque. Toute
-   différence ici est un bug (le plus probable : une dérive d'indice d'animation — voir le piège
-    native-header/réordonnancement du tip 23).
-10. **Déclencheur manuel garde-contre-garde :** `(define g (spawn-crimson-blue-guard-debug 0))`
-    puis `(crimson-blue-guard-attack-guards (the-as crimson-blue-guard g))` près d'un garde rouge —
-    il doit devenir hostile et se battre. Cette combinaison n'a aucun précédent natif (les gardes
-    natifs ne se combattent jamais entre eux), donc soyez attentif à l'approche/la portée d'attaque.
-11. Remettre `*crimson-blue-guard-ratio*` à `8` (ou retirer la surcharge) et vérifier que des
-    gardes bleus continuent d'apparaître occasionnellement, mélangés naturellement aux rouges.
-12. Non-régression : booter d'autres niveaux/villes intacts et vérifier qu'aucune nouvelle erreur
-    de spawn/link-art n'apparaît dans `log/jak2.<ts>.log`.
+Un acteur personnalisé construit par `build-actor` embarque une géométrie merc-ctrl factice
+(`generate_dummy_merc_ctrl` dans `build_actor.cpp` réutilise littéralement un mesh factice codé en
+dur). Laisser le chemin de mort standard régler `death-timer` confie donc l'acteur aux routines C++
+Generic Merc, qui lisent de la mémoire de fragments non initialisée et plantent — sans aucune
+erreur GOAL à rattraper.
 
-## 8. Statut
+L'état `die` reproduit donc le rendu natif à la main (même approche que la branche
+`jak2/features/yakow_killable`) :
+
+```lisp
+(defbehavior crimson-blue-guard-dissolve-sequence crimson-blue-guard ()
+  (sound-play "enemy-fizz")
+  (let ((node-cnt (-> self node-list length)) ...)
+    (dotimes (frame 60)
+      ;; masquer le corps une fois que la brume a pris le dessus
+      (when (= frame 5)
+        (logior! (-> self draw status) (draw-control-status no-draw)))
+      ;; 8 étincelles de mort violettes par frame, réparties sur les 38 os avec du jitter
+      (dotimes (j 8)
+        (let ((joint-idx (rand-vu-int-count node-cnt)))
+          (vector<-cspace! pos (-> self node-list data joint-idx))
+          (+! (-> pos x) (rnd-float-range self -819.2 819.2))
+          ...
+          (merc-death-spawn 73 pos zero-vec)))
+      (suspend)))
+  ;; démontage obligatoire, comme pour toute mort d'ennemi native
+  (send-event self 'death-end)
+  (while (-> self child) (suspend))
+  (cleanup-for-death self)
+  (none))
+```
+
+`knocked-fatal?` — posé depuis `enemy-method-78` quand le coup fatal était une projection au sol —
+fait sauter à l'état `die` l'animation d'effondrement debout, de sorte qu'un garde mis au sol se
+dissout couché, exactement comme le crimson-guard natif.
+
+## 6. Le lance-grenade optionnel
+
+`guard-type` est entièrement laissé au moteur de trafic, exactement comme pour un garde rouge
+(`0` = taser, `1` = fusil). Par-dessus, un garde a une chance sur trois de porter un lance-grenade :
+
+```lisp
+(defmethod citizen-init! ((this crimson-blue-guard))
+  ((method-of-type crimson-guard citizen-init!) this)
+  (set! (-> this knocked-fatal?) #f)
+  (set! (-> this grenade-launcher?) (zero? (rand-vu-int-count 3)))
+  (set! (-> this grenade-last-time) 0)
+  (none))
+```
+
+`grenade-launcher?` ne change **que ce que `crimson-guard-method-214` fait apparaître** — une
+`vehicle-grenade` sur une trajectoire balistique (`traj3d-calc-initial-velocity-using-tilt`, tirée
+depuis le joint 14 `"blast"`) au lieu d'un `guard-shot` rectiligne. Toutes les portées, transitions
+d'état, animations et temporisations restent celles d'un garde fusil d'origine : un garde
+lance-grenade est simplement un garde fusil rouge avec un projectile différent.
+
+**Pourquoi la limitation de cadence.** L'état `gun-shoot` d'origine code en dur une salve de quatre
+tirs (`(let ((gp-0 3)) (until #f ...))` dans `guard.gc`), ce qui pour un lance-grenade voudrait
+dire quatre grenades par engagement. `grenade-last-time` limite le projectile à un toutes les
+2 secondes ; les tirs supprimés ne lancent rien du tout alors que l'animation de tir joue quand
+même, ce qui se lit comme un rechargement du lanceur :
+
+```lisp
+(cond
+  ((and (-> this grenade-launcher?) (time-elapsed? (-> this grenade-last-time) (seconds 2)))
+   (set-time! (-> this grenade-last-time))
+   ... spawn-projectile vehicle-grenade ...)
+  ((-> this grenade-launcher?) 0)   ;; en recharge : animation uniquement
+  (else ((method-of-type crimson-guard crimson-guard-method-214) this)))
+```
+
+`vehicle-grenade` et son art-group `eco-canister` vivent tous deux dans `GAME`
+(`guard-projectile.o`, `eco-canister-ag.go`) : ils sont résidents partout et ne demandent aucune
+modification de DGO.
+
+**Volontairement non utilisé : `guard-type` 2.** Le moteur définit bien un troisième type de garde
+piéton, `ped-grenade` (`traffic-engine.gc`, index 2 de `guard-settings-array`), mais l'état
+`hostile` d'origine ne dispatche que sur les types `0` et `1` — un piéton en `guard-type` 2 n'entre
+jamais dans `gun-shoot` et reste planté. Piloter la grenade par un drapeau posé au-dessus du
+`guard-type` 1 garde chaque transition d'état héritée strictement identique à celle du garde rouge,
+ce qui est exactement la contrainte du §5.
+
+## 7. L'unique interrupteur : `Debug > Mods > crimson-blueguard`
+
+Le mod n'a qu'une seule bascule, et elle vit dans l'**onglet Mods unifié de `master-dev`**
+(`goal_src/jak2/pc/debug/mods-menu.gc`, voir
+[`../tools/mods_debug_menu.md`](../tools/mods_debug_menu.md)). Cette branche n'édite donc jamais
+`default-menu.gc` ni `default-menu-pc.gc`, et ne peut pas entrer en collision avec les bascules
+d'une autre branche de mod.
+
+```text
+Debug > Mods > crimson-blueguard > Enable / Disable
+```
+
+`goal_src/jak2/pc/debug/crimson-blueguard-menu.gc` est `(declare-file (debug))` et est enregistré
+dans `game.gd` juste après `mods-menu.o` (le registre doit être défini avant le fichier qui
+l'appelle). Il ne contient rien d'autre que la pick-func et le builder :
+
+```lisp
+(defun mod-crimson-blueguard-enable-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  (case arg1
+    (((debug-menu-msg press))
+     (set! (-> arg0 value) (not (-> arg0 value)))
+     (when *traffic-manager*
+       (send-event *traffic-manager* 'kill-all)
+       (send-event *traffic-manager* 'spawn-all))))
+  (-> arg0 value))
+
+(mods-menu-register "crimson-blueguard" mod-crimson-blueguard-build-menu)
+```
+
+### 7.1 Où vit le drapeau, et pourquoi pas ici
+
+`*mod-crimson-blueguard-enable*` est **défini dans `engine/ai/traffic-h.gc`**, pas dans le fichier
+de menu, pour deux raisons — deux bugs que l'on rencontrerait sinon :
+
+1. Le fichier de menu est `(declare-file (debug))` : il est retiré des builds release. Y définir le
+   drapeau laisserait `traffic-object-spawn` lire un symbole jamais initialisé. Le placer dans un
+   en-tête moteur toujours chargé garantit que le symbole existe et vaut `#f` au boot, donc que le
+   mod est livré **DÉSACTIVÉ par défaut**, comme l'exige la règle de non-régression du projet.
+2. Un `(define ...)` dans un fichier de DGO *de niveau* est ré-exécuté à chaque chargement de ce
+   niveau. Définir le drapeau dans `crimson-blue-guard.gc` (CWI) le remettrait silencieusement à
+   `#f` au prochain chargement de ville, désactivant le mod en cours de session.
+
+### 7.2 Pourquoi la bascule a besoin de `kill-all` + `spawn-all`, et pas de `deactivate-by-type`
+
+Le moteur de trafic alloue les process de chaque pool **une seule fois** puis les recycle :
+`spawn-all` ne crée un process via `traffic-object-spawn` que tant que
+`(+ active-count inactive-count) < want-count`, après quoi `activate-from-params` se contente de
+tirer un handle existant de la liste des inactifs. Un process déjà existant garde donc son type
+GOAL — rouge ou bleu — pour toujours, et `deactivate-by-type` (qui ne fait que renvoyer les actifs
+vers les inactifs) ne changerait rien de visible.
+
+`kill-all` détruit les process du pool (actifs *et* inactifs, via `kill-all-inactive`) et
+`spawn-all` positionne `fast-spawn` et les recrée immédiatement : à ce moment
+`traffic-object-spawn` relit le drapeau et renvoie l'autre faction. Les pilotes de véhicules
+suivent gratuitement : ce sont des enfants des véhicules de garde, que le même vidage recrée. Les
+deux sont des événements d'origine préexistants, et tous deux utilisent un message block sur la
+pile — rien n'est alloué sur le tas depuis le menu.
+
+`*traffic-manager*` vaut `#f` hors de la ville, donc la bascule le teste ; de toute façon le
+prochain chargement de ville construit ses pools à partir de la nouvelle valeur du drapeau.
+
+## 8. Les changements moteur de cette branche
+
+Tout ce qui suit est purement additif, ou une substitution unique sous condition. Aucun
+comportement d'origine ne change tant que le drapeau est désactivé.
+
+| Fichier | Changement |
+| --- | --- |
+| `goal_src/jak2/levels/city/traffic/citizen/crimson-blue-guard.gc` | **nouveau** — toute l'entité (§5, §6). |
+| `goal_src/jak2/pc/debug/crimson-blueguard-menu.gc` | **nouveau** — la bascule `Debug > Mods` (§7). |
+| `goal_src/jak2/engine/ai/traffic-h.gc` | `(define *mod-crimson-blueguard-enable* #f)` (§7.1). |
+| `goal_src/jak2/levels/city/traffic/traffic-manager.gc` | déclarations anticipées, le swap de faction sous condition dans `traffic-object-spawn`, et l'aide REPL `spawn-crimson-blue-guard-debug` (§9). |
+| `goal_src/jak2/levels/city/traffic/vehicle/vehicle-rider.gc` | `crimson-guard-rider` lie le skeleton-group du pilote bleu quand le drapeau est actif (§4). |
+| `goal_src/jak2/engine/anim/joint.gc`, `engine/level/level.gc` | hook générique `register-custom-art-group` / `custom-art-group-to-link?` pour qu'un art-group `build-actor` construit avec `:master-art-group` voie ses animations liées au login de niveau. Infrastructure réutilisable ; **non utilisée par ce mod** (le garde bleu garde ses animations dans son propre art-group), conservée car c'est de l'outillage générique. |
+| `goal_src/jak2/lib/project-lib.gp`, `goalc/make/Tools.cpp`, `goalc/build_actor/jak2/build_actor.{h,cpp}` | l'option `:native-header #t` (§3.1) et la macro `build-sbk`. |
+| `goal_src/jak2/game.gp` | les étapes `build-actor` + `goal-src` du garde bleu, et les pré-marquages `*file-entry-map*` qui empêchent `cgo-file` de générer des étapes de build en double. |
+| `goal_src/jak2/dgos/game.gd` | `crimson-blueguard-menu.o` après `mods-menu.o`. |
+| `goal_src/jak2/dgos/cwi.gd` | `crimson-blue-guard.o` après `guard.o`. |
+| 10 DGOs de niveau (`cas`, `dg1`, `fdb`, `fea`, `fob`, `fra`, `lwidea`, `lwideb`, `lwidec`, `pae`) | `crimson-blue-guard-ag.go` à côté de chaque `crimson-guard-ag.go` existant (§4). |
+
+## 9. Comment tester
+
+La moitié « assets » (`build-actor` + la cuisson `.fr3`) n'a besoin d'être refaite qu'après un
+changement de `.glb` ; l'itération GOAL ordinaire se fait uniquement avec `(mi)`.
+
+```bash
+task set-game-jak2
+task extract          # seulement après un changement de .glb -- cuit crimson-blue-guard-lod0 dans GAME.fr3
+task build-release    # seulement après un changement C++ (build_actor / Tools.cpp)
+task repl             # puis (mi) pour l'itération purement GOAL
+```
+
+Puis, en jeu :
+
+1. Ouvrir le menu debug et aller dans `Mods > crimson-blueguard`. La ligne doit afficher
+   `Enable / Disable` **sans** coche — le mod est désactivé, la ville est pleine de gardes rouges.
+2. Appuyer dessus. Le trafic ambiant est vidé puis se remplit en une ou deux secondes ; chaque
+   garde à pied, et chaque garde pilotant un guard-bike ou un hellcat, est maintenant bleu.
+3. Commettre un crime (frapper un civil, tirer, voler un véhicule). Les gardes bleus doivent faire
+   monter le niveau de recherche, poursuivre, tirer et tenter d'arrêter Jak exactement comme les
+   rouges — c'est le test d'acceptation du §5.
+4. En tuer un debout, et en tuer un par projection au sol. Les deux doivent se dissoudre en brume
+   violette, celui mis au sol restant couché (§5.1).
+5. Observer un garde fusil un moment : environ un sur trois lance des grenades en cloche au lieu de
+   tirer des projectiles, à raison d'une grenade par salve d'engagement (§6).
+6. Rappuyer sur la bascule. La ville doit redevenir 100 % rouge, avec le comportement d'origine.
+
+Inspection d'un acteur isolé depuis le REPL, en contournant la densité de trafic (démarrer d'abord
+dans un niveau de ville) :
+
+```lisp
+(spawn-crimson-blue-guard-debug -1)   ;; arme telle que le trafic ambiant la tirerait
+(spawn-crimson-blue-guard-debug 0)    ;; force le garde taser
+(spawn-crimson-blue-guard-debug 1)    ;; force le garde fusil
+```
+
+Conformément à la règle de cold boot du projet, terminer par `task boot-game` avant de conclure :
+le hot-reload laisse d'anciens layouts de types et symboles en mémoire PS2 simulée, donc un
+changement de `deftype` (cette branche ajoute trois champs à `crimson-blue-guard`) peut sembler
+fonctionner sous `(mi)` et être cassé au démarrage propre.
+
+## 10. Statut
 
 | Élément | État |
-|---|---|
-| `build-actor :native-header #t` (C++ + macro GOAL) | ✅ fait, compilé et testé en jeu |
-| Réordonnancement des animations du `.glb` | ✅ fait, vérifié programmatiquement et en jeu (les bonnes animations jouent) |
-| Entité `crimson-blue-guard` (`deftype`/`defskelgroup`/`init-enemy!`) | ✅ fait, compilé et testé en jeu |
-| Résidence DGO (code + art, 11 fichiers) | ✅ fait |
-| Mélange dans le trafic ambiant | ✅ fait, testé en jeu |
-| Circuit 2 (`models/common` + `task extract`) | ✅ fait — le garde s'affiche entièrement texturé |
-| Passivité envers Jak + riposte personnelle sans alarme | ✅ fait, vérifié en jeu |
-| Déclencheur manuel `crimson-blue-guard-attack-guards` | ✅ fait, vérifié en jeu |
-| Séquence de dissolution à la mort (surcharge état `die` + `merc-death-spawn 73` + `knocked-fatal?`) | ✅ fait, vérifié en jeu : élimine le crash C++ `generic_merc_death` (exit status 5) via une boucle GOAL de particules violettes, joue `"enemy-fizz"`, masque le mesh et maintient le garde au sol en cas de mort par knockdown |
-| Escouades de patrouille City Peaceful (2-3 membres, patrouille en formation, vitesse adaptative, promotion de chef) | ✅ fait, vérifié en jeu : offsets dynamiques en éventail, allure d'escouade fluide et promotion automatique du chef en cas de mort |
-| Défense mutuelle d'escouade & immunité aux tirs alliés | ✅ fait, vérifié en jeu : l'escouade riposte comme un seul homme sans alarme générale ; membres et tirs bleus immunisés aux tirs fratricides |
-| Diversité de l'arsenal par escouade | ✅ fait, vérifié en jeu : les escouades de 3 possèdent toujours 1 Taser, 1 Fusil, 1 Lance-Grenades ; celles de 2 ont 2 armes distinctes |
-| IA de combat fidèle aux Crimson Guards | ✅ fait, vérifié en jeu : distance tactique (~6,5m–9m), tirs réactifs de rafales/grenades dès ldv acquise (jusqu'à 50m), roulades d'esquive latérales, coup de crosse de secours (< 2,5m) suivi d'une roulade de dégagement |
-| Onglet menu debug « Mods » (bascules `City Peaceful` / `City Insurrection` + sélecteur `Insurrection war zone`) | ✅ les deux modes implémentés ; mutuellement exclusifs ; chaque bascule/choix vide et fait réapparaître les gardes pour appliquer les règles immédiatement |
-| City Insurrection — zonage par nom de niveau (`city-level-name-at-pos` → `city-district-of-level`) | ✅ fait : Slums (`ctysluma/b/c`) = bleu, le quartier de guerre sélectionné = conflit, tout le reste = rouge — noms de niveaux vérifiés, aucune coordonnée codée en dur ; ne sonde que les grilles `level-data-array` liées du moteur de trafic (jamais un pointeur bsp `*level*` brut — ça crashait à la transition `ctyport→ctyinda`) |
-| City Insurrection — **zone de guerre configurable** (`*mod-city-conflict-district*`) | ✅ fait : `Debug ▸ Mods ▸ Insurrection war zone` fait tourner la zone de guerre entre Industriel (défaut), Port, Bazar, Fermes et Marché ; le changement re-zone et re-tire les gardes en direct |
-| City Insurrection — spawns stricts par zone (pools mono-faction, faction par quartier) | ✅ fait : `traffic-object-spawn` choisit bleu dans les Slums, rouge chez les loyalistes, 50/50 dans la zone de guerre ; un changement de quartier est réconcilié incrémentalement (`mod-city-guard-pool-reconcile`, ≤2 retraits de mauvaise faction par pool par frame) — pool toujours de la bonne faction, aucun filtrage, aucun slot gaspillé |
-| City Insurrection — zone de guerre : aucun civil/véhicule + bataille de gardes dense | ✅ fait : `want-count` des civils (0–3), tête-de-métal (8–10) et véhicules (11–19) forcé à 0 (drainé par `kill-excess-once` + despawn naturel) ; **deux** pools de gardes — `crimson-guard-1` d'origine (18/16) + `crimson-guard-2` inutilisé (16/14) — `inv-density-factor` 2.0 → ~30 gardes, 50/50, sous le plafond nav d'origine de 64 ; tout restauré au changement de zone/mode |
-| City Insurrection — densité de police des quartiers loyalistes | ✅ le pool `crimson-guard-1` d'origine est laissé **strictement vanilla** dans les quartiers loyalistes (`want-count` de base, `target-count` échelonné par l'alerte) |
-| City Insurrection — combat inter-factions autonome (`crimson-guard-insurrection-scan`) | ✅ fait : rouge chasse bleu / bleu chasse rouge dans **~60 m** (au lieu de 40 m) depuis `active` **et** `search`, IA d'armes complète, aucun effet sur le niveau d'alerte de Jak ; `find-nearest-enemy-guard` scanne les deux trackers (les alias `citizen`/`vehicle` du décomp sont inversés — les gardes sont dans `vehicle-tracker-array`) |
-| City Insurrection — zones sans alerte (verrou `increase-alert-level` + `set-alert-level 0`) | ✅ fait : aucune alerte ne peut démarrer ni persister dans les Slums **ou** la zone de guerre, quelle qu'en soit la source — frapper un garde rouge dans la zone de guerre ne déclenche rien ; seuls les quartiers loyalistes appliquent le système de recherche |
+| --- | --- |
+| Mesh bleu + squelette 38 os, alignement natif des slots d'animation | ✅ |
+| Géométrie de rendu cuite dans `GAME.fr3` (Circuit 2) | ✅ |
+| Comportement strictement hérité de `crimson-guard` | ✅ |
+| Dissolution violette à la mort, debout et au sol | ✅ |
+| Gardes piétons ambiants remplacés | ✅ |
+| Pilotes des véhicules de garde remplacés | ✅ |
+| Lance-grenade optionnel (1 sur 3, cadence limitée) | ✅ |
+| Bascule `Debug > Mods > crimson-blueguard`, vidage à chaud | ✅ |
+| Désactivé par défaut, y compris en build release | ✅ |
+| Vérification cold boot | ⏳ à exécuter par le mainteneur |
 
-## 9. Onglet Menu Debug « Mods » & Fonctionnalités
+### Hors périmètre de cette branche
 
-Le menu debug (actif par défaut — `*debug-segment*` vaut 1 par défaut, et `task boot-game`
-tourne avec `-debug`) a un onglet « Mods » avec deux bascules, **City Peaceful** et
-**City Insurrection**. Elles sont mutuellement exclusives (activer l'une désactive l'autre) et
-réversibles à tout moment.
+City Peaceful et City Insurrection (escouades de patrouille bleues neutres, guerre civile
+territoriale à trois fronts, sélecteur de district de zone de guerre et couche d'extension
+`*mod-city-*-hook*`) ont été retirés de cette branche. Ils vivent sur leurs propres branches :
 
-### 9.1 City Peaceful (✅ Entièrement Implémenté)
-Lorsque cette option est activée dans le menu Mods :
-- **Escouades de patrouille ambiantes :** les gardes bleus apparaissent en escouades soudées de 2 à 3
-  membres arpentant Haven City en formation (ailiers décalés par rapport au quaternion de rotation du chef).
-  Les ailiers accélèrent dynamiquement (jusqu'à 1,5×) ou ralentissent (0,85×) pour maintenir leur rang,
-  et promeuvent automatiquement le premier ailier comme chef si le leader est éliminé.
-- **Diversité de l'arsenal :** chaque escouade de 3 comprend exactement un garde au Taser (`guard-type 0`),
-  un garde au Fusil (`guard-type 1`) et un garde au Lance-Grenades (`guard-type 2`). Chaque escouade de 2
-  possède deux armes distinctes.
-- **Défense mutuelle :** si un membre de l'escouade est attaqué par Jak ou un autre ennemi, toute l'escouade
-  riposte solidairement en état d'autodéfense, sans déclencher la sirène de la ville ni alerter les gardes rouges.
-- **Immunité aux tirs alliés :** les attaques et projectiles émis par les gardes bleus sont filtrés au sein de
-  la faction, éliminant tout tir fratricide ou dispute interne.
-- **IA de combat fidèle :** les gardes armés à distance maintiennent une distance d'engagement tactique, tirent
-  des rafales ou grenades dès qu'ils ont une ligne de vue dégagée (jusqu'à 50m), et effectuent des roulades d'esquive
-  latérales (`roll-left` / `roll-right`). Les coups de crosse au corps à corps ne surviennent qu'en situation
-  d'urgence absolue (< 2,5m) et sont immédiatement suivis d'une roulade de dégagement pour reprendre une posture de tir.
+- `jak2/features/crimson-blueguard/peaceful`
+- `jak2/features/crimson-blueguard/city-insurrection`
 
-### 9.2 City Insurrection (✅ Entièrement Implémenté)
-Haven City devient une guerre civile territoriale à trois fronts. Les quartiers sont classés par
-le **nom du niveau de ville chargé** qui contient une position — `city-level-name-at-pos` →
-`city-district-of-level` → `city-zone-from-level-name` dans
-[`traffic-manager.gc`](../../../goal_src/jak2/levels/city/traffic/traffic-manager.gc) — en
-utilisant uniquement des noms de niveaux vérifiés (`level-info.gc`), jamais de coordonnées codées
-en dur :
-
-| Zone | Niveaux de ville | Règle |
-|---|---|---|
-| **Bleu — Slums (Bastion Rebelle)** | `ctysluma`, `ctyslumb`, `ctyslumc` | 100% de gardes bleus solitaires, armes aléatoires ; zone refuge anti-alerte |
-| **Rouge — Loyaliste (quartiers du Baron)** | tout quartier qui n'est *ni* les Slums *ni* la zone de guerre sélectionnée | 100% de Crimson Guards rouges/jaunes classiques, densité & police envers Jak **100% vanilla** |
-| **Conflit — Zone de Guerre** | le quartier choisi dans `Debug ▸ Mods ▸ Insurrection war zone` — **Industriel (`ctyinda/b`) par défaut**, ou Port / Bazar / Fermes / Marché | ~30 gardes, 50/50 bleus vs rouges, **aucun civil, aucune tête-de-métal, aucun véhicule** ; les deux factions se combattent à vue ; sans alerte |
-
-Lorsque cette option est activée dans le menu Mods :
-- **Zone de guerre configurable** (`*mod-city-conflict-district*`) : le sous-menu
-  `Insurrection war zone` est un sélecteur radio entre Industriel (défaut), Port, Bazar, Fermes et
-  Marché. Le changement re-zone la ville et re-tire les gardes. Les Slums sont toujours le refuge
-  bleu et ne sont jamais une option de zone de guerre.
-- **Génération territoriale stricte — pools mono-faction, faction choisie par quartier**
-  (`mod-city-guard-spawn-blue?` + `mod-city-insurrection-shape-guard-pools`) :
-  `traffic-object-spawn` choisit le type de process concret à chaque spawn selon le quartier de
-  Jak — `crimson-blue-guard` dans les Slums, `crimson-guard` rouge d'origine chez les loyalistes,
-  tirage 50/50 dans la zone de guerre. Un changement de quartier est réconcilié
-  **incrémentalement** — `mod-city-guard-pool-reconcile` retire jusqu'à 2 gardes de la mauvaise
-  faction par pool par frame pendant que `spawn-all` remplit avec la nouvelle, donc la rue fait un
-  fondu sur ~1-2 s et jamais de garde rouge dans les Slums (ni de garde bleu chez les loyalistes).
-  (`crimson-guard-0` est désactivé — il ne s'active jamais en trafic ambiant ;
-  `restore-default-settings` efface son flag d'auto-activation.)
-- **La densité de police loyaliste est vanilla :** dans les quartiers loyalistes, le pool
-  `crimson-guard-1` d'origine est laissé totalement intact (`want-count` de base, `target-count`
-  échelonné par `update-alert-state`), donc la réponse policière y est identique au jeu d'origine.
-- **Zone de guerre = uniquement des gardes** (`mod-city-insurrection-shape-guard-pools`) : tant
-  que Jak est dans le quartier de guerre sélectionné, le `want-count` ambiant des civils (`0..3`),
-  tête-de-métal (`8..10`) et de tous les véhicules (`11..19`) est forcé à `0` (drainé par
-  `kill-excess-once` + despawn naturel) ; et **deux** pools de gardes tournent en même temps — le
-  `crimson-guard-1` d'origine (`want` 18 / `target` 16) plus `crimson-guard-2` (16 / 14), un pool
-  entièrement câblé que jak2 n'utilise jamais en trafic (le `target-count` doit être forcé car
-  `update-alert-state` le recalcule à ~5 en paix / 0 pour le second pool). Avec `inv-density-factor`
-  abaissé à 2.0 ça fait **~30 gardes** dans la rue visible, 50/50 — confortablement sous le
-  plafond nav d'origine de 64 (aucune modif de `nav-mesh.gc` nécessaire vu que tous les non-gardes
-  y sont supprimés). Tout est restauré à la frame où le mode/la zone change.
-- **Crash corrigé — les transitions de quartier sont incrémentales** : une version antérieure
-  force-désactivait tous les civils + véhicules + tuait les trois pools de gardes + fast-spawn sur
-  la frame où Jak franchissait une frontière — ça coïncide avec le démontage du niveau sortant et
-  crashait le jeu (`exit status 5`, log qui s'arrête à `kill #<level active ctysluma>`). Le
-  renouvellement est maintenant étalé sur ~1-2 s à quelques opérations process par frame, donc ça
-  ne peut plus entrer en course avec une transition de niveau.
-- **Guerre autonome inter-factions** (`crimson-guard-insurrection-scan` dans `guard.gc`) : dans la
-  zone de guerre, chaque garde scanne le garde de la **faction opposée** le plus proche dans
-  **~60 m** (au lieu de 40 m, qui donnait l'impression que les gardes ignoraient des ennemis
-  visibles de l'autre côté de la rue ; la faction est déduite de `this`, donc un seul helper
-  couvre rouges et bleus). À l'acquisition il cible directement l'ennemi et devient hostile —
-  rafales laser, grenades paraboliques, charges au taser — et **ne touche jamais au niveau de
-  recherche de Jak**. Le hook tourne depuis `active` ET `search`.
-  `find-nearest-enemy-guard` scanne **les deux** trackers du moteur de trafic — le décomp alie
-  `citizen-tracker-array` / `vehicle-tracker-array` sur les deux slots de `tracker-array` *à
-  l'envers* (les gardes sont dans celui nommé `vehicle-tracker-array`).
-- **Riposte réciproque :** un garde rouge touché (corps à corps *ou* projectile —
-  `incoming attacker-handle` remonte d'un tir/grenade jusqu'au garde tireur via la chaîne parente
-  du process) par un garde bleu cible et riposte directement contre ce garde bleu, sans alarme de
-  ville, sans sirène. Le côté garde bleu l'avait déjà.
-- **Zones sans alerte (Slums *et* zone de guerre) :**
-  - `increase-alert-level` (`traffic-engine.gc`) est court-circuité dès que Jak est dans la zone
-    bleue **ou** la zone de guerre — le **point de passage unique** de la montée d'alerte, donc il
-    bloque l'événement du menu, l'appel direct `citizen::trigger-alert` *et* l'escalade par nombre
-    de morts. Frapper un garde rouge dans la zone de guerre ne déclenche rien. Seuls les quartiers
-    loyalistes appliquent le système de recherche.
-  - `mod-city-insurrection-update-traffic` force en plus `set-alert-level` à `0` à chaque frame où
-    Jak est dans l'une des deux zones, donc toute alerte qu'il *amène avec lui* retombe
-    instantanément.
-  - Les vaisseaux loyalistes (`guard-bike` 18, `hellcat` 19) sont tenus hors des Slums et de la
-    zone de guerre (`want-count` 0). Frapper un garde bleu ne déclenche que l'autodéfense de ce garde.
-- **Bascule à chaud du mode / config** (`dm-mod-city-flush-guards` dans `default-menu-pc.gc`) :
-  basculer une entrée Mods — bascule de mode ou choix de zone de guerre — parque les trois pools de
-  crimson-guards (4, 6, 7) et les vaisseaux de gardes (18, 19) ; ils réapparaissent en une seconde
-  ou deux selon les nouvelles règles — escouades pour Peaceful, gardes solitaires à faction pour
-  Insurrection, mélange classique pour off.
-- **Crash corrigé (transition `ctyport → ctyinda`) :** `city-level-name-at-pos` sondait
-  `sphere-in-grid?` sur le pointeur `(-> lev bsp city-level-info)` brut de chaque niveau chargé.
-  Pendant une transition de niveau, le tas `-vis` d'un niveau de ville sortant est libéré alors que
-  le traffic-manager continue de tourner — cette sonde parcourait alors de la mémoire libérée →
-  crash brutal sans erreur GOAL. Elle ne sonde désormais que les ≤2 grilles que le moteur de
-  trafic a liées dans `level-data-array` (le même ensemble qu'utilise `update-traffic`) et retrouve
-  le nom du niveau par identité de pointeur.
+Rien sur cette branche ne doit les référencer à nouveau : cette branche est le reskin, et rien
+d'autre.
 
 ---
 *(AI-assisted)*

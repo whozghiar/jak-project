@@ -1,0 +1,74 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: crimson-blueguard-menu.gc
+;; name in dgo: crimson-blueguard-menu
+;; dgos: GAME
+;;
+;; ================================================================================================
+;; Crimson Blue Guard mod -- Debug > Mods > crimson-blueguard
+;; Branch: jak2/features/crimson-blueguard/crimson-redguard-behavior
+;; ================================================================================================
+;; The mod's ONLY switch. It plugs into the unified "Mods" tab from master-dev
+;; (pc/debug/mods-menu.gc) through `mods-menu-register`, so this branch never edits
+;; `default-menu.gc` / `default-menu-pc.gc` and never collides with another mod branch's toggles.
+;; See docs/modding/tools/mods_debug_menu.md.
+;;
+;;   Debug > Mods > crimson-blueguard > Enable / Disable
+;;
+;; The flag itself (`*mod-crimson-blueguard-enable*`) is NOT defined here: it lives in
+;; engine/ai/traffic-h.gc, an always-loaded engine header. This file is `(declare-file (debug))`
+;; and is stripped from release builds, so defining the flag here would leave the gameplay code
+;; reading a symbol that was never initialised. Keeping it in the header also means the mod ships
+;; OFF by default and stays off unless a player opens this menu.
+;;
+;; Who reads the flag:
+;;   levels/city/traffic/traffic-manager.gc        -- traffic-object-spawn picks the guard type
+;;   levels/city/traffic/vehicle/vehicle-rider.gc  -- crimson-guard-rider picks the skeleton-group
+;; ================================================================================================
+
+(declare-file (debug))
+
+(defun mod-crimson-blueguard-enable-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Pick-func for Debug > Mods > crimson-blueguard > Enable / Disable.
+
+   arg0 is the config symbol named in the menu template (`*mod-crimson-blueguard-enable*`); its
+   `value` slot IS the flag the gameplay code reads, so flipping it here is the whole toggle.
+
+   On `press` only, the ambient traffic is then recycled so the change is visible immediately
+   instead of only affecting guards spawned minutes later. This needs a full recycle rather than
+   just `'deactivate-by-type`: the traffic engine allocates each pool's processes once and then
+   reuses them, so a guard process that already exists keeps its GOAL type (red or blue) forever.
+   `'kill-all` destroys the pooled processes (active + inactive) and `'spawn-all` immediately
+   re-creates them, at which point `traffic-object-spawn` re-reads the flag and hands back the
+   other faction. Riders come along for free: they are children of the guard vehicles, which the
+   same flush re-creates.
+
+   Both events use a stack message block, so nothing is allocated on the heap here.
+   Returns the current flag so the menu can draw its checkmark (on `press` AND on `update`)."
+  (case arg1
+    (((debug-menu-msg press))
+     (set! (-> arg0 value) (not (-> arg0 value)))
+     ;; #f outside the city -- there is no ambient traffic to recycle there, and the next city
+     ;; load will build its pools from the new flag value anyway.
+     (when *traffic-manager*
+       (send-event *traffic-manager* 'kill-all)
+       (send-event *traffic-manager* 'spawn-all)
+       )
+     )
+    )
+  (-> arg0 value)
+  )
+
+(defun mod-crimson-blueguard-build-menu ((ctx debug-menu-context))
+  "Return this mod's submenu node. Called by the Mods registry on every rebuild, so it must stay
+   pure: build and return, never spawn or allocate gameplay state."
+  (debug-menu-make-from-template ctx
+    '(menu "crimson-blueguard"
+       (flag "Enable / Disable" *mod-crimson-blueguard-enable* mod-crimson-blueguard-enable-pick)
+       )
+    )
+  )
+
+;; register with the unified Mods tab (top-level, runs at file load -- boot and (mi) alike)
+(mods-menu-register "crimson-blueguard" mod-crimson-blueguard-build-menu)

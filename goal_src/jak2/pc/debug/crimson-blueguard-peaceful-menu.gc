@@ -46,11 +46,16 @@
    second or two) under whichever mode is now active. The crimson-guard traffic
    pools hold both red and blue guard processes, so deactivating the pools is
    what re-rolls each guard's faction / squad / weapon per the new rules.
+   The guard vehicles go too: a hellcat / guard-bike binds its rider skeleton and
+   registers its minimap icon once, at spawn (vehicle-method-137 / -128), so one
+   already in the air would keep a red pilot and a red dot until it recycled.
    *traffic-manager* is #f outside the city -- always guard it."
   (when *traffic-manager*
     (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-0))
     (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-1))
     (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-2))
+    (send-event *traffic-manager* 'deactivate-by-type (traffic-type guard-bike))
+    (send-event *traffic-manager* 'deactivate-by-type (traffic-type hellcat))
     )
   (none)
   )

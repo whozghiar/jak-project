@@ -956,8 +956,12 @@
   )
 
 (defmethod vehicle-method-128 ((this vehicle-guard))
+  ;; icon class comes from the hook so the dot matches the rider the traffic engine put aboard
+  ;; (`guard` 14 red / `blue-guard` 72 blue) -- see *mod-city-guard-rider-type-hook* in method 137.
   (if (not (-> this minimap))
-      (set! (-> this minimap) (add-icon! *minimap* this (the-as uint 14) (the-as int #f) (the-as vector #t) 0))
+      (set! (-> this minimap)
+            (add-icon! *minimap* this (*mod-city-guard-vehicle-icon-hook*) (the-as int #f) (the-as vector #t) 0)
+            )
       )
   ((method-of-type vehicle vehicle-method-128) this)
   (none)

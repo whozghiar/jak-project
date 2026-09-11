@@ -66,6 +66,11 @@
   crimson-guard-rider
   )
 
+(defun mod-city-hook-guard-vehicle-icon ()
+  "default *mod-city-guard-vehicle-icon-hook*: stock red `guard` minimap dot."
+  (the-as uint (minimap-class guard))
+  )
+
 (defun mod-city-hook-citizen-alert-blocked? ((this citizen))
   "default *mod-city-citizen-alert-blocked-hook*: citizen deaths and attacks raise alerts normally."
   this
@@ -100,6 +105,16 @@
       )
   )
 
+(defun mod-city-pea-guard-vehicle-icon ()
+  "*mod-city-guard-vehicle-icon-hook*: blue minimap dot for guard vehicles while City Peaceful is
+   active -- the exact counterpart of mod-city-pea-guard-rider-type above, so a hellcat / guard-bike
+   flown by a `crimson-blue-guard-rider` reads blue instead of red. Stock red dot otherwise."
+  (if *mod-city-peaceful?*
+      (the-as uint (minimap-class blue-guard))
+      (the-as uint (minimap-class guard))
+      )
+  )
+
 (defun mod-city-pea-citizen-alert-blocked? ((this citizen))
   "*mod-city-citizen-alert-blocked-hook*: when City Peaceful is active, citizens (civilians)
    do not trigger city alerts when killed or attacked. Guards still trigger alerts normally."
@@ -117,4 +132,5 @@
 (define *mod-city-guard-search-trans-hook* mod-city-hook-guard-search-trans)
 (define *mod-city-keep-guard-target-hook* mod-city-hook-keep-guard-target?)
 (define *mod-city-guard-rider-type-hook* mod-city-pea-guard-rider-type)
+(define *mod-city-guard-vehicle-icon-hook* mod-city-pea-guard-vehicle-icon)
 (define *mod-city-citizen-alert-blocked-hook* mod-city-pea-citizen-alert-blocked?)

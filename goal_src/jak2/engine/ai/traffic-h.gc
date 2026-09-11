@@ -131,6 +131,9 @@
 (define-extern *mod-city-keep-guard-target-hook* (function process-focusable symbol))
 ;; rider type spawned for guard vehicles (crimson-guard-rider vs crimson-blue-guard-rider)
 (define-extern *mod-city-guard-rider-type-hook* (function type))
+;; minimap-class a guard vehicle registers its icon with, so the dot on the minimap matches
+;; whoever the rider-type hook above put in the cockpit (`guard` 14 vs `blue-guard` 72)
+(define-extern *mod-city-guard-vehicle-icon-hook* (function uint))
 ;; #t => block alert triggered by citizen being attacked/killed (arg: citizen)
 (define-extern *mod-city-citizen-alert-blocked-hook* (function citizen symbol))
 

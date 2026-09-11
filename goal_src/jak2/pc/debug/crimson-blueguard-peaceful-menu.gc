@@ -42,20 +42,29 @@
 ;; ============================================================================
 
 (defun dm-crimson-blueguard-peaceful-flush-guards ()
-  "Park every ambient city guard so the traffic engine respawns them (within a
-   second or two) under whichever mode is now active. The crimson-guard traffic
-   pools hold both red and blue guard processes, so deactivating the pools is
-   what re-rolls each guard's faction / squad / weapon per the new rules.
-   The guard vehicles go too: a hellcat / guard-bike binds its rider skeleton and
-   registers its minimap icon once, at spawn (vehicle-method-137 / -128), so one
-   already in the air would keep a red pilot and a red dot until it recycled.
-   *traffic-manager* is #f outside the city -- always guard it."
+  "Recycle the ambient city traffic so the new mode is visible within a second or
+   two, instead of only after reloading a save.
+
+   This has to be a full `'kill-all` + `'spawn-all`, NOT `'deactivate-by-type`.
+   The traffic engine allocates each pool's processes ONCE, at city load, and then
+   parks and reuses them forever: a `crimson-guard` process that already exists
+   keeps its GOAL type for the rest of the session, so deactivating a pool hands
+   the very same red guards straight back. `mod-city-hook-guard-spawn-blue?` --
+   the id-parity red/blue pick -- only runs while a pool process is being BUILT,
+   which is exactly what `'kill-all` (destroy active + inactive) and `'spawn-all`
+   (rebuild immediately) force it to do. Same reasoning as the flush on
+   jak2/features/crimson-blueguard/crimson-redguard-behavior.
+
+   Guard vehicles and their riders come along for free: the rebuilt hellcats and
+   guard-bikes re-run vehicle-method-137 (rider skeleton, via
+   *mod-city-guard-rider-type-hook*) and vehicle-method-128 (minimap icon, via
+   *mod-city-guard-vehicle-icon-hook*), so the pilots and their map dots flip too.
+
+   *traffic-manager* is #f outside the city -- always guard it; the next city load
+   builds its pools from the new flag value anyway."
   (when *traffic-manager*
-    (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-0))
-    (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-1))
-    (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-2))
-    (send-event *traffic-manager* 'deactivate-by-type (traffic-type guard-bike))
-    (send-event *traffic-manager* 'deactivate-by-type (traffic-type hellcat))
+    (send-event *traffic-manager* 'kill-all)
+    (send-event *traffic-manager* 'spawn-all)
     )
   (none)
   )

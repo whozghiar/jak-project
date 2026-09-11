@@ -230,7 +230,10 @@ unmodified `crimson-guard` code — nothing here adds guard-vs-guard retaliation
 | `goal_src/jak2/engine/ai/traffic-h.gc` | `(define-extern *mod-city-guard-vehicle-icon-hook* (function uint))` | one more `*mod-city-*-hook*`, so `vehicle-guard.gc` never tests a mode flag inline |
 | `goal_src/jak2/levels/city/traffic/citizen/mod-city-hooks.gc` | `mod-city-hook-guard-vehicle-icon` (stock: `guard` 14) + `mod-city-pea-guard-vehicle-icon` (`blue-guard` 72 while `*mod-city-peaceful?*`), installed into the new hook | the exact counterpart of `mod-city-pea-guard-rider-type`: the dot follows whoever the rider hook put in the cockpit |
 | `goal_src/jak2/levels/city/traffic/vehicle/vehicle-guard.gc` | `vehicle-method-128` registers `(*mod-city-guard-vehicle-icon-hook*)` instead of the hardcoded class 14 | hellcats and guard-bikes — the only `vehicle-guard` subtypes — show a blue dot while the mod is on |
-| `goal_src/jak2/pc/debug/crimson-blueguard-peaceful-menu.gc` | the toggle's flush also deactivates `guard-bike` (18) and `hellcat` (19) | a vehicle binds its rider skeleton and registers its icon once, at spawn, so one already in the air would otherwise keep a red pilot and a red dot until it recycled |
+| `goal_src/jak2/engine/ai/traffic-h.gc` | `(define-extern *mod-city-vehicle-alert-blocked-hook* (function process-focusable symbol))` | lets a city mode veto the city-wide alert a guard vehicle raises when Jak attacks it |
+| `goal_src/jak2/levels/city/traffic/citizen/mod-city-hooks.gc` | `mod-city-hook-vehicle-alert-blocked?` (stock `#f`) + `mod-city-pea-vehicle-alert-blocked?` (returns `*mod-city-peaceful?*`), installed into the new hook | City Peaceful: attacking a gunship is a private quarrel, not a city-wide manhunt |
+| `goal_src/jak2/levels/city/traffic/vehicle/vehicle-guard.gc` | `vehicle-method-134` wraps only its `vehicle-method-111` call in the new hook; `pursuit-target` and the `alert` flag are still set unconditionally | those two lines ARE the vehicle's own reaction (`active:post` — `vehicle-guard-method-150` — `vehicle-method-108` — `hostile` — `stop-and-shoot`), so the attacked vehicle retaliates exactly as in retail while nothing is broadcast to the rest of the city |
+| `goal_src/jak2/pc/debug/crimson-blueguard-peaceful-menu.gc` | the toggle's flush is now `'kill-all` + `'spawn-all` instead of five `'deactivate-by-type` | the traffic engine allocates each pool's processes once at city load and then reuses them, so a parked `crimson-guard` comes back red; only a destroy + rebuild re-runs the red/blue pick. Removes the "reload a save to see blue guards" step |
 
 **Native non-regression:** with `*mod-city-peaceful?*` `#f` (the shipped default) Haven City is
 byte-for-byte stock Jak 2 — no `crimson-blue-guard` is ever constructed, want-counts are retail,
@@ -325,6 +328,14 @@ When toggled on in the Mods menu:
   retaliates together in self-defense, without triggering the city-wide alarm or calling red guards.
 - **Friendly-Fire Immunity:** projectiles and attacks originating from blue guards are filtered out
   within the faction, preventing infighting or fratricidal aggro.
+- **Guard Vehicles Fight Alone:** shooting or ramming a hellcat / guard-bike no longer puts the
+  whole city on alert. The attacked gunship takes Jak as its own pursuit target and opens fire
+  by itself, exactly as it would in retail; every other guard in Haven City keeps patrolling.
+  Destroying it is already silent too — `crimson-blue-guard-rider`'s `knocked-off` handler
+  skips the `'increase-alert-level` the stock red rider sends.
+- **Instant Toggle:** flipping `Enable` runs a full `'kill-all` + `'spawn-all` on the traffic
+  manager, so blue guards, blue pilots and blue map dots appear within a second or two — no
+  save reload needed.
 - **Faithful Combat AI:** ranged guards maintain standoff engagement distance, fire bursts or
   grenades upon acquiring LOS (up to 50m), and execute evasive sideways rolls (`roll-left` /
   `roll-right`). Melee rifle-butts are strictly an emergency counter (< 2.5m) immediately followed

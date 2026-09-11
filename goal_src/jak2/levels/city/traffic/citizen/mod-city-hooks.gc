@@ -77,6 +77,12 @@
   #f
   )
 
+(defun mod-city-hook-vehicle-alert-blocked? ((this process-focusable))
+  "default *mod-city-vehicle-alert-blocked-hook*: attacking a guard vehicle raises the city alert."
+  this
+  #f
+  )
+
 ;; --- City Peaceful dispatch (flag-guarded so a toggle-off is exactly the stock behaviour) ------
 
 (defun mod-city-pea-guard-activate ((this traffic-tracker) (ttype traffic-type))
@@ -115,6 +121,16 @@
       )
   )
 
+(defun mod-city-pea-vehicle-alert-blocked? ((this process-focusable))
+  "*mod-city-vehicle-alert-blocked-hook*: while City Peaceful is active, shooting or ramming a
+   guard vehicle no longer puts the whole city on alert. The attacked vehicle alone reacts: its
+   vehicle-method-134 still records Jak as pursuit-target and raises its own `alert` flag, which is
+   what drives active:post -> vehicle-guard-method-150 -> vehicle-method-108 (in-pursuit) ->
+   hostile -> stop-and-shoot. Nothing is broadcast, so every other guard keeps patrolling."
+  this
+  *mod-city-peaceful?*
+  )
+
 (defun mod-city-pea-citizen-alert-blocked? ((this citizen))
   "*mod-city-citizen-alert-blocked-hook*: when City Peaceful is active, citizens (civilians)
    do not trigger city alerts when killed or attacked. Guards still trigger alerts normally."
@@ -134,3 +150,4 @@
 (define *mod-city-guard-rider-type-hook* mod-city-pea-guard-rider-type)
 (define *mod-city-guard-vehicle-icon-hook* mod-city-pea-guard-vehicle-icon)
 (define *mod-city-citizen-alert-blocked-hook* mod-city-pea-citizen-alert-blocked?)
+(define *mod-city-vehicle-alert-blocked-hook* (the-as (function process-focusable symbol) mod-city-pea-vehicle-alert-blocked?))

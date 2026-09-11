@@ -798,7 +798,13 @@
   "Stubbed"
   (set! (-> this pursuit-target) (process->handle arg0))
   (logior! (-> this flags) (rigid-body-object-flag alert))
-  (vehicle-method-111 this 2 (the-as target arg0))
+  ;; The two lines above are this vehicle's OWN reaction -- they are what makes active:post run
+  ;; vehicle-guard-method-150 -> vehicle-method-108 -> hostile -> stop-and-shoot. Only the
+  ;; city-wide alert below is optional, so a mode that vetoes it gets a lone retaliating gunship
+  ;; instead of a whole city turning hostile. Default hook returns #f (retail behaviour).
+  (when (not (*mod-city-vehicle-alert-blocked-hook* this))
+    (vehicle-method-111 this 2 (the-as target arg0))
+    )
   0
   (none)
   )

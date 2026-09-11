@@ -136,6 +136,10 @@
 (define-extern *mod-city-guard-vehicle-icon-hook* (function uint))
 ;; #t => block alert triggered by citizen being attacked/killed (arg: citizen)
 (define-extern *mod-city-citizen-alert-blocked-hook* (function citizen symbol))
+;; #t => block the CITY-WIDE alert a guard vehicle raises when Jak attacks it (arg: the vehicle).
+;; Only the alert is vetoed: the vehicle still takes its attacker as pursuit-target and fights
+;; back on its own -- see vehicle-guard.gc's vehicle-method-134.
+(define-extern *mod-city-vehicle-alert-blocked-hook* (function process-focusable symbol))
 
 ;; DECOMP BEGINS
 

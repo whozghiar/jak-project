@@ -282,6 +282,10 @@
    (traffic-target-status    traffic-target-status  :inline)
    (minimap                  connection-minimap)
    (other-side               symbol)
+   ;; MOD crimson-blueguard-insurrection: last time this guard's grenade launcher (guard-type 2)
+   ;; actually fired. Appended at the very end of the type, so every retail field keeps its
+   ;; offset; `crimson-blue-guard` inherits it. See crimson-guard-method-214.
+   (grenade-last-time        time-frame)
    )
   (:state-methods
     get-up-front
@@ -1274,8 +1278,19 @@
     ;; MOD crimson-blueguard-insurrection: guard-type 2 = grenade launcher (parabolic
     ;; vehicle-grenade). Gated -- OFF, a guard-type-2 guard falls through to the stock
     ;; `else` (verbatim retail guard-shot laser bolt), so stock is unchanged.
-    ((and *mod-city-insurrection?* (= (-> this guard-type) 2))
-     ;; Grenade launcher (guard-type 2): fire vehicle-grenade with parabolic arc
+    ;;
+    ;; Same implementation and same 2-second cooldown as the sibling branches
+    ;; (jak2/features/crimson-blueguard/{peaceful,crimson-redguard-behavior}, where it lives on
+    ;; crimson-blue-guard). The cooldown is not cosmetic: `gun-shoot` re-arms every 0.4-1.0s in
+    ;; the war zone, so without it a single guard lobs a grenade a second, and two dozen of them
+    ;; bury the projectile pool and the explosion / distortion-sprite buffers. A suppressed shot
+    ;; fires nothing at all -- the shoot animation still plays, which reads as the launcher
+    ;; reloading.
+    ((and *mod-city-insurrection?*
+          (= (-> this guard-type) 2)
+          (time-elapsed? (-> this grenade-last-time) (seconds 2))
+          )
+     (set-time! (-> this grenade-last-time))
      (let* ((target-pos (-> this target-pos-predict-miss))
             (muzzle (vector<-cspace! (new 'stack-no-clear 'vector) (-> this node-list data 14)))
             (traj (new 'stack-no-clear 'traj3d-params))
@@ -1298,16 +1313,26 @@
          )
        (set! (-> a1-1 timeout) (seconds 4))
        (set! (-> a1-1 pos quad) (-> muzzle quad))
-       (if (traj3d-calc-initial-velocity-using-tilt traj)
-           (set! (-> a1-1 vel quad) (-> traj initial-velocity quad))
+       (cond
+         ((traj3d-calc-initial-velocity-using-tilt traj)
+          (set! (-> a1-1 vel quad) (-> traj initial-velocity quad))
+          )
+         (else
+           ;; no solution for the requested tilt (target too far / straight overhead): fall back
+           ;; to a plain lobbed throw along the line of fire so the guard still shoots something.
            (let ((dir (vector-! (new 'stack-no-clear 'vector) target-pos muzzle)))
              (vector-normalize! dir 102400.0)
              (+! (-> dir y) 40960.0)
              (set! (-> a1-1 vel quad) (-> dir quad))
              )
            )
+         )
        (spawn-projectile vehicle-grenade a1-1 this *default-dead-pool*)
        )
+     )
+    ((and *mod-city-insurrection?* (= (-> this guard-type) 2))
+     ;; launcher on cooldown -- the animation plays, no projectile leaves the muzzle.
+     0
      )
     (else
      ;; Standard rifle (guard-type 1) or fallback: fire laser bolt
@@ -2057,7 +2082,12 @@
                                     *mod-city-insurrection?*
                                     (>= 2 (the-as int (-> self focus aware))))
                                 )
-                       (if (and (time-elapsed? (-> self state-time) (the int (* 300.0 (rnd-float-range self (if *mod-city-insurrection?* 0.2 1.0) (if *mod-city-insurrection?* 0.5 3.0)))))
+                       ;; MOD crimson-blueguard-insurrection: guards re-arm faster in the war
+                       ;; zone than the retail 1.0-3.0s, but 0.2-0.5s x ~24 guards was roughly
+                       ;; ten volleys a second city-wide -- far more projectiles, explosions and
+                       ;; distortion sprites than the buffers behind them can carry. 0.4-1.0s
+                       ;; still reads as a firefight. Gated -- OFF is the retail 1.0-3.0s.
+                       (if (and (time-elapsed? (-> self state-time) (the int (* 300.0 (rnd-float-range self (if *mod-city-insurrection?* 0.4 1.0) (if *mod-city-insurrection?* 1.0 3.0)))))
                                 (logtest? (-> self flags) (citizen-flag target-in-sight))
                                 )
                            (go-virtual gun-shoot)
@@ -3844,6 +3874,9 @@
   (when (and *mod-city-insurrection?* (-> this root))
     (set! (-> this root event-self) 'touched)
     )
+  ;; 0 => the first grenade is free; every later one waits out the cooldown in method-214.
+  ;; Pooled guard processes are reused, so this has to be reset per activation, not per spawn.
+  (set! (-> this grenade-last-time) 0)
   (if (logtest? (-> this flags) (citizen-flag dark-guard))
       (set! (-> this hit-points) (the int (* 2.0 (the float (-> this enemy-info default-hit-points)))))
       )

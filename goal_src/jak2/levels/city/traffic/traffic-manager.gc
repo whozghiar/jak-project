@@ -460,8 +460,10 @@
       (((traffic-type crimson-guard-1) (traffic-type crimson-guard-2))
        ;; Ambient city-guard pools. Faction (blue crimson-blue-guard vs stock red crimson-guard)
        ;; is picked by the *mod-city-guard-spawn-blue-hook* -- stock id-parity blue/red mix by
-       ;; default, per-district under City Insurrection. crimson-guard-2 (7) is a fully-wired but
-       ;; stock-unused pool that mod-city-insurrection.gc drives as the war zone's second pool.
+       ;; default, per-district under City Insurrection. crimson-guard-2 (7) is wired here for
+       ;; completeness but never actually spawns: lwide-activate below leaves its `level` #f for
+       ;; both lwidea and lwideb, and spawn-all only arms trtflags-3 -- which spawning requires --
+       ;; for a type whose level is active. Nothing should rely on pool 7 producing a guard.
        (let ((spawn-blue? (*mod-city-guard-spawn-blue-hook* arg1)))
          (set! v0-0 (citizen-spawn
                        arg0

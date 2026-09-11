@@ -226,23 +226,41 @@
 ;; re-shape on the next frame (set when Insurrection is toggled off).
 (define *mod-city-guard-zone* 'none)
 
+;; ------------------------------------------------------------------------------------------------
+;; War-zone load tuning. REPL-tunable: (set! *mod-city-war-pool6-count* 16) and walk out of the
+;; district and back in (or toggle the mod) to re-shape.
+;;
+;; These were 20 / 20 / 20 with inv-density-factor 0.1 -- 50x the retail spawn density. Pool 7 was
+;; dead weight (it can never spawn, see mod-city-insurrection-shape-guard-pools), so the real
+;; figure was 40 guards firing every 0.2-0.5s: more projectiles, explosions and distortion sprites
+;; per frame than the buffers behind them hold, which is what the war zone was dying on.
+(define *mod-city-war-pool6-count* 12)  ;; crimson-guard-1 -- the stock ambient guard pool
+(define *mod-city-war-pool4-count* 10)  ;; crimson-guard-0 -- the secondary pool
+;; inv-density-factor: spawn spacing multiplier. Retail city is 5.0, the engine's own "dense"
+;; preset is 1.25 (traffic-engine.gc). Lower packs guards tighter along each nav segment.
+(define *mod-city-war-density* 1.25)
+
 (defun mod-city-insurrection-shape-guard-pools ((engine traffic-engine) (zone symbol))
   "Size the ambient crimson-guard pools for Jak's current `zone` under City Insurrection.
-   In conflict zones, BOTH Pool 6 (crimson-guard-1) and Pool 4 (crimson-guard-0) are mobilized
-   with reduced spawn spacing (inv-density-factor 0.5) for a massive, packed battlefield."
+   In conflict zones Pool 6 (crimson-guard-1) and Pool 4 (crimson-guard-0) are both mobilized and
+   the spawn spacing is tightened, for a packed battlefield.
+
+   Pool 7 (crimson-guard-2) is deliberately NOT mobilized. It looks available -- it has a
+   tracker and a traffic-object-spawn arm -- but `lwide-activate` leaves its `level` #f for both
+   lwidea and lwideb (traffic-manager.gc), and `spawn-all` only arms trtflags-3, which spawning
+   requires, for a type whose level is currently active. So pool 7 can never produce a process:
+   asking for 20 of them just meant the war zone silently ran at two thirds of its advertised
+   size. Giving it a level in lwide-activate would be the way to actually use it."
   (case zone
     (('conflict)
-     ;; Selected war zone: Maximum possible armed conflict density.
-     ;; All three guard pools: Pool 4 (crimson-guard-0), Pool 6 (crimson-guard-1), and Pool 7 (crimson-guard-2)
-     ;; are mobilized at full slice capacity (20 each = 60 combatants), target-count 20.
+     ;; Selected war zone: both usable guard pools mobilized, everyone else evicted.
      (logior! (-> engine object-type-info-array 4 flags) (traffic-type-flags trtflags-1 trtflags-2))
-     (logior! (-> engine object-type-info-array 7 flags) (traffic-type-flags trtflags-1 trtflags-2))
-     (set! (-> engine object-type-info-array 4 want-count) 20)
-     (set! (-> engine object-type-info-array 4 target-count) 20)
-     (set! (-> engine object-type-info-array 6 want-count) 20)
-     (set! (-> engine object-type-info-array 6 target-count) 20)
-     (set! (-> engine object-type-info-array 7 want-count) 20)
-     (set! (-> engine object-type-info-array 7 target-count) 20)
+     (set! (-> engine object-type-info-array 4 want-count) *mod-city-war-pool4-count*)
+     (set! (-> engine object-type-info-array 4 target-count) *mod-city-war-pool4-count*)
+     (set! (-> engine object-type-info-array 6 want-count) *mod-city-war-pool6-count*)
+     (set! (-> engine object-type-info-array 6 target-count) *mod-city-war-pool6-count*)
+     (set! (-> engine object-type-info-array 7 want-count) 0)
+     (set! (-> engine object-type-info-array 7 target-count) 0)
      (dotimes (i 4)
        (set! (-> engine object-type-info-array i want-count) 0)
        )
@@ -252,8 +270,7 @@
      (dotimes (i 9)
        (set! (-> engine object-type-info-array (+ i 11) want-count) 0)
        )
-     ;; Maximum spawn density: minimum spawn spacing between combatants (0.1 vs stock 5.0)
-     (set! (-> engine inv-density-factor) 0.1)
+     (set! (-> engine inv-density-factor) *mod-city-war-density*)
      )
     (('blue)
      ;; Slums / Water Slums = Bastion Rebelle: lone blue rebels, stock pool only, no loyalist gunships.
@@ -884,6 +901,16 @@
 ;; 3. Autonomous inter-faction combat (the active/search-trans hooks).
 ;; ------------------------------------------------------------------------------------------------
 
+(defun mod-city-roll-war-weapon ()
+  "Weapon roll for a war-zone guard. Never a taser (guard-type 0 only fights at melee range, which
+   is useless in a firefight), and a grenade launcher (2) one time in three -- the same 1-in-3
+   ratio the sibling crimson-blueguard branches give their launcher. It used to be 1 in 2, which
+   with the war zone's guard count put more grenades, explosions and distortion sprites in the air
+   than the buffers behind them carry."
+  (the-as uint (if (zero? (rand-vu-int-count 3)) 2 1))
+  )
+
+
 (defun crimson-guard-insurrection-scan ((this crimson-guard))
   "While in the war zone, acquire and engage the nearest guard of the OPPOSING faction within
    ~150 m -- a red crimson-guard hunts blue rebels, a crimson-blue-guard hunts red loyalists (the
@@ -897,7 +924,7 @@
                )
       ;; In insurrection: if any guard has a taser (guard-type 0), give them a combat ranged weapon (rifle or grenade)
       (when (zero? (-> this guard-type))
-        (crimson-guard-method-225 this (the-as uint (+ 1 (rand-vu-int-count 2))) #f)
+        (crimson-guard-method-225 this (mod-city-roll-war-weapon) #f)
         (logior! (-> this flags) (citizen-flag sticky-weapon))
         )
       ;; search-blue? is #t for a red guard (hunts blue), #f for a blue guard (hunts red).
@@ -973,8 +1000,7 @@
             (set! (-> this hit-points) (-> this enemy-info default-hit-points))
             )
           )
-      ;; 0% taser: randomly choose between 1 (rifle) and 2 (grenade launcher)
-      (crimson-guard-method-225 this (the-as uint (+ 1 (rand-vu-int-count 2))) #f)
+      (crimson-guard-method-225 this (mod-city-roll-war-weapon) #f)
       (logior! (-> this flags) (citizen-flag sticky-weapon))
       )
     )
@@ -990,8 +1016,7 @@
   (set! (-> this squad-index) 0)
   (set! (-> this squad-leader) (the-as handle #f))
   (set! (-> this hit-points) 8)
-  ;; 0% taser: randomly choose between 1 (rifle) and 2 (grenade launcher)
-  (crimson-guard-method-225 this (the-as uint (+ 1 (rand-vu-int-count 2))) #f)
+  (crimson-guard-method-225 this (mod-city-roll-war-weapon) #f)
   (logior! (-> this flags) (citizen-flag sticky-weapon))
   #f
   )

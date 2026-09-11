@@ -421,6 +421,55 @@ When toggled on in the Mods menu:
   the ≤2 grids the traffic engine has linked in `level-data-array` (the same set `update-traffic`
   uses) and recovers the level name by pointer identity.
 
+### 9.3 War-zone load budget (and the crash it used to cause)
+
+Entering a war zone killed the runtime within a couple of seconds. The logs in `log/` pin it
+precisely: across every session there, `Zone: conflict` was only ever reached in the two runs that
+died, and both stop mid-frame right after `Load music danger9` with no GOAL-level error — one of
+them having first printed `Turns = 1150917018!!!` from `sprite-distort.gc`, i.e. the distort-sprite
+renderer reading a float where an integer turn count belongs. That is corrupted data reaching the
+sprite DMA path, not a `#f` dereference. Memory was not the constraint either (`Heap: 733/6160 KB`,
+`Slots: 319/3072`). What the zone asked for per frame was:
+
+| Knob | Was | Now | Where |
+|---|---|---|---|
+| Guards mobilized | 20+20+20 (really 40 — see pool 7 below) | `*mod-city-war-pool6-count*` 12 + `*mod-city-war-pool4-count*` 10 | `mod-city-insurrection.gc` |
+| `inv-density-factor` | 0.1 (50x retail) | `*mod-city-war-density*` 1.25 (the engine's own dense preset) | `mod-city-insurrection.gc` |
+| Red-guard re-arm | 0.2-0.5 s | 0.4-1.0 s | `guard.gc` `active:trans` |
+| Blue-guard re-arm | flat 0.2 s, same value for every guard | 0.4-1.0 s, randomized | `crimson-blue-guard.gc` |
+| Grenade launchers | 1 guard in 2 | 1 in 3, via `mod-city-roll-war-weapon` | `mod-city-insurrection.gc` |
+| Grenade cooldown | **none** | 2 s per guard | `guard.gc` `crimson-guard-method-214` |
+
+Together that is roughly an order of magnitude fewer projectiles, explosions and distortion sprites
+in flight. The three count/density knobs are plain `define`s, so they can be raised from the REPL
+— `(set! *mod-city-war-pool6-count* 16)`, then leave the district and come back — to find this
+machine's ceiling.
+
+**The grenade launcher is now one implementation.** `crimson-blue-guard` used to carry its own
+`crimson-guard-method-214` override that was a verbatim copy of the parent's grenade branch minus
+the `*mod-city-insurrection?*` gate and minus any cooldown, so every blue guard threw a grenade on
+every shot. It reads native joint 14 (`"blast"`) exactly like the parent, so it bought nothing: it
+is gone, and blue guards inherit `guard.gc`'s method-214. That one is rate-limited exactly like the
+sibling branches' launcher (`jak2/features/crimson-blueguard/{peaceful,crimson-redguard-behavior}`,
+where it lives on `crimson-blue-guard` behind a `grenade-launcher?` flag): same 8192 tilt, same
+184320 gravity, same 4 s timeout, same lobbed-throw fallback when
+`traj3d-calc-initial-velocity-using-tilt` finds no solution, and the same 2-second cooldown during
+which the shoot animation still plays but nothing leaves the muzzle. The cooldown timestamp lives
+in a new `grenade-last-time` field appended to the **end** of `crimson-guard`, so every retail
+field keeps its offset.
+
+**Pool 7 never worked.** `crimson-guard-2` (traffic-type 7) looks available — it has a tracker and
+a `traffic-object-spawn` arm — but `lwide-activate` leaves its `level` `#f` for both `lwidea` and
+`lwideb`, and `spawn-all` only arms `trtflags-3`, which spawning requires, for a type whose level is
+currently active. The metrics confirmed it: `P7(0/0)` in a war zone asking for 20. It is no longer
+mobilized, and the docstring no longer claims 60 combatants. Giving it a level in `lwide-activate`
+is the way to actually use it, if the budget above ever allows a third pool.
+
+> Not verified in-game yet: these are the fixes for every over-budget knob and every real defect
+> found by inspection, but the crash itself has not been reproduced since. If a war zone still
+> dies, halve `*mod-city-war-pool6-count*` / `*mod-city-war-pool4-count*` first — that isolates
+> "too much of everything" from a specific bad actor in two runs.
+
 ---
 ---
 

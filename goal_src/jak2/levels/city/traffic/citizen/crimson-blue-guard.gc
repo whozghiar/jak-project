@@ -34,7 +34,6 @@
 ;;   - general-event-handler makes it personally hostile toward Jak only if Jak attacks it.
 ;;   - crimson-blue-guard-attack-guards allows manually provoking a fight against red guards.
 
-(declare-type vehicle-grenade projectile-bounce)
 
 (define-extern merc-death-spawn (function int vector vector none))
 (define-extern sp-launch-particles-death (function sparticle-system sparticle-launcher vector none))
@@ -51,6 +50,9 @@
   )
 
 (define-extern crimson-blue-guard-attack-guards (function crimson-blue-guard none))
+;; mod-city-insurrection.gc is registered after this file in game.gp, so forward-declare its
+;; war-zone weapon roll the same way the helpers above are declared.
+(define-extern mod-city-roll-war-weapon (function uint))
 
 (def-art-elt crimson-blue-guard-ag crimson-blue-guard-lod0-jg 0)
 (def-art-elt crimson-blue-guard-ag crimson-blue-guard-lod0-mg 1)
@@ -115,12 +117,12 @@
     (set! (-> this root event-self) 'touched)
     )
   (set! (-> this hit-points) 8)
-  ;; Roll random weapon: in insurrection mode, 0% taser (rifle or grenade launcher); otherwise 0, 1 or 2
-  (let ((weapon-type (if *mod-city-insurrection?*
-                         (+ 1 (rand-vu-int-count 2))
-                         (rand-vu-int-count 3))))
-    (crimson-guard-method-225 this (the-as uint weapon-type) #f)
-    )
+  ;; In insurrection mode: no taser, grenade launcher 1 time in 3 (mod-city-roll-war-weapon).
+  ;; Otherwise the stock even spread over 0 (taser), 1 (rifle), 2 (grenade launcher).
+  (if *mod-city-insurrection?*
+      (crimson-guard-method-225 this (mod-city-roll-war-weapon) #f)
+      (crimson-guard-method-225 this (the-as uint (rand-vu-int-count 3)) #f)
+      )
   (logior! (-> this flags) (citizen-flag sticky-weapon))
   (none)
   )
@@ -443,51 +445,13 @@
     )
   )
 
-(defmethod crimson-guard-method-214 ((this crimson-blue-guard))
-  "Fires weapon projectile: standard laser bolts for rifle (guard-type 1), or vehicle-grenade
-   with parabolic arc for grenade launcher (guard-type 2)."
-  (cond
-    ((= (-> this guard-type) 2)
-     (let* ((target-pos (-> this target-pos-predict-miss))
-            (muzzle (vector<-cspace! (new 'stack-no-clear 'vector) (-> this node-list data 14)))
-            (traj (new 'stack-no-clear 'traj3d-params))
-            (a1-1 (new 'stack-no-clear 'projectile-init-by-other-params))
-            )
-       (set! (-> traj src quad) (-> muzzle quad))
-       (set! (-> traj dest quad) (-> target-pos quad))
-       (set! (-> traj initial-tilt) 8192.0)
-       (set! (-> traj gravity) 184320.0)
-       (set! (-> a1-1 ent) (-> this entity))
-       (set! (-> a1-1 charge) 1.0)
-       (set! (-> a1-1 options) (projectile-options))
-       (set! (-> a1-1 notify-handle) (process->handle this))
-       (set! (-> a1-1 owner-handle) (the-as handle #f))
-       (set! (-> a1-1 ignore-handle) (process->handle this))
-       (let* ((gi *game-info*)
-              (atk-id (+ (-> gi attack-id) 1)))
-         (set! (-> gi attack-id) atk-id)
-         (set! (-> a1-1 attack-id) atk-id)
-         )
-       (set! (-> a1-1 timeout) (seconds 4))
-       (set! (-> a1-1 pos quad) (-> muzzle quad))
-       (if (traj3d-calc-initial-velocity-using-tilt traj)
-           (set! (-> a1-1 vel quad) (-> traj initial-velocity quad))
-           (let ((dir (vector-! (new 'stack-no-clear 'vector) target-pos muzzle)))
-             (vector-normalize! dir 102400.0)
-             (+! (-> dir y) 40960.0)
-             (set! (-> a1-1 vel quad) (-> dir quad))
-             )
-           )
-       (spawn-projectile vehicle-grenade a1-1 this *default-dead-pool*)
-       )
-     )
-    (else
-      ((method-of-type crimson-guard crimson-guard-method-214) this)
-      )
-    )
-  0
-  (none)
-  )
+;; NOTE (Blue Crimson Guard mod): there is deliberately NO crimson-guard-method-214 override here.
+;; This variant's muzzle is native joint 14 ("blast"), the same joint the parent reads, and the
+;; grenade launcher is keyed off `guard-type` 2, which blue and red guards share. The override that
+;; used to sit here was a verbatim copy of the parent's grenade branch minus its
+;; `*mod-city-insurrection?*` gate and minus the 2-second cooldown, so every blue guard threw a
+;; grenade on every single shot. Inheriting guard.gc's method-214 gives one implementation, gated
+;; and rate-limited exactly like the sibling crimson-blueguard branches.
 
 (defstate active (crimson-blue-guard)
   :virtual #t
@@ -718,7 +682,12 @@
                                 (or (>= (-> self target-self-xz-dist) 10240.0) *mod-city-insurrection?*)
                                 (< (-> self target-self-xz-dist) 204800.0)
                                 has-los
-                                (time-elapsed? (-> self state-time) (seconds 0.2))
+                                ;; Re-arm interval. Matches the red guards' war-zone cadence in
+                                ;; guard.gc (0.4-1.0s). It was a flat (seconds 0.2): five volleys
+                                ;; a second per guard, and the same value for every guard, so a
+                                ;; whole firing line re-armed on the same frame.
+                                (time-elapsed? (-> self state-time)
+                                               (the int (* 300.0 (rnd-float-range self 0.4 1.0))))
                                 )
                        (go-virtual gun-shoot)
                        )

@@ -17,7 +17,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      workflows: write
 
     steps:
       - name: Checkout repository
@@ -45,8 +44,12 @@ jobs:
 
           echo "Fast-forwarding master branch..."
           git checkout -B master origin/master
-          git merge --ff-only upstream/master
-          git push origin master
+          if git merge --ff-only upstream/master; then
+            echo "Pushing updated master to origin..."
+            if ! git push origin master; then
+              echo "::warning::Could not push master to origin (likely due to upstream workflow updates that GITHUB_TOKEN is restricted from pushing). The dev branch and mod branches will still be synced!"
+            fi
+          fi
 
       - name: Sync master-dev with master
         id: sync_master_dev

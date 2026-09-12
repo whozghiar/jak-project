@@ -56,10 +56,16 @@
   (update-traffic (-> this traffic-engine))
   (kill-excess-once this)
   (spawn-all this)
-  ;; MOD haven-city-chaos -- per-frame shaping (blast-bot / jetpack-guard spawn budget,
-  ;; guard retargeting). No-op unless the mod is enabled.
+  ;; MOD haven-city-chaos -- per-frame shaping (species table, blast-bot budget, guard
+  ;; retargeting). No-op unless the mod is enabled.
   (if *mod-chaos-enable*
       (*mod-chaos-traffic-update-hook* this)
+      )
+  ;; MOD jetpack-crimsonguard -- dispatches and culls the flying Krimzon Guards. Driven from here
+  ;; rather than from a process of its own so it inherits the traffic manager's lifetime exactly
+  ;; and can never outlive Haven City. Has its own toggle so it stays usable without the chaos mod.
+  (if *mod-jetpack-enable*
+      (mod-jetpack-tick this)
       )
   (if *debug-segment*
       (debug-unused (-> this traffic-engine))

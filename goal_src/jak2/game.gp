@@ -99,6 +99,11 @@
 (hash-table-set! *file-entry-map* "chaos-species.o" #f)
 (hash-table-set! *file-entry-map* "chaos-city.o" #f)
 (hash-table-set! *file-entry-map* "chaos-blast-bot.o" #f)
+;; MOD jetpack-crimsonguard -- new source, no all_objs.json entry; built by the explicit
+;; `goal-src` steps further down instead of being resolved by `cgo-file`.
+(hash-table-set! *file-entry-map* "jetpack-crimsonguard-h.o" #f)
+(hash-table-set! *file-entry-map* "jetpack-crimsonguard-menu.o" #f)
+(hash-table-set! *file-entry-map* "jetpack-guard.o" #f)
 
 (cgo-file "game.gd" '("$OUT/obj/gcommon.o" "$OUT/obj/gstate.o" "$OUT/obj/gstring.o" "$OUT/obj/gkernel.o"))
 
@@ -351,6 +356,15 @@
 (goal-src "levels/city/chaos/chaos-species.gc" "citizen-enemy" "juicer" "spyder" "centurion" "hopper")
 (goal-src "levels/city/chaos/chaos-city.gc" "chaos-species" "traffic-manager" "haven-city-chaos-h")
 (goal-src "levels/city/bombbot/chaos-blast-bot.gc" "bombbot" "haven-city-chaos-h")
+;; MOD -- Jetpack Crimson Guard
+;;   jetpack-crimsonguard-h    after traffic-h  -- declares mod-jetpack-tick, which
+;;                                                traffic-manager.gc calls
+;;   jetpack-crimsonguard-menu after mods-menu  -- calls `mods-menu-register`
+;;   jetpack-guard             after crimson-guard-hover and traffic-manager
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(goal-src "pc/mods/jetpack-crimsonguard-h.gc" "traffic-h")
+(goal-src "pc/debug/jetpack-crimsonguard-menu.gc" "jetpack-crimsonguard-h" "mods-menu")
+(goal-src "levels/city/jetpack/jetpack-guard.gc" "crimson-guard-hover" "traffic-manager" "jetpack-crimsonguard-h")
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; ANIMATIONS

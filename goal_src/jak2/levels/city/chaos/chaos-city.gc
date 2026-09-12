@@ -335,11 +335,6 @@
   (if (and *mod-chaos-blast-bots* (= (level-status *level* 'lbombbot) 'active))
       (*mod-chaos-blast-bot-hook*)
       )
-  ;; Jetpack guards live on jak2/features/jetpack-crimsonguard and merge in here; until that
-  ;; branch lands the toggle stays #f and this is dead weight of one symbol read.
-  (if *mod-chaos-jetpack-guards*
-      (*mod-chaos-jetpack-hook*)
-      )
   0
   (none)
   )

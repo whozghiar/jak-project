@@ -143,12 +143,23 @@
   // only pull in two texture pages between them:
   //   ATE.DGO -> juicer, spyder     (atollext-vis-pris, tpage-1607)
   //   MTX.DGO -> centurion, hopper  (mtnext-vis-pris,   tpage-1721)
+  //
+  // MOD jetpack-crimsonguard -- the flying Krimzon Guard, baked into all three ambient-population
+  // levels (a dispatched guard must never survive a district transition into a level without its
+  // geometry). Home DGO is FRA, whose remap table resolves the hover guard's texture ids.
   "extra_art_groups_by_dgo": {
+    "LWIDEA.DGO": [
+      "crimson-guard-hover-ag:FRA.DGO"
+    ],
     "LWIDEB.DGO": [
       "juicer-ag:ATE.DGO",
       "spyder-ag:ATE.DGO",
       "centurion-ag:MTX.DGO",
-      "hopper-ag:MTX.DGO"
+      "hopper-ag:MTX.DGO",
+      "crimson-guard-hover-ag:FRA.DGO"
+    ],
+    "LWIDEC.DGO": [
+      "crimson-guard-hover-ag:FRA.DGO"
     ]
   },
   // turn this on if you want extracted levels to be saved out as .glb files in decompiler_out/<game>/levels

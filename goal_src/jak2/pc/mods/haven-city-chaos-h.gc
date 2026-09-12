@@ -41,7 +41,10 @@
 (define *mod-chaos-extra-species* #t)   ;; juicer / spyder / centurion / hopper in the traffic mix
 (define *mod-chaos-guard-buffs* #t)     ;; HP scale + guard vehicles engaging metal heads
 (define *mod-chaos-blast-bots* #t)      ;; occasional anti-metal-head blast bot
-(define *mod-chaos-jetpack-guards* #f)  ;; filled in by jak2/features/jetpack-crimsonguard
+;; Flying Krimzon Guards come from jak2/features/jetpack-crimsonguard, now merged in. That mod
+;; owns its own toggle (`*mod-jetpack-enable*`) and its own dispatcher call in
+;; `traffic-manager::update`, so the chaos menu simply drives that symbol rather than keeping a
+;; duplicate of its own -- one switch, whichever menu you reach it from.
 
 ;; Set by the debug menu whenever a toggle changes something the city-side traffic table has to be
 ;; rebuilt from. The city half clears it on the next frame. This exists so the menu -- which is
@@ -115,17 +118,7 @@
   (none)
   )
 
-(defun mod-chaos-jetpack-update-default ()
-  "Fallback jetpack-guard tick: do nothing.
-   Replaced by `levels/city/chaos/chaos-jetpack.gc` once jak2/features/jetpack-crimsonguard
-   is merged in. Kept as a function pointer rather than a second `defun` of the same name so
-   the two branches never race over which DGO loaded last."
-  0
-  (none)
-  )
-
 (define *mod-chaos-citizen-type-hook* mod-chaos-citizen-type-default)
-(define *mod-chaos-jetpack-hook* mod-chaos-jetpack-update-default)
 (define *mod-chaos-blast-bot-hook* mod-chaos-blast-bot-update-default)
 (define *mod-chaos-spawn-hook* mod-chaos-spawn-default)
 (define *mod-chaos-traffic-update-hook* mod-chaos-traffic-update-default)
@@ -138,7 +131,6 @@
   (set! *mod-chaos-spawn-hook* mod-chaos-spawn-default)
   (set! *mod-chaos-traffic-update-hook* mod-chaos-traffic-update-default)
   (set! *mod-chaos-lwide-activate-hook* mod-chaos-lwide-activate-default)
-  (set! *mod-chaos-jetpack-hook* mod-chaos-jetpack-update-default)
   (set! *mod-chaos-blast-bot-hook* mod-chaos-blast-bot-update-default)
   0
   (none)

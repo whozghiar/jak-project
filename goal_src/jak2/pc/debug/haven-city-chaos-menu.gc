@@ -17,7 +17,7 @@
 ;;     Guards     > Tougher guards      -- 1.5x hit points + vehicles engaging metal heads
 ;;     Guards     > Guards ignore Jak   -- the truce
 ;;     Guards     > Blast bots          -- rare anti-metal-head blast bot
-;;     Guards     > Jetpack guards      -- filled in by jak2/features/jetpack-crimsonguard
+;;     Guards     > Jetpack guards      -- flying Krimzon Guards (jetpack-crimsonguard mod)
 ;;
 ;; All the state itself lives in `pc/mods/haven-city-chaos-h.gc`; this file only drives it, so the
 ;; mod is equally controllable from the REPL (`(mod-chaos-set-enable! #t)`) with the menu closed.
@@ -118,7 +118,10 @@
          (flag "Tougher guards" *mod-chaos-guard-buffs* mod-haven-city-chaos-guard-buffs-pick)
          (flag "Guards ignore Jak" *mod-chaos-guards-ignore-jak* dm-boolean-toggle-pick-func)
          (flag "Blast bots" *mod-chaos-blast-bots* mod-haven-city-chaos-blast-bots-pick)
-         (flag "Jetpack guards" *mod-chaos-jetpack-guards* dm-boolean-toggle-pick-func)
+         ;; Same symbol the jetpack mod's own submenu writes -- see
+         ;; pc/debug/jetpack-crimsonguard-menu.gc. Listed here too because "flying guards"
+         ;; reads as part of the chaos package from a player's point of view.
+         (flag "Jetpack guards" *mod-jetpack-enable* dm-boolean-toggle-pick-func)
          )
        )
     )

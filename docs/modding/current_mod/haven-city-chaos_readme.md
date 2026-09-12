@@ -531,8 +531,14 @@ Debug ▸ Mods ▸ haven-city-chaos
   guards ▸ Tougher guards         1.5x health + gunships engaging metal heads
   guards ▸ Guards ignore Jak      the truce
   guards ▸ Blast bots             the 5% anti-metal-head blast bot
-  guards ▸ Jetpack guards         jak2/features/jetpack-crimsonguard
+  guards ▸ Jetpack guards         flying Krimzon Guards (jetpack-crimsonguard, merged in)
 ```
+
+`jak2/features/jetpack-crimsonguard` is merged into this branch. It keeps its own submenu
+(`Debug ▸ Mods ▸ jetpack-crimsonguard`) and its own dispatcher call in `traffic-manager::update`,
+so it still works standalone; the chaos menu's `Jetpack guards` row simply writes the same
+`*mod-jetpack-enable*` symbol. One switch, two places to reach it. Its own deep-dive is at
+[`jetpack-crimsonguard_readme.md`](jetpack-crimsonguard_readme.md).
 
 Equally drivable from the REPL with the menu closed:
 

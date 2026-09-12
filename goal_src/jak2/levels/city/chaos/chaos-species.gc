@@ -92,12 +92,21 @@
   )
 
 (defmethod chaos-chase-anim ((this chaos-metalhead))
-  "Pick the chase animation, tolerating species that have no dedicated run cycle."
-  (let ((run (-> this enemy-info run-anim)))
-    (if (>= run 0)
-        run
-        (-> this enemy-info walk-anim)
+  "Pick the chase animation, tolerating species that have no dedicated run cycle -- and species
+   that have no locomotion animation at all.
+
+   The second fallback is not defensive padding. `*rapid-gunner-nav-enemy-info*` ships both
+   `walk-anim` and `run-anim` as -1, and a negative index here becomes
+   `(-> draw art-group data -1)`, which reads the word before the array and hands the animation
+   system a garbage pointer. That is a segfault, not an exception."
+  (let ((run (-> this enemy-info run-anim))
+        (walk (-> this enemy-info walk-anim))
         )
+    (cond
+      ((>= run 0) run)
+      ((>= walk 0) walk)
+      (else (-> this enemy-info idle-anim))
+      )
     )
   )
 
@@ -561,6 +570,104 @@
     )
   0
   (none)
+  )
+
+(defmethod citizen-init! ((this chaos-rapid-gunner))
+  "City recycle hook, plus the single most important line in this species: overwrite the walk and
+   run animation indices that `citizen-enemy::citizen-init!` just copied out of `enemy-info`.
+
+   `*rapid-gunner-nav-enemy-info*` ships `:walk-anim -1` and `:run-anim -1`, because the Ruins
+   gunner is an emplacement and has no walk cycle at all -- its only locomotion is the scripted
+   `hop`, which blends four directional idle poses. Every other city species has a real walk.
+
+   The city does not check. `citizen-enemy::active` and `citizen-travel-anim` both index straight
+   into the art group:
+
+     (ja-no-eval :group! (-> self draw art-group data (-> self enemy-info walk-anim)) ...)
+
+   With -1 that reads the word *before* the art-group data array, hands the animation system a
+   garbage `art-joint-anim` pointer, and the process segfaults -- a hard crash with no GOAL error
+   line, which is exactly how this species first shipped. Pointing every animation slot at the idle
+   pose makes the failure mode 'stands there looking wrong' instead of 'kills the game', and it has
+   to be done here rather than in `init-enemy!` because `citizen-init!` runs on every recycle."
+  ((method-of-type citizen-enemy citizen-init!) this)
+  (let ((idle (-> this enemy-info idle-anim)))
+    (if (< (-> this anim-walk) 0)
+        (set! (-> this anim-walk) idle)
+        )
+    (if (< (-> this anim-run) 0)
+        (set! (-> this anim-run) idle)
+        )
+    (if (< (-> this anim-shuffle) 0)
+        (set! (-> this anim-shuffle) idle)
+        )
+    )
+  0
+  (none)
+  )
+
+;; The gunner's `active`, and the one place this species deliberately parts company with the other
+;; four: it does not walk the city.
+;;
+;; That is not a stylistic choice, it is what the art allows -- there is no walk animation (see
+;; `citizen-init!` above). It is also the retail behaviour: `rapid-gunner::active` is a pure idle
+;; loop with the nav callback nulled, because a Ruins gunner is hand-placed and holds its ground.
+;; So a city gunner is a gun emplacement that the traffic engine happens to position: it appears at
+;; a pedestrian nav point, stands, and opens up on whatever Krimzon Guard walks into its arc.
+;;
+;; Handler-by-handler this matches retail `rapid-gunner::active`: an enter that drops the nav
+;; callback, an idle `:code`, and `nav-enemy-simple-post`. Worth knowing while reading it: a
+;; `defstate` handler you leave out is NOT inherited -- `*no-state*` only tells the compiler to skip
+;; the field write, so the state ships with `#f` there and `enter-state` installs no hook at all.
+;; `citizen-enemy::active` declares only `:code` and consequently has no post whatsoever, which is
+;; why this override spells every handler out instead of relying on what it sits under. The empty
+;; `:trans` is therefore documentation rather than suppression: `citizen::active`'s trans (route
+;; steering, and parking the actor in `wait` once it has stood still long enough -- `wait` would put
+;; it straight back on the missing walk animations) was never going to be inherited anyway.
+;;
+;; Deactivation is unaffected by any of this: the traffic engine tears an actor down with a
+;; `traffic-off` *event*, which reaches `citizen`'s handler through `:event` below.
+(defstate active (chaos-rapid-gunner)
+  :virtual #t
+  :event enemy-event-handler
+  :enter (behavior ()
+    ;; Guarded because it genuinely can be #f -- `citizen-enemy::active` declares no enter.
+    (let ((t9-0 (-> (method-of-type citizen-enemy active) enter)))
+      (if t9-0
+          (t9-0)
+          )
+      )
+    ;; Retail `rapid-gunner::active`: drop the nav callback so nothing tries to travel us.
+    (let ((v1-4 self))
+      (set! (-> v1-4 enemy-flags) (the-as enemy-flag (logclear (-> v1-4 enemy-flags) (enemy-flag enemy-flag36))))
+      (set! (-> v1-4 nav callback-info) *nav-enemy-null-callback-info*)
+      )
+    ;; Belt and braces against whatever set a travel speed before we got here: a gunner with a
+    ;; non-zero target speed slides along its traffic route playing an idle animation.
+    (set! (-> self nav target-speed) 0.0)
+    (let ((v1-10 (-> self nav state)))
+      (set! (-> v1-10 speed) 0.0)
+      )
+    0
+    )
+  :trans (behavior ()
+    '()
+    )
+  :code (behavior ()
+    ;; Unconditional channel push, unlike retail's conditional one: `citizen-init!` ends with
+    ;; `(ja-channel-set! 0)`, so a freshly recycled process arrives here with no channels at all and
+    ;; retail's leading `(ja-no-eval :num! (loop!))` would run against channel 0 before it exists.
+    (ja-channel-push! 1 (seconds 0.2))
+    (let ((idle (-> self draw art-group data (-> self enemy-info idle-anim))))
+      (ja-no-eval :group! idle :num! (loop!) :frame-num 0.0)
+      (until #f
+        (suspend)
+        (ja :num! (loop!))
+        )
+      )
+    #f
+    )
+  :post nav-enemy-simple-post
   )
 
 ;; Verbatim port of `rapid-gunner::hostile`. The gunner does not navigate here -- `nav callback-info`

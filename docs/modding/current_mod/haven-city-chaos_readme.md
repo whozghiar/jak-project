@@ -634,13 +634,56 @@ collide-with, so both damage Krimzon Guards with no change on the projectile sid
   `citizen-enemy` owns damage-to-death-to-recycle and the three retail city species all go through
   it. Combat is what had to match the mission; dying and being pooled is city business.
 
-One city adaptation is worth calling out, because it is the only place the port is *not* verbatim:
-the gunner's `start-pos` — the spot it hops back to when it loses sight of its target — is refreshed
+#### The gunner cannot walk, and the city does not check
+
+The first build of this species crashed the moment one spawned — exit status 5, no GOAL error line
+at all, just the process dying mid-frame. The cause is one field:
+
+```lisp
+;; *rapid-gunner-nav-enemy-info*
+:walk-anim -1
+:run-anim  -1
+```
+
+The Ruins gunner is an emplacement. It has **no walk cycle**; its only locomotion is the scripted
+`hop`, which blends four directional idle poses. Every other city species has a real walk, and the
+city code takes that for granted:
+
+```lisp
+;; citizen-enemy::active
+(ja-no-eval :group! (-> self draw art-group data (-> self enemy-info walk-anim)) ...)
+```
+
+`(-> draw art-group data -1)` reads the word *before* the array, hands the animation system a
+garbage `art-joint-anim` pointer, and the process segfaults. There is no bounds check anywhere on
+that path — which is why the failure is a hard crash rather than a `process-drawable-art-error`.
+
+Two fixes, and the second one matters more than it looks:
+
+1. **`active` is overridden** with the retail idle loop, nav callback nulled and target speed
+   zeroed. So a city gunner is a gun emplacement that the traffic engine happens to position: it
+   appears at a pedestrian nav point, stands, and opens up on whatever walks into its arc. That is
+   also the honest reading of "identical to its mission behaviour" for this species. Every handler
+   is spelled out rather than partially overridden, because **a `defstate` handler you leave out is
+   not inherited** — the `*no-state*` sentinel only tells the compiler to skip the field write, and
+   `enter-state` then installs whatever is there (`(set! (-> pp post-hook) (-> new-state post))`).
+   That is why `citizen-enemy::active`, which declares only `:code`, has no post at all.
+   Deactivation is unaffected either way: the traffic engine tears an actor down with a
+   `traffic-off` *event*, which reaches `citizen`'s handler through `:event`.
+2. **`citizen-init!` is overridden** to point `anim-walk` / `anim-run` / `anim-shuffle` at the idle
+   animation whenever `enemy-info` gave them -1. It has to be `citizen-init!` and not `init-enemy!`
+   because the former runs on *every recycle*. This is the belt to the braces: if any city code
+   path is ever reached that this port did not anticipate, the result is a gunner standing in a
+   wrong pose rather than a dead game.
+
+`chaos-chase-anim` on the shared base got the same treatment — it used to fall back from `run-anim`
+to `walk-anim`, which for this species is -1 to -1.
+
+#### One more city adaptation
+
+The gunner's `start-pos` — the spot it hops back to when it loses sight of its target — is refreshed
 on entering `hostile` rather than set once in `init-enemy!` from the entity's placement. A traffic
-actor is recycled all over the map, so its fallback has to be wherever *this* fight started. It also
-keeps `citizen-enemy`'s `active` (the city walk) instead of the retail idle loop: a metal head that
-stood motionless on a street corner until something walked past would read as a bug, and the retail
-`active` is a pure idle loop only because a Ruins gunner is placed by hand.
+actor is recycled all over the map, so its fallback has to be wherever *this* fight started.
 
 The spyder's leg IK (`chaos-spyder-legs!`) *is* kept — without it four legs float over the city's
 kerbs and slopes. It costs one `*collide-cache*` fill per spyder per frame, which is why this
@@ -910,6 +953,7 @@ Nothing here has been run yet. In order:
 | Guard gunships circle but never engage | `mod-chaos-engage-vehicle!` not reaching them — check `(-> veh flags)` for `in-pursuit` in the REPL (§5.2) |
 | New species and guard shove without damage | The `common-post` override is not being reached — confirm `chaos-metalhead` actually overrides it (§4.5) |
 | Rapid gunner stands still and never shoots | `los` has no destination — check `enemy-method-63` is being inherited from `chaos-metalhead` (§4.6) |
+| Hard crash (exit 5) with no GOAL error when a species spawns | An animation index of -1 reaching `(-> draw art-group data ...)`. Check that species' `enemy-info` for `-1` anims (§4.6) |
 
 ---
 

@@ -183,8 +183,14 @@
 (defun chaos-art-ready? ((skel-name string))
   "#t when the skeleton group is resident, i.e. its `-ag.go` made it into a loaded DGO.
    Checked before spawning so a missing art group degrades into 'this species does not appear'
-   instead of a `process-drawable-art-error` crash."
-  (and (art-group-get-by-name *level* skel-name (the-as (pointer uint32) #f)) #t)
+   instead of a `process-drawable-art-error` crash.
+
+   Written as an `if` rather than `(and ... #t)` on purpose: `and` types as the union of its
+   operands, i.e. `object`, which will not go into a `symbol` global."
+  (if (art-group-get-by-name *level* skel-name (the-as (pointer uint32) #f))
+      #t
+      #f
+      )
   )
 
 ;; ------------------------------------------------------------------------------------------------

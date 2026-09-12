@@ -93,7 +93,9 @@
 ;; ================================================================================================
 
 ;; At most one blast bot patrols at a time -- they are large, loud and expensive.
-(define *mod-chaos-blast-bot* (the-as handle #f))
+;; Held in a one-element array rather than straight in the symbol: `handle` is a 64-bit value type
+;; and a symbol slot is not wide enough to carry one intact.
+(define *mod-chaos-blast-bot* (new 'static 'array handle 1 (new 'static 'handle)))
 
 ;; Next frame we are allowed to roll for a blast bot.
 (define *mod-chaos-blast-bot-next-roll* (the-as time-frame 0))
@@ -114,7 +116,7 @@
    and cleans up after one dies."
   (when (>= (current-time) *mod-chaos-blast-bot-next-roll*)
     (set! *mod-chaos-blast-bot-next-roll* (+ (current-time) MOD_CHAOS_BLAST_BOT_ROLL_PERIOD))
-    (when (and (not (handle->process *mod-chaos-blast-bot*))
+    (when (and (not (handle->process (-> *mod-chaos-blast-bot* 0)))
                *traffic-manager*
                (< (rand-vu-int-count 100) MOD_CHAOS_BLAST_BOT_PERCENT)
                )
@@ -141,7 +143,7 @@
         ;; bring-up is exactly what we want.
         (let ((proc (process-spawn chaos-blast-bot params :init bombbot-init-by-other :to *traffic-manager*)))
           (if proc
-              (set! *mod-chaos-blast-bot* (ppointer->handle proc))
+              (set! (-> *mod-chaos-blast-bot* 0) (ppointer->handle proc))
               )
           )
         )

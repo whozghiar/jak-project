@@ -196,8 +196,17 @@
 ;; manager's lifetime exactly -- it can never outlive Haven City.
 ;; ------------------------------------------------------------------------------------------------
 
+;; `handle` is a 64-bit value type, so it cannot live in a symbol slot directly and its static
+;; elements have to be built by the `handle` constructor -- `(the-as handle #f)` is a runtime-only
+;; idiom, which the static-data evaluator rejects. A one-per-slot static array solves both: the
+;; array is the global, and `(new 'static 'handle)` is the retail way to spell an empty element.
 (define *mod-jetpack-guards*
-  (new 'static 'array handle MOD_JETPACK_MAX_GUARDS (the-as handle #f) (the-as handle #f) (the-as handle #f))
+  ;; Size stays tied to the constant; the element list below must be kept the same length.
+  (new 'static 'array handle MOD_JETPACK_MAX_GUARDS
+    (new 'static 'handle)
+    (new 'static 'handle)
+    (new 'static 'handle)
+    )
   )
 
 (define *mod-jetpack-next-roll* (the-as time-frame 0))

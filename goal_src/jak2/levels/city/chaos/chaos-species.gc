@@ -50,6 +50,10 @@
     ;; Animation index to play while chasing. Falls back to the walk animation for species
     ;; that ship with `run-anim -1` (the centurion has no run cycle at all).
     (chaos-chase-anim (_type_) int)
+    ;; The `nav-enemy-info` this species is tuned by. NOT inherited from anywhere: `metalhead-grunt`
+    ;; declares `get-nav-info` in its own `:methods` block rather than `nav-enemy` or `enemy`
+    ;; providing it, so the chaos hierarchy has to declare its own slot for it.
+    (get-nav-info (_type_) nav-enemy-info)
     )
   )
 
@@ -66,6 +70,14 @@
         (-> this enemy-info walk-anim)
         )
     )
+  )
+
+(defmethod get-nav-info ((this chaos-metalhead))
+  "Base implementation. `chaos-metalhead` is abstract -- only the four species below are ever
+   spawned, and each overrides this -- but the slot needs a body, and it has to be a body that
+   cannot crash `init-enemy-behaviour-and-stats!` if the hierarchy is ever extended carelessly.
+   The city grunt's tuning is the closest thing to a neutral default."
+  *metalhead-grunt-nav-enemy-info*
   )
 
 (defmethod init-enemy! ((this chaos-metalhead))

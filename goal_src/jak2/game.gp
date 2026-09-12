@@ -346,14 +346,16 @@
 ;;   haven-city-chaos-h   after traffic-h      -- it defines the symbols traffic-h declares
 ;;   haven-city-chaos-menu after mods-menu     -- calls `mods-menu-register`
 ;;   chaos-species        after hopper         -- subclasses citizen-enemy, reads the four
-;;                                               `*<x>-nav-enemy-info*` statics
+;;                                               `*<x>-nav-enemy-info*` statics, plus
+;;                                               `*metalhead-grunt-nav-enemy-info*` as its
+;;                                               abstract-base default
 ;;   chaos-city           after chaos-species  -- and after traffic-manager for `*traffic-engine*`
 ;;   chaos-blast-bot      after bombbot        -- subclasses it (LBOMBBOT is compiled late, which
 ;;                                               is exactly why chaos-city reaches it via a hook)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (goal-src "pc/mods/haven-city-chaos-h.gc" "traffic-h" "settings")
 (goal-src "pc/debug/haven-city-chaos-menu.gc" "haven-city-chaos-h" "mods-menu")
-(goal-src "levels/city/chaos/chaos-species.gc" "citizen-enemy" "juicer" "spyder" "centurion" "hopper")
+(goal-src "levels/city/chaos/chaos-species.gc" "citizen-enemy" "metalhead-grunt" "juicer" "spyder" "centurion" "hopper")
 (goal-src "levels/city/chaos/chaos-city.gc" "chaos-species" "traffic-manager" "haven-city-chaos-h")
 (goal-src "levels/city/bombbot/chaos-blast-bot.gc" "bombbot" "haven-city-chaos-h")
 ;; MOD -- Jetpack Crimson Guard

@@ -22,6 +22,19 @@
   "car.o"
   "test-bike.o"
   "test-car.o"
+  ;; MOD jetpack-crimsonguard -- the retail hover-guard stack, so `crimson-guard-hover` can be
+  ;; instantiated inside Haven City. Same object list and same order as FRA.DGO, which is where
+  ;; these normally ship; `hover-nav-network.o` is included because it defines `*nav-network*`
+  ;; (left at 0 in the city -- see the honflags-0 note in jetpack-guard.gc).
+  "hover-formation-h.o"
+  "hover-nav-control-h.o"
+  "hover-enemy-h.o"
+  "hover-nav-network.o"
+  "hover-nav-control.o"
+  "hover-enemy.o"
+  "hover-enemy-battle.o"
+  "hover-formation.o"
+  "crimson-guard-hover.o"
   "citizen.o"
   "civilian.o"
   "guard.o"
@@ -36,6 +49,9 @@
   "trail-graph.o"
   "trail.o"
   "traffic-manager.o"
+  ;; MOD jetpack-crimsonguard -- the flying guard actor + its dispatcher. After traffic-manager.o
+  ;; because `traffic-manager::update` drives `mod-jetpack-tick`.
+  "jetpack-guard.o"
   "ctywide-texture.o"
   "ctywide-part.o"
   "ctywide-obs.o"

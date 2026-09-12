@@ -56,6 +56,12 @@
   (update-traffic (-> this traffic-engine))
   (kill-excess-once this)
   (spawn-all this)
+  ;; MOD jetpack-crimsonguard -- dispatches and culls the flying Krimzon Guards. Driven from here
+  ;; rather than from a process of its own so it inherits the traffic manager's lifetime exactly
+  ;; and can never outlive Haven City. No-op unless the mod is enabled.
+  (if *mod-jetpack-enable*
+      (mod-jetpack-tick this)
+      )
   (if *debug-segment*
       (debug-unused (-> this traffic-engine))
       )

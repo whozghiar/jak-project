@@ -136,7 +136,21 @@
   // merc's texture ids are home-level-relative). Omitted -> first level DGO the art
   // group shipped in is auto-picked (unreliable). Wrong/missing -> untextured model.
   // Example: "LWIDEA.DGO": ["transport-ag:LPROTECT.DGO"]
-  "extra_art_groups_by_dgo": {},
+  // MOD jetpack-crimsonguard -- bake the flying Krimzon Guard's merc geometry into the three
+  // Haven City ambient-population levels. Home DGO is FRA (Fortress rescue), whose texture
+  // remap table resolves the hover guard's texture ids; its pris page (tpage-3192) is added
+  // alongside the art group in each lwide*.gd.
+  "extra_art_groups_by_dgo": {
+    "LWIDEA.DGO": [
+      "crimson-guard-hover-ag:FRA.DGO"
+    ],
+    "LWIDEB.DGO": [
+      "crimson-guard-hover-ag:FRA.DGO"
+    ],
+    "LWIDEC.DGO": [
+      "crimson-guard-hover-ag:FRA.DGO"
+    ]
+  },
   // turn this on if you want extracted levels to be saved out as .glb files in decompiler_out/<game>/levels
   "rip_levels": false,
   // should we also extract collision meshes to the .fr3 files?

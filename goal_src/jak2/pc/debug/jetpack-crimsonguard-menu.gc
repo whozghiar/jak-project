@@ -1,0 +1,41 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: jetpack-crimsonguard-menu.gc
+;; name in dgo: jetpack-crimsonguard-menu
+;; dgos: GAME
+;;
+;; MOD "Jetpack Crimson Guard" -- Debug > Mods > jetpack-crimsonguard
+;; ================================================================================================
+;; Registers with the shared `mods-menu.gc` registry; never touches `default-menu*.gc`.
+;;
+;;   Debug > Mods > jetpack-crimsonguard
+;;     Enable   -- dispatch flying Krimzon Guards over Haven City
+;;
+;; Only useful inside Haven City: the dispatcher is driven by `traffic-manager::update`, which only
+;; exists there. The toggle is still safe to flip anywhere -- it simply does nothing until the
+;; player is back in the city.
+;; ================================================================================================
+
+(declare-file (debug))
+
+(defun mod-jetpack-crimsonguard-enable-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Master toggle. Guards are dispatched a few seconds at a time rather than all at once, so expect
+   the first one to fly in within ~6 seconds of enabling."
+  (case arg1
+    (((debug-menu-msg press))
+     (set! (-> arg0 value) (not (-> arg0 value)))
+     )
+    )
+  (-> arg0 value)
+  )
+
+(defun mod-jetpack-crimsonguard-build-menu ((ctx debug-menu-context))
+  (debug-menu-make-from-template ctx
+    '(menu "jetpack-crimsonguard"
+       (flag "Enable" *mod-jetpack-enable* mod-jetpack-crimsonguard-enable-pick)
+       )
+    )
+  )
+
+(mods-menu-register "jetpack-crimsonguard" mod-jetpack-crimsonguard-build-menu)

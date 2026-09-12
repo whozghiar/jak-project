@@ -1,0 +1,260 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: jetpack-guard.gc
+;; name in dgo: jetpack-guard
+;; dgos: CWI
+;;
+;; MOD "Jetpack Crimson Guard" -- the city-side actor and its dispatcher.
+;; ================================================================================================
+;; Goal: the retail jet-propelled Krimzon Guard (`crimson-guard-hover`) flying over Haven City and
+;; fighting metal heads, rather than a new actor built from scratch.
+;;
+;; The obstacle, and how it is removed
+;; -----------------------------------
+;; `hover-enemy` steers through a `hover-nav-control`, which holds a pointer to the global
+;; `*nav-network*`. That network is level data: `forest-obs.gc`, `drill-obs.gc`, `forresca-obs.gc`
+;; and friends each call `nav-network-method-10` with their own static adjacency table. Haven City
+;; has no such table, so `*nav-network*` stays 0 there and any network call dereferences null.
+;;
+;; Reading `hover-nav-control.gc`, every network call sits behind one flag:
+;;
+;;   method-11 (set destination)   -- the network re-path block is wrapped in
+;;                                    `(when (not (logtest? flags honflags-0)) ...)`; the steering
+;;                                    that follows it is outside the guard and always runs.
+;;   method-13 (per-frame physics) -- same guard around `nav-network-method-26`, the network-based
+;;                                    collision impulse.
+;;   method-24 (line-of-sight)     -- same guard around the LOS probe that triggers re-pathing.
+;;
+;; `honflags-0` is retail's "I am following a scripted path, leave my route alone" flag: method-18
+;; and method-19 set it, method-20 clears it. Setting it permanently therefore gives a hover enemy
+;; that steers toward its destination under its own acceleration and friction, with no network
+;; lookups at all. What is lost is network-based obstacle avoidance -- which is why these guards
+;; are dispatched high above the streets, where Haven City has almost nothing to hit.
+;;
+;; What else had to change
+;; -----------------------
+;;   - Entry state. Retail enters `ambush`, which needs a `path-control` read off the placed entity
+;;     and calls the network pathing. Dispatched guards go straight to `hostile` instead, the same
+;;     trick `bombbot-init-by-other` uses.
+;;   - Entity binding. A dynamically spawned actor has no BSP entity, so `initialize-skeleton`
+;;     cannot resolve its draw control. `(lwide-entity-hack)` re-homes the process onto a resident
+;;     city entity -- the same call every traffic citizen makes.
+;;   - Faction. Retail hover guards hunt Jak. These carry `process-mask guard`, focus only on
+;;     `collide-spec enemy`, and register as `civilian` so metal heads will engage them back.
+;; ================================================================================================
+
+;; ------------------------------------------------------------------------------------------------
+;; The actor
+;; ------------------------------------------------------------------------------------------------
+
+(deftype jetpack-crimson-guard (crimson-guard-hover)
+  ((next-scan-time  time-frame)  ;; next frame we re-pick a target
+   )
+  )
+
+(defmethod init-enemy! ((this jetpack-crimson-guard))
+  "Retail bring-up, then the three city adjustments: free flight, guard faction, metal-head focus."
+  ((method-of-type crimson-guard-hover init-enemy!) this)
+  ;; Free flight. `hover` is allocated by `hover-enemy-method-155`, which the parent init just ran.
+  (if (nonzero? (-> this hover))
+      (logior! (-> this hover flags) (hover-nav-flags honflags-0))
+      )
+  ;; Faction: a guard, not an enemy. Mirrors what `crimson-guard::citizen-init!` does for the
+  ;; ground guards, and is what keeps blast bots and metal heads from mistaking one for prey.
+  (logclear! (-> this mask) (process-mask enemy))
+  (logior! (-> this mask) (process-mask guard))
+  ;; Targeting: only metal heads. `collide-spec enemy` is what every metal head registers as.
+  (reset-to-collide-spec (-> this focus) (collide-spec enemy))
+  ;; Visibility to the other side: metal heads focus on `civilian`, which is how they see citizens
+  ;; and ground guards. Add it to the root primitive so they will fight back.
+  (let* ((cshape (-> this root))
+         (root-prim (-> cshape root-prim))
+         )
+    (set! (-> root-prim prim-core collide-as) (collide-spec enemy civilian))
+    (set! (-> cshape backup-collide-as) (-> root-prim prim-core collide-as))
+    (set! (-> cshape backup-collide-with) (-> root-prim prim-core collide-with))
+    )
+  (set! (-> this next-scan-time) 0)
+  0
+  (none)
+  )
+
+(defun jetpack-guard-nearest-prey ((this jetpack-crimson-guard) (max-dist float))
+  "Nearest live metal head within `max-dist`, or #f.
+
+   Uses `*actor-hash*` rather than the traffic engine's active lists so the actor works whether or
+   not the Haven City : Chaos mod is present -- this branch has to stand on its own."
+  (let ((best (the-as process-focusable #f))
+        (best-dist max-dist)
+        (search (new 'stack-no-clear 'vector))
+        (candidates (new 'stack-no-clear 'array 'collide-shape 64))
+        )
+    (set! (-> search quad) (-> this root trans quad))
+    (set! (-> search w) max-dist)
+    (countdown (i (fill-actor-list-for-sphere *actor-hash* (the-as sphere search) candidates 64))
+      (let ((cshape (as-type (-> candidates i) collide-shape)))
+        (when cshape
+          (let ((proc (the-as process-focusable (as-type (-> cshape process) process-focusable))))
+            ;; `enemy && !guard` is the metal-head test: city metal heads are `citizen-enemy`s and
+            ;; set `enemy`, Krimzon Guards clear it and set `guard`, citizens carry neither.
+            (when (and proc
+                       (!= this proc)
+                       (logtest? (-> proc mask) (process-mask enemy))
+                       (not (logtest? (-> proc mask) (process-mask guard)))
+                       (not (logtest? (-> proc focus-status) (focus-status disable dead ignore grabbed inactive)))
+                       )
+              (let ((dist (vector-vector-distance (-> this root trans) (-> proc root trans))))
+                (when (< dist best-dist)
+                  (set! best proc)
+                  (set! best-dist dist)
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    best
+    )
+  )
+
+(defstate hostile (jetpack-crimson-guard)
+  :virtual #t
+  :trans (behavior ()
+    ;; Re-acquire a target a few times a second. Without this the guard would hold its first focus
+    ;; until that metal head died, then hover in place: `hover-enemy`'s `hostile` has no :trans of
+    ;; its own and therefore no way back out of the state.
+    (when (>= (current-time) (-> self next-scan-time))
+      (set! (-> self next-scan-time) (+ (current-time) (seconds 0.35)))
+      (let ((current (handle->process (-> self focus handle))))
+        (when (or (not current)
+                  (logtest? (-> (the-as process-focusable current) focus-status) (focus-status dead disable ignore inactive))
+                  )
+          (let ((prey (jetpack-guard-nearest-prey self MOD_JETPACK_PREY_DIST)))
+            (if prey
+                (try-update-focus (-> self focus) prey self)
+                (clear-focused (-> self focus))
+                )
+            )
+          )
+        )
+      )
+    ;; Then the retail behaviour: speech line, and the range test that commits to an attack run.
+    (let ((parent-trans (-> (method-of-type crimson-guard-hover hostile) trans)))
+      (if parent-trans
+          (parent-trans)
+          )
+      )
+    )
+  :code hover-enemy-fly-code
+  :post hover-enemy-hostile-post
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; Spawning
+;; ------------------------------------------------------------------------------------------------
+
+(defbehavior jetpack-guard-init-by-other jetpack-crimson-guard ((arg0 vector))
+  "Bring a jetpack guard into the world at `arg0` and drop it straight into `hostile`.
+
+   Deliberately does NOT go through `ambush`: that state reads a `path-control` off the placed
+   entity and hands it to the network pathing, neither of which exists for a dispatched actor."
+  (stack-size-set! (-> self main-thread) 512)
+  ;; Re-home onto a resident Haven City entity so `initialize-skeleton` can bind a draw control.
+  ;; Without this the process dies with `process-drawable-art-error`.
+  (lwide-entity-hack)
+  (init-enemy-collision! self)
+  (set! (-> self root trans quad) (-> arg0 quad))
+  (quaternion-identity! (-> self root quat))
+  (vector-identity! (-> self root scale))
+  (init-enemy! self)
+  (go-virtual hostile)
+  (none)
+  )
+
+(defun jetpack-guard-spawn ((pos vector))
+  "Create one jetpack guard at `pos`, or #f if the art is not resident.
+
+   The art group check matters: `crimson-guard-hover-ag` is added to the LWIDEA / LWIDEB / LWIDEC
+   borrow levels, and there is a window during a district transition where none of them is up."
+  (if (not (art-group-get-by-name *level* "skel-crimson-guard-hover" (the-as (pointer uint32) #f)))
+      (return (the-as process #f))
+      )
+  (let ((proc (get-process *default-dead-pool* jetpack-crimson-guard #x4000)))
+    (when proc
+      (let ((t9-0 (method-of-type process activate)))
+        (t9-0 proc *traffic-manager* "jetpack-crimson-guard" (the-as pointer #x70004000))
+        )
+      (run-now-in-process proc jetpack-guard-init-by-other pos)
+      (return (ppointer->process (-> proc ppointer)))
+      )
+    )
+  (the-as process #f)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; Dispatcher
+;;
+;; Called once per frame from `traffic-manager::update` while the mod is on. Kept as a plain
+;; function driven by the traffic manager rather than a process of its own so it inherits the
+;; manager's lifetime exactly -- it can never outlive Haven City.
+;; ------------------------------------------------------------------------------------------------
+
+(define *mod-jetpack-guards*
+  (new 'static 'array handle MOD_JETPACK_MAX_GUARDS (the-as handle #f) (the-as handle #f) (the-as handle #f))
+  )
+
+(define *mod-jetpack-next-roll* (the-as time-frame 0))
+
+(defun mod-jetpack-tick ((mgr traffic-manager))
+  "Keep the jetpack guard population topped up, and recycle the ones that have wandered off."
+  (when *target*
+    (let ((player-pos (target-pos 0))
+          (free-slot -1)
+          )
+      ;; Reap: drop dead handles, and kill guards that have chased something out of the area.
+      (dotimes (i MOD_JETPACK_MAX_GUARDS)
+        (let ((proc (handle->process (-> *mod-jetpack-guards* i))))
+          (cond
+            ((not proc)
+             (set! (-> *mod-jetpack-guards* i) (the-as handle #f))
+             (set! free-slot i)
+             )
+            ((< MOD_JETPACK_CULL_DIST
+                (vector-vector-distance player-pos (-> (the-as process-drawable proc) root trans))
+                )
+             (deactivate proc)
+             (set! (-> *mod-jetpack-guards* i) (the-as handle #f))
+             (set! free-slot i)
+             )
+            )
+          )
+        )
+      ;; Dispatch: one roll every MOD_JETPACK_ROLL_PERIOD, into the first free slot.
+      (when (and (>= free-slot 0) (>= (current-time) *mod-jetpack-next-roll*))
+        (set! *mod-jetpack-next-roll* (+ (current-time) MOD_JETPACK_ROLL_PERIOD))
+        (when (< (rand-vu-int-count 100) MOD_JETPACK_SPAWN_PERCENT)
+          ;; A ring around the player, well above street level: these guards have no obstacle
+          ;; avoidance (see the honflags-0 note at the top), so altitude is what keeps them clear
+          ;; of the city geometry.
+          (let* ((angle (* 65536.0 (rand-vu)))
+                 (spawn-pos (new 'stack-no-clear 'vector))
+                 )
+            (set! (-> spawn-pos x) (+ (-> player-pos x) (* MOD_JETPACK_SPAWN_DIST (sin angle))))
+            (set! (-> spawn-pos y) (+ (-> player-pos y) MOD_JETPACK_SPAWN_HEIGHT))
+            (set! (-> spawn-pos z) (+ (-> player-pos z) (* MOD_JETPACK_SPAWN_DIST (cos angle))))
+            (set! (-> spawn-pos w) 1.0)
+            (let ((proc (jetpack-guard-spawn spawn-pos)))
+              (if proc
+                  (set! (-> *mod-jetpack-guards* free-slot) (process->handle proc))
+                  )
+              )
+            )
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )

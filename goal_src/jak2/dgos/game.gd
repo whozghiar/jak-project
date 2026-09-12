@@ -395,7 +395,9 @@
   "default-menu.o"
   "anim-tester-x.o" ;; added
   "vag-player.o" ;; added
+  "jetpack-crimsonguard-h.o" ;; added (MOD) -- Jetpack Crimson Guard toggles + tuning
   "mods-menu.o" ;; added -- unified "Debug > Mods" tab (see pc/debug/mods-menu.gc)
+  "jetpack-crimsonguard-menu.o" ;; added (MOD) -- Debug > Mods > jetpack-crimsonguard
   "default-menu-pc.o" ;; added
   "dir-tpages.go"
   "tpage-11.go"

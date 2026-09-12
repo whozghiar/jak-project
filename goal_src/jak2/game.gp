@@ -90,6 +90,11 @@
   :out '("$OUT/obj/dir-tpages.go")
   )
 (hash-table-set! *file-entry-map* "dir-tpages.go" #f)
+;; MOD jetpack-crimsonguard -- new source, no all_objs.json entry; built by the explicit
+;; `goal-src` steps further down instead of being resolved by `cgo-file`.
+(hash-table-set! *file-entry-map* "jetpack-crimsonguard-h.o" #f)
+(hash-table-set! *file-entry-map* "jetpack-crimsonguard-menu.o" #f)
+(hash-table-set! *file-entry-map* "jetpack-guard.o" #f)
 
 (cgo-file "game.gd" '("$OUT/obj/gcommon.o" "$OUT/obj/gstate.o" "$OUT/obj/gstring.o" "$OUT/obj/gkernel.o"))
 
@@ -324,6 +329,17 @@
 ;; - joint-channel: how many joint channels the actor should have. defaults to 6.
 ;; more complicated actors like jak that make a lot of use of animation blending can have 24+ channels.
 (build-actor "test-actor" :force-run #t :gen-mesh #t)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; MOD -- Jetpack Crimson Guard
+;;   jetpack-crimsonguard-h    after traffic-h  -- declares mod-jetpack-tick, which
+;;                                                traffic-manager.gc calls
+;;   jetpack-crimsonguard-menu after mods-menu  -- calls `mods-menu-register`
+;;   jetpack-guard             after crimson-guard-hover and traffic-manager
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(goal-src "pc/mods/jetpack-crimsonguard-h.gc" "traffic-h")
+(goal-src "pc/debug/jetpack-crimsonguard-menu.gc" "jetpack-crimsonguard-h" "mods-menu")
+(goal-src "levels/city/jetpack/jetpack-guard.gc" "crimson-guard-hover" "traffic-manager" "jetpack-crimsonguard-h")
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; ANIMATIONS

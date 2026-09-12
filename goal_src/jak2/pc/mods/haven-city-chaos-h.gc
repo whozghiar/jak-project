@@ -147,9 +147,9 @@
 ;; sized at compile time, and an unused slot costs nothing but its 288 bytes.
 ;; ------------------------------------------------------------------------------------------------
 
-(defconstant MOD_CHAOS_WANT_CRIMSON_GUARD_1 16)  ;; traffic type  6, retail 9
-(defconstant MOD_CHAOS_WANT_GUARD_BIKE       8)  ;; traffic type 18, retail 4
-(defconstant MOD_CHAOS_WANT_HELLCAT          6)  ;; traffic type 19, retail 3
+(defconstant MOD_CHAOS_WANT_CRIMSON_GUARD_1 22)  ;; traffic type  6, retail 9
+(defconstant MOD_CHAOS_WANT_GUARD_BIKE       9)  ;; traffic type 18, retail 4
+(defconstant MOD_CHAOS_WANT_HELLCAT          7)  ;; traffic type 19, retail 3
 
 ;; Retail is 5.0; lower packs traffic tighter.
 (defconstant MOD_CHAOS_INV_DENSITY_FACTOR 3.0)

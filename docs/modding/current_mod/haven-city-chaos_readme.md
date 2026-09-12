@@ -240,8 +240,8 @@ actors ever materialise. Modelled on `jak2/config/enhanced_spawnrates`, all gate
 
 | Lever | Retail | Mod | Where |
 |---|---|---|---|
-| Krimzon Guard want-count (type 6) | 9 | 16 | `mod-chaos-boost-ambient!` |
-| guard-bike / hellcat want-count (18 / 19) | 4 / 3 | 8 / 6 | `mod-chaos-boost-ambient!` |
+| Krimzon Guard want-count (type 6) | 9 | 22 | `mod-chaos-boost-ambient!` |
+| guard-bike / hellcat want-count (18 / 19) | 4 / 3 | 9 / 7 | `mod-chaos-boost-ambient!` |
 | `inv-density-factor` | 5.0 | 3.0 | `mod-chaos-boost-ambient!` |
 | per-cell activation ranges | 81920 / 819200 / 491520 | 122880 / 983040 / 655360 | `traffic-engine.gc` |
 | `*default-nav-mesh*` slots | 128 | 250 | `nav-mesh.gc` (unconditional) |
@@ -453,6 +453,45 @@ The fix is a `common-post` override on `chaos-metalhead` that uses the city filt
 `enemy-info` itself is not an option: `*juicer-nav-enemy-info*` is a shared static that the Pumping
 Station juicers read too.
 
+**That alone was not enough**, and the second half is the part worth remembering.
+`find-overlapping-shapes` intersects the filter with the *root primitive's* `collide-with`:
+
+```lisp
+(s2-0 (logand (-> s3-0 prim-core collide-with) (-> arg0 collide-with-filter)))
+```
+
+but a collide-shape's root primitive is a `collide-shape-prim-group` — a bounding sphere used to
+reject the whole actor cheaply. Only its **children** ever pair into a touching entry. Widening the
+group and leaving the children alone, which is what the first attempt did, changes nothing at all:
+
+| | children' `collide-with` |
+|---|---|
+| `metalhead-grunt` | `jak civilian hit-by-others-list player-list` |
+| `juicer` / `spyder` (arena) | `jak bot player-list` |
+
+So `chaos-cityify-collision!` now ORs `civilian enemy` into the root primitive **and every child**.
+
+There is one more layer under that, and the Juice goon is the only species that trips it:
+
+| | group | children |
+|---|---|---|
+| `metalhead-grunt` | `deadly` | two limbs `deadly` |
+| `spyder` | `deadly` | four `deadly` |
+| `juicer` | `deadly` | **none** |
+
+The retail juicer's body damage is scripted — `juicer-method-184` toggles a primitive's `deadly`
+on and off inside its attack state. With no attack state to enter, a chaos juicer would charge a
+guard and do nothing however well its collide specs were set. `chaos-cityify-collision!` therefore
+mirrors the group's `deadly` down onto the solid body children when no child carries it, which is
+the arrangement the city grunt already has. That is not a free-for-all against Jak:
+`citizen-enemy::enemy-method-76` only converts a deadly touch into damage against a process
+carrying `process-mask guard` or `civilian`; everything else falls through to a forwarded `touch`
+and is handled by the other side, exactly as for the retail city species.
+
+All three reported symptoms — bodies overlapping instead of shoving, immunity to the guard's rifle
+butt, no damage dealt in return — were this one missing bit, since solid reaction and touch damage
+both come from the same primitive pairing.
+
 **Second half of the same bug.** `enemy-method-104` stamps every `attack` event with the attacker's
 `attack-id`, and the victim remembers the last id it took damage from — so an unchanging id lands
 exactly once however long the contact lasts. Retail enemies get a fresh id every time they enter
@@ -467,9 +506,40 @@ have), so it re-stamps on a cadence instead:
   (logior! (-> self focus-status) (focus-status dangerous)))
 ```
 
-That turns a permanent shove into a repeating melee. It is a charge-and-contact model, not a
-frame-accurate reproduction of the arena attacks — which for the juicer, a suicide charger whose
-root primitive is permanently `deadly` in retail, is close to the original intent anyway.
+That turns a permanent shove into a repeating melee.
+
+### 4.6 Giving them their guns back
+
+Both extra species are shooters in their home levels and neither fired a shot in the city, for the
+same reason they had no melee: their firing lives inside `attack` states written against `juicer` /
+`spyder` fields that a `citizen-enemy` subclass does not have.
+
+The projectile spawn itself, though, is not type-specific at all. `juicer::fire-projectile` and
+`spyder-method-183` both build a plain `projectile-init-by-other-params` and call
+
+```lisp
+(spawn-projectile <shot-type> params this *default-dead-pool*)
+```
+
+and `spawn-projectile` is a **function**, not a macro — it takes the type at runtime. So one shared
+`chaos-fire!` on `chaos-metalhead` serves every species, parameterised by two small methods:
+
+```lisp
+(chaos-shot-type  (_type_) type)    ;; juicer-shot / spyder-shot, or #f for melee-only
+(chaos-shot-speed (_type_) float)   ;; the muzzle speed from that species' retail firing code
+```
+
+It fires from `(get-trans this 3)` rather than a named joint — the retail juicer uses joint 20 of
+its own skeleton, and hard-coding joint indices in a shared base class is the kind of thing that
+breaks silently when an art group changes. `ignore-handle` is the shooter, so a shot cannot
+detonate on its owner, and both `juicer-shot` and `spyder-shot` (a `metalhead-shot`) already list
+`civilian` and `enemy` in their collide-with, so they damage Krimzon Guards with no change to the
+projectile side.
+
+Firing happens from the `hostile` trans on a 1.5 s cadence whenever the focus is between 8 m and
+45 m. The honest limitation: they shoot **while closing**, not from a stand-off, because there is
+no firing state to hold them in place. For the Juice goon — a suicide charger in its own level —
+that reads about right; the Spyder gunner is more of a compromise.
 
 ---
 
@@ -732,9 +802,9 @@ Nothing here has been run yet. In order:
 
 ## 10. Known limitations
 
-1. **Combat fidelity of the two new species** — charge-and-contact on a fixed melee cadence rather
-   than their home levels' bespoke attacks (the juicer's scripted charge, the spyder's
-   cloak-and-shoot). See §4.5.
+1. **Combat fidelity of the two new species** — charge-and-contact on a fixed melee cadence plus a
+   shot fired on the move, rather than their home levels' scripted attacks (the juicer's charge,
+   the spyder's cloak-and-shoot). They never stand off to shoot. See §4.5 and §4.6.
 2. **`:borrow-size` untouched** — relying on the PC port's 12× borrow multiplier to absorb the
    extra art. Deliberate (non-regression), but it is the first thing to raise if `lwideb` fails to
    load.

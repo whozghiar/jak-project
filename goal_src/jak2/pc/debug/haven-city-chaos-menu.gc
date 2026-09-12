@@ -1,0 +1,127 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: haven-city-chaos-menu.gc
+;; name in dgo: haven-city-chaos-menu
+;; dgos: GAME
+;;
+;; MOD "Haven City : Chaos" -- Debug > Mods > haven-city-chaos
+;; ================================================================================================
+;; Registers the mod's submenu with the shared `mods-menu.gc` registry. Per the house rules this
+;; file never touches `default-menu.gc` / `default-menu-pc.gc` / `mods-menu.gc`, and every symbol
+;; it defines is prefixed with the mod slug so two branches can never collide.
+;;
+;;   Debug > Mods > haven-city-chaos
+;;     Enable              -- the master switch; everything else is inert without it
+;;     Metal heads > Extra species      -- juicer / spyder / centurion / hopper in the mix
+;;     Guards     > Tougher guards      -- 1.5x hit points + vehicles engaging metal heads
+;;     Guards     > Guards ignore Jak   -- the truce
+;;     Guards     > Blast bots          -- rare anti-metal-head blast bot
+;;     Guards     > Jetpack guards      -- filled in by jak2/features/jetpack-crimsonguard
+;;
+;; All the state itself lives in `pc/mods/haven-city-chaos-h.gc`; this file only drives it, so the
+;; mod is equally controllable from the REPL (`(mod-chaos-set-enable! #t)`) with the menu closed.
+;; ================================================================================================
+
+(declare-file (debug))
+
+;; ------------------------------------------------------------------------------------------------
+;; Pick functions
+;;
+;; House rule: side effects happen on `press` only. The menu re-sends `update` every few frames
+;; purely to refresh the checkmark, so anything that allocates or re-shapes the level must not run
+;; there. Every pick function ends by returning the current boolean.
+;; ------------------------------------------------------------------------------------------------
+
+(defun mod-haven-city-chaos-enable-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Master toggle. `mod-chaos-set-enable!` flips the city onto (or off) the `lwideb` borrow, which
+   is what streams the metal-head art in, turns the invasion traffic types on and drops Jak from
+   the guards' target list. The level stream takes a moment -- expect a second or two before the
+   first metal head walks around a corner."
+  (case arg1
+    (((debug-menu-msg press))
+     (set! (-> arg0 value) (not (-> arg0 value)))
+     (mod-chaos-set-enable! (the-as symbol (-> arg0 value)))
+     )
+    )
+  (-> arg0 value)
+  )
+
+(defun mod-haven-city-chaos-species-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Extra species on/off. Turning them off sets their want-count path to a #f level, which stops
+   `spawn-all` building their pools; the live ones are recycled by the traffic engine rather than
+   killed by hand (see the `deactivate-by-type` note in the mods-menu docs)."
+  (case arg1
+    (((debug-menu-msg press))
+     (set! (-> arg0 value) (not (-> arg0 value)))
+     (when *traffic-manager*
+       (send-event *traffic-manager* 'deactivate-by-type (traffic-type chaos-juicer))
+       (send-event *traffic-manager* 'deactivate-by-type (traffic-type chaos-spyder))
+       (send-event *traffic-manager* 'deactivate-by-type (traffic-type chaos-centurion))
+       (send-event *traffic-manager* 'deactivate-by-type (traffic-type chaos-hopper))
+       )
+     ;; Ask the city half to re-derive its traffic table on its next frame. Flagging rather
+     ;; than calling keeps this GAME.CGO file free of any reference to CWI.DGO code, so the
+     ;; menu still works in a level where Haven City is not loaded.
+     (set! *mod-chaos-species-dirty* #t)
+     )
+    )
+  (-> arg0 value)
+  )
+
+(defun mod-haven-city-chaos-guard-buffs-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Guard buffs on/off. The hit-point scale only applies to guards spawned *after* the toggle --
+   `citizen-init!` reads it once per spawn -- so existing guards keep the health they were born
+   with until the traffic engine recycles them."
+  (case arg1
+    (((debug-menu-msg press))
+     (set! (-> arg0 value) (not (-> arg0 value)))
+     (set! *mod-chaos-guard-hp-scale*
+           (if (and *mod-chaos-enable* (-> arg0 value))
+               MOD_CHAOS_GUARD_HP_SCALE
+               1.0
+               )
+           )
+     )
+    )
+  (-> arg0 value)
+  )
+
+(defun mod-haven-city-chaos-blast-bots-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Blast bots on/off. Re-applies the borrow because the blast bot needs `lbombbot` streamed into
+   `ctywide` slot 0, and that is decided by the borrow list."
+  (case arg1
+    (((debug-menu-msg press))
+     (set! (-> arg0 value) (not (-> arg0 value)))
+     (if *mod-chaos-enable*
+         (mod-chaos-apply-borrow! #t)
+         )
+     )
+    )
+  (-> arg0 value)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; Builder
+;;
+;; Called on every rebuild of the Mods tab, so it must be pure: build a node and return it.
+;; ------------------------------------------------------------------------------------------------
+
+(defun mod-haven-city-chaos-build-menu ((ctx debug-menu-context))
+  (debug-menu-make-from-template ctx
+    '(menu "haven-city-chaos"
+       (flag "Enable" *mod-chaos-enable* mod-haven-city-chaos-enable-pick)
+       (menu "metal-heads"
+         (flag "Extra species" *mod-chaos-extra-species* mod-haven-city-chaos-species-pick)
+         )
+       (menu "guards"
+         (flag "Tougher guards" *mod-chaos-guard-buffs* mod-haven-city-chaos-guard-buffs-pick)
+         (flag "Guards ignore Jak" *mod-chaos-guards-ignore-jak* dm-boolean-toggle-pick-func)
+         (flag "Blast bots" *mod-chaos-blast-bots* mod-haven-city-chaos-blast-bots-pick)
+         (flag "Jetpack guards" *mod-chaos-jetpack-guards* dm-boolean-toggle-pick-func)
+         )
+       )
+    )
+  )
+
+(mods-menu-register "haven-city-chaos" mod-haven-city-chaos-build-menu)

@@ -690,7 +690,7 @@
   (set! (-> this guard-type-info-array 3 object-type) (traffic-type crimson-guard-2))
   (set! (-> this guard-type-info-array 4 object-type) (traffic-type guard-bike))
   (set! (-> this guard-type-info-array 5 object-type) (traffic-type hellcat))
-  (dotimes (v1-11 21)
+  (dotimes (v1-11 TRAFFIC_TYPE_COUNT)
     (set! (-> this guard-type-mask-from-object-type v1-11) (the-as uint 0))
     )
   (dotimes (v1-14 6)
@@ -711,7 +711,7 @@
   (set! (-> this danger-sphere-count) 0)
   (set! (-> *game-info* wanted-flash) #f)
   (let ((v1-4 (-> this inactive-object-array)))
-    (dotimes (a0-5 21)
+    (dotimes (a0-5 TRAFFIC_TYPE_COUNT)
       (let ((a1-3 (-> this object-type-info-array a0-5)))
         (set! (-> a1-3 flags) (traffic-type-flags trtflags-1 trtflags-2))
         (set! (-> a1-3 inactive-count) 0)
@@ -1010,15 +1010,33 @@
   )
 
 (defmethod activate-one-vehicle ((this traffic-engine) (arg0 nav-segment) (arg1 float))
-  (let ((a1-1 0))
-    (dotimes (v1-0 11)
-      (if (zero? (-> this object-type-info-array v1-0 inactive-count))
-          (set! a1-1 (logior a1-1 (ash 1 v1-0)))
+  "Activate one *pedestrian*. The decompiled tracker names are swapped: traffic types
+   0..10 are citizens / guards / metal heads and they live in `vehicle-tracker-array`,
+   while 11..20 are the wheeled traffic handled by `activate-one-citizen`."
+  (let ((chosen-type
+          (cond
+            ;; MOD haven-city-chaos -- the mod owns the pedestrian draw while it is on,
+            ;; because its extra species sit at traffic types 22..25, outside the
+            ;; contiguous 0..10 window the retail draw can express.
+            (*mod-chaos-enable*
+              (*mod-chaos-citizen-type-hook* this)
+              )
+            (else
+              ;; Retail: uniform draw over types 0..10, skipping any type whose reserve
+              ;; pool is currently empty.
+              (let ((exclude-mask 0))
+                (dotimes (v1-0 11)
+                  (if (zero? (-> this object-type-info-array v1-0 inactive-count))
+                      (set! exclude-mask (logior exclude-mask (ash 1 v1-0)))
+                      )
+                  )
+                (the-as traffic-type (rand-vu-int-count-excluding 11 exclude-mask))
+                )
+              )
+            )
           )
-      )
-    (let ((a1-2 (rand-vu-int-count-excluding 11 a1-1)))
-      (activate-by-type (-> this vehicle-tracker-array) (the-as traffic-type a1-2) arg0 arg1)
-      )
+        )
+    (activate-by-type (-> this vehicle-tracker-array) chosen-type arg0 arg1)
     )
   0
   (none)
@@ -2260,7 +2278,7 @@
 
 (defmethod set-target-level ((this traffic-engine) (arg0 float))
   (set! (-> this alert-state guard-target-level) arg0)
-  (dotimes (v1-0 21)
+  (dotimes (v1-0 TRAFFIC_TYPE_COUNT)
     (let ((a2-2 (-> this object-type-info-array v1-0)))
       (set! (-> a2-2 target-count) (the int (* arg0 (the float (max 0 (+ (-> a2-2 want-count) -1))))))
       )
@@ -2720,7 +2738,7 @@
         )
       )
     )
-  (dotimes (v1-13 21)
+  (dotimes (v1-13 TRAFFIC_TYPE_COUNT)
     (let ((a1-8 (-> this alert-state guard-type-mask-from-object-type v1-13)))
       (when (nonzero? a1-8)
         (let ((a2-18 0)
@@ -2802,7 +2820,7 @@
             (send-alert-events this)
             )
         (let ((v1-67 0))
-          (dotimes (a0-45 21)
+          (dotimes (a0-45 TRAFFIC_TYPE_COUNT)
             (let ((a1-19 (-> this object-type-info-array a0-45)))
               (if #t
                   (+! v1-67 (-> a1-19 killed-count))
@@ -2826,7 +2844,7 @@
           (let ((v1-84 (-> this alert-state target-status-array)))
             (logclear! (-> v1-84 0 flags) (traffic-target-flag visible-now visible-recently visible-ever))
             )
-          (dotimes (v1-85 21)
+          (dotimes (v1-85 TRAFFIC_TYPE_COUNT)
             (set! (-> this object-type-info-array v1-85 killed-count) (the-as uint 0))
             0
             )
@@ -2886,7 +2904,7 @@
   (set-alert-duration this (seconds 30))
   (set-max-alert-level this 4)
   (let ((v1-13 42))
-    (dotimes (a0-7 21)
+    (dotimes (a0-7 TRAFFIC_TYPE_COUNT)
       (let ((a1-6 (-> this object-type-info-array a0-7)))
         (set! (-> a1-6 flags) (traffic-type-flags trtflags-1 trtflags-2))
         (set! (-> a1-6 reserve-count) (the-as uint (max 1000 (min #xfde8 (* 1000 (-> a1-6 want-count))))))

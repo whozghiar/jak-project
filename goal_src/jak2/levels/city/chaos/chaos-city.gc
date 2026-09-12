@@ -1,0 +1,364 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: chaos-city.gc
+;; name in dgo: chaos-city
+;; dgos: CWI
+;;
+;; MOD "Haven City : Chaos" -- city-side control layer.
+;; ================================================================================================
+;; This is the half that only exists while Haven City is resident. It fills in the hook function
+;; pointers declared in `engine/ai/traffic-h.gc` (defaulted to no-ops in
+;; `pc/mods/haven-city-chaos-h.gc`) and owns everything that has to happen per frame:
+;;
+;;   1. species enrolment  -- give the seven metal-head traffic types their population budget
+;;                            and point the four chaos types at the borrowed city level;
+;;   2. pedestrian draw    -- widen the retail 0..10 random pick so 22..25 can come up;
+;;   3. spawn dispatch     -- turn traffic types 22..25 into `chaos-*` processes;
+;;   4. guard support      -- guard vehicles engage metal heads, and a rare anti-metal-head
+;;                            blast bot gets dispatched.
+;;
+;; A note on why the spawn *weights* are expressed as want-counts rather than as a weighted random
+;; draw: the traffic engine already caps each type's live population at `target-count`
+;; (`activate-by-type` refuses a type that is at its cap) and derives `target-count` from
+;; `want-count`. So the steady-state mix on screen is governed by want-count, and the random pick
+;; only decides who is *offered* a free slot first. Weighting both would double-count.
+;; ================================================================================================
+
+;; ------------------------------------------------------------------------------------------------
+;; 1. Species table
+;; ------------------------------------------------------------------------------------------------
+
+;; Every traffic type the pedestrian draw may return, in one place.
+;;   0..3   citizens          4,6   Krimzon Guards        5,7  disabled in retail
+;;   8..10  retail metal heads (grunt / flitter / predator)
+;;   22..25 chaos metal heads  (juicer / spyder / centurion / hopper)
+;; Index 21 is deliberately absent: retail uses `(traffic-type traffic-type-21)` as an
+;; "invalid" sentinel and it has no pool behind it.
+(define *mod-chaos-ped-types*
+  (new 'static 'array uint8 15 0 1 2 3 4 5 6 7 8 9 10 22 23 24 25)
+  )
+
+;; How many entries of the array above are the retail window. Used to fall back to a
+;; retail-shaped draw when the extra species are toggled off.
+(defconstant MOD_CHAOS_PED_RETAIL_COUNT 11)
+(defconstant MOD_CHAOS_PED_TOTAL_COUNT 15)
+
+(defun mod-chaos-enroll-species! ((te traffic-engine) (ttype traffic-type) (want int) (lvl symbol))
+  "Give one traffic type its population budget and tell `spawn-all` which level has to be resident
+   before it may build that type's reserve pool.
+
+   `want-count`   -> how many instances `spawn-all` keeps pooled;
+   `target-count` -> how many may be alive at once (`set-target-level` normally derives it, but it
+                     only runs on a settings change, so we set it directly and stay authoritative);
+   `reserve-count`-> a spawn budget `spawn-all` decrements; `restore-default-settings` sizes it from
+                     want-count, and we mirror that formula so a mid-session toggle behaves the same
+                     as a fresh city load.
+   `level`        -> #f makes the type permanently inert, which is how a disabled species is
+                     expressed (no pool is ever built, so nothing to tear down)."
+  (let ((info (-> te object-type-info-array ttype)))
+    (set! (-> info want-count) want)
+    (set! (-> info target-count) (max 0 (+ want -1)))
+    (set! (-> info reserve-count) (the-as uint (max 1000 (min #xfde8 (* 1000 want)))))
+    (set! (-> info level) lvl)
+    (if (nonzero? want)
+        (logior! (-> info flags) (traffic-type-flags trtflags-1 trtflags-2))
+        (logclear! (-> info flags) (traffic-type-flags trtflags-1 trtflags-2))
+        )
+    )
+  0
+  (none)
+  )
+
+;; Cached result of the art-residency probe. `art-group-get-by-name` walks every loaded level's
+;; art-group array doing string compares, which is fine once per borrow change but not something
+;; to repeat on the periodic re-assert below.
+(define *mod-chaos-art-juicer* #f)
+(define *mod-chaos-art-spyder* #f)
+(define *mod-chaos-art-centurion* #f)
+(define *mod-chaos-art-hopper* #f)
+
+(defun mod-chaos-probe-art! ()
+  "Re-read which chaos species actually have their skeletons resident. Called when the borrowed
+   city level changes, not every frame."
+  (set! *mod-chaos-art-juicer* (chaos-art-ready? "skel-juicer"))
+  (set! *mod-chaos-art-spyder* (chaos-art-ready? "skel-spyder"))
+  (set! *mod-chaos-art-centurion* (chaos-art-ready? "skel-centurion"))
+  (set! *mod-chaos-art-hopper* (chaos-art-ready? "skel-hopper"))
+  0
+  (none)
+  )
+
+(defun mod-chaos-apply-species! ((te traffic-engine) (lvl symbol))
+  "Rewrite the metal-head half of the traffic table for the borrowed city level `lvl`.
+
+   Only `lwideb` carries metal-head art, so on any other borrow every species is disabled. The
+   three retail types keep their retail `level` assignment (`lwide-activate` already set it) and
+   only have their population rebalanced to the requested ratio.
+
+   Called both on borrow changes and periodically from the per-frame hook. The repeat is
+   deliberate: `traffic-manager::init-params` and the `restore-default-settings` event that a
+   dozen mission hooks fire both rewrite the want-count table from retail values, and there is
+   no ordering guarantee between those and `lwide-activate`. Re-asserting is far cheaper and
+   far more robust than trying to intercept every writer."
+  (let ((mh-level (if (= lvl 'lwideb) lvl #f)))
+    ;; Retail invasion species -- rebalanced to 30 / 30 / 10.
+    (mod-chaos-enroll-species! te (traffic-type metalhead-grunt) MOD_CHAOS_WANT_GRUNT mh-level)
+    (mod-chaos-enroll-species! te (traffic-type metalhead-flitter) MOD_CHAOS_WANT_FLITTER mh-level)
+    (mod-chaos-enroll-species! te (traffic-type metalhead-predator) MOD_CHAOS_WANT_PREDATOR mh-level)
+    ;; Chaos additions -- off entirely unless the sub-toggle is on AND their art made it in.
+    (let ((extra-level (if *mod-chaos-extra-species* mh-level #f)))
+      (mod-chaos-enroll-species! te (traffic-type chaos-juicer)
+                                 MOD_CHAOS_WANT_JUICER
+                                 (if *mod-chaos-art-juicer* extra-level #f)
+                                 )
+      (mod-chaos-enroll-species! te (traffic-type chaos-spyder)
+                                 MOD_CHAOS_WANT_SPYDER
+                                 (if *mod-chaos-art-spyder* extra-level #f)
+                                 )
+      (mod-chaos-enroll-species! te (traffic-type chaos-centurion)
+                                 MOD_CHAOS_WANT_CENTURION
+                                 (if *mod-chaos-art-centurion* extra-level #f)
+                                 )
+      (mod-chaos-enroll-species! te (traffic-type chaos-hopper)
+                                 MOD_CHAOS_WANT_HOPPER
+                                 (if *mod-chaos-art-hopper* extra-level #f)
+                                 )
+      )
+    )
+  0
+  (none)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; 2. Hook: pedestrian type draw
+;; ------------------------------------------------------------------------------------------------
+
+(defun mod-chaos-citizen-type ((traffic object))
+  "Replacement for the retail uniform draw over traffic types 0..10, widened to the chaos types.
+
+   Retail expresses its candidate set as the contiguous range [0, 11) and an exclusion bitmask of
+   types whose reserve pool is momentarily empty. The chaos species sit at 22..25, so the range
+   has to become an explicit table (`*mod-chaos-ped-types*`) and the bitmask indexes that table
+   instead of the traffic type."
+  (let ((te (the-as traffic-engine traffic))
+        (candidate-count (if *mod-chaos-extra-species*
+                             MOD_CHAOS_PED_TOTAL_COUNT
+                             MOD_CHAOS_PED_RETAIL_COUNT
+                             )
+                         )
+        (exclude-mask 0)
+        )
+    (dotimes (i candidate-count)
+      (if (zero? (-> te object-type-info-array (-> *mod-chaos-ped-types* i) inactive-count))
+          (set! exclude-mask (logior exclude-mask (ash 1 i)))
+          )
+      )
+    (the-as traffic-type (-> *mod-chaos-ped-types* (rand-vu-int-count-excluding candidate-count exclude-mask)))
+    )
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; 3. Hook: spawn dispatch for the chaos-only traffic types
+;; ------------------------------------------------------------------------------------------------
+
+(defun mod-chaos-spawn ((parent process) (params object))
+  "Build the process behind a chaos traffic type. Returns #f for everything else so
+   `traffic-object-spawn` falls through to its own retail `case` untouched.
+
+   `citizen-spawn` is the same helper the retail city metal heads go through: it pulls a process
+   from `*default-dead-pool*`, activates it and runs `citizen-init-by-other`, which is what wires
+   the process into the traffic controller."
+  (let ((p (the-as traffic-object-spawn-params params)))
+    (case (-> p object-type)
+      (((traffic-type chaos-juicer))
+       (citizen-spawn parent chaos-juicer p)
+       )
+      (((traffic-type chaos-spyder))
+       (citizen-spawn parent chaos-spyder p)
+       )
+      (((traffic-type chaos-centurion))
+       (citizen-spawn parent chaos-centurion p)
+       )
+      (((traffic-type chaos-hopper))
+       (citizen-spawn parent chaos-hopper p)
+       )
+      (else
+        (the-as process-drawable #f)
+        )
+      )
+    )
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; 4. Hook: borrowed-level activation
+;; ------------------------------------------------------------------------------------------------
+
+(defun mod-chaos-lwide-activate ((level-name symbol))
+  "Runs right after `lwide-activate` wrote the retail per-level traffic table, so our species
+   assignment always lands on top of it."
+  (mod-chaos-probe-art!)
+  (let ((te *traffic-engine*))
+    (if te
+        (mod-chaos-apply-species! te level-name)
+        )
+    )
+  0
+  (none)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; 5. Guard-side support
+;; ------------------------------------------------------------------------------------------------
+
+(defun mod-chaos-metalhead? ((proc process-focusable))
+  "Is this active traffic process one of the metal heads?
+
+   `citizen-enemy::citizen-init!` sets `process-mask enemy` on every city metal head, while
+   `crimson-guard::citizen-init!` explicitly clears `enemy` and sets `guard` instead. Plain
+   citizens carry neither. So `enemy && !guard` isolates exactly the metal heads."
+  (and proc
+       (logtest? (-> proc mask) (process-mask enemy))
+       (not (logtest? (-> proc mask) (process-mask guard)))
+       (not (focus-test? proc disable dead inactive ignore))
+       )
+  )
+
+(defun mod-chaos-nearest-metalhead ((te traffic-engine) (pos vector) (max-dist float))
+  "Nearest live metal head to `pos` within `max-dist`, or #f.
+
+   Scans `vehicle-tracker-array`, which -- despite the name -- is the *pedestrian* tracker:
+   the two tracker names are swapped in the decompilation (traffic types 0..10 are people and
+   they carry `tracker-index` 1). See the note on `activate-one-vehicle` in traffic-engine.gc."
+  (let ((best (the-as process-focusable #f))
+        (best-dist max-dist)
+        (tracker (-> te vehicle-tracker-array))
+        )
+    (dotimes (i (the int (-> tracker active-object-count)))
+      (let ((proc (the-as process-focusable (handle->process (-> tracker active-object-list i)))))
+        (when (mod-chaos-metalhead? proc)
+          (let ((dist (vector-vector-distance pos (-> proc root trans))))
+            (when (< dist best-dist)
+              (set! best-dist dist)
+              (set! best proc)
+              )
+            )
+          )
+        )
+      )
+    best
+    )
+  )
+
+;; How far a guard vehicle will look for a metal head to engage (50 m).
+(defconstant MOD_CHAOS_VEHICLE_ENGAGE_DIST (meters 50))
+
+(defun mod-chaos-retarget-guard-vehicles! ((te traffic-engine))
+  "Point idle Krimzon Guard vehicles at the nearest metal head.
+
+   Retail guard vehicles only ever enter pursuit against Jak: the alert state feeds them
+   `target-status-array 0`, which is only populated while the `target-jak` flag is set -- and the
+   invasion city clears that flag. So without this they would fly around doing nothing while the
+   city burns. `vehicle-method-134` is the retail entry point for 'start pursuing this process':
+   it stores the handle, raises the vehicle's alert flag and pushes it into its pursuit state, so
+   the whole chase/shoot behaviour downstream is stock.
+
+   Only vehicles with no live target are touched, so an engagement already under way is never
+   interrupted."
+  (let ((tracker (-> te citizen-tracker-array)))  ;; swapped name: this one holds the vehicles
+    (dotimes (i (the int (-> tracker active-object-count)))
+      (let ((proc (handle->process (-> tracker active-object-list i))))
+        (when (and proc (type? proc vehicle-guard))
+          (let* ((veh (the-as vehicle-guard proc))
+                 (current (handle->process (-> veh pursuit-target)))
+                 )
+            (when (not (mod-chaos-metalhead? (the-as process-focusable current)))
+              (let ((prey (mod-chaos-nearest-metalhead te (-> veh root trans) MOD_CHAOS_VEHICLE_ENGAGE_DIST)))
+                (if prey
+                    (vehicle-method-134 veh (the-as process prey))
+                    )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; 6. Hook: per-frame update
+;; ------------------------------------------------------------------------------------------------
+
+;; Guard-vehicle retargeting is a linear scan over the active vehicle list; once every 8 frames is
+;; plenty to feel instant without showing up in a profile.
+(defconstant MOD_CHAOS_RETARGET_PERIOD 8)
+
+;; How often the species table is re-asserted against anything that rewrote it. Roughly once a
+;; second at 60 fps; a species that was clobbered can therefore be absent for at most that long.
+(defconstant MOD_CHAOS_REASSERT_PERIOD 64)
+
+(defun mod-chaos-traffic-update ((mgr traffic-manager))
+  "Everything the mod has to do once per frame, called from `traffic-manager::update`."
+  (let ((te (-> mgr traffic-engine)))
+    (when te
+      ;; Keep the species table asserted. Two triggers:
+      ;;   - a menu toggle set the dirty flag (and may have changed which species are wanted,
+      ;;     so re-probe the art in that case);
+      ;;   - otherwise a slow periodic re-assert, which is what makes the mod survive
+      ;;     `restore-default-settings` and `init-params` rewriting the want-counts from
+      ;;     retail values behind our back.
+      ;; `lwideb` is the only borrow the mod ever forces, so it is the only one worth deriving for.
+      (cond
+        (*mod-chaos-species-dirty*
+          (set! *mod-chaos-species-dirty* #f)
+          (mod-chaos-probe-art!)
+          (mod-chaos-apply-species! te 'lwideb)
+          )
+        ((zero? (mod (the int (current-time)) MOD_CHAOS_REASSERT_PERIOD))
+         (mod-chaos-apply-species! te 'lwideb)
+         )
+        )
+      (if (zero? (mod (the int (current-time)) MOD_CHAOS_RETARGET_PERIOD))
+          (when *mod-chaos-guard-buffs*
+            (mod-chaos-retarget-guard-vehicles! te)
+            )
+          )
+      )
+    )
+  ;; Blast bots. The implementation ships in LBOMBBOT.DGO, a borrow level, so the pointer is
+  ;; only followed while that level is actually resident -- otherwise it would reference a heap
+  ;; that has been handed back. `mod-chaos-apply-borrow!` is what asks for lbombbot in the
+  ;; first place (ctywide borrow slot 0).
+  (if (and *mod-chaos-blast-bots* (= (level-status *level* 'lbombbot) 'active))
+      (*mod-chaos-blast-bot-hook*)
+      )
+  ;; Jetpack guards live on jak2/features/jetpack-crimsonguard and merge in here; until that
+  ;; branch lands the toggle stays #f and this is dead weight of one symbol read.
+  (if *mod-chaos-jetpack-guards*
+      (*mod-chaos-jetpack-hook*)
+      )
+  0
+  (none)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; 7. Installation
+;;
+;; Runs when CWI.DGO is loaded. `ctywide-deactivate` calls `mod-chaos-reset-hooks!` on the way out,
+;; so these pointers -- which live in the city level heap -- can never be called after that heap is
+;; recycled.
+;; ------------------------------------------------------------------------------------------------
+
+(defun mod-chaos-install-hooks! ()
+  (set! *mod-chaos-citizen-type-hook* mod-chaos-citizen-type)
+  (set! *mod-chaos-spawn-hook* mod-chaos-spawn)
+  (set! *mod-chaos-traffic-update-hook* mod-chaos-traffic-update)
+  (set! *mod-chaos-lwide-activate-hook* mod-chaos-lwide-activate)
+  0
+  (none)
+  )
+
+(mod-chaos-install-hooks!)

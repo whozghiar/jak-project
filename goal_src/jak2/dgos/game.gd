@@ -395,7 +395,9 @@
   "default-menu.o"
   "anim-tester-x.o" ;; added
   "vag-player.o" ;; added
+  "haven-city-chaos-h.o" ;; added (MOD) -- Haven City : Chaos toggles + hook defaults
   "mods-menu.o" ;; added -- unified "Debug > Mods" tab (see pc/debug/mods-menu.gc)
+  "haven-city-chaos-menu.o" ;; added (MOD) -- Debug > Mods > haven-city-chaos (after mods-menu.o)
   "default-menu-pc.o" ;; added
   "dir-tpages.go"
   "tpage-11.go"

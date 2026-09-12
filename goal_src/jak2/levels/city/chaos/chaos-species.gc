@@ -1,0 +1,267 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: chaos-species.gc
+;; name in dgo: chaos-species
+;; dgos: CWI
+;;
+;; MOD "Haven City : Chaos" -- the four extra metal-head species.
+;; ================================================================================================
+;; Retail Haven City knows exactly three metal heads: `metalhead-grunt`, `metalhead-flitter` and
+;; `metalhead-predator`. They are not the standalone `grunt` / `flitter` / `predator` enemies --
+;; they are `citizen-enemy` subclasses that reuse the *same art groups* ("skel-grunt" and friends)
+;; but plug into the city traffic engine: they are pooled, recycled, walk the city nav-graph and
+;; take part in the guard-vs-metal-head war.
+;;
+;; This file follows exactly that recipe for four species that never set foot in the city:
+;;
+;;   chaos-juicer     "Juice goon"     (levels/atoll/juicer.gc)
+;;   chaos-spyder     "Spyder gunner"  (levels/common/enemy/spyder.gc)
+;;   chaos-centurion  "Centurion"      (levels/common/enemy/centurion.gc)
+;;   chaos-hopper     "Hopper"         (levels/common/enemy/hopper.gc)
+;;
+;; Everything that makes a city enemy work already lives in `citizen-enemy`:
+;;   - `citizen-init!` derives the walk / run animation slots and travel speeds from `enemy-info`;
+;;   - the `active` state walks the nav-graph playing `walk-anim`;
+;;   - `citizen-enemy-method-202` picks the nearest valid focus (guard, citizen or Jak) and
+;;     `go-hostile`s at it;
+;;   - `traffic-danger-init!` makes vehicles swerve around them.
+;; So a new species needs only three things: which skeleton to wear, which `nav-enemy-info` to be
+;; tuned by, and a collide-shape. We take all three straight from the retail enemy, which is why
+;; each species below is barely forty lines and why their stats match the originals exactly.
+;;
+;; The one behaviour we do add is a `hostile` :code thread. `nav-enemy`'s own `hostile` has no
+;; :code, so an inherited chase would keep playing the walk animation from `active` while moving
+;; at run speed. Each retail enemy solves this in its own overridden `hostile`; `chaos-metalhead`
+;; solves it once for all four.
+;; ================================================================================================
+
+;; ------------------------------------------------------------------------------------------------
+;; Shared base
+;; ------------------------------------------------------------------------------------------------
+
+(deftype chaos-metalhead (citizen-enemy)
+  ()
+  (:methods
+    ;; Name of the skeleton group to wear, e.g. "skel-juicer". Resolved through
+    ;; `art-group-get-by-name`, so the matching `<x>-ag.go` must be in a resident DGO
+    ;; (the mod puts them in LWIDEB.DGO -- see goal_src/jak2/dgos/lwideb.gd).
+    (chaos-skel-name (_type_) string)
+    ;; Animation index to play while chasing. Falls back to the walk animation for species
+    ;; that ship with `run-anim -1` (the centurion has no run cycle at all).
+    (chaos-chase-anim (_type_) int)
+    )
+  )
+
+(defmethod chaos-skel-name ((this chaos-metalhead))
+  "Subclasses must override; the base name would fail the art lookup on purpose."
+  "skel-chaos-metalhead-unset"
+  )
+
+(defmethod chaos-chase-anim ((this chaos-metalhead))
+  "Pick the chase animation, tolerating species that have no dedicated run cycle."
+  (let ((run (-> this enemy-info run-anim)))
+    (if (>= run 0)
+        run
+        (-> this enemy-info walk-anim)
+        )
+    )
+  )
+
+(defmethod init-enemy! ((this chaos-metalhead))
+  "Common city-enemy bring-up: wear the retail skeleton, adopt the retail tuning, then apply the
+   few city-specific overrides the retail city metal heads also apply (neck aim envelope, a nav
+   speed scale of 1, no water animation, no minimap icon before `citizen-init!` adds one)."
+  (initialize-skeleton
+    this
+    (the-as skeleton-group (art-group-get-by-name *level* (chaos-skel-name this) (the-as (pointer uint32) #f)))
+    (the-as pair 0)
+    )
+  (init-enemy-behaviour-and-stats! this (get-nav-info this))
+  (let ((neck (-> this neck)))
+    (set! (-> neck up) (the-as uint 1))
+    (set! (-> neck nose) (the-as uint 2))
+    (set! (-> neck ear) (the-as uint 0))
+    ;; Same envelope the city grunt uses: +/- 65 degrees of head turn, give up past ~170.
+    (set-vector! (-> neck twist-max) 11832.889 11832.889 0.0 1.0)
+    (set! (-> neck ignore-angle) 30947.555)
+    )
+  (let ((nav (-> this nav)))
+    (set! (-> nav speed-scale) 1.0)
+    )
+  (set! (-> this water-anim) -1)
+  (set! (-> this minimap) #f)
+  0
+  (none)
+  )
+
+(defstate hostile (chaos-metalhead)
+  :virtual #t
+  :event enemy-event-handler
+  :enter (behavior ()
+    (let ((parent-enter (-> (method-of-type citizen-enemy hostile) enter)))
+      (if parent-enter
+          (parent-enter)
+          )
+      )
+    )
+  :trans (behavior ()
+    (let ((parent-trans (-> (method-of-type citizen-enemy hostile) trans)))
+      (if parent-trans
+          (parent-trans)
+          )
+      )
+    )
+  :code (behavior ()
+    ;; Loop the chase animation for as long as the trans above keeps us in `hostile`.
+    ;; The slight per-instance rate jitter stops a pack of the same species from
+    ;; marching in lockstep, exactly like the retail city grunt does.
+    (let ((chase (-> self draw art-group data (chaos-chase-anim self)))
+          (rate (rnd-float-range self 0.9 1.1))
+          )
+      (let ((playing (ja-group)))
+        (if (not (and playing (= playing chase)))
+            (ja-channel-push! 1 (seconds 0.15))
+            )
+        )
+      (until #f
+        (ja-no-eval :group! chase :num! (seek! max rate) :frame-num 0.0)
+        (until (ja-done? 0)
+          (suspend)
+          (ja :num! (seek! max rate))
+          )
+        )
+      )
+    #f
+    )
+  :post nav-enemy-chase-post
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; Shared helpers
+;; ------------------------------------------------------------------------------------------------
+
+(defun chaos-cityify-collision! ((this nav-enemy))
+  "Take a collide-shape built by a retail enemy's `init-enemy-collision!` and make it a citizen of
+   Haven City.
+
+   Retail enemies live in arenas where the only thing worth colliding with is Jak, so their root
+   primitive's collide-with is `backgnd jak bot crate obstacle hit-by-others-list player-list`.
+   The city metal heads add `civilian` and `enemy`: `civilian` is what citizens and Krimzon Guards
+   register as, and `enemy` is how two metal heads avoid walking through each other. Without those
+   two bits the new species would drift straight through the very faction war they are here for.
+
+   `backup-collide-as` / `backup-collide-with` must be refreshed afterwards because `citizen-init!`
+   restores the root primitive from them every time the traffic engine recycles the process."
+  (let* ((cshape (-> this root))
+         (root-prim (-> cshape root-prim))
+         )
+    (set! (-> root-prim prim-core collide-with)
+          (collide-spec backgnd jak bot crate civilian enemy obstacle hit-by-others-list player-list)
+          )
+    (set! (-> cshape backup-collide-as) (-> root-prim prim-core collide-as))
+    (set! (-> cshape backup-collide-with) (-> root-prim prim-core collide-with))
+    ;; City metal heads run at event-priority 8 so a guard's shot beats an ambient bump.
+    (set! (-> cshape event-priority) (the-as uint 8))
+    )
+  0
+  (none)
+  )
+
+(defun chaos-art-ready? ((skel-name string))
+  "#t when the skeleton group is resident, i.e. its `-ag.go` made it into a loaded DGO.
+   Checked before spawning so a missing art group degrades into 'this species does not appear'
+   instead of a `process-drawable-art-error` crash."
+  (and (art-group-get-by-name *level* skel-name (the-as (pointer uint32) #f)) #t)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; chaos-juicer -- "Juice goon"  (10%)
+;; ------------------------------------------------------------------------------------------------
+
+(deftype chaos-juicer (chaos-metalhead)
+  ()
+  )
+
+(defmethod chaos-skel-name ((this chaos-juicer)) "skel-juicer")
+
+(defmethod get-nav-info ((this chaos-juicer))
+  "Reuse the Atoll juicer's tuning verbatim: 9 hit points, its charge speeds and its full
+   animation table. Read-only -- never mutate it, the retail Atoll juicers share this object."
+  *juicer-nav-enemy-info*
+  )
+
+(defmethod init-enemy-collision! ((this chaos-juicer))
+  ;; Borrow the retail primitive layout (it is keyed to juicer joint indices, so hand-writing
+  ;; it would only introduce drift), then widen the root prim for city faction combat.
+  ((method-of-type juicer init-enemy-collision!) (the-as juicer this))
+  (chaos-cityify-collision! this)
+  0
+  (none)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; chaos-spyder -- "Spyder gunner"  (5%)
+;; ------------------------------------------------------------------------------------------------
+
+(deftype chaos-spyder (chaos-metalhead)
+  ()
+  )
+
+(defmethod chaos-skel-name ((this chaos-spyder)) "skel-spyder")
+
+(defmethod get-nav-info ((this chaos-spyder))
+  *spyder-nav-enemy-info*
+  )
+
+(defmethod init-enemy-collision! ((this chaos-spyder))
+  ((method-of-type spyder init-enemy-collision!) (the-as spyder this))
+  (chaos-cityify-collision! this)
+  0
+  (none)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; chaos-centurion -- "Centurion"  (5%)
+;; ------------------------------------------------------------------------------------------------
+
+(deftype chaos-centurion (chaos-metalhead)
+  ()
+  )
+
+(defmethod chaos-skel-name ((this chaos-centurion)) "skel-centurion")
+
+(defmethod get-nav-info ((this chaos-centurion))
+  "The centurion ships with `run-anim -1` -- it only ever walks. `chaos-chase-anim` falls back to
+   `walk-anim`, so nothing here has to patch the shared static info (which would leak into the
+   Drill Platform and Mountain Temple centurions)."
+  *centurion-nav-enemy-info*
+  )
+
+(defmethod init-enemy-collision! ((this chaos-centurion))
+  ((method-of-type centurion init-enemy-collision!) (the-as centurion this))
+  (chaos-cityify-collision! this)
+  0
+  (none)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; chaos-hopper -- "Hopper"  (5%)
+;; ------------------------------------------------------------------------------------------------
+
+(deftype chaos-hopper (chaos-metalhead)
+  ()
+  )
+
+(defmethod chaos-skel-name ((this chaos-hopper)) "skel-hopper")
+
+(defmethod get-nav-info ((this chaos-hopper))
+  *hopper-nav-enemy-info*
+  )
+
+(defmethod init-enemy-collision! ((this chaos-hopper))
+  ((method-of-type hopper init-enemy-collision!) (the-as hopper this))
+  (chaos-cityify-collision! this)
+  0
+  (none)
+  )

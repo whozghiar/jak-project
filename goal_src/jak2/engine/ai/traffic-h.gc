@@ -52,8 +52,29 @@
   (hellcat 19)
   (traffic-type-20 20)
   (traffic-type-21 21)
+  ;; --- MOD haven-city-chaos -------------------------------------------------
+  ;; Extra city metal-head species. 21 stays reserved: retail code uses
+  ;; `(traffic-type traffic-type-21)` as an "invalid / none" sentinel
+  ;; (ctywide-obs.gc), so it must never become a spawnable slot.
+  ;; These four are inert on a stock game: `lwide-activate` leaves their
+  ;; `level` at #f and `init-params` gives them want-count 0, so `spawn-all`
+  ;; never creates a reserve process for them.
+  (chaos-juicer 22)
+  (chaos-spyder 23)
+  (chaos-centurion 24)
+  (chaos-hopper 25)
   )
 ;; ---traffic-h:traffic-type
+
+;; MOD haven-city-chaos -- number of entries in every per-traffic-type array
+;; (`traffic-engine::object-type-info-array`, the want-count table, the
+;; spawn-mask width). Retail value was 21; the four chaos species push it to 26.
+;; Anything that iterates traffic types must use this instead of a literal.
+(defconstant TRAFFIC_TYPE_COUNT 26)
+
+;; MOD haven-city-chaos -- bit set of traffic types `spawn-all` is allowed to
+;; consider: every type in [0, TRAFFIC_TYPE_COUNT) except the 21 sentinel.
+(defconstant TRAFFIC_SPAWN_MASK #x3dfffff)
 
 ;; +++traffic-h:traffic-spawn-flags
 (defenum traffic-spawn-flags
@@ -82,6 +103,47 @@
 (declare-type nav-mesh basic)
 (declare-type nav-branch structure)
 (declare-type traffic-manager process)
+
+;; ================================================================================================
+;; MOD haven-city-chaos -- hook layer
+;; ------------------------------------------------------------------------------------------------
+;; The shared city engine files (traffic-engine.gc, traffic-manager.gc, guard.gc) must stay
+;; behaviour-identical when the mod is off, and must not depend on the mod's own files being
+;; compiled first. They therefore only ever read these forward-declared globals, which
+;; `levels/city/chaos/chaos-h.gc` (declared before them in game.gp) defines with stock-safe
+;; defaults. Turning the mod on only ever flips these values -- never patches engine code.
+;; ================================================================================================
+
+;; Master toggle. #f => every hook below is a no-op and the city behaves exactly like retail.
+(define-extern *mod-chaos-enable* symbol)
+
+;; Multiplier applied to a freshly spawned Krimzon Guard's hit-points (1.0 = retail).
+(define-extern *mod-chaos-guard-hp-scale* float)
+
+;; #t => city guards drop Jak from their target list and only fight metal heads.
+(define-extern *mod-chaos-guards-ignore-jak* symbol)
+
+;; Picks which citizen-side traffic type the engine should try to activate next.
+;; Returns a traffic-type; the stock implementation reproduces the retail uniform
+;; draw over types 0..10, the mod version adds the chaos species with their weights.
+;; Argument is the traffic-engine (typed `object` to avoid a forward-reference cycle).
+(define-extern *mod-chaos-citizen-type-hook* (function object traffic-type))
+
+;; Spawns one of the chaos-only traffic types. Returns #f for every retail type so
+;; `traffic-object-spawn` can fall through to its own dispatch untouched.
+;; Arguments: parent process, traffic-object-spawn-params.
+(define-extern *mod-chaos-spawn-hook* (function process object process-drawable))
+
+;; Called once per frame from traffic-manager::update, after the stock update.
+(define-extern *mod-chaos-traffic-update-hook* (function traffic-manager none))
+
+;; Restores every hook above to its always-resident default. Called from `ctywide-deactivate`,
+;; i.e. from CWI.DGO, which is compiled before the file that defines this -- hence the extern.
+(define-extern mod-chaos-reset-hooks! (function none))
+
+;; Called from `lwide-activate` after the stock per-level table is written, so the mod
+;; can enable its own species for the borrowed city level. Argument is the level symbol.
+(define-extern *mod-chaos-lwide-activate-hook* (function symbol none))
 
 ;; DECOMP BEGINS
 

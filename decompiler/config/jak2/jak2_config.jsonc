@@ -136,7 +136,21 @@
   // merc's texture ids are home-level-relative). Omitted -> first level DGO the art
   // group shipped in is auto-picked (unreliable). Wrong/missing -> untextured model.
   // Example: "LWIDEA.DGO": ["transport-ag:LPROTECT.DGO"]
-  "extra_art_groups_by_dgo": {},
+  // MOD haven-city-chaos -- bake the four extra metal-head species into the invasion city's
+  // .fr3 so the PC Merc2 renderer can actually draw them. Circuit 1 (skeletons/anims) is the
+  // matching `<x>-ag.go` + home tpage added to goal_src/jak2/dgos/lwideb.gd.
+  // Home DGOs are chosen so the texture remap tables resolve, and so that the four species
+  // only pull in two texture pages between them:
+  //   ATE.DGO -> juicer, spyder     (atollext-vis-pris, tpage-1607)
+  //   MTX.DGO -> centurion, hopper  (mtnext-vis-pris,   tpage-1721)
+  "extra_art_groups_by_dgo": {
+    "LWIDEB.DGO": [
+      "juicer-ag:ATE.DGO",
+      "spyder-ag:ATE.DGO",
+      "centurion-ag:MTX.DGO",
+      "hopper-ag:MTX.DGO"
+    ]
+  },
   // turn this on if you want extracted levels to be saved out as .glb files in decompiler_out/<game>/levels
   "rip_levels": false,
   // should we also extract collision meshes to the .fr3 files?

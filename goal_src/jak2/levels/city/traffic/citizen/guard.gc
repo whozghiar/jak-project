@@ -3596,6 +3596,15 @@
   (if (logtest? (-> this flags) (citizen-flag dark-guard))
       (set! (-> this hit-points) (the int (* 2.0 (the float (-> this enemy-info default-hit-points)))))
       )
+  ;; MOD haven-city-chaos -- toughen ambient city guards (both the red riot type and the
+  ;; yellow rifle type are `crimson-guard`, so one scale covers both). Applied on top of
+  ;; the dark-guard doubling above so an elite stays proportionally elite. Scale is 1.0
+  ;; while the mod is off, which leaves `hit-points` byte-identical to retail.
+  (when (!= *mod-chaos-guard-hp-scale* 1.0)
+    (set! (-> this hit-points)
+          (max 1 (the int (* *mod-chaos-guard-hp-scale* (the float (-> this hit-points)))))
+          )
+    )
   (set! (-> this hit-face) (the-as uint -1))
   (crimson-guard-method-225 this (get-guard-type-for-traffic-obj (-> this controller traffic) 6) #f)
   (let ((v1-12 (-> this nav)))
@@ -3636,7 +3645,14 @@
       )
     )
   (set-vector! (-> this draw color-mult) 1.0 1.0 1.0 1.0)
-  (if (logtest? (-> this controller traffic alert-state flags) (traffic-alert-flag target-jak))
+  ;; A guard can only ever acquire what its focus collide-spec lets it see. Dropping `jak`
+  ;; (and the player/vehicle lists) from the spec is how retail makes the invasion-era
+  ;; guards ignore Jak entirely -- they keep `enemy`, so metal heads stay valid targets.
+  ;; MOD haven-city-chaos forces that branch regardless of the alert-state flag, so the
+  ;; truce survives a mission node re-borrowing a `target-jak` city level mid-session.
+  (if (and (logtest? (-> this controller traffic alert-state flags) (traffic-alert-flag target-jak))
+           (not (and *mod-chaos-enable* *mod-chaos-guards-ignore-jak*))
+           )
       (reset-to-collide-spec
         (-> this focus)
         (collide-spec jak enemy hit-by-others-list player-list bot-targetable jak-vehicle)

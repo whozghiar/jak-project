@@ -1,0 +1,206 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: haven-city-chaos-h.gc
+;; name in dgo: haven-city-chaos-h
+;; dgos: GAME
+;;
+;; MOD "Haven City : Chaos" -- always-resident half.
+;; ================================================================================================
+;; This file carries every symbol the mod needs *outside* Haven City: the toggles the debug menu
+;; writes, the stock-safe defaults for the hooks declared in `engine/ai/traffic-h.gc`, and the
+;; level-borrow switch that turns the city into its metal-head-invasion variant.
+;;
+;; Why it lives in GAME.CGO and not next to the rest of the mod:
+;;   - `guard.gc` / `traffic-engine.gc` / `traffic-manager.gc` read `*mod-chaos-enable*` and friends,
+;;     and those files ship in CWI.DGO. CWI is only resident while the player is in Haven City.
+;;   - The debug menu (`pc/debug/haven-city-chaos-menu.gc`) can be opened anywhere, including in a
+;;     level where CWI is gone. If the toggles lived in CWI they would be unbound symbols there.
+;; The city-side half (`levels/city/chaos/*.gc`) overwrites the hook function pointers with real
+;; implementations when CWI loads, and `mod-chaos-reset-hooks!` puts these no-ops back when it goes.
+;;
+;; Non-regression contract: with `*mod-chaos-enable*` at #f, every engine touch point is a single
+;; symbol read that fails, so the city behaves exactly like retail.
+;; ================================================================================================
+
+;; ------------------------------------------------------------------------------------------------
+;; 1. Player-visible toggles (written by the Debug > Mods > haven-city-chaos menu)
+;; ------------------------------------------------------------------------------------------------
+
+;; Master switch. Nothing below has any effect while this is #f.
+(define *mod-chaos-enable* #f)
+
+;; Hit-point multiplier for ambient Krimzon Guards (red riot + yellow rifle alike).
+;; 1.0 = retail. `mod-chaos-set-enable!` flips this between 1.0 and MOD_CHAOS_GUARD_HP_SCALE.
+(define *mod-chaos-guard-hp-scale* 1.0)
+
+;; #t => guards drop Jak from their focus collide-spec and only fight metal heads.
+(define *mod-chaos-guards-ignore-jak* #t)
+
+;; Sub-toggles, so the mod can be dialled back without turning it off entirely.
+(define *mod-chaos-extra-species* #t)   ;; juicer / spyder / centurion / hopper in the traffic mix
+(define *mod-chaos-guard-buffs* #t)     ;; HP scale + guard vehicles engaging metal heads
+(define *mod-chaos-blast-bots* #t)      ;; occasional anti-metal-head blast bot
+(define *mod-chaos-jetpack-guards* #f)  ;; filled in by jak2/features/jetpack-crimsonguard
+
+;; Set by the debug menu whenever a toggle changes something the city-side traffic table has to be
+;; rebuilt from. The city half clears it on the next frame. This exists so the menu -- which is
+;; GAME.CGO-resident and may be opened in a level where Haven City is not loaded at all -- never
+;; has to call into CWI.DGO code directly.
+(define *mod-chaos-species-dirty* #f)
+
+;; ------------------------------------------------------------------------------------------------
+;; 2. Tuning constants
+;; ------------------------------------------------------------------------------------------------
+
+;; "La vie des gardes (rouge & jaune) est multipliee par 1.5"
+(defconstant MOD_CHAOS_GUARD_HP_SCALE 1.5)
+
+;; Spawn weights, as requested. These are relative, not percentages: the traffic engine keeps each
+;; type's live population at `target-count`, and `set-target-level` derives target-count from
+;; want-count, so a want-count proportional to the weight reproduces the requested mix.
+;;
+;;   Grunt 30% | Stinger (flitter) 30% | Cloaker (predator) 10%
+;;   Juice goon 10% | Spyder gunner 5% | Centurion 5% | Hopper 5%
+;;
+;; The first three are the retail invasion species (traffic types 8/9/10) and cost no extra memory;
+;; the last four are the chaos additions (traffic types 22..25).
+(defconstant MOD_CHAOS_WANT_GRUNT      12)  ;; 30%
+(defconstant MOD_CHAOS_WANT_FLITTER    12)  ;; 30%  "Stinger"
+(defconstant MOD_CHAOS_WANT_PREDATOR    4)  ;; 10%  "Cloaker"
+(defconstant MOD_CHAOS_WANT_JUICER      4)  ;; 10%  "Juice goon"
+(defconstant MOD_CHAOS_WANT_SPYDER      2)  ;;  5%  "Spyder gunner"
+(defconstant MOD_CHAOS_WANT_CENTURION   2)  ;;  5%
+(defconstant MOD_CHAOS_WANT_HOPPER      2)  ;;  5%
+
+;; 5% of the guard-side reinforcement rolls become a blast bot, per the brief.
+(defconstant MOD_CHAOS_BLAST_BOT_PERCENT 5)
+
+;; ------------------------------------------------------------------------------------------------
+;; 3. Stock-safe hook defaults
+;;
+;; These stand in whenever the city half is not loaded. They are deliberately dumb: the engine only
+;; calls a hook after testing `*mod-chaos-enable*`, and that can only matter with CWI resident, so
+;; in practice these run at most during the frame CWI is being torn down.
+;; ------------------------------------------------------------------------------------------------
+
+(defun mod-chaos-citizen-type-default ((traffic object))
+  "Fallback pedestrian draw: reproduce the retail uniform pick over traffic types 0..10."
+  (the-as traffic-type (rand-vu-int-count 11))
+  )
+
+(defun mod-chaos-spawn-default ((parent process) (params object))
+  "Fallback spawn dispatch: claim nothing, so `traffic-object-spawn` runs its own retail `case`."
+  (the-as process-drawable #f)
+  )
+
+(defun mod-chaos-traffic-update-default ((mgr traffic-manager))
+  "Fallback per-frame hook: do nothing."
+  0
+  (none)
+  )
+
+(defun mod-chaos-lwide-activate-default ((level-name symbol))
+  "Fallback borrow-level hook: do nothing."
+  0
+  (none)
+  )
+
+(defun mod-chaos-blast-bot-update-default ()
+  "Fallback blast-bot tick: do nothing.
+   The real one lives in `levels/city/bombbot/chaos-blast-bot.gc`, which ships in LBOMBBOT.DGO --
+   a borrow level, so it comes and goes. `chaos-city.gc` only calls through this pointer while
+   `lbombbot` reports active, which is what keeps the pointer from outliving its heap."
+  0
+  (none)
+  )
+
+(defun mod-chaos-jetpack-update-default ()
+  "Fallback jetpack-guard tick: do nothing.
+   Replaced by `levels/city/chaos/chaos-jetpack.gc` once jak2/features/jetpack-crimsonguard
+   is merged in. Kept as a function pointer rather than a second `defun` of the same name so
+   the two branches never race over which DGO loaded last."
+  0
+  (none)
+  )
+
+(define *mod-chaos-citizen-type-hook* mod-chaos-citizen-type-default)
+(define *mod-chaos-jetpack-hook* mod-chaos-jetpack-update-default)
+(define *mod-chaos-blast-bot-hook* mod-chaos-blast-bot-update-default)
+(define *mod-chaos-spawn-hook* mod-chaos-spawn-default)
+(define *mod-chaos-traffic-update-hook* mod-chaos-traffic-update-default)
+(define *mod-chaos-lwide-activate-hook* mod-chaos-lwide-activate-default)
+
+(defun mod-chaos-reset-hooks! ()
+  "Point every hook back at the always-resident defaults. Called when Haven City unloads so the
+   function pointers can never outlive the CWI heap the real implementations live in."
+  (set! *mod-chaos-citizen-type-hook* mod-chaos-citizen-type-default)
+  (set! *mod-chaos-spawn-hook* mod-chaos-spawn-default)
+  (set! *mod-chaos-traffic-update-hook* mod-chaos-traffic-update-default)
+  (set! *mod-chaos-lwide-activate-hook* mod-chaos-lwide-activate-default)
+  (set! *mod-chaos-jetpack-hook* mod-chaos-jetpack-update-default)
+  (set! *mod-chaos-blast-bot-hook* mod-chaos-blast-bot-update-default)
+  0
+  (none)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; 4. The city-variant switch
+;; ------------------------------------------------------------------------------------------------
+
+(defun mod-chaos-apply-borrow! ((on symbol))
+  "Force Haven City onto (or off) its metal-head-invasion variant.
+
+   Haven City picks the contents of its ambient population from whichever level is borrowed into
+   `ctywide` slot 1. Retail uses `lwidea` (citizens + traffic + guards) for most of the story and
+   swaps to `lwideb` for the late-game invasion; `lwideb` is the one that carries grunt / flitter /
+   predator art, and `lwide-activate` is what turns those traffic types on, raises the alert level
+   and -- crucially for this mod -- clears the `target-jak` alert flag so guards stop caring about
+   Jak. Forcing `lwideb` therefore gets us the invasion *and* the guards-ignore-Jak truce for free.
+
+   The borrow normally comes from the open game-task nodes, but `update-task-masks` applies the
+   `borrow` setting *after* every node, so a setting always wins. Writing `user-default` rather
+   than opening a `set-setting!` connection keeps the override alive without tying it to the
+   lifetime of whichever process happened to toggle the menu.
+
+   @param on #t to force the invasion city, #f to hand control back to the story."
+  (set! (-> *setting-control* user-default borrow)
+        (cond
+          ;; Slot 1 = the ambient-population level (see above). Slot 0 is free for the whole
+          ;; game except during "Destroy the blast bots", which borrows `lbombbot` there --
+          ;; so the mod reuses that exact slot, and with it the memory budget the retail
+          ;; mission already proved fits.
+          ((and on *mod-chaos-blast-bots*)
+           '((ctywide 0 lbombbot display) (ctywide 1 lwideb special))
+           )
+          (on
+            '((ctywide 1 lwideb special))
+            )
+          (else
+            '()
+            )
+          )
+        )
+  ;; Recompute user-current from user-default; the borrow comparison inside `apply-settings`
+  ;; fires `update-task-masks 'event`, which re-runs `borrow-eval` and `add-borrow-levels`
+  ;; so the level system streams `lwideb` in (or drops it again).
+  (apply-settings *setting-control*)
+  0
+  (none)
+  )
+
+(defun mod-chaos-set-enable! ((on symbol))
+  "Single entry point for turning the mod on and off. Safe to call anywhere, including outside
+   Haven City -- the city-side effects are all re-derived from `*mod-chaos-enable*` the next time
+   the traffic manager runs."
+  (set! *mod-chaos-enable* on)
+  (set! *mod-chaos-guard-hp-scale*
+        (if (and on *mod-chaos-guard-buffs*)
+            MOD_CHAOS_GUARD_HP_SCALE
+            1.0
+            )
+        )
+  (mod-chaos-apply-borrow! on)
+  0
+  (none)
+  )

@@ -56,6 +56,11 @@
   (update-traffic (-> this traffic-engine))
   (kill-excess-once this)
   (spawn-all this)
+  ;; MOD haven-city-chaos -- per-frame shaping (blast-bot / jetpack-guard spawn budget,
+  ;; guard retargeting). No-op unless the mod is enabled.
+  (if *mod-chaos-enable*
+      (*mod-chaos-traffic-update-hook* this)
+      )
   (if *debug-segment*
       (debug-unused (-> this traffic-engine))
       )
@@ -75,7 +80,7 @@
 
 (defmethod kill-excess-once ((this traffic-manager))
   (let ((type-i 0))
-    (while (< (the-as uint type-i) (the-as uint 21))
+    (while (< (the-as uint type-i) (the-as uint TRAFFIC_TYPE_COUNT))
       (let ((traffic (-> this traffic-engine object-type-info-array type-i)))
         (when (logtest? (-> traffic flags) (traffic-type-flags trtflags-1))
           (let ((total-count (+ (-> traffic active-count) (-> traffic inactive-count))))
@@ -104,7 +109,7 @@
 
 (defmethod kill-all-inactive ((this traffic-manager))
   (let ((s5-0 0))
-    (while (< (the-as uint s5-0) (the-as uint 21))
+    (while (< (the-as uint s5-0) (the-as uint TRAFFIC_TYPE_COUNT))
       (let ((s4-0 (-> this traffic-engine object-type-info-array s5-0)))
         (countdown (s3-0 (-> s4-0 inactive-count))
           (let ((a0-6 (handle->process (get-from-inactive-by-type
@@ -144,7 +149,7 @@
   ;;   (label cfg-4)
   ;;   (b! (< s5-0 21) cfg-1)
   ;;   )
-  (dotimes (i 21)
+  (dotimes (i TRAFFIC_TYPE_COUNT)
     (let ((s4-0 (-> this traffic-engine object-type-info-array i)))
       (logclear! (-> s4-0 flags) (traffic-type-flags trtflags-3))
       (if (= (level-status *level* (-> s4-0 level)) 'active)
@@ -221,7 +226,7 @@
   ;; (set! (-> this fast-spawn) #f)
   (let ((max-to-spawn 1)
         (spawned-nb 0)
-        (spawn-mask #x1fffff)
+        (spawn-mask TRAFFIC_SPAWN_MASK)
         )
     (if (-> this fast-spawn)
         (set! max-to-spawn 120)
@@ -262,7 +267,7 @@
             )
           )
         (let ((next-spawn-type (the-as int (+ spawn-type 1))))
-          (if (>= (the-as uint next-spawn-type) (the-as uint 21))
+          (if (>= (the-as uint next-spawn-type) (the-as uint TRAFFIC_TYPE_COUNT))
               (set! next-spawn-type 0)
               )
           (set! (-> spawn-params object-type) (the-as traffic-type next-spawn-type))
@@ -324,6 +329,15 @@
 
 (defun traffic-object-spawn ((arg0 process) (arg1 traffic-object-spawn-params))
   (let ((v0-0 (the-as process-drawable #f)))
+    ;; MOD haven-city-chaos -- the chaos species (traffic types 22..25) are dispatched by
+    ;; the mod so this retail `case` stays untouched. The hook returns #f for every retail
+    ;; type, so with the mod off this is a single symbol read and a #f test.
+    (when *mod-chaos-enable*
+      (set! v0-0 (*mod-chaos-spawn-hook* arg0 arg1))
+      )
+    (if v0-0
+        (return v0-0)
+        )
     (case (-> arg1 object-type)
       (((traffic-type bikea))
        (set! v0-0 (vehicle-spawn arg0 bikea arg1))
@@ -450,7 +464,14 @@
   )
 
 (defmethod init-params ((this traffic-manager))
-  (let ((traffic-want-counts (new 'stack-no-clear 'array 'int8 21)))
+  (let ((traffic-want-counts (new 'stack-no-clear 'array 'int8 TRAFFIC_TYPE_COUNT)))
+    ;; MOD haven-city-chaos: the array is stack-no-clear, so every slot the retail code
+    ;; never assigned (17, and now 21..25) would otherwise carry stack garbage into
+    ;; `want-count`. Zero the whole thing first -- a want-count of 0 keeps a type inert
+    ;; regardless of its `level`, which is exactly the off-by-default contract.
+    (dotimes (i TRAFFIC_TYPE_COUNT)
+      (set! (-> traffic-want-counts i) 0)
+      )
     (set! (-> traffic-want-counts 11) 8)
     (set! (-> traffic-want-counts 12) 8)
     (set! (-> traffic-want-counts 13) 8)
@@ -473,7 +494,7 @@
     (set! (-> this fast-spawn) *traffic-fast-spawn*)
     (reset-and-init this)
     (let ((v1-20 (-> this traffic-engine)))
-      (dotimes (a0-2 21)
+      (dotimes (a0-2 TRAFFIC_TYPE_COUNT)
         (set! (-> v1-20 object-type-info-array a0-2 want-count) (-> traffic-want-counts a0-2))
         )
       )
@@ -877,6 +898,11 @@
          (set! *traffic-alert-level-force* #t)
          )
         )
+      ;; MOD haven-city-chaos -- runs after the retail per-level table so the mod can
+      ;; claim its own traffic types (22..25) for whichever lwide* level just activated.
+      (if *mod-chaos-enable*
+          (*mod-chaos-lwide-activate-hook* (-> arg0 name))
+          )
       )
     )
   0
@@ -891,6 +917,10 @@
   )
 
 (defun ctywide-deactivate ()
+  ;; MOD haven-city-chaos -- the real hook implementations live in CWI.DGO, i.e. in the heap
+  ;; that is about to be recycled. Point the function pointers back at the always-resident
+  ;; no-ops in GAME.CGO before that happens.
+  (mod-chaos-reset-hooks!)
   (set! *ctywide-entity* #f)
   (set! *traffic-engine* #f)
   (set! *trail-graph* #f)

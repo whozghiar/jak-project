@@ -32,10 +32,21 @@
   "metalhead-predator.o"
   "metalhead-grunt.o"
   "metalhead-flitter.o"
+  ;; MOD haven-city-chaos -- retail enemy code for the four extra species. Their art lives in
+  ;; LWIDEB.DGO; this is the behaviour half, and it has to be resident everywhere in the city
+  ;; because `chaos-species.o` subclasses these types and reads their `*-nav-enemy-info*`.
+  "juicer.o"
+  "spyder.o"
+  "centurion.o"
+  "hopper.o"
+  "chaos-species.o"
   "traffic-engine.o"
   "trail-graph.o"
   "trail.o"
   "traffic-manager.o"
+  ;; MOD haven-city-chaos -- city-side control layer. After traffic-manager.o because it
+  ;; installs the hooks traffic-manager.gc calls and reads `*traffic-engine*`.
+  "chaos-city.o"
   "ctywide-texture.o"
   "ctywide-part.o"
   "ctywide-obs.o"

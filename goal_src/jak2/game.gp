@@ -90,6 +90,15 @@
   :out '("$OUT/obj/dir-tpages.go")
   )
 (hash-table-set! *file-entry-map* "dir-tpages.go" #f)
+;; MOD haven-city-chaos -- these five objects are listed in .gd files but have no entry in
+;; all_objs.json (they are new source, not decompiled output). Pre-marking them stops `cgo-file`
+;; from trying to resolve a source path for them; the explicit `goal-src` steps further down
+;; build them instead, with hand-written dependencies that pin the compile order.
+(hash-table-set! *file-entry-map* "haven-city-chaos-h.o" #f)
+(hash-table-set! *file-entry-map* "haven-city-chaos-menu.o" #f)
+(hash-table-set! *file-entry-map* "chaos-species.o" #f)
+(hash-table-set! *file-entry-map* "chaos-city.o" #f)
+(hash-table-set! *file-entry-map* "chaos-blast-bot.o" #f)
 
 (cgo-file "game.gd" '("$OUT/obj/gcommon.o" "$OUT/obj/gstate.o" "$OUT/obj/gstring.o" "$OUT/obj/gkernel.o"))
 
@@ -324,6 +333,24 @@
 ;; - joint-channel: how many joint channels the actor should have. defaults to 6.
 ;; more complicated actors like jak that make a lot of use of animation blending can have 24+ channels.
 (build-actor "test-actor" :force-run #t :gen-mesh #t)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; MOD -- Haven City : Chaos
+;;
+;; Compile order matters more than usual here, so each step names the last object it needs:
+;;   haven-city-chaos-h   after traffic-h      -- it defines the symbols traffic-h declares
+;;   haven-city-chaos-menu after mods-menu     -- calls `mods-menu-register`
+;;   chaos-species        after hopper         -- subclasses citizen-enemy, reads the four
+;;                                               `*<x>-nav-enemy-info*` statics
+;;   chaos-city           after chaos-species  -- and after traffic-manager for `*traffic-engine*`
+;;   chaos-blast-bot      after bombbot        -- subclasses it (LBOMBBOT is compiled late, which
+;;                                               is exactly why chaos-city reaches it via a hook)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(goal-src "pc/mods/haven-city-chaos-h.gc" "traffic-h" "settings")
+(goal-src "pc/debug/haven-city-chaos-menu.gc" "haven-city-chaos-h" "mods-menu")
+(goal-src "levels/city/chaos/chaos-species.gc" "citizen-enemy" "juicer" "spyder" "centurion" "hopper")
+(goal-src "levels/city/chaos/chaos-city.gc" "chaos-species" "traffic-manager" "haven-city-chaos-h")
+(goal-src "levels/city/bombbot/chaos-blast-bot.gc" "bombbot" "haven-city-chaos-h")
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; ANIMATIONS

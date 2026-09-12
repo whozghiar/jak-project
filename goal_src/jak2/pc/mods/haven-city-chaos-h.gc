@@ -104,21 +104,33 @@
 ;;     it is a crash, not a degradation: `new-nav-control` returns #f and `nav-mesh::change-to`
 ;;     kills the process mid-`initialize`.
 ;;
-;; `mod-chaos-ped-budget` recomputes the affordable budget from the live nav-mesh capacity every
-;; time the table is applied, so this constant is a ceiling rather than a promise.
+;; `mod-chaos-nav-governor!` measures the free nav-mesh slots every frame and moves the budget to
+;; suit, so this constant is a ceiling the mod climbs toward rather than a promise.
 (defconstant MOD_CHAOS_METALHEAD_POP 60)
 
-;; Never shrink the invasion below this many metal heads, whatever the nav-mesh budget says.
-;; Retail `lwideb` runs 42.
-(defconstant MOD_CHAOS_MIN_POP 24)
+;; Where the governor starts on every city load, and the floor it will not climb down from until
+;; the nav-mesh is genuinely under pressure. Deliberately below retail's 42: the first frames of a
+;; city load run `spawn-all` in fast-spawn mode (120 spawns in one frame), which is the one moment
+;; the governor cannot react inside, so the budget has to be safe *before* it starts measuring.
+(defconstant MOD_CHAOS_START_POP 24)
 
 ;; No species is ever given fewer than this, so a 5%-share species still actually shows up.
 (defconstant MOD_CHAOS_MIN_WANT 3)
 
-;; Nav-control slots held back for everything that is not pooled ambient pedestrian traffic:
-;; guard-bike and hellcat riders (one `crimson-guard` process each), escort NPCs, bomb bots,
-;; mission actors. Subtracted from `*default-nav-mesh*`'s capacity before the mod spends any of it.
-(defconstant MOD_CHAOS_NAV_RESERVE 40)
+;; Governor thresholds, in free `nav-control` slots on `*default-nav-mesh*`:
+;; below LOW the metal-head budget is cut back, above HIGH it is allowed to grow again.
+;; The gap between them is hysteresis -- without it the budget would oscillate every frame.
+;;
+;; LOW only has to cover what can be allocated between two governor ticks, and the governor runs
+;; every frame while `spawn-all` adds at most one pooled process per frame outside the fast-spawn
+;; burst, so 16 is generous.
+(defconstant MOD_CHAOS_NAV_LOW 16)
+(defconstant MOD_CHAOS_NAV_HIGH 32)
+
+;; How fast the budget moves. Asymmetric on purpose: giving slots back has to be faster than taking
+;; them, because running out is fatal and running lean is only disappointing.
+(defconstant MOD_CHAOS_POP_SHRINK 4)
+(defconstant MOD_CHAOS_POP_GROW 1)
 
 ;; ------------------------------------------------------------------------------------------------
 ;; Ambient density ("augmente les spawn rates", inspired by jak2/config/enhanced_spawnrates)

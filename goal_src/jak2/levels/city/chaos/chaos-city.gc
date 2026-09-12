@@ -91,12 +91,11 @@
    invasion with a retail-sized garrison just means the city is overrun in thirty seconds.
    Citizens are left at their retail counts on purpose -- every extra pedestrian costs a
    `nav-control` slot on `*default-nav-mesh*`, and the Metal Heads are the better use of them
-   (see `mod-chaos-ped-budget`).
+   (see the governor below).
 
-   Note the guard *vehicle* bumps cost pedestrian slots too, indirectly: each guard-bike and
-   hellcat carries a `crimson-guard` rider, which is a `citizen` like any other. They are covered
-   by MOD_CHAOS_NAV_RESERVE rather than by the budget arithmetic, because the traffic engine
-   spawns them outside the pedestrian want-count table.
+   Note the guard *vehicle* bumps cost slots too, indirectly: each guard-bike and hellcat carries a
+   `crimson-guard` rider, which is a `citizen` like any other and never appears in the pedestrian
+   want-count table. Nothing here tries to account for that -- the governor measures the result.
 
    `inv-density-factor` is the other half: the traffic engine divides a nav segment's capacity by
    it, so lowering it packs more of everything into the same streets."
@@ -123,49 +122,107 @@
   (none)
   )
 
-(defun mod-chaos-ped-budget ((te traffic-engine))
-  "How many pooled Metal Heads the mod may actually ask for, given what the nav-mesh can hold.
+;; ------------------------------------------------------------------------------------------------
+;; The nav-control governor
+;;
+;; This is the guard rail around the crash the first builds hit:
+;;   nav-mesh::new-nav-control:  too many users for nav-mesh #f
+;;   ERROR: nav-mesh::change-to: unable to allocate nav-mesh for #<metalhead-flitter ... initialize>
+;;
+;; Every Haven City pedestrian -- citizen, Krimzon Guard, Metal Head -- holds a `nav-control` slot
+;; on `*default-nav-mesh*` for the whole life of its process, pooled or active alike, because
+;; `citizen::init-enemy-behaviour-and-stats!` forces that mesh on traffic-spawned actors (they have
+;; no entity of their own to resolve a real one from). Run out of slots and the process is killed
+;; during `initialize` -- a hard crash, not a quiet degradation.
+;;
+;; The first attempt at a fix predicted the usage by adding up want-counts. It was wrong, twice:
+;; `*default-nav-mesh*` is a single *global* object shared by everything in the game that has no
+;; entity-backed mesh of its own -- not just the ambient traffic table -- and vehicle riders,
+;; escort NPCs and mission actors never appear in that table at all.
+;;
+;; So this does not predict. It measures the free slots every frame and moves the Metal Head budget
+;; up or down to suit, with hysteresis so it settles instead of oscillating. Whatever else is on the
+;; mesh, and however the mesh is sized, the mod takes what is left and no more.
+;; ------------------------------------------------------------------------------------------------
 
-   This is the guard rail around the crash that the first build hit:
-   `nav-mesh::new-nav-control: too many users for nav-mesh #f` followed by
-   `nav-mesh::change-to: unable to allocate nav-mesh for #<metalhead-flitter ... initialize>`.
+;; The budget the governor is currently allowing. Reset to MOD_CHAOS_START_POP on every borrow
+;; change, because a city load spawns its pools in one fast-spawn burst that the governor cannot
+;; react inside.
+(define *mod-chaos-pop* MOD_CHAOS_START_POP)
 
-   Every Haven City pedestrian -- citizen, Krimzon Guard, Metal Head -- holds a `nav-control` slot
-   on `*default-nav-mesh*` for the whole life of its process, pooled or active, because
-   `citizen::init-enemy-behaviour-and-stats!` forces that mesh on traffic-spawned actors (they have
-   no entity of their own to resolve a real one from). Run out of slots and the process is killed
-   during `initialize` -- a hard crash, not a quiet degradation.
+;; #t => print a line whenever the budget is cut back. Off by default; turn it on from the REPL
+;; (`(set! *mod-chaos-nav-verbose* #t)`) if the city ever looks emptier than it should.
+(define *mod-chaos-nav-verbose* #f)
 
-   So the budget is derived from the live capacity rather than assumed: take the mesh's own
-   `max-nav-control-count`, hold back MOD_CHAOS_NAV_RESERVE for everything that is not pooled
-   ambient traffic (vehicle riders, escort NPCs, mission actors), subtract what the citizen and
-   guard types have already claimed, and spend what is left -- never more than
-   MOD_CHAOS_METALHEAD_POP, never less than MOD_CHAOS_MIN_POP.
+(defun mod-chaos-nav-free ()
+  "How many `nav-control` slots on `*default-nav-mesh*` are genuinely free.
 
-   Deriving it means the mod stays safe if `*default-nav-mesh*` is ever resized again, in either
-   direction, without this file being touched."
-  (let ((cap (- (the int (-> *default-nav-mesh* max-nav-control-count)) MOD_CHAOS_NAV_RESERVE))
-        (claimed 0)
+   Not `max-nav-control-count - nav-control-count`: that high-water mark only shrinks when the
+   *last* slot is released (`remove-nav-control` trims the tail), so it badly overstates usage in a
+   city that is constantly recycling actors. `new-nav-control` reuses any hole in [0, count), so a
+   hole is free capacity and has to be counted as such."
+  (let ((mesh *default-nav-mesh*)
+        (used 0)
         )
-    ;; Traffic types 0..7 are the citizens and the Krimzon Guards; 8..10 and 22/23 are the Metal
-    ;; Heads this function is budgeting for. `mod-chaos-boost-ambient!` has already run, so the
-    ;; guard bump is included here rather than being double counted later.
-    (dotimes (i 8)
-      (+! claimed (-> te object-type-info-array i want-count))
+    (dotimes (i (the int (-> mesh nav-control-count)))
+      (if (-> mesh nav-control-array i process)
+          (+! used 1)
+          )
       )
-    (max MOD_CHAOS_MIN_POP (min MOD_CHAOS_METALHEAD_POP (- cap claimed)))
+    (- (the int (-> mesh max-nav-control-count)) used)
+    )
+  )
+
+(defun mod-chaos-nav-report ()
+  "REPL helper: print the nav-mesh occupancy and the budget the governor has settled on."
+  (format #t "haven-city-chaos: nav-control ~D/~D used, ~D free; metal-head budget ~D/~D~%"
+          (- (the int (-> *default-nav-mesh* max-nav-control-count)) (mod-chaos-nav-free))
+          (the int (-> *default-nav-mesh* max-nav-control-count))
+          (mod-chaos-nav-free)
+          *mod-chaos-pop*
+          MOD_CHAOS_METALHEAD_POP
+          )
+  0
+  (none)
+  )
+
+(defun mod-chaos-nav-governor! ()
+  "Move the Metal Head budget toward what the nav-mesh can actually hold.
+   @returns #t when the budget changed, i.e. when the species table has to be rewritten."
+  (let ((free (mod-chaos-nav-free))
+        (old *mod-chaos-pop*)
+        )
+    (cond
+      ((< free MOD_CHAOS_NAV_LOW)
+       ;; Under pressure. The floor is 0, not MOD_CHAOS_START_POP: if something else on this global
+       ;; mesh has taken everything, the honest outcome is an invasion that does not appear, never
+       ;; a killed process.
+       (set! *mod-chaos-pop* (max 0 (- *mod-chaos-pop* MOD_CHAOS_POP_SHRINK)))
+       (if (and *mod-chaos-nav-verbose* (!= old *mod-chaos-pop*))
+           (format #t "haven-city-chaos: nav-mesh pressure, metal-head budget ~D -> ~D (~D free)~%"
+                   old *mod-chaos-pop* free
+                   )
+           )
+       )
+      ((and (< *mod-chaos-pop* MOD_CHAOS_METALHEAD_POP) (> free MOD_CHAOS_NAV_HIGH))
+       (set! *mod-chaos-pop* (+ *mod-chaos-pop* MOD_CHAOS_POP_GROW))
+       )
+      )
+    (!= old *mod-chaos-pop*)
     )
   )
 
 (defun mod-chaos-want-for ((share int) (total int) (pop int))
   "Turn one species' advertised percentage into a want-count. `total` is the sum of the shares of
-   the species currently switched on; `pop` is what `mod-chaos-ped-budget` says we can afford.
+   the species currently switched on; `pop` is the budget the governor is currently allowing.
 
    The shares are relative, not absolute: only the enabled species contribute to `total`, so the
    whole budget is always spent. With everything on the denominator is 85 and the split lands
    within one of the advertised percentages; with only the three defaults on it is 70 and those
    three absorb the rest."
-  (if (> total 0)
+  ;; `pop` 0 means the governor has given every slot back -- MOD_CHAOS_MIN_WANT must not
+  ;; resurrect the species behind its back, so test it explicitly.
+  (if (and (> total 0) (> pop 0))
       (max MOD_CHAOS_MIN_WANT (/ (* share pop) total))
       0
       )
@@ -202,7 +259,7 @@
                    (if on-spyder MOD_CHAOS_SHARE_SPYDER 0)
                    )
                 )
-         (pop (mod-chaos-ped-budget te))
+         (pop *mod-chaos-pop*)
          )
     (mod-chaos-enroll-species! te (traffic-type metalhead-grunt)
                                (if on-grunt (mod-chaos-want-for MOD_CHAOS_SHARE_GRUNT total pop) 0)
@@ -286,6 +343,9 @@
   "Runs right after `lwide-activate` wrote the retail per-level traffic table, so our species
    assignment always lands on top of it."
   (mod-chaos-probe-art!)
+  ;; Start pessimistic: the city load that follows fills every traffic pool in one `fast-spawn`
+  ;; burst, and the governor gets no frame to react inside it.
+  (set! *mod-chaos-pop* MOD_CHAOS_START_POP)
   (let ((te *traffic-engine*))
     (if te
         (mod-chaos-apply-species! te level-name)
@@ -452,15 +512,19 @@
       ;;     `restore-default-settings` and `init-params` rewriting the want-counts from
       ;;     retail values behind our back.
       ;; `lwideb` is the only borrow the mod ever forces, so it is the only one worth deriving for.
-      (cond
-        (*mod-chaos-species-dirty*
-          (set! *mod-chaos-species-dirty* #f)
-          (mod-chaos-probe-art!)
-          (mod-chaos-apply-species! te 'lwideb)
+      ;; The governor runs every frame -- it is one pass over at most 250 slots -- because the
+      ;; whole point is to react before `spawn-all` can allocate past the cap.
+      (let ((budget-changed (mod-chaos-nav-governor!)))
+        (cond
+          (*mod-chaos-species-dirty*
+            (set! *mod-chaos-species-dirty* #f)
+            (mod-chaos-probe-art!)
+            (mod-chaos-apply-species! te 'lwideb)
+            )
+          ((or budget-changed (zero? (mod (the int (current-time)) MOD_CHAOS_REASSERT_PERIOD)))
+           (mod-chaos-apply-species! te 'lwideb)
+           )
           )
-        ((zero? (mod (the int (current-time)) MOD_CHAOS_REASSERT_PERIOD))
-         (mod-chaos-apply-species! te 'lwideb)
-         )
         )
       (if (zero? (mod (the int (current-time)) MOD_CHAOS_RETARGET_PERIOD))
           (when *mod-chaos-guard-buffs*

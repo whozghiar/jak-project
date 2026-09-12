@@ -57,12 +57,75 @@
                              ;; pedestrian population sits around 105 of the 128, so raising the
                              ;; ambient counts at all overflows it, and the overflow is fatal:
                              ;; `new-nav-control` returns #f and `nav-mesh::change-to` kills the
-                             ;; process. 192 leaves room for the mod's denser city.
+                             ;; process. 250 is as close to the uint8 ceiling as is safe.
+                             ;; NOTE: this mesh is global, not per level -- everything in the game
+                             ;; that has no entity-backed mesh of its own shares it -- so the users
+                             ;; are not only the ambient city population. That is why the mod
+                             ;; *measures* the free slots (`mod-chaos-nav-governor!`) instead of
+                             ;; predicting them from want-counts.
                              ;; `max-nav-control-count` and `nav-control-count` are both uint8, so
                              ;; 255 is the hard ceiling. The array below is zero-filled past the
                              ;; elements that are written out, so only the count changes.
-                             :max-nav-control-count #xc0
-                             :nav-control-array (new 'static 'inline-array nav-control 192
+                             :max-nav-control-count #xfa
+                             :nav-control-array (new 'static 'inline-array nav-control 250
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
                                (new 'static 'nav-control)
                                (new 'static 'nav-control)
                                (new 'static 'nav-control)
@@ -265,7 +328,7 @@
   (set! (-> gp-0 work) *nav-mesh-work*)
   (if (zero? (-> gp-0 user-list))
       ;; MOD haven-city-chaos: kept in step with :max-nav-control-count above (retail 128).
-      (set! (-> gp-0 user-list) (new 'global 'engine 'nav-engine 192 connection))
+      (set! (-> gp-0 user-list) (new 'global 'engine 'nav-engine 250 connection))
       )
   (when (zero? (-> gp-0 poly-hash))
     (set! (-> gp-0 poly-hash) (new 'global 'grid-hash 16))

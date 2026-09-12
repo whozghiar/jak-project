@@ -244,7 +244,7 @@ actors ever materialise. Modelled on `jak2/config/enhanced_spawnrates`, all gate
 | guard-bike / hellcat want-count (18 / 19) | 4 / 3 | 8 / 6 | `mod-chaos-boost-ambient!` |
 | `inv-density-factor` | 5.0 | 3.0 | `mod-chaos-boost-ambient!` |
 | per-cell activation ranges | 81920 / 819200 / 491520 | 122880 / 983040 / 655360 | `traffic-engine.gc` |
-| `*default-nav-mesh*` slots | 128 | 192 | `nav-mesh.gc` (unconditional) |
+| `*default-nav-mesh*` slots | 128 | 250 | `nav-mesh.gc` (unconditional) |
 
 Citizen want-counts are deliberately left at retail values: every extra pedestrian costs a
 `nav-control` slot, and the Metal Heads are the better use of them.
@@ -274,38 +274,56 @@ City citizen, Krimzon Guard and Metal Head takes one of that static mesh's `nav-
 keeps it for as long as its process exists — pooled and inactive counts exactly the same as active.
 The relevant number is therefore the sum of the *want-counts*, not the on-screen population.
 
-The arithmetic, against the retail `:max-nav-control-count #x80` (128):
+Two attempts at a fix failed before the third worked, and the failures are the instructive part.
 
-| | retail | first mod build |
-|---|---:|---:|
-| citizens (types 0–3) | 45 | 45 |
-| Krimzon Guards (types 4, 6) | 10 | 17 |
-| Metal Heads (8–10, 22, 23) | 42 | 58 |
-| guard-bike + hellcat riders | 7 | 14 |
-| **total** | **104** | **134** |
+**Attempt 1 — raise `nav-max-users` in `nav-mesh::init-from-entity`.** Wrong lever twice over: it
+sizes *entity-backed* meshes, which the ambient city population never reaches, and it is read at
+level-init time, so a debug-menu toggle could not affect the level the player is standing in.
 
-104 fits; 134 does not, and overflowing is fatal rather than degrading — `new-nav-control` returns
-`#f` and `nav-mesh::change-to` kills the process mid-`initialize`.
+**Attempt 2 — predict the usage from the want-count table and size the mesh to match.** The
+arithmetic said 134 users against a 128-slot mesh, so the mesh went to 192 and the mod budgeted
+itself against `max-nav-control-count` minus the citizen and guard want-counts. It crashed again,
+identically. The prediction was wrong because `*default-nav-mesh*` is a single **global** object —
+everything in the game without an entity-backed mesh of its own shares it, not just the ambient
+traffic table — and because vehicle riders, escort NPCs and mission actors never appear in that
+table at all.
 
-Two changes came out of this:
+**Attempt 3 — measure instead of predicting.** `mod-chaos-nav-governor!` runs every frame, counts
+the genuinely free slots, and moves the Metal Head budget to suit:
 
-1. **`*default-nav-mesh*` grew from 128 slots to 192** (`:max-nav-control-count #xc0`, the static
-   `inline-array` count, and the matching `nav-engine` connection pool). Both count fields are
-   `uint8`, so 255 is the hard ceiling. This one is **unconditional** — it is a static object sized
-   at compile time, there is no toggle to read, and an unused slot costs nothing but its 288 bytes
-   (192 slots ≈ 54 KB). Retail never approaches 128, so behaviour with the mod off is unchanged.
-2. **The mod now derives its budget from the live capacity** instead of assuming one.
-   `mod-chaos-ped-budget` reads `(-> *default-nav-mesh* max-nav-control-count)`, holds back
-   `MOD_CHAOS_NAV_RESERVE` (40) for vehicle riders and mission actors, subtracts what the citizen
-   and guard types have already claimed, and gives the Metal Heads what is left — capped at
-   `MOD_CHAOS_METALHEAD_POP`, floored at `MOD_CHAOS_MIN_POP`. Resize the mesh again in either
-   direction and the mod follows without this file being touched.
+```lisp
+(cond
+  ((< free MOD_CHAOS_NAV_LOW)                          ;; 16
+   (set! *mod-chaos-pop* (max 0 (- *mod-chaos-pop* MOD_CHAOS_POP_SHRINK))))    ;; -4
+  ((and (< *mod-chaos-pop* MOD_CHAOS_METALHEAD_POP)
+        (> free MOD_CHAOS_NAV_HIGH))                   ;; 32, hysteresis
+   (set! *mod-chaos-pop* (+ *mod-chaos-pop* MOD_CHAOS_POP_GROW))))             ;; +1
+```
 
-> [!WARNING]
-> An earlier attempt raised `nav-max-users` in `nav-mesh::init-from-entity` instead. That is the
-> wrong lever twice over: it sizes *entity-backed* meshes, which the ambient city population never
-> reaches, and it is read at level-init time, so a debug-menu toggle could not affect the level the
-> player is standing in. It has been reverted.
+Three details make it work:
+
+- **Free slots are counted, not inferred.** `max-nav-control-count - nav-control-count` is wrong:
+  `remove-nav-control` only trims the *tail*, so that high-water mark badly overstates usage in a
+  city that recycles actors constantly. `new-nav-control` reuses any hole in `[0, count)`, so
+  `mod-chaos-nav-free` walks the array and counts holes as capacity.
+- **It starts pessimistic.** `*mod-chaos-pop*` is reset to `MOD_CHAOS_START_POP` (24, below
+  retail's 42) on every borrow change, because a city load fills every pool in one `fast-spawn`
+  burst of up to 120 spawns in a single frame — the one moment the governor gets no frame to react
+  inside. It climbs back up over the following second.
+- **The floor is 0, not a minimum invasion.** If something else on this global mesh has taken
+  everything, the honest outcome is an invasion that does not appear — never a killed process.
+
+`*default-nav-mesh*` still grew, 128 → 250 slots (`:max-nav-control-count #xfa`, the static
+`inline-array` count, and the matching `nav-engine` connection pool). Both count fields are `uint8`,
+so 255 is the hard ceiling. That change is **unconditional** — it is a static sized at compile time,
+there is no toggle to read, and an unused slot costs nothing but its 288 bytes (250 slots ≈ 72 KB).
+Retail never approaches 128, so behaviour with the mod off is unchanged; the governor is what turns
+the extra room into Metal Heads.
+
+`(mod-chaos-nav-report)` from the REPL prints the occupancy and the settled budget, and
+`(set! *mod-chaos-nav-verbose* #t)` logs every cutback.
+
+
 
 ### 3.6 Why the table is re-asserted every second
 
@@ -725,7 +743,10 @@ Nothing here has been run yet. In order:
 4. **Percentages are steady-state population, not spawn probability** — see §3.5. A species whose
    pool is momentarily empty is skipped by the draw, so short-term ratios will wobble.
 5. **`*default-nav-mesh*` is enlarged unconditionally** — see §3.5c. It is the one change that is
-   not behind `*mod-chaos-enable*`; it costs ~18 KB of global heap and nothing else.
+   not behind `*mod-chaos-enable*`; it costs ~35 KB of extra global heap and nothing else.
+6. **The Metal Head population is whatever fits, not a fixed number** — the governor settles
+   wherever the global nav-mesh has room, so the invasion is denser in a quiet district than in one
+   already full of mission actors. `(mod-chaos-nav-report)` says what it settled on.
 
 ---
 

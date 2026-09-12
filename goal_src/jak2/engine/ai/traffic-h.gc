@@ -59,7 +59,7 @@
   ;; Both are inert on a stock game: `lwide-activate` leaves their `level` at
   ;; #f and `init-params` gives them want-count 0, so `spawn-all` never
   ;; creates a reserve process for them.
-  (chaos-juicer 22)
+  (chaos-rapid-gunner 22)
   (chaos-spyder 23)
   )
 ;; ---traffic-h:traffic-type

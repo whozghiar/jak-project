@@ -347,7 +347,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (goal-src "pc/mods/haven-city-chaos-h.gc" "traffic-h" "settings")
 (goal-src "pc/debug/haven-city-chaos-menu.gc" "haven-city-chaos-h" "mods-menu")
-(goal-src "levels/city/chaos/chaos-species.gc" "citizen-enemy" "metalhead-grunt" "juicer" "spyder")
+(goal-src "levels/city/chaos/chaos-species.gc" "citizen-enemy" "metalhead-grunt" "rapid-gunner" "spyder")
 (goal-src "levels/city/chaos/chaos-city.gc" "chaos-species" "traffic-manager" "haven-city-chaos-h")
 
 ;;;;;;;;;;;;;;;;;;;;;

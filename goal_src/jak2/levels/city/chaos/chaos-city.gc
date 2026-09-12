@@ -27,7 +27,7 @@
 ;; Every traffic type the pedestrian draw may return, in one place.
 ;;   0..3   citizens          4,6   Krimzon Guards        5,7  disabled in retail
 ;;   8..10  retail metal heads (grunt / flitter / predator)
-;;   22,23  chaos metal heads  (juicer / spyder)
+;;   22,23  chaos metal heads  (rapid gunner / spyder)
 ;; Index 21 is deliberately absent: retail uses `(traffic-type traffic-type-21)` as an
 ;; "invalid" sentinel and it has no pool behind it.
 ;;
@@ -124,13 +124,13 @@
 ;; Cached result of the art-residency probe. `art-group-get-by-name` walks every loaded level's
 ;; art-group array doing string compares, which is fine once per borrow change but not something
 ;; to repeat on the periodic re-assert below.
-(define *mod-chaos-art-juicer* #f)
+(define *mod-chaos-art-rapid* #f)
 (define *mod-chaos-art-spyder* #f)
 
 (defun mod-chaos-probe-art! ()
   "Re-read which chaos species actually have their skeletons resident. Called when the borrowed
    city level changes, not every frame."
-  (set! *mod-chaos-art-juicer* (chaos-art-ready? "skel-juicer"))
+  (set! *mod-chaos-art-rapid* (chaos-art-ready? "skel-rapid-gunner"))
   (set! *mod-chaos-art-spyder* (chaos-art-ready? "skel-spyder"))
   0
   (none)
@@ -271,12 +271,12 @@
          (on-grunt    (if (and mh-level *mod-chaos-species-grunt*) #t #f))
          (on-flitter  (if (and mh-level *mod-chaos-species-flitter*) #t #f))
          (on-predator (if (and mh-level *mod-chaos-species-predator*) #t #f))
-         (on-juicer   (if (and mh-level *mod-chaos-species-juicer* *mod-chaos-art-juicer*) #t #f))
+         (on-rapid    (if (and mh-level *mod-chaos-species-rapid* *mod-chaos-art-rapid*) #t #f))
          (on-spyder   (if (and mh-level *mod-chaos-species-spyder* *mod-chaos-art-spyder*) #t #f))
          (total (+ (if on-grunt MOD_CHAOS_SHARE_GRUNT 0)
                    (if on-flitter MOD_CHAOS_SHARE_FLITTER 0)
                    (if on-predator MOD_CHAOS_SHARE_PREDATOR 0)
-                   (if on-juicer MOD_CHAOS_SHARE_JUICER 0)
+                   (if on-rapid MOD_CHAOS_SHARE_RAPID 0)
                    (if on-spyder MOD_CHAOS_SHARE_SPYDER 0)
                    )
                 )
@@ -294,9 +294,9 @@
                                (if on-predator (mod-chaos-want-for MOD_CHAOS_SHARE_PREDATOR total pop) 0)
                                (if on-predator mh-level #f)
                                )
-    (mod-chaos-enroll-species! te (traffic-type chaos-juicer)
-                               (if on-juicer (mod-chaos-want-for MOD_CHAOS_SHARE_JUICER total pop) 0)
-                               (if on-juicer mh-level #f)
+    (mod-chaos-enroll-species! te (traffic-type chaos-rapid-gunner)
+                               (if on-rapid (mod-chaos-want-for MOD_CHAOS_SHARE_RAPID total pop) 0)
+                               (if on-rapid mh-level #f)
                                )
     (mod-chaos-enroll-species! te (traffic-type chaos-spyder)
                                (if on-spyder (mod-chaos-want-for MOD_CHAOS_SHARE_SPYDER total pop) 0)
@@ -343,8 +343,8 @@
    the process into the traffic controller."
   (let ((p (the-as traffic-object-spawn-params params)))
     (case (-> p object-type)
-      (((traffic-type chaos-juicer))
-       (citizen-spawn parent chaos-juicer p)
+      (((traffic-type chaos-rapid-gunner))
+       (citizen-spawn parent chaos-rapid-gunner p)
        )
       (((traffic-type chaos-spyder))
        (citizen-spawn parent chaos-spyder p)

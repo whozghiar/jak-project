@@ -139,11 +139,12 @@
   // MOD haven-city-chaos -- bake the two extra metal-head species into the invasion city's
   // .fr3 so the PC Merc2 renderer can actually draw them. Circuit 1 (skeletons/anims) is the
   // matching `<x>-ag.go` + home tpage added to goal_src/jak2/dgos/lwideb.gd.
-  // Home DGO is ATE, whose remap table resolves both species' texture ids (they share one
-  // texture page, atollext-vis-pris / tpage-1607).
+  // Home DGO is where each model shipped, so its remap table resolves that model's texture ids:
+  // the spyder's is ATE (texture page atollext-vis-pris / tpage-1607), the rapid gunner's is RUI
+  // (ruins-vis-pris / tpage-853). Both pages are added to lwideb.gd alongside the art groups.
   "extra_art_groups_by_dgo": {
     "LWIDEB.DGO": [
-      "juicer-ag:ATE.DGO",
+      "rapid-gunner-ag:RUI.DGO",
       "spyder-ag:ATE.DGO"
     ]
   },

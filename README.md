@@ -39,7 +39,7 @@ Jak is a bystander. Nothing you do raises the alarm, and no guard will come afte
   | Grunt | 30% | on | Haven City invasion |
   | Stinger | 30% | on | Haven City invasion |
   | Cloaker | 10% | on | Haven City invasion |
-  | Juice goon | 10% | off | Pumping Station |
+  | Rapid gunner | 10% | off | Dead Town ruins |
   | Spyder gunner | 5% | off | Haven Forest / Pumping Station |
 
   The shares are relative: whatever is switched on splits the whole population between itself in
@@ -142,7 +142,7 @@ poursuit.
   | Grunt | 30% | activé | Invasion de Haven City |
   | Stinger | 30% | activé | Invasion de Haven City |
   | Cloaker | 10% | activé | Invasion de Haven City |
-  | Juice goon | 10% | désactivé | Station de pompage |
+  | Rapid gunner | 10% | désactivé | Ruines de la Ville Morte |
   | Spyder gunner | 5% | désactivé | Forêt de Haven / Station de pompage |
 
   Les parts sont relatives : les espèces activées se partagent toute la population dans ces

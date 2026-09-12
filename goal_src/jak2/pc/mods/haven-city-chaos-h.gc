@@ -53,7 +53,7 @@
 (define *mod-chaos-species-grunt*    #t)  ;; "Grunt"         traffic type  8  (metalhead-grunt)
 (define *mod-chaos-species-flitter*  #t)  ;; "Stinger"       traffic type  9  (metalhead-flitter)
 (define *mod-chaos-species-predator* #t)  ;; "Cloaker"       traffic type 10  (metalhead-predator)
-(define *mod-chaos-species-juicer*   #f)  ;; "Juice goon"    traffic type 22  (chaos-juicer)
+(define *mod-chaos-species-rapid*    #f)  ;; "Rapid gunner"  traffic type 22  (chaos-rapid-gunner)
 (define *mod-chaos-species-spyder*   #f)  ;; "Spyder gunner" traffic type 23  (chaos-spyder)
 
 ;; Set by the debug menu whenever a toggle changes something the city-side traffic table has to be
@@ -75,7 +75,7 @@
 ;; The shares below are the percentages the mod advertises in its debug menu, straight from the
 ;; brief. They are *relative weights*, not absolute caps: `mod-chaos-apply-species!` sums the
 ;; shares of the species currently switched on and divides MOD_CHAOS_METALHEAD_POP between them in
-;; proportion. Turning Juice goon and Spyder gunner off therefore does not thin the invasion out --
+;; proportion. Turning Rapid gunner and Spyder gunner off therefore does not thin the invasion out --
 ;; the three default species absorb their share.
 ;;
 ;; Why want-count and not a weighted random draw: the traffic engine already caps each type's live
@@ -88,7 +88,7 @@
 (defconstant MOD_CHAOS_SHARE_GRUNT    30)  ;; "Grunt"
 (defconstant MOD_CHAOS_SHARE_FLITTER  30)  ;; "Stinger"
 (defconstant MOD_CHAOS_SHARE_PREDATOR 10)  ;; "Cloaker"
-(defconstant MOD_CHAOS_SHARE_JUICER   10)  ;; "Juice goon"
+(defconstant MOD_CHAOS_SHARE_RAPID    10)  ;; "Rapid gunner"
 (defconstant MOD_CHAOS_SHARE_SPYDER    5)  ;; "Spyder gunner"
 
 ;; Total metal-head population budget, split between the enabled species in proportion to their

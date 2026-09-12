@@ -35,7 +35,7 @@
   ;; MOD haven-city-chaos -- retail enemy code for the two extra species. Their art lives in
   ;; LWIDEB.DGO; this is the behaviour half, and it has to be resident everywhere in the city
   ;; because `chaos-species.o` subclasses these types and reads their `*-nav-enemy-info*`.
-  "juicer.o"
+  "rapid-gunner.o"
   "spyder.o"
   "chaos-species.o"
   "traffic-engine.o"

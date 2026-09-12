@@ -16,14 +16,14 @@
 ;;     species > Grunt (30%)             -- on by default  (retail invasion species, no extra art)
 ;;             > Stinger (30%)           -- on by default
 ;;             > Cloaker (10%)           -- on by default
-;;             > Juice goon (10%)        -- off by default (streams juicer art into LWIDEB)
+;;             > Rapid gunner (10%)      -- off by default (streams gunner art into LWIDEB)
 ;;             > Spyder gunner (5%)      -- off by default (streams spyder art into LWIDEB)
 ;;     guards  > Tougher guards          -- 1.5x hit points + vehicles engaging metal heads
 ;;             > Guards ignore Jak       -- the truce
 ;;
 ;; The percentages are relative shares, not caps: whatever is switched on splits the whole
 ;; metal-head population budget between itself in these proportions (see MOD_CHAOS_METALHEAD_POP
-;; in pc/mods/haven-city-chaos-h.gc). Switching Juice goon and Spyder gunner off therefore makes
+;; in pc/mods/haven-city-chaos-h.gc). Switching Rapid gunner and Spyder gunner off therefore makes
 ;; the other three *more* numerous, not the invasion smaller.
 ;;
 ;; All the state itself lives in `pc/mods/haven-city-chaos-h.gc`; this file only drives it, so the
@@ -107,22 +107,22 @@
   (-> arg0 value)
   )
 
-(defun mod-haven-city-chaos-juicer-pick ((arg0 symbol) (arg1 debug-menu-msg))
-  "Juice goon on/off. Unlike the three retail species this one needs `skel-juicer` resident, which
+(defun mod-haven-city-chaos-rapid-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Rapid gunner on/off. Unlike the three retail species this one needs `skel-rapid-gunner` resident, which
    only happens once `lwideb` has streamed in -- so with the mod freshly enabled the first few
    seconds may show nothing. The city half re-probes art residency whenever this flag changes and
    silently leaves the species out if the skeleton is missing, rather than crashing on spawn."
   (case arg1
     (((debug-menu-msg press))
      (set! (-> arg0 value) (not (-> arg0 value)))
-     (mod-haven-city-chaos-species-changed! (traffic-type chaos-juicer) (the-as symbol (-> arg0 value)))
+     (mod-haven-city-chaos-species-changed! (traffic-type chaos-rapid-gunner) (the-as symbol (-> arg0 value)))
      )
     )
   (-> arg0 value)
   )
 
 (defun mod-haven-city-chaos-spyder-pick ((arg0 symbol) (arg1 debug-menu-msg))
-  "Spyder gunner on/off. Same art-residency caveat as the Juice goon."
+  "Spyder gunner on/off. Same art-residency caveat as the Rapid gunner."
   (case arg1
     (((debug-menu-msg press))
      (set! (-> arg0 value) (not (-> arg0 value)))
@@ -165,7 +165,7 @@
          (flag "Grunt (30%)" *mod-chaos-species-grunt* mod-haven-city-chaos-grunt-pick)
          (flag "Stinger (30%)" *mod-chaos-species-flitter* mod-haven-city-chaos-flitter-pick)
          (flag "Cloaker (10%)" *mod-chaos-species-predator* mod-haven-city-chaos-predator-pick)
-         (flag "Juice goon (10%)" *mod-chaos-species-juicer* mod-haven-city-chaos-juicer-pick)
+         (flag "Rapid gunner (10%)" *mod-chaos-species-rapid* mod-haven-city-chaos-rapid-pick)
          (flag "Spyder gunner (5%)" *mod-chaos-species-spyder* mod-haven-city-chaos-spyder-pick)
          )
        (menu "guards"

@@ -18,69 +18,68 @@
 ;;   chaos-juicer  "Juice goon"     (levels/atoll/juicer.gc)
 ;;   chaos-spyder  "Spyder gunner"  (levels/common/enemy/spyder.gc)
 ;;
-;; Everything that makes a city enemy work already lives in `citizen-enemy`:
-;;   - `citizen-init!` derives the walk / run animation slots and travel speeds from `enemy-info`;
-;;   - the `active` state walks the nav-graph playing `walk-anim`;
-;;   - `citizen-enemy-method-202` picks the nearest valid focus (guard, citizen or Jak) and
-;;     `go-hostile`s at it;
-;;   - `traffic-danger-init!` makes vehicles swerve around them.
-;; So a new species needs only three things: which skeleton to wear, which `nav-enemy-info` to be
-;; tuned by, and a collide-shape. We take all three straight from the retail enemy, which is why
-;; each species below is barely forty lines and why their stats match the originals exactly.
+;; ------------------------------------------------------------------------------------------------
+;; The design rule, and why this file is long
+;; ------------------------------------------------------------------------------------------------
+;; The brief is that these two must fight *exactly* as they do in their own missions -- stop to
+;; shoot when they stop to shoot, play the animation they play, circle when they circle -- with one
+;; single difference: the thing they are fighting is a Krimzon Guard or a civilian rather than Jak.
 ;;
-;; Two things we do have to add, because a retail arena enemy and a city enemy differ there:
-;;   - a `hostile` :code thread. `nav-enemy`'s own `hostile` has no :code, so an inherited chase
-;;     would keep playing the walk animation from `active` while moving at run speed.
-;;   - a city-shaped overlap filter and a melee cadence -- see `common-post` and the
-;;     MOD_CHAOS_MELEE_PERIOD block in `hostile` below. Without those the new species and the
-;;     Krimzon Guards are mutually intangible.
+;; That last part is already free. Targeting in the city is decided by `citizen-enemy-method-202`,
+;; which picks the nearest valid process and calls `go-hostile`; `citizen-init!` sets the focus
+;; collide-spec to `jak civilian player-list bot-targetable jak-vehicle`. Everything downstream of
+;; `(-> self focus handle)` is target-agnostic. So "make them fight guards" needed no combat code at
+;; all -- it needed the *collision* work in `chaos-cityify-collision!` below, and nothing else.
+;;
+;; What it does need is the combat states themselves, and those cannot be inherited. The retail
+;; `attack` / `circling` / `backup` states are written against `juicer` and `spyder` *fields* --
+;; `los`, `current-projectile`, `fire-info`, `status-flags`, the IK joints -- at offsets that only
+;; exist in those types. A `citizen-enemy` subclass has `citizen`'s ~200 bytes of traffic plumbing
+;; sitting where those fields would be, so the state bodies cannot simply be pointed at. Nor can the
+;; problem be turned around by inheriting from `juicer` instead: `citizen` is what makes a process
+;; poolable, recyclable, nav-graph-walking and traffic-aware, and reimplementing that would be an
+;; order of magnitude more work than reimplementing the combat.
+;;
+;; So the combat states are ported: each species redeclares the fields its retail states read, and
+;; the state bodies are transcribed from the retail source. Where the decompiler emitted `b!` /
+;; `label` control flow, it is rewritten as the `cond` it came from; everything else is verbatim,
+;; including the tuning numbers, so that a future reader can diff against the retail file.
+;;
+;; An earlier version of this file did *not* do that. It gave both species a generic charge with a
+;; melee timer and a shot fired on a fixed cadence while running. It worked, and it was wrong: the
+;; Spyder gunner is a stand-and-shoot enemy that never closes, and the Juice goon's charge is a
+;; scripted lunge whose damage window is opened and closed by its animation. Hence this rewrite.
+;;
+;; What is deliberately *not* ported, and why:
+;;   - the juicer's `intro-path` and the spyder's `predator-effect?` cloak. Both read the actor's
+;;     `entity`, and a traffic-spawned process has none. City spyders are always uncloaked, which
+;;     is also the retail behaviour for any spyder without an `extra-id` res tag.
+;;   - `notice`. City metal heads are pushed straight into `hostile` by `citizen-enemy-method-202`;
+;;     they have no idle patrol to be noticed out of.
 ;; ================================================================================================
 
 ;; ------------------------------------------------------------------------------------------------
 ;; Shared base
 ;; ------------------------------------------------------------------------------------------------
 
-;; How often a metal head locked in melee is allowed to land a hit.
-;;
-;; Damage between two `enemy`s flows through `enemy-method-75` -> `enemy-method-104`, which sends
-;; an `attack` event stamped with the attacker's `attack-id`. The victim remembers the last id it
-;; took damage from, so an unchanging id lands exactly once however long the contact lasts. Retail
-;; enemies get a fresh id every time they enter their `attack` state; `chaos-metalhead` has no
-;; scripted attack animation to enter (see the note on the retail states below), so it re-stamps
-;; on this cadence instead, which is what turns a permanent shove into a repeating melee.
-(defconstant MOD_CHAOS_MELEE_PERIOD (seconds 0.8))
-
-;; Ranged attack. The species that have a projectile in their retail form fire it on this cadence
-;; while they have a focus in the band below -- close enough to be worth a shot, far enough that
-;; they are not already in melee.
-(defconstant MOD_CHAOS_SHOT_PERIOD (seconds 1.5))
-(defconstant MOD_CHAOS_SHOT_MIN_DIST (meters 8))
-(defconstant MOD_CHAOS_SHOT_MAX_DIST (meters 45))
-
 (deftype chaos-metalhead (citizen-enemy)
-  ((next-melee-time  time-frame)
-   (next-shot-time   time-frame)
+  (;; Line-of-sight tracker. Both species gate their attack on it in retail -- the juicer will not
+   ;; open fire through a wall, the spyder will not start its volley through one -- and it is the
+   ;; one field they genuinely share, so it lives in the base.
+   (los  los-control  :inline)
    )
   (:methods
     ;; Name of the skeleton group to wear, e.g. "skel-juicer". Resolved through
     ;; `art-group-get-by-name`, so the matching `<x>-ag.go` must be in a resident DGO
     ;; (the mod puts them in LWIDEB.DGO -- see goal_src/jak2/dgos/lwideb.gd).
     (chaos-skel-name (_type_) string)
-    ;; Animation index to play while chasing. Falls back to the walk animation for species
-    ;; that ship with `run-anim -1`.
+    ;; Animation index for the base `hostile` fallback below. Falls back to the walk animation for
+    ;; species that ship with `run-anim -1`.
     (chaos-chase-anim (_type_) int)
     ;; The `nav-enemy-info` this species is tuned by. NOT inherited from anywhere: `metalhead-grunt`
     ;; declares `get-nav-info` in its own `:methods` block rather than `nav-enemy` or `enemy`
     ;; providing it, so the chaos hierarchy has to declare its own slot for it.
     (get-nav-info (_type_) nav-enemy-info)
-    ;; Projectile this species fires, or #f for a melee-only one. `spawn-projectile` takes the
-    ;; type at runtime (it is a plain function, not a macro), so one shared `chaos-fire!` can
-    ;; serve every species.
-    (chaos-shot-type (_type_) type)
-    ;; Muzzle velocity, straight from the species' retail firing code -- the projectile types
-    ;; differ in how they read it, so it is not shareable.
-    (chaos-shot-speed (_type_) float)
-    (chaos-fire! (_type_ process-focusable) none)
     )
   )
 
@@ -107,67 +106,13 @@
   *metalhead-grunt-nav-enemy-info*
   )
 
-(defmethod chaos-shot-type ((this chaos-metalhead))
-  "Melee-only by default."
-  (the-as type #f)
-  )
-
-(defmethod chaos-shot-speed ((this chaos-metalhead))
-  "Unused unless `chaos-shot-type` is overridden."
-  0.0
-  )
-
-(defmethod chaos-fire! ((this chaos-metalhead) (prey process-focusable))
-  "Spawn one of this species' projectiles, aimed from our upper body at the target's.
-
-   Modelled on `juicer::fire-projectile` and `spyder-method-183`, which build the same
-   `projectile-init-by-other-params` and differ only in the projectile type and the muzzle speed.
-   Two deliberate simplifications over those:
-
-     - the muzzle is `(get-trans this 3)` rather than a named joint. The retail juicer fires from
-       joint 20 of its own skeleton; hard-coding joint indices for a shared base class is exactly
-       the kind of drift that breaks silently when an art group changes, and the upper-body trans
-       point is what every other city actor aims from anyway.
-     - one shot per cadence, no `current-projectile` handle. The retail juicer keeps its shot alive
-       and re-aims it; that is part of its scripted attack state, which a `citizen-enemy` subclass
-       cannot enter (see the note on `hostile` below).
-
-   `ignore-handle` is us, so the shot cannot detonate on the shooter. Both `juicer-shot` and
-   `spyder-shot` (a `metalhead-shot`) already carry `civilian` and `enemy` in their collide-with,
-   so they damage Krimzon Guards without any change to the projectile side."
-  (let ((shot (chaos-shot-type this)))
-    (when shot
-      (let ((muzzle (new 'stack-no-clear 'vector))
-            (params (new 'stack-no-clear 'projectile-init-by-other-params))
-            )
-        (set! (-> muzzle quad) (-> (get-trans this 3) quad))
-        (set! (-> params ent) (-> this entity))
-        (set! (-> params charge) 1.0)
-        (set! (-> params options) (projectile-options))
-        (set! (-> params notify-handle) (process->handle this))
-        (set! (-> params owner-handle) (the-as handle #f))
-        (set! (-> params ignore-handle) (process->handle this))
-        (let* ((info *game-info*)
-               (id (+ (-> info attack-id) 1))
-               )
-          (set! (-> info attack-id) id)
-          (set! (-> params attack-id) id)
-          )
-        (set! (-> params timeout) (seconds 4))
-        (set! (-> params pos quad) (-> muzzle quad))
-        (vector-normalize! (vector-! (-> params vel) (get-trans prey 3) muzzle) (chaos-shot-speed this))
-        (spawn-projectile shot params this *default-dead-pool*)
-        )
-      )
-    )
-  0
-  (none)
-  )
-
 (defmethod init-enemy! ((this chaos-metalhead))
   "Common city-enemy bring-up: wear the retail skeleton, adopt the retail tuning, then apply the
    few city-specific overrides the retail city metal heads also apply (neck aim envelope, a nav
-   speed scale of 1, no water animation, no minimap icon before `citizen-init!` adds one)."
+   speed scale of 1, no water animation, no minimap icon before `citizen-init!` adds one).
+
+   Species-specific setup -- joints, IK, sound, gravity -- happens in the subclass override, which
+   calls this first."
   (initialize-skeleton
     this
     (the-as skeleton-group (art-group-get-by-name *level* (chaos-skel-name this) (the-as (pointer uint32) #f)))
@@ -185,7 +130,7 @@
     (set! (-> neck up) (the-as uint 1))
     (set! (-> neck nose) (the-as uint 2))
     (set! (-> neck ear) (the-as uint 0))
-    ;; Same envelope the city grunt uses: +/- 65 degrees of head turn, give up past ~170.
+    ;; Same envelope both retail species use: +/- 65 degrees of head turn, give up past ~170.
     (set-vector! (-> neck twist-max) 11832.889 11832.889 0.0 1.0)
     (set! (-> neck ignore-angle) 30947.555)
     )
@@ -194,17 +139,32 @@
     )
   (set! (-> this water-anim) -1)
   (set! (-> this minimap) #f)
-  (set! (-> this next-melee-time) 0)
-  (set! (-> this next-shot-time) 0)
+  ;; Same source parameters both retail species use: re-probe five times a second, blocked by
+  ;; world geometry and obstacles only.
+  (new-source! (-> this los) this (seconds 0.2) (collide-spec backgnd obstacle))
   0
   (none)
+  )
+
+(defmethod enemy-method-63 ((this chaos-metalhead) (arg0 process-focusable) (arg1 enemy-aware))
+  "Keep the line-of-sight tracker pointed at whatever we just became aware of.
+
+   Verbatim from `juicer::enemy-method-63` / `spyder::enemy-method-63`, which are identical to each
+   other. Without it `los` never gets a destination, `check-los?` is permanently false, and neither
+   species would ever open fire."
+  (let ((t9-0 (method-of-type nav-enemy enemy-method-63)))
+    (the-as symbol (if (t9-0 this arg0 arg1)
+                       (set-dst-proc! (-> this los) (-> this focus handle))
+                       )
+            )
+    )
   )
 
 (defmethod common-post ((this chaos-metalhead))
   "`citizen-enemy::common-post` with exactly one thing changed: the overlap filter.
 
-   This is the fix for 'the Juice goon and the Krimzon Guard stand chest to chest and neither can
-   hurt the other'. Damage between two `enemy`s is touch-driven: `common-post` calls
+   This is half the fix for 'the Juice goon and the Krimzon Guard stand chest to chest and neither
+   can hurt the other'. Damage between two `enemy`s is touch-driven: `common-post` calls
    `find-overlapping-shapes`, which fills `*touching-list*` and makes both sides receive a `touch`
    event; `enemy-method-75` then turns a touch involving a `deadly` primitive into an `attack`.
    Which shapes are even considered comes from `enemy-info.overlaps-others-collide-with-filter`,
@@ -216,12 +176,11 @@
 
    `civilian` is what Krimzon Guards and citizens register as and `vehicle-sphere` is what city
    traffic registers as, so with the arena filter a Juice goon in Haven City can only ever touch
-   Jak. The two shapes still collide as solids -- hence the shoving -- but no touch entry is ever
-   produced, so neither the guard's rifle-butt nor the juicer's own permanently-`deadly` body prim
-   can deal damage.
+   Jak.
 
    Patching `enemy-info` itself is not an option: `*juicer-nav-enemy-info*` is a shared static that
-   the Atoll juicers read too. Overriding here costs nothing and leaves the retail enemies alone."
+   the Atoll juicers read too. Overriding here costs nothing and leaves the retail enemies alone.
+   The other half of the fix is `chaos-cityify-collision!` -- see its comment."
   (let ((params (new 'stack-no-clear 'overlaps-others-params)))
     (set! (-> params options) (overlaps-others-options))
     (set! (-> params collide-with-filter)
@@ -246,65 +205,23 @@
   (none)
   )
 
+;; Fallback chase for a species that has not ported its retail combat states.
+;;
+;; Both shipped species override this, so nothing reaches it today. It is kept because
+;; `nav-enemy::hostile` has no `:code` of its own -- an unported subclass inheriting it would keep
+;; playing the walk animation from `active` while travelling at run speed, which looks broken in a
+;; way that is hard to trace back to a missing override.
 (defstate hostile (chaos-metalhead)
   :virtual #t
   :event enemy-event-handler
-  :enter (behavior ()
-    (let ((parent-enter (-> (method-of-type citizen-enemy hostile) enter)))
-      (if parent-enter
-          (parent-enter)
-          )
-      )
-    (set! (-> self next-melee-time) 0)
-    )
   :trans (behavior ()
     (let ((parent-trans (-> (method-of-type citizen-enemy hostile) trans)))
       (if parent-trans
           (parent-trans)
           )
       )
-    ;; Melee cadence -- see MOD_CHAOS_MELEE_PERIOD at the top of the file. The chaos species charge
-    ;; and deal contact damage rather than playing a scripted attack (their retail `attack` states
-    ;; are written against `juicer` / `spyder` fields that a `citizen-enemy` subclass does not
-    ;; have), so the attack id has to be re-stamped here for a hit to land more than once.
-    ;; `dangerous` is re-asserted with it because `enemy-method-75` tests it before dealing damage
-    ;; and several shared states clear it on exit.
-    (when (time-elapsed? (-> self next-melee-time) MOD_CHAOS_MELEE_PERIOD)
-      (set-time! (-> self next-melee-time))
-      (let* ((info *game-info*)
-             (id (+ (-> info attack-id) 1))
-             )
-        (set! (-> info attack-id) id)
-        (set! (-> self attack-id) id)
-        )
-      (logior! (-> self focus-status) (focus-status dangerous))
-      )
-    ;; Ranged attack, for the species that have one. Fired from the chase rather than from a
-    ;; dedicated firing state: the retail `attack` states are written against `juicer` / `spyder`
-    ;; fields that a `citizen-enemy` subclass does not have, so there is no state to enter. The
-    ;; practical difference is that these two shoot while closing instead of standing off -- which
-    ;; for the Juice goon, a charger in its own level, is the right read anyway.
-    (when (chaos-shot-type self)
-      (let ((prey (handle->process (-> self focus handle))))
-        (when (and prey (time-elapsed? (-> self next-shot-time) MOD_CHAOS_SHOT_PERIOD))
-          (let ((dist (vector-vector-distance (-> self root trans)
-                                              (-> (the-as process-drawable prey) root trans)
-                                              )
-                      )
-                )
-            (when (and (< MOD_CHAOS_SHOT_MIN_DIST dist) (< dist MOD_CHAOS_SHOT_MAX_DIST))
-              (set-time! (-> self next-shot-time))
-              (chaos-fire! self (the-as process-focusable prey))
-              )
-            )
-          )
-        )
-      )
     )
   :code (behavior ()
-    ;; Loop the chase animation for as long as the trans above keeps us in `hostile`.
-    ;; The slight per-instance rate jitter stops a pack of the same species from
-    ;; marching in lockstep, exactly like the retail city grunt does.
     (let ((chase (-> self draw art-group data (chaos-chase-anim self)))
           (rate (rnd-float-range self 0.9 1.1))
           )
@@ -350,11 +267,16 @@
      metalhead-grunt children : ... jak civilian hit-by-others-list player-list ...
      juicer children          : ... jak bot player-list ...
 
-   Widening only the group, as the first version did, changes nothing: the group never pairs, so
-   neither the guard's rifle butt nor the juicer's own permanently-`deadly` body primitive could
-   ever be part of a touching entry, and the solid reaction that keeps two actors apart never fired
-   either. All three reported symptoms -- overlapping bodies, immunity to melee, no damage dealt --
-   are the same missing bit.
+   Widening only the group changes nothing: the group never pairs, so neither the guard's rifle
+   butt nor the juicer's body primitives could ever be part of a touching entry, and the solid
+   reaction that keeps two actors apart never fired either.
+
+   What this deliberately does *not* do any more is force `deadly` onto the children. An earlier
+   version did, to make the Juice goon -- whose group is `deadly` but whose children are not --
+   hurt things on contact. That was a workaround for having no attack state; now that the retail
+   `attack` state is ported, `chaos-juicer-deadly!` opens and closes that window on the animation
+   exactly as `juicer-method-184` does in retail, and a permanently-deadly juicer would be wrong.
+   The spyder needs nothing here either: all four of its body children ship `deadly` already.
 
    `backup-collide-as` / `backup-collide-with` must be refreshed afterwards because `citizen-init!`
    restores the root primitive from them every time the traffic engine recycles the process. The
@@ -366,35 +288,6 @@
     (logior! (-> root-prim prim-core collide-with) (collide-spec civilian enemy))
     (dotimes (i (the int (-> group num-children)))
       (logior! (-> group child i prim-core collide-with) (collide-spec civilian enemy))
-      )
-    ;; Same story one level down, for the `deadly` action rather than the collide spec.
-    ;;
-    ;;   metalhead-grunt : group deadly, and two limb children deadly
-    ;;   spyder          : group deadly, and four children deadly
-    ;;   juicer          : group deadly, *no* child deadly -- its body damage is scripted, applied
-    ;;                     by `juicer-method-184` toggling a primitive during its attack state
-    ;;
-    ;; Since only children ever appear in a touching entry, the juicer as shipped would charge into
-    ;; a guard and do nothing. Mirror the group's `deadly` down onto the solid body children when
-    ;; no child has it, which gives a charging species contact damage the way the city grunt has it.
-    ;; This is not a free-for-all: `citizen-enemy::enemy-method-76` only converts a deadly touch
-    ;; into damage against a process carrying `process-mask guard` or `civilian`, so Jak is
-    ;; unaffected and keeps going through his own handler exactly as with the retail city species.
-    (let ((child-deadly #f))
-      (dotimes (i (the int (-> group num-children)))
-        (if (logtest? (-> group child i prim-core action) (collide-action deadly))
-            (set! child-deadly #t)
-            )
-        )
-      (when (and (not child-deadly)
-                 (logtest? (-> root-prim prim-core action) (collide-action deadly))
-                 )
-        (dotimes (i (the int (-> group num-children)))
-          (if (logtest? (-> group child i prim-core action) (collide-action solid))
-              (logior! (-> group child i prim-core action) (collide-action deadly))
-              )
-          )
-        )
       )
     (set! (-> cshape backup-collide-as) (-> root-prim prim-core collide-as))
     (set! (-> cshape backup-collide-with) (-> root-prim prim-core collide-with))
@@ -420,10 +313,48 @@
 
 ;; ------------------------------------------------------------------------------------------------
 ;; chaos-juicer -- "Juice goon"  (10%)
+;;
+;; Retail combat loop, ported from levels/atoll/juicer.gc:
+;;
+;;   hostile  -- charge the focus, playing one of the two charge cycles. Its `:post` is where all
+;;               the decisions live: walk to the focus, or if the focus is more than a metre above
+;;               us pick a point on the mesh near it instead (the juicer cannot reach a ledge, so
+;;               it circles the base of one); once blocked or arrived, either `attack` if it has
+;;               not fired recently and is far enough away, or `circling` if it is on top of us.
+;;               An independent test fires `attack` on sight from close range, or from up to 53 m
+;;               if it has been quiet for five to eight seconds.
+;;   attack   -- STOP. Plant the feet, lock the focus, track it with the torso joint, play the
+;;               wind-up, then hold the firing cycle for a quarter of a second, spawning a
+;;               `juicer-shot` at anything more than 7 m away and swapping to the turn animation
+;;               when the body has to rotate. The `deadly` window on the body primitives is opened
+;;               11 frames into the wind-up and closed on exit -- that is the lunge's melee hit.
+;;   circling -- strafe around the focus for a few animation cycles, then celebrate if it has
+;;               drifted more than 5 m away.
 ;; ------------------------------------------------------------------------------------------------
 
 (deftype chaos-juicer (chaos-metalhead)
-  ()
+  ((joint               joint-mod)
+   (joint-enable        symbol)
+   (joint-blend         float)
+   (last-fire-time      time-frame)
+   (using-turn-anim     symbol)
+   (torso-track-player  symbol)
+   ;; Retail types this `enemy-focus` and stores `#t` in it through a cast; it is only ever read as
+   ;; a truth value, so it is honestly a symbol here.
+   (hit-focus           symbol)
+   (charge-index        int8)
+   (focus-is-up         symbol)
+   (current-projectile  handle)
+   )
+  (:state-methods
+    attack
+    )
+  (:methods
+    (chaos-juicer-aim-torso! (_type_) none)
+    (chaos-juicer-update-torso! (_type_) none)
+    (chaos-juicer-deadly! (_type_ symbol) none)
+    (chaos-juicer-fire! (_type_ process-focusable uint) none)
+    )
   )
 
 (defmethod chaos-skel-name ((this chaos-juicer))
@@ -438,60 +369,1271 @@
   *juicer-nav-enemy-info*
   )
 
-(defmethod chaos-shot-type ((this chaos-juicer))
-  "The Atoll juicer's own shot. Its collide-with already covers `civilian` and `enemy`, so it
-   damages Krimzon Guards unmodified."
-  juicer-shot
+(defmethod chaos-juicer-aim-torso! ((this chaos-juicer))
+  "Point the upper body at the focus. Verbatim `juicer-method-182`."
+  (let ((s3-0 (handle->process (-> this focus handle))))
+    (when s3-0
+      (let ((s4-0 (vector<-cspace! (new 'stack-no-clear 'vector) (-> this node-list data 4)))
+            (s5-0 (new 'stack-no-clear 'vector))
+            )
+        (set! (-> s5-0 quad) (-> (get-trans (the-as process-focusable s3-0) 3) quad))
+        (let ((s3-1
+                (vector-normalize-copy! (new 'stack-no-clear 'vector) (-> this node-list data 4 bone transform vector 2) 1.0)
+                )
+              )
+          (vector-! s5-0 s5-0 s4-0)
+          (vector-normalize! s5-0 1.0)
+          (quaternion-from-two-vectors-partial! (-> this joint quat) s3-1 s5-0 (-> this joint-blend))
+          )
+        )
+      )
+    )
+  0
+  (none)
   )
 
-(defmethod chaos-shot-speed ((this chaos-juicer))
-  "Retail spells this `(* 24576.0 (-> pp clock frames-per-second))`; 60 is what that clock reads."
-  1474560.0
+(defmethod chaos-juicer-update-torso! ((this chaos-juicer))
+  "Blend the torso tracker in while attacking and back out afterwards. Verbatim
+   `juicer-method-183`."
+  (cond
+    ((-> this torso-track-player)
+     (set! (-> this joint-enable) #t)
+     (seek! (-> this joint-blend) 1.0 (* 2.0 (seconds-per-frame)))
+     (chaos-juicer-aim-torso! this)
+     )
+    ((-> this joint-enable)
+     (seek! (-> this joint-blend) 0.0 (* 4.0 (seconds-per-frame)))
+     (chaos-juicer-aim-torso! this)
+     (if (= (-> this joint-blend) 0.0)
+         (set! (-> this joint-enable) #f)
+         )
+     )
+    )
+  0
+  (none)
+  )
+
+(defmethod chaos-juicer-deadly! ((this chaos-juicer) (on symbol))
+  "Open or close the melee damage window on the body primitives. Verbatim `juicer-method-184`,
+   which is the whole reason the juicer's children ship without `deadly`: its contact damage is
+   scripted, not permanent, and it is the `attack` animation that decides when.
+
+   `specific 0` in the decompiled original is `num-children`; spelled properly here."
+  (let* ((root-prim (-> this root root-prim))
+         (group (the-as collide-shape-prim-group root-prim))
+         )
+    (dotimes (i (the int (-> group num-children)))
+      (let ((prim (-> group child i)))
+        (if on
+            (logior! (-> prim prim-core action) (collide-action deadly))
+            (logclear! (-> prim prim-core action) (collide-action deadly))
+            )
+        )
+      )
+    )
+  (none)
+  )
+
+(defmethod chaos-juicer-fire! ((this chaos-juicer) (prey process-focusable) (id uint))
+  "Spawn (or re-aim) the juicer's shot. Verbatim `juicer::fire-projectile`.
+
+   Note the single-projectile discipline: the juicer keeps one `juicer-shot` alive in
+   `current-projectile` and sends it a `reset` rather than spawning a second, which is what makes
+   its fire read as a sustained stream instead of a burst. `attack`'s `:exit` kills it.
+
+   `juicer-shot`'s collide-with already covers `civilian` and `enemy`, so it damages Krimzon
+   Guards with no change on the projectile side."
+  (with-pp
+    (let ((muzzle (vector<-cspace! (new 'stack-no-clear 'vector) (-> this node-list data 20)))
+          (params (new 'stack-no-clear 'projectile-init-by-other-params))
+          )
+      (when (not (handle->process (-> this current-projectile)))
+        (set! (-> params ent) (-> this entity))
+        (set! (-> params charge) 1.0)
+        (set! (-> params options) (projectile-options))
+        (set! (-> params notify-handle) (process->handle this))
+        (set! (-> params owner-handle) (the-as handle #f))
+        (set! (-> params ignore-handle) (process->handle this))
+        (set! (-> params attack-id) id)
+        (set! (-> params timeout) (seconds 4))
+        )
+      (vector-normalize! (vector-! (-> params pos) (get-trans prey 3) muzzle) 1.0)
+      (vector-float*! (-> params vel) (-> params pos) (* 24576.0 (-> pp clock frames-per-second)))
+      (vector+float*! (-> params pos) muzzle (-> params pos) -1024.0)
+      (let ((live (handle->process (-> this current-projectile))))
+        (if live
+            (send-event live 'reset params)
+            (set! (-> this current-projectile)
+                  (ppointer->handle (spawn-projectile juicer-shot params this *default-dead-pool*))
+                  )
+            )
+        )
+      )
+    (none)
+    )
+  )
+
+(defmethod common-post ((this chaos-juicer))
+  "Base city post plus the two per-frame jobs the retail juicer's `common-post` does: refresh the
+   line-of-sight probe and blend the torso tracker."
+  ((method-of-type chaos-metalhead common-post) this)
+  (los-control-method-9 (-> this los) (the-as process-focusable #f) (the-as vector #f) 2048.0)
+  (chaos-juicer-update-torso! this)
+  (none)
+  )
+
+(defmethod general-event-handler ((this chaos-juicer) (arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+  "Retail juicer behaviour for one message, everything else to the city handler.
+
+   `notify`/`attack` is how a `juicer-shot` tells its owner that it connected. The retail juicer
+   uses that to break off into `victory` instead of pressing an attack on something already dead.
+   Delegation goes to `citizen-enemy`, not `nav-enemy` as in retail: the city handler is what deals
+   with `traffic-off` and the rest of the pooling protocol."
+  (case arg2
+    (('notify)
+     (if (and (= (-> arg3 param 0) 'attack) (= (-> arg3 param 1) (handle->process (-> this focus handle))))
+         (set! (-> this hit-focus) #t)
+         )
+     ((method-of-type citizen-enemy general-event-handler) this arg0 arg1 arg2 arg3)
+     )
+    (else
+      ((method-of-type citizen-enemy general-event-handler) this arg0 arg1 arg2 arg3)
+      )
+    )
+  )
+
+(defbehavior chaos-juicer-face-post chaos-juicer ()
+  "Verbatim `juicer-face-player-post`: hold still, but turn the body toward the focus once the
+   heading error is more than ~30 degrees, with hysteresis down to ~5 so it does not judder. The
+   `using-turn-anim` flag it sets is what `attack`'s `:code` reads to swap animations."
+  (let ((gp-0 (handle->process (-> self focus handle)))
+        (a0-3 self)
+        )
+    (when (and (logtest? (enemy-flag enemy-flag37) (-> a0-3 enemy-flags)) gp-0)
+      (let ((f0-1
+              (fabs
+                (deg-diff
+                  (quaternion-y-angle (-> self root quat))
+                  (vector-y-angle
+                    (vector-! (new 'stack-no-clear 'vector) (get-trans (the-as process-focusable gp-0) 0) (-> self root trans))
+                    )
+                  )
+                )
+              )
+            )
+        (cond
+          ((or (< 5461.3335 f0-1) (and (-> self using-turn-anim) (< 910.2222 f0-1)))
+           (set! (-> self using-turn-anim) #t)
+           (seek-to-point-toward-point!
+             (-> self root)
+             (get-trans (the-as process-focusable gp-0) 0)
+             (-> self nav max-rotation-rate)
+             (seconds 0.2)
+             )
+           )
+          (else
+            (set! (-> self using-turn-anim) #f)
+            )
+          )
+        )
+      )
+    )
+  (nav-enemy-simple-post)
+  0
+  (none)
+  )
+
+;; Verbatim port of `juicer::hostile`. The `:post` is the interesting half -- see the block comment
+;; above the type.
+(defstate hostile (chaos-juicer)
+  :virtual #t
+  :event enemy-event-handler
+  :enter (behavior ()
+    (let ((t9-0 (-> (method-of-type nav-enemy hostile) enter)))
+      (if t9-0
+          (t9-0)
+          )
+      )
+    (set! (-> self focus-is-up) #f)
+    )
+  :exit (behavior ()
+    (let ((t9-0 (-> (method-of-type nav-enemy hostile) exit)))
+      (if t9-0
+          (t9-0)
+          )
+      )
+    )
+  :code (behavior ()
+    (let ((v1-2 (ja-group)))
+      (when (and v1-2 (or (= v1-2 juicer-charge0-ja) (= v1-2 juicer-charge1-ja)))
+        (ja-no-eval :num! (seek!))
+        (while (not (ja-done? 0))
+          (suspend)
+          (ja-eval)
+          )
+        )
+      )
+    (let* ((v1-16 (rnd-int-count self 2))
+           (gp-0 (-> self draw art-group data (-> *juicer-global-info* charge-anim v1-16)))
+           )
+      (set! (-> self charge-index) v1-16)
+      (let ((v1-19 (ja-group)))
+        (if (not (and v1-19 (= v1-19 gp-0)))
+            (ja-channel-push! 1 (seconds 0.2))
+            )
+        )
+      (set! (-> self skel root-channel 0 frame-group) (the-as art-joint-anim gp-0))
+      )
+    (ja :num-func num-func-identity :frame-num 0.0)
+    (let ((f30-0 (rnd-float-range self 0.9 1.1)))
+      (until #f
+        (suspend)
+        (ja :num! (loop! f30-0))
+        )
+      )
+    #f
+    )
+  :post (behavior ()
+    (let ((a0-1 (handle->process (-> self focus handle))))
+      (when a0-1
+        (let* ((gp-0 (get-trans (the-as process-focusable a0-1) 1))
+               (f30-0 (vector-vector-xz-distance (-> self root trans) gp-0))
+               )
+          (cond
+            ((< (- (-> gp-0 y) (-> self root trans y)) 4096.0)
+             ;; Focus is at our level: walk straight at it.
+             (let ((v1-10 (-> self nav state)))
+               (logclear! (-> v1-10 flags) (nav-state-flag directional-mode))
+               (logior! (-> v1-10 flags) (nav-state-flag target-poly-dirty))
+               (set! (-> v1-10 target-post quad) (-> gp-0 quad))
+               )
+             0
+             (set! (-> self focus-is-up) #f)
+             )
+            ((not (-> self focus-is-up))
+             ;; Focus is above us and we have only just noticed. Pick a point on the mesh a couple
+             ;; of metres out from under it and head for that instead of pathing into a wall.
+             (let ((s4-0 (new 'stack-no-clear 'vector))
+                   (s5-0 (new 'stack-no-clear 'vector))
+                   )
+               (let ((f28-0 (rand-vu-float-range 0.0 65536.0)))
+                 (set-vector! s4-0 (* 8192.0 (cos f28-0)) 0.0 (* 8192.0 (sin f28-0)) 1.0)
+                 )
+               (vector+! s4-0 s4-0 gp-0)
+               (cloest-point-on-mesh (-> self nav) s4-0 s4-0 (the-as nav-poly #f))
+               (vector-! s5-0 s4-0 gp-0)
+               (set! (-> s5-0 y) 0.0)
+               (vector-normalize! s5-0 30720.0)
+               (vector+! s5-0 s5-0 s4-0)
+               (let ((v1-24 (-> self nav state)))
+                 (logclear! (-> v1-24 flags) (nav-state-flag directional-mode))
+                 (logior! (-> v1-24 flags) (nav-state-flag target-poly-dirty))
+                 (set! (-> v1-24 target-post quad) (-> s5-0 quad))
+                 )
+               )
+             0
+             (set! (-> self focus-is-up) #t)
+             )
+            (else
+              ;; Already heading somewhere under an out-of-reach focus: once we arrive or get
+              ;; stuck, decide between opening fire and circling.
+              (when (and (or (logtest? (-> self nav state flags) (nav-state-flag blocked))
+                             (logtest? (-> self nav state flags) (nav-state-flag at-target))
+                             )
+                         (time-elapsed? (-> self state-time) (-> self reaction-time))
+                         )
+                (if (and (time-elapsed? (-> self last-fire-time) (rand-vu-int-range (seconds 1) (seconds 2))) (< 20480.0 f30-0))
+                    (go-virtual attack)
+                    (go-virtual circling)
+                    )
+                )
+              )
+            )
+          ;; Independent of all of the above: open fire on sight from under 2.8 m, or from up to
+          ;; 13 m after a five-to-eight second lull.
+          (if (and (check-los? (-> self los) 0)
+                   (or (>= 11468.8 f30-0)
+                       (and (time-elapsed? (-> self last-fire-time) (rand-vu-int-range (seconds 5) (seconds 8))) (>= 53248.0 f30-0))
+                       )
+                   )
+              (go-virtual attack)
+              )
+          )
+        )
+      )
+    (nav-enemy-travel-post)
+    )
+  )
+
+;; Verbatim port of `juicer::attack`. This is the state that was missing: the juicer plants itself,
+;; plays the wind-up, opens its damage window on frame 11, and holds the firing cycle while
+;; spawning shots at anything further than 7 m.
+(defstate attack (chaos-juicer)
+  :virtual #t
+  :event enemy-event-handler
+  :enter (behavior ()
+    ;; Plant the feet: nav target = where we already are.
+    (let ((v1-1 (-> self nav state))
+          (a0-1 (-> self root trans))
+          )
+      (logclear! (-> v1-1 flags) (nav-state-flag directional-mode))
+      (logior! (-> v1-1 flags) (nav-state-flag target-poly-dirty))
+      (set! (-> v1-1 target-post quad) (-> a0-1 quad))
+      )
+    0
+    (set! (-> self torso-track-player) #t)
+    (logior! (-> self enemy-flags) (enemy-flag lock-focus))
+    (set! (-> self hit-focus) #f)
+    (logior! (-> self focus-status) (focus-status dangerous))
+    (let* ((v1-9 *game-info*)
+           (v0-0 (+ (-> v1-9 attack-id) 1))
+           )
+      (set! (-> v1-9 attack-id) v0-0)
+      (set! (-> self attack-id) v0-0)
+      )
+    )
+  :exit (behavior ()
+    (set! (-> self torso-track-player) #f)
+    (logclear! (-> self enemy-flags) (enemy-flag lock-focus))
+    (chaos-juicer-deadly! self #f)
+    (set-time! (-> self last-fire-time))
+    (if (logtest? (-> self enemy-flags) (enemy-flag dangerous-backup))
+        (logior! (-> self focus-status) (focus-status dangerous))
+        (logclear! (-> self focus-status) (focus-status dangerous))
+        )
+    (send-event (handle->process (-> self current-projectile)) 'die)
+    )
+  :trans (behavior ()
+    (when (skip-check-los? (-> self los) 90)
+      )
+    )
+  :code (behavior ()
+    (ja-channel-push! 1 (seconds 0.1))
+    (ja-no-eval :group! juicer-attack0-start-ja :num! (seek!) :frame-num 0.0)
+    (until (ja-done? 0)
+      ;; Eleven frames into the wind-up the body becomes deadly -- this is the lunge's melee hit,
+      ;; and the only time a juicer can hurt something by touching it.
+      (if (< 11.0 (ja-aframe-num 0))
+          (chaos-juicer-deadly! self #t)
+          )
+      (suspend)
+      (ja :num! (seek!))
+      )
+    0
+    (let* ((gp-0 #f)
+           (v1-29 *game-info*)
+           (s5-0 (+ (-> v1-29 attack-id) 1))
+           )
+      (set! (-> v1-29 attack-id) s5-0)
+      (suspend-for (seconds 0.25)
+        (ja-no-eval :group! juicer-attack0-ja :num! (seek!) :frame-num 0.0)
+        (until (ja-done? 0)
+          (let ((s3-0 (handle->process (-> self focus handle))))
+            (when s3-0
+              (when (< 28672.0 (vector-vector-distance (-> self root trans) (get-trans (the-as process-focusable s3-0) 0)))
+                (chaos-juicer-fire! self (the-as process-focusable s3-0) (the-as uint s5-0))
+                (if (not gp-0)
+                    (set! gp-0 #t)
+                    )
+                )
+              )
+            )
+          (if (and (logtest? (-> self enemy-flags) (enemy-flag victory)) (-> self enemy-info use-victory))
+              (go-virtual victory)
+              )
+          ;; Decompiled as a `b!` / `label` pair; this is the `cond` it came from. `ja-group` is
+          ;; sampled once because in the original the second test is only reached when the first
+          ;; branch was not taken.
+          (let ((playing (ja-group)))
+            (cond
+              ((and (-> self using-turn-anim)
+                    (not (and playing (= playing juicer-attack-turn-ja)))
+                    )
+               (ja-channel-push! 1 (seconds 0.05))
+               (ja :group! juicer-attack-turn-ja)
+               )
+              ((and (not (-> self using-turn-anim))
+                    (not (and playing (= playing juicer-attack0-ja)))
+                    )
+               (ja-channel-push! 1 (seconds 0.05))
+               (ja :group! juicer-attack0-ja)
+               )
+              )
+            )
+          (suspend)
+          (ja :num! (seek!))
+          )
+        (send-event (handle->process (-> self current-projectile)) 'die)
+        (let ((a0-37 (handle->process (-> self focus handle))))
+          (when a0-37
+            (if (>= 28672.0 (vector-vector-distance (-> self root trans) (get-trans (the-as process-focusable a0-37) 0)))
+                (go-virtual circling)
+                )
+            )
+          )
+        )
+      )
+    (if (-> self hit-focus)
+        (go-virtual victory)
+        )
+    (go-hostile self)
+    )
+  :post chaos-juicer-face-post
+  )
+
+;; Verbatim port of `juicer::circling`: strafe for two to seven charge cycles, then celebrate if
+;; the focus has drifted more than 5 m away.
+(defstate circling (chaos-juicer)
+  :virtual #t
+  :code (behavior ()
+    (let ((v1-2 (ja-group)))
+      (when (and v1-2 (or (= v1-2 juicer-charge0-ja) (= v1-2 juicer-charge1-ja)))
+        (ja-no-eval :num! (seek!))
+        (while (not (ja-done? 0))
+          (suspend)
+          (ja-eval)
+          )
+        )
+      )
+    (until #f
+      (let ((v1-15 self))
+        (if (not (logtest? (enemy-flag enemy-flag36) (-> v1-15 enemy-flags)))
+            (set! (-> v1-15 enemy-flags) (the-as enemy-flag (logior (enemy-flag enemy-flag38) (-> v1-15 enemy-flags))))
+            )
+        (set! (-> v1-15 enemy-flags) (the-as enemy-flag (logior (enemy-flag enemy-flag36) (-> v1-15 enemy-flags))))
+        (set! (-> v1-15 nav callback-info) (-> v1-15 enemy-info callback-info))
+        )
+      0
+      (let ((v1-18 self))
+        (set! (-> v1-18 enemy-flags) (the-as enemy-flag (logior (enemy-flag enemy-flag37) (-> v1-18 enemy-flags))))
+        )
+      0
+      (nav-enemy-method-166 self)
+      (let* ((v1-23 (rnd-int-count self 2))
+             (gp-0 (-> self draw art-group data (-> *juicer-global-info* charge-anim v1-23)))
+             )
+        (set! (-> self charge-index) v1-23)
+        (let ((v1-26 (ja-group)))
+          (if (not (and v1-26 (= v1-26 gp-0)))
+              (ja-channel-push! 1 (seconds 0.15))
+              )
+          )
+        (let ((s5-0 (+ (rnd-int-count self 6) 2))
+              (f30-0 (rnd-float-range self 0.9 1.1))
+              )
+          (while (nonzero? s5-0)
+            (+! s5-0 -1)
+            (ja-no-eval :group! gp-0 :num! (seek! max f30-0) :frame-num 0.0)
+            (until (ja-done? 0)
+              (suspend)
+              (ja :num! (seek! max f30-0))
+              )
+            )
+          )
+        )
+      (when (< 20480.0 (vector-vector-xz-distance (-> self focus-pos) (-> self root trans)))
+        (let ((v1-54 self))
+          (set! (-> v1-54 enemy-flags) (the-as enemy-flag (logclear (-> v1-54 enemy-flags) (enemy-flag enemy-flag36))))
+          (set! (-> v1-54 nav callback-info) *nav-enemy-null-callback-info*)
+          )
+        0
+        (let ((v1-57 self))
+          (set! (-> v1-57 enemy-flags) (the-as enemy-flag (logclear (-> v1-57 enemy-flags) (enemy-flag enemy-flag37))))
+          )
+        0
+        (vector-reset! (-> self root transv))
+        (ja-channel-push! 1 (seconds 0.1))
+        (let ((gp-2 (-> self draw art-group data (-> *juicer-global-info* celebrate-anim (rnd-int-count self 2))))
+              (f30-2 (rnd-float-range self 0.9 1.1))
+              )
+          (ja-no-eval :group! gp-2 :num! (seek! max f30-2) :frame-num 0.0)
+          (until (ja-done? 0)
+            (suspend)
+            (ja :num! (seek! max f30-2))
+            )
+          )
+        )
+      )
+    #f
+    )
   )
 
 (defmethod init-enemy-collision! ((this chaos-juicer))
   ;; Borrow the retail primitive layout (it is keyed to juicer joint indices, so hand-writing
-  ;; it would only introduce drift), then widen the root prim for city faction combat. The
-  ;; juicer's root primitive is permanently `deadly`, which is what makes its charge hurt.
+  ;; it would only introduce drift), then widen it for city faction combat.
   ((method-of-type juicer init-enemy-collision!) (the-as juicer this))
   (chaos-cityify-collision! this)
   0
   (none)
   )
 
+(defmethod init-enemy! ((this chaos-juicer))
+  "Common city bring-up, then the retail juicer's own setup minus the two things that need an
+   entity (its intro path) or a level that is not loaded (its Atoll particle connections)."
+  ((method-of-type chaos-metalhead init-enemy!) this)
+  (set-gravity-length (-> this root dynam) 573440.0)
+  (set! (-> this last-fire-time) 0)
+  (set! (-> this torso-track-player) #f)
+  (set! (-> this joint-enable) #f)
+  (set! (-> this joint-blend) 0.0)
+  (set! (-> this joint) (new 'process 'joint-mod (joint-mod-mode joint-set*-world) this 5))
+  (set! (-> this using-turn-anim) #f)
+  (set! (-> this hit-focus) #f)
+  (set! (-> this focus-is-up) #f)
+  (set! (-> this charge-index) 0)
+  (set! (-> this root pause-adjust-distance) 81920.0)
+  (set! (-> this current-projectile) (the-as handle #f))
+  0
+  (none)
+  )
+
+(defmethod relocate ((this chaos-juicer) (offset int))
+  (if (nonzero? (-> this joint))
+      (&+! (-> this joint) offset)
+      )
+  (call-parent-method this offset)
+  )
+
 ;; ------------------------------------------------------------------------------------------------
 ;; chaos-spyder -- "Spyder gunner"  (5%)
+;;
+;; Retail combat loop, ported from levels/common/enemy/spyder.gc:
+;;
+;;   hostile -- a *stand-off* state, not a chase. `chaos-spyder-reposition!` picks a destination:
+;;              inside 35 m it strafes sideways a random 8-16 m, outside 35 m it closes to 30 m.
+;;              On arrival, if the focus is within 35 m and in line of sight, `attack`.
+;;   attack  -- STOP, drop the turn rate to a twentieth, blend the low and high shooting animations
+;;              together and hold the volley for eight ticks of 0.2 s, walking the aim point along
+;;              the ground toward the focus and leading it as it moves. Each shot is fired by the
+;;              animation itself: the art group's `event-attack` tag fires the `:event` handler,
+;;              which spawns a `spyder-shot` along the `fire-info` pair that the `:code` keeps
+;;              updated. That is why the gun fires in time with the muzzle flash.
+;;   backup  -- retreat to `move-dest` for up to six seconds, then back to `hostile`.
+;;
+;; The leg IK (`chaos-spyder-legs!`) is kept: without it the spyder's four legs float over the
+;; city's slopes and kerbs instead of planting on them. It costs one `*collide-cache*` fill per
+;; spyder per frame, which is why the species' population share is the smallest of the five.
 ;; ------------------------------------------------------------------------------------------------
 
 (deftype chaos-spyder (chaos-metalhead)
-  ()
+  ((joint              joint-mod)
+   (face-pos           vector        :inline)
+   (my-up-vector       vector        :inline)
+   (status-flags       spyder-flags)
+   (fire-info          vector        2 :inline)
+   (joint-ik           joint-mod-ik  4)
+   (delta-y-ik         float         4)
+   (fade               float)
+   (dest-fade          float)
+   )
+  (:state-methods
+    attack
+    backup
+    )
+  (:methods
+    (chaos-spyder-reposition! (_type_) none)
+    (chaos-spyder-twist! (_type_) none)
+    (chaos-spyder-fire! (_type_ matrix float) none)
+    (chaos-spyder-orient! (_type_ vector) none)
+    (chaos-spyder-legs! (_type_) none)
+    )
   )
 
 (defmethod chaos-skel-name ((this chaos-spyder))
-  "Skeleton group worn by the Spyder gunner. A method body that is nothing but a string would be read
-   as a docstring, hence this one."
+  "Skeleton group worn by the Spyder gunner. A method body that is nothing but a string would be
+   read as a docstring, hence this one."
   "skel-spyder"
   )
 
 (defmethod get-nav-info ((this chaos-spyder))
+  "Reuse the retail spyder's tuning verbatim: 8 hit points, 80 m notice distance, its full
+   animation table. Read-only -- the Haven Forest and Mountain Temple spyders share this object."
   *spyder-nav-enemy-info*
   )
 
-(defmethod chaos-shot-type ((this chaos-spyder))
-  "`spyder-shot` is a `metalhead-shot`, whose collide-with already covers `civilian` and `enemy`."
-  spyder-shot
+(defmethod chaos-spyder-reposition! ((this chaos-spyder))
+  "Choose where to stand. Verbatim `spyder-method-181`.
+
+   Inside 35 m it strafes: take the vector to the focus, rotate it 90 degrees (alternating
+   direction each call via `spflags-4`), scale it to a random 8-16 m and clamp the result to the
+   nav mesh. Outside 35 m it closes to 30 m. This is what makes a spyder sidestep rather than
+   charge, and it is the single biggest behavioural difference from the old generic chase."
+  (let ((a0-2 (handle->process (-> this focus handle))))
+    (when a0-2
+      (let* ((s5-0 (-> this root trans))
+             (s2-1 (vector-! (new 'stack-no-clear 'vector) (get-trans (the-as process-focusable a0-2) 0) s5-0))
+             (f0-0 (vector-length s2-1))
+             (s4-0 (new 'stack-no-clear 'vector))
+             )
+        (cond
+          ((>= 143360.0 f0-0)
+           (let ((s3-0 (new 'stack-no-clear 'vector)))
+             (logxor! (-> this status-flags) (spyder-flags spflags-4))
+             (if (logtest? (-> this status-flags) (spyder-flags spflags-4))
+                 (set-vector! s3-0 (-> s2-1 z) (-> s2-1 y) (- (-> s2-1 x)) 1.0)
+                 (set-vector! s3-0 (- (-> s2-1 z)) (-> s2-1 y) (-> s2-1 x) 1.0)
+                 )
+             (vector-normalize! s3-0 (* 4096.0 (rand-vu-float-range 8.0 16.0)))
+             (clamp-vector-to-mesh-cross-gaps
+               (-> this nav)
+               s5-0
+               (-> this nav state current-poly)
+               s3-0
+               204.8
+               #f
+               (the-as clamp-travel-vector-to-mesh-return-info #f)
+               )
+             (vector+! s4-0 s5-0 s3-0)
+             )
+           )
+          (else
+            (vector-normalize! s2-1 (+ -122880.0 f0-0))
+            (vector+! s4-0 s5-0 s2-1)
+            )
+          )
+        (set! (-> this move-dest quad) (-> s5-0 quad))
+        (cloest-point-on-mesh (-> this nav) (-> this move-dest) s4-0 (the-as nav-poly #f))
+        )
+      )
+    )
+  0
+  (none)
   )
 
-(defmethod chaos-shot-speed ((this chaos-spyder))
-  "The speed `spyder-method-183` is called with from the retail attack state."
-  307200.0
+(defmethod chaos-spyder-twist! ((this chaos-spyder))
+  "Twist the body toward `face-pos` and settle the abdomen joint. Verbatim `spyder-method-182`."
+  (cond
+    ((and (logtest? (-> this status-flags) (spyder-flags spflags-2)) (!= (-> this joint scale z) 1.0))
+     (seek! (-> this joint scale z) 1.0 (* 0.8 (seconds-per-frame)))
+     )
+    ((and (not (logtest? (-> this status-flags) (spyder-flags spflags-2))) (!= (-> this joint scale z) 0.0))
+     (seek! (-> this joint scale z) 0.0 (* 0.8 (seconds-per-frame)))
+     )
+    )
+  (let ((s5-0 (new 'stack-no-clear 'quaternion)))
+    (let ((a1-2 (-> this node-list data 37 bone transform)))
+      (matrix-with-scale->quaternion s5-0 a1-2)
+      )
+    (let ((a1-4 (quaternion-from-two-vectors! (new 'stack-no-clear 'quaternion) (-> this my-up-vector) *up-vector*)))
+      (quaternion*! s5-0 a1-4 s5-0)
+      )
+    (let ((s4-1 (vector-! (new 'stack-no-clear 'vector) (-> this face-pos) (-> this root trans)))
+          (s3-0 (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> this root quat)))
+          )
+      (cond
+        ((logtest? (-> this status-flags) (spyder-flags spflags-3))
+         (vector-! s4-1 (-> this face-pos) (-> this root trans))
+         (logclear! (-> this status-flags) (spyder-flags spflags-3))
+         )
+        (else
+          (set! (-> s4-1 quad) (-> s3-0 quad))
+          )
+        )
+      (set! (-> s4-1 y) 0.0)
+      (vector-xz-normalize! s4-1 1.0)
+      (set! (-> s3-0 y) 0.0)
+      (vector-xz-normalize! s3-0 1.0)
+      (let ((a1-11 (quaternion-from-two-vectors-max-angle! (new 'stack-no-clear 'quaternion) s3-0 s4-1 10012.444)))
+        (quaternion*! s5-0 a1-11 s5-0)
+        )
+      )
+    (quaternion-slerp!
+      (the-as quaternion (-> this joint twist))
+      (the-as quaternion (-> this joint twist))
+      s5-0
+      (* 10.0 (seconds-per-frame))
+      )
+    )
+  0
+  (none)
+  )
+
+(defmethod chaos-spyder-fire! ((this chaos-spyder) (arg0 matrix) (arg1 float))
+  "Spawn one `spyder-shot` from `fire-info 0` toward `fire-info 1`. Verbatim `spyder-method-183`.
+
+   Called from the `attack` state's `:event` handler when the animation reaches its `event-attack`
+   tag, which is what keeps the shots in time with the muzzle. `spyder-shot` is a `metalhead-shot`
+   and already lists `civilian` and `enemy` in its collide-with, so it damages Krimzon Guards
+   unmodified."
+  (let ((gp-0 (new 'stack-no-clear 'projectile-init-by-other-params)))
+    (let ((v1-0 (-> arg0 vector))
+          (a1-1 (-> arg0 vector 1))
+          )
+      (set! (-> gp-0 ent) (-> this entity))
+      (set! (-> gp-0 charge) 1.0)
+      (set! (-> gp-0 options) (projectile-options))
+      (set! (-> gp-0 pos quad) (-> v1-0 0 quad))
+      (set! (-> gp-0 notify-handle) (process->handle this))
+      (set! (-> gp-0 owner-handle) (the-as handle #f))
+      (set! (-> gp-0 ignore-handle) (process->handle this))
+      (let* ((a0-10 *game-info*)
+             (a3-11 (+ (-> a0-10 attack-id) 1))
+             )
+        (set! (-> a0-10 attack-id) a3-11)
+        (set! (-> gp-0 attack-id) a3-11)
+        )
+      (set! (-> gp-0 timeout) (seconds 4))
+      (vector-normalize! (vector-! (-> gp-0 vel) a1-1 (the-as vector v1-0)) arg1)
+      )
+    (spawn-projectile spyder-shot gp-0 this *default-dead-pool*)
+    )
+  (none)
+  )
+
+(defmethod chaos-spyder-orient! ((this chaos-spyder) (arg0 vector))
+  "Lay the body flat on the ground normal, at most ~25 degrees from vertical, easing toward it.
+   Verbatim `spyder-method-184`. `spflags-0` makes it idempotent within a frame."
+  (when (not (logtest? (-> this status-flags) (spyder-flags spflags-0)))
+    (let ((s4-0 (new 'stack-no-clear 'vector)))
+      (set! (-> s4-0 quad) (-> *up-vector* quad))
+      (let ((s3-0 (new 'stack-no-clear 'quaternion)))
+        (quaternion-from-two-vectors-max-angle! s3-0 s4-0 (-> this root gspot-normal) 4551.1113)
+        (vector-orient-by-quat! s4-0 s4-0 s3-0)
+        )
+      (let ((s3-1 (-> this my-up-vector)))
+        (vector-deg-seek s3-1 s3-1 s4-0 (* 16384.0 (seconds-per-frame)))
+        (vector-normalize! s3-1 1.0)
+        (forward-up-nopitch->quaternion (-> this root quat) arg0 s3-1)
+        )
+      )
+    (logior! (-> this status-flags) (spyder-flags spflags-0))
+    )
+  0
+  (none)
+  )
+
+(defmethod chaos-spyder-legs! ((this chaos-spyder))
+  "Plant the four legs on the ground with IK. Verbatim `spyder-method-185`.
+
+   For each leg: take the elbow matrix, walk `hand-dist` along its second axis to get the nominal
+   foot position, drop a 4 cm line-sphere probe 8 m downward from 4 m above it, and ease the foot
+   toward whatever it hit, clamped to +/- 2 m. One `fill-using-bounding-box` per spyder per frame."
+  (rlet ((acc :class vf)
+         (vf0 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         (vf6 :class vf)
+         (vf7 :class vf)
+         )
+    (init-vf0-vector)
+    (let ((s5-0 (new 'stack-no-clear 'collide-query)))
+      (let ((v1-0 (-> s5-0 bbox))
+            (a0-2 (-> this root trans))
+            (a1-0 (new 'stack-no-clear 'vector))
+            )
+        (set! (-> a1-0 x) 22528.0)
+        (set! (-> a1-0 y) 22528.0)
+        (set! (-> a1-0 z) 22528.0)
+        (set! (-> a1-0 w) 1.0)
+        (vector-! (the-as vector v1-0) a0-2 a1-0)
+        )
+      (let ((v1-2 (-> s5-0 bbox max))
+            (a0-4 (-> this root trans))
+            (a1-1 (new 'stack-no-clear 'vector))
+            )
+        (set! (-> a1-1 x) 22528.0)
+        (set! (-> a1-1 y) 22528.0)
+        (set! (-> a1-1 z) 22528.0)
+        (set! (-> a1-1 w) 1.0)
+        (vector+! v1-2 a0-4 a1-1)
+        )
+      (set! (-> s5-0 collide-with) (collide-spec backgnd))
+      (set! (-> s5-0 ignore-process0) #f)
+      (set! (-> s5-0 ignore-process1) #f)
+      (set! (-> s5-0 ignore-pat) (new 'static 'pat-surface :noentity #x1 :nojak #x1 :probe #x1 :noendlessfall #x1))
+      (fill-using-bounding-box *collide-cache* s5-0)
+      (dotimes (s4-0 4)
+        (-> this joint-ik s4-0 shoulder-matrix-no-ik)
+        (let ((a2-8 (-> this joint-ik s4-0 elbow-matrix-no-ik))
+              (s3-0 (new 'stack-no-clear 'vector))
+              )
+          (let ((v1-15 (new 'stack-no-clear 'vector)))
+            (set! (-> v1-15 quad) (-> *y-vector* quad))
+            (new 'stack-no-clear 'vector)
+            (let ((s2-0 (new 'stack-no-clear 'vector)))
+              (let ((a1-3 s3-0))
+                (let ((a0-9 (-> a2-8 trans)))
+                  (let ((a2-9 (-> a2-8 vector 1)))
+                    (let ((a3-3 (-> this joint-ik s4-0 hand-dist)))
+                      (.mov vf7 a3-3)
+                      )
+                    (.lvf vf5 (&-> a2-9 quad))
+                    )
+                  (.lvf vf4 (&-> a0-9 quad))
+                  )
+                (.add.x.vf.w vf6 vf0 vf0)
+                (.mul.x.vf.xyz acc vf5 vf7)
+                (.add.mul.w.vf.xyz vf6 vf4 vf0 acc)
+                (.svf (&-> a1-3 quad) vf6)
+                )
+              (set! (-> s2-0 quad) (-> s3-0 quad))
+              (set! (-> s2-0 y) (-> this root trans y))
+              (let ((a2-10 (-> s5-0 start-pos)))
+                (let ((a0-12 s2-0))
+                  (let ((a1-6 v1-15))
+                    (let ((a3-5 16384.0))
+                      (.mov vf7 a3-5)
+                      )
+                    (.lvf vf5 (&-> a1-6 quad))
+                    )
+                  (.lvf vf4 (&-> a0-12 quad))
+                  )
+                (.add.x.vf.w vf6 vf0 vf0)
+                (.mul.x.vf.xyz acc vf5 vf7)
+                (.add.mul.w.vf.xyz vf6 vf4 vf0 acc)
+                (.svf (&-> a2-10 quad) vf6)
+                )
+              (vector-float*! (-> s5-0 move-dist) v1-15 -32768.0)
+              (let ((v1-16 s5-0))
+                (set! (-> v1-16 radius) 40.96)
+                (set! (-> v1-16 collide-with) (collide-spec backgnd))
+                (set! (-> v1-16 ignore-process0) #f)
+                (set! (-> v1-16 ignore-process1) #f)
+                (set! (-> v1-16 ignore-pat) (new 'static 'pat-surface :noentity #x1 :nojak #x1 :probe #x1 :noendlessfall #x1))
+                (set! (-> v1-16 action-mask) (collide-action solid))
+                )
+              (let ((f0-13 (probe-using-line-sphere *collide-cache* s5-0)))
+                (when (>= f0-13 0.0)
+                  (let ((a1-10 s2-0))
+                    (let ((v1-19 (-> s5-0 start-pos)))
+                      (let ((a0-20 (-> s5-0 move-dist)))
+                        (let ((a2-11 f0-13))
+                          (.mov vf7 a2-11)
+                          )
+                        (.lvf vf5 (&-> a0-20 quad))
+                        )
+                      (.lvf vf4 (&-> v1-19 quad))
+                      )
+                    (.add.x.vf.w vf6 vf0 vf0)
+                    (.mul.x.vf.xyz acc vf5 vf7)
+                    (.add.mul.w.vf.xyz vf6 vf4 vf0 acc)
+                    (.svf (&-> a1-10 quad) vf6)
+                    )
+                  )
+                )
+              (let ((f0-15 (fmax -8192.0 (fmin 8192.0 (- (-> s2-0 y) (-> s3-0 y))))))
+                (+! (-> this delta-y-ik s4-0) (* 10.0 (seconds-per-frame) (- f0-15 (-> this delta-y-ik s4-0))))
+                )
+              )
+            )
+          (+! (-> s3-0 y) (-> this delta-y-ik s4-0))
+          (handle-copy! (-> this joint-ik s4-0) s3-0)
+          )
+        )
+      )
+    0
+    (none)
+    )
+  )
+
+(defmethod nav-enemy-method-142 ((this chaos-spyder) (arg0 nav-control))
+  "Orient to the ground along the nav heading rather than the default upright turn. Verbatim
+   `spyder::nav-enemy-method-142`."
+  (let ((t9-0 (method-of-object this chaos-spyder-orient!))
+        (a2-0 (-> arg0 state))
+        (a1-1 (new 'stack-no-clear 'vector))
+        )
+    (set! (-> a1-1 quad) (-> a2-0 heading quad))
+    (t9-0 this a1-1)
+    )
+  0
+  (none)
+  )
+
+(defmethod coin-flip? ((this chaos-spyder))
+  "Retail spyders never take the random branch this gates. Verbatim override."
+  #f
+  )
+
+(defmethod common-post ((this chaos-spyder))
+  "Retail `spyder::common-post` with `nav-enemy common-post` replaced by the chaos base, which is
+   `citizen-enemy`'s plus the city overlap filter. The order around it is retail's: legs and body
+   orientation first so the skeleton is placed before it is drawn, twist and sound after."
+  (chaos-spyder-legs! this)
+  (chaos-spyder-orient! this (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> this root quat)))
+  (update-trans! (-> this sound) (-> this root trans))
+  (update! (-> this sound))
+  (chaos-spyder-twist! this)
+  ((method-of-type chaos-metalhead common-post) this)
+  (logclear! (-> this status-flags) (spyder-flags spflags-0))
+  (if (logtest? (-> this status-flags) (spyder-flags spflags-5))
+      (los-control-method-9 (-> this los) (the-as process-focusable #f) (the-as vector #f) 2048.0)
+      )
+  (none)
+  )
+
+(defbehavior chaos-spyder-travel-post chaos-spyder ()
+  "Verbatim `spyder-travel-post`."
+  (set! (-> self face-pos quad) (-> self move-dest quad))
+  (logior! (-> self status-flags) (spyder-flags spflags-3))
+  (nav-enemy-travel-post)
+  0
+  (none)
+  )
+
+(defbehavior chaos-spyder-face-post chaos-spyder ()
+  "Verbatim `spyder-face-player-post`: stand still and turn to face the focus."
+  (logior! (-> self status-flags) (spyder-flags spflags-3))
+  (let ((gp-0 (handle->process (-> self focus handle)))
+        (f30-0 (-> self nav max-rotation-rate))
+        )
+    (when gp-0
+      (set! (-> self face-pos quad) (-> (get-trans (the-as process-focusable gp-0) 0) quad))
+      (let ((a0-4 self))
+        (if (logtest? (enemy-flag enemy-flag37) (-> a0-4 enemy-flags))
+            (seek-to-point-toward-point!
+              (-> self root)
+              (get-trans (the-as process-focusable gp-0) 0)
+              f30-0
+              (seconds 0.02)
+              )
+            )
+        )
+      )
+    )
+  (nav-enemy-simple-post)
+  0
+  (none)
+  )
+
+;; Verbatim port of `spyder::hostile`. Note that this is a stand-off state: `:post` drives toward
+;; `move-dest`, which `chaos-spyder-reposition!` sets to a *strafe* target inside 35 m, not to the
+;; focus. A spyder that walked into a guard was the clearest sign the retail states were missing.
+(defstate hostile (chaos-spyder)
+  :virtual #t
+  :enter (behavior ()
+    (let ((t9-0 (-> (method-of-type nav-enemy hostile) enter)))
+      (if t9-0
+          (t9-0)
+          )
+      )
+    (chaos-spyder-reposition! self)
+    (look-at-target! self (enemy-flag look-at-move-dest))
+    (logclear! (-> self status-flags) (spyder-flags spflags-1))
+    (when (!= (-> self dest-fade) 128.0)
+      (set! (-> self dest-fade) 128.0)
+      (sound-play "spyder-uncloak")
+      )
+    )
+  :exit (behavior ()
+    (let ((t9-0 (-> (method-of-type nav-enemy hostile) exit)))
+      (if t9-0
+          (t9-0)
+          )
+      )
+    (logclear! (-> self status-flags) (spyder-flags spflags-5))
+    (look-at-target! self (enemy-flag look-at-focus))
+    )
+  :trans (behavior ()
+    (let ((t9-0 (-> (method-of-type nav-enemy hostile) trans)))
+      (if t9-0
+          (t9-0)
+          )
+      )
+    (let ((a0-1 (handle->process (-> self focus handle))))
+      (when a0-1
+        (let ((gp-0 (new 'stack-no-clear 'vector)))
+          (set! (-> gp-0 quad) (-> (get-trans (the-as process-focusable a0-1) 0) quad))
+          (let* ((s5-0 (-> self root trans))
+                 (f30-0 (vector-vector-distance s5-0 gp-0))
+                 (f0-0 (vector-vector-xz-distance s5-0 (-> self move-dest)))
+                 )
+            (cond
+              ((>= (+ 2048.0 (-> self root nav-radius)) f0-0)
+               ;; Arrived at the strafe target: shoot if the focus is inside 35 m and visible,
+               ;; otherwise pick the next one.
+               (if (and (>= 143360.0 f30-0) (check-los? (-> self los) 0))
+                   (go-virtual attack)
+                   )
+               (chaos-spyder-reposition! self)
+               )
+              ((>= 24576.0 f0-0)
+               (logior! (-> self status-flags) (spyder-flags spflags-5))
+               )
+              )
+            )
+          )
+        )
+      )
+    )
+  :post (behavior ()
+    (let ((a0-0 (-> self nav state))
+          (v1-1 (-> self move-dest))
+          )
+      (logclear! (-> a0-0 flags) (nav-state-flag directional-mode))
+      (logior! (-> a0-0 flags) (nav-state-flag target-poly-dirty))
+      (set! (-> a0-0 target-post quad) (-> v1-1 quad))
+      )
+    0
+    (chaos-spyder-travel-post)
+    )
+  )
+
+;; Verbatim port of `spyder::backup`.
+(defstate backup (chaos-spyder)
+  :virtual #t
+  :event enemy-event-handler
+  :enter (behavior ()
+    (set-time! (-> self state-time))
+    (let ((v1-2 self))
+      (if (not (logtest? (enemy-flag enemy-flag36) (-> v1-2 enemy-flags)))
+          (set! (-> v1-2 enemy-flags) (the-as enemy-flag (logior (enemy-flag enemy-flag38) (-> v1-2 enemy-flags))))
+          )
+      (set! (-> v1-2 enemy-flags) (the-as enemy-flag (logior (enemy-flag enemy-flag36) (-> v1-2 enemy-flags))))
+      (set! (-> v1-2 nav callback-info) (-> v1-2 enemy-info callback-info))
+      )
+    0
+    )
+  :trans (behavior ()
+    (let ((f0-0 (vector-vector-xz-distance (-> self root trans) (-> self move-dest))))
+      (if (or (>= 4096.0 f0-0) (time-elapsed? (-> self state-time) (seconds 6)))
+          (go-hostile self)
+          )
+      )
+    )
+  :code (behavior ()
+    (ja-channel-push! 1 (seconds 0.1))
+    (until #f
+      (ja-no-eval :group! (-> self draw art-group data (-> self enemy-info run-anim)) :num! (seek!) :frame-num 0.0)
+      (until (ja-done? 0)
+        (suspend)
+        (ja :num! (seek!))
+        )
+      )
+    #f
+    )
+  :post (behavior ()
+    (chaos-spyder-travel-post)
+    )
+  )
+
+;; Verbatim port of `spyder::attack` -- the state the Spyder gunner was missing entirely.
+;;
+;; The shots are fired by the *animation*: `spyder-shoot-low-ja` / `spyder-shoot-high-ja` carry an
+;; `event-attack` tag, the effect system sends that event, and the `:event` handler below turns it
+;; into a projectile along whatever `fire-info` currently holds. The `:code` meanwhile walks the
+;; aim point out from under the target along the ground in eight 0.2 s steps and compensates for
+;; the target's own movement between steps, which is what makes a spyder's volley track a running
+;; guard instead of landing where it used to be.
+(defstate attack (chaos-spyder)
+  :virtual #t
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
+      (('event-attack)
+       (chaos-spyder-fire! self (the-as matrix (-> self fire-info)) 307200.0)
+       )
+      (else
+        (enemy-event-handler proc argc message block)
+        )
+      )
+    )
+  :enter (behavior ()
+    ;; Plant the feet.
+    (let ((v1-1 (-> self nav state))
+          (a0-1 (-> self root trans))
+          )
+      (logclear! (-> v1-1 flags) (nav-state-flag directional-mode))
+      (logior! (-> v1-1 flags) (nav-state-flag target-poly-dirty))
+      (set! (-> v1-1 target-post quad) (-> a0-1 quad))
+      )
+    0
+    (let ((v1-4 self))
+      (set! (-> v1-4 enemy-flags) (the-as enemy-flag (logior (enemy-flag enemy-flag37) (-> v1-4 enemy-flags))))
+      )
+    0
+    (look-at-target! self (enemy-flag look-at-focus))
+    (logior! (-> self enemy-flags) (enemy-flag lock-focus))
+    )
+  :exit (behavior ()
+    (logclear! (-> self enemy-flags) (enemy-flag lock-focus))
+    ;; og:preserve-this fix potential use-after-free bug (carried over from the retail source)
+    (if (-> self nav)
+      (let ((v1-2 (-> self nav)))
+        (set! (-> v1-2 max-rotation-rate) (-> *spyder-nav-enemy-info* maximum-rotation-rate))
+        ))
+    0
+    )
+  :trans (behavior ()
+    (if (and (logtest? (-> self enemy-flags) (enemy-flag victory)) (-> self enemy-info use-victory))
+        (go-virtual victory)
+        )
+    (if (or (>= 2 (the-as int (-> self focus aware))) (not (get-enemy-target self)))
+        (go-stare self)
+        )
+    )
+  :code (behavior ()
+    ;; Turn to face the focus before committing -- the volley itself barely rotates.
+    (when (not (enemy-method-96 self 2730.6667 #t))
+      (ja-channel-push! 1 (seconds 0.2))
+      (ja :group! spyder-patrol0-ja)
+      (ja :num-func num-func-identity :frame-num 0.0)
+      (until (enemy-method-96 self 910.2222 #t)
+        (ja-blend-eval)
+        (suspend)
+        (ja :num! (loop! 0.75))
+        )
+      )
+    (let ((v1-17 (-> self nav)))
+      (set! (-> v1-17 max-rotation-rate) (/ (-> *spyder-nav-enemy-info* maximum-rotation-rate) 20))
+      )
+    0
+    (ja-channel-push! 2 (seconds 0.2))
+    (let ((f30-0 0.0))
+      (ja-no-eval :group! spyder-shoot-low-ja :num! (loop!) :frame-num 0.0)
+      (ja-no-eval :chan 1
+                  :group! spyder-shoot-high-ja
+                  :num! (chan 0)
+                  :frame-interp0 f30-0
+                  :frame-interp1 f30-0
+                  :frame-num 0.0
+                  )
+      (let ((a0-14 (handle->process (-> self focus handle))))
+        (when a0-14
+          (let ((gp-0 (new 'stack-no-clear 'vector)))
+            (set! (-> gp-0 quad) (-> (get-trans (the-as process-focusable a0-14) 0) quad))
+            (let ((s5-0 (new 'stack-no-clear 'vector)))
+              (set! (-> s5-0 quad) (-> gp-0 quad))
+              (let ((f28-0 0.0))
+                (dotimes (s4-0 8)
+                  ;; Aim point: start 10 m short of the target and walk in 3 m per step, blending
+                  ;; the low and high shooting poses as the muzzle rises.
+                  (let* ((f26-0 (fmin (-> self root trans y) (-> gp-0 y)))
+                         (s3-0 (vector<-cspace! (new 'stack-no-clear 'vector) (joint-node spyder-lod0-jg shoot)))
+                         (f0-11 (fmin 40960.0 (+ -16384.0 (vector-vector-distance s3-0 gp-0))))
+                         (s2-1 (vector-! (new 'stack-no-clear 'vector) s3-0 gp-0))
+                         )
+                    (vector-normalize! s2-1 (- f0-11 f28-0))
+                    (vector+! s2-1 gp-0 s2-1)
+                    (set! (-> s2-1 y) f26-0)
+                    (set! (-> self fire-info 0 quad) (-> s3-0 quad))
+                    (set! (-> self fire-info 1 quad) (-> s2-1 quad))
+                    )
+                  (suspend-for (seconds 0.2)
+                    (set! f30-0 (seek f30-0 (lerp-scale 0.0 1.0 (the float s4-0) 0.0 8.0) (seconds-per-frame)))
+                    (ja :num! (loop!))
+                    (ja :chan 1 :num! (chan 0) :frame-interp0 f30-0 :frame-interp1 f30-0)
+                    )
+                  ;; Lead the target: subtract however far it moved during the step.
+                  (let ((f28-1 (+ 12288.0 f28-0)))
+                    (set! (-> gp-0 quad) (-> s5-0 quad))
+                    (let ((a0-31 (handle->process (-> self focus handle))))
+                      (if a0-31
+                          (set! (-> s5-0 quad) (-> (get-trans (the-as process-focusable a0-31) 0) quad))
+                          )
+                      )
+                    (set! f28-0 (fmax 0.0 (- f28-1 (vector-vector-distance gp-0 s5-0))))
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    (until (ja-done? 0)
+      (ja :num! (seek! 2.0))
+      (let ((a0-36 (-> self skel root-channel 1)))
+        (let ((f0-23 1.0))
+          (set! (-> a0-36 frame-interp 1) f0-23)
+          (set! (-> a0-36 frame-interp 0) f0-23)
+          )
+        (set! (-> a0-36 param 0) 0.0)
+        (joint-control-channel-group-eval! a0-36 (the-as art-joint-anim #f) num-func-chan)
+        )
+      (suspend)
+      )
+    (let ((v1-88 self))
+      (set! (-> v1-88 enemy-flags) (the-as enemy-flag (logclear (-> v1-88 enemy-flags) (enemy-flag enemy-flag37))))
+      )
+    0
+    (go-hostile self)
+    )
+  :post (behavior ()
+    (chaos-spyder-face-post)
+    )
+  )
+
+(defmethod go-hostile ((this chaos-spyder))
+  "Verbatim `spyder::go-hostile`: open with a volley when coming out of `notice` or `knocked`,
+   otherwise reposition first."
+  (if (and (not (logtest? (-> this status-flags) (spyder-flags spflags-1)))
+           (-> this next-state)
+           (let ((v1-5 (-> this next-state name)))
+             (or (= v1-5 'notice) (= v1-5 'knocked))
+             )
+           )
+      (go (method-of-object this attack))
+      )
+  (go (method-of-object this hostile))
   )
 
 (defmethod init-enemy-collision! ((this chaos-spyder))
-  ;; Like the juicer, the spyder's root primitive carries `deadly` in retail, so the city version
-  ;; fights by contact without needing the gun turret its arena counterpart uses.
+  ;; Borrow the retail primitive layout, then widen it for city faction combat. All four of the
+  ;; spyder's body children already carry `deadly`, so nothing else is needed here.
   ((method-of-type spyder init-enemy-collision!) (the-as spyder this))
   (chaos-cityify-collision! this)
   0
   (none)
+  )
+
+(defmethod init-enemy! ((this chaos-spyder))
+  "Common city bring-up, then the retail spyder's own setup minus the cloak.
+
+   The cloak is skipped because it is selected by `(res-lump-value (-> this entity) 'extra-id ...)`
+   and a traffic-spawned process has no entity to read. Retail spyders without that tag are
+   uncloaked too, so this is the stock else-branch, not an approximation."
+  ((method-of-type chaos-metalhead init-enemy!) this)
+  (set-gravity-length (-> this root dynam) 573440.0)
+  (set-vector! (-> this root scale) 1.5 1.5 1.5 1.0)
+  (set! (-> this my-up-vector quad) (-> *up-vector* quad))
+  (set! (-> this status-flags) (spyder-flags spflags-2))
+  (if (rand-vu-percent? 0.5)
+      (logior! (-> this status-flags) (spyder-flags spflags-4))
+      )
+  (set! (-> this face-pos quad) (-> this root trans quad))
+  (set! (-> this sound)
+        (new 'process 'ambient-sound (static-sound-spec "spyder-talk" :fo-max 70) (-> this root trans))
+        )
+  (set! (-> this joint) (the-as joint-mod (new 'process 'joint-mod-blend-world this 4 #t 1.0)))
+  (set! (-> this joint scale x) (the-as float (logior (the-as int (-> this joint scale x)) 4)))
+  (let ((f30-0 (-> this root trans y)))
+    (dotimes (s5-1 4)
+      (set! (-> this joint-ik s5-1)
+            (new
+              'process
+              'joint-mod-ik
+              this
+              (-> *spyder-ik-setup* s5-1 elbow-index)
+              (-> *spyder-ik-setup* s5-1 hand-dist)
+              )
+            )
+      ;; Retail creates these disabled and enables them when the spyder first enters `active`.
+      ;; A city spyder is spawned straight into the traffic pool and activated by the engine, so
+      ;; there is no idle phase to wait through -- enabling here is the same thing one frame
+      ;; earlier, and it avoids overriding `active` purely to flip four booleans.
+      (enable-set! (-> this joint-ik s5-1) #t)
+      ;; Retail writes index 0 on every pass rather than `s5-1`. Reproduced deliberately: the other
+      ;; three entries settle within a frame of the first `chaos-spyder-legs!` call, so "fixing" it
+      ;; would be a behavioural change for no benefit.
+      (set! (-> this delta-y-ik 0) f30-0)
+      )
+    )
+  (setup-masks (-> this draw) 0 16)
+  (setup-masks (-> this draw) 8 0)
+  (set! (-> this fade) 0.0)
+  (set! (-> this dest-fade) 0.0)
+  0
+  (none)
+  )
+
+(defmethod relocate ((this chaos-spyder) (offset int))
+  (if (nonzero? (-> this joint))
+      (&+! (-> this joint) offset)
+      )
+  (dotimes (v1-4 4)
+    (if (nonzero? (-> this joint-ik v1-4))
+        (&+! (-> this joint-ik v1-4) offset)
+        )
+    )
+  (call-parent-method this offset)
   )

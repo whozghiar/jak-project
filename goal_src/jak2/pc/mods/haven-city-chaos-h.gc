@@ -117,6 +117,30 @@
 ;; No species is ever given fewer than this, so a 5%-share species still actually shows up.
 (defconstant MOD_CHAOS_MIN_WANT 3)
 
+;; ------------------------------------------------------------------------------------------------
+;; The hard per-type ceiling, and why exceeding it leaks processes
+;;
+;; `traffic-engine::reset-and-init-from-manager` hands every traffic type a *fixed 20-handle window*
+;; into `traffic-tracker::inactive-object-array`:
+;;
+;;   (set! (-> a1-3 array) v1-4)
+;;   (set! v1-4 (&-> v1-4 20))     ;; next type starts 20 handles later
+;;
+;; and `add-reserved-process` refuses -- silently -- to record a 21st:
+;;
+;;   (when (< a1-2 20) ... (+! (-> v1-2 inactive-count) 1) ...)
+;;
+;; `spawn-all` spawns while `active-count + inactive-count < want-count`, so with a want-count above
+;; 20 and nothing activated yet the counters stall at 20 while the test stays true. Every frame a
+;; fresh process is created, its handle is dropped on the floor, and nothing can ever find it again:
+;; it is in no tracker list, `kill-excess-once` cannot see it, and it holds its `nav-control` slot on
+;; `*default-nav-mesh*` until the level is torn down. That is a one-process-per-frame leak that ends
+;; in `nav-mesh::new-nav-control: too many users`.
+;;
+;; Retail never comes close -- its largest want-count is 15 -- which is why nothing in the stock
+;; engine guards against it. Every want-count the mod writes is clamped to this.
+(defconstant MOD_CHAOS_WANT_MAX 20)
+
 ;; Governor thresholds, in free `nav-control` slots on `*default-nav-mesh*`:
 ;; below LOW the metal-head budget is cut back, above HIGH it is allowed to grow again.
 ;; The gap between them is hysteresis -- without it the budget would oscillate every frame.
@@ -147,7 +171,10 @@
 ;; sized at compile time, and an unused slot costs nothing but its 288 bytes.
 ;; ------------------------------------------------------------------------------------------------
 
-(defconstant MOD_CHAOS_WANT_CRIMSON_GUARD_1 22)  ;; traffic type  6, retail 9
+;; Note the ceiling: MOD_CHAOS_WANT_MAX is 20 and these are clamped to it, so 20 is as dense as the
+;; Krimzon Guard garrison can be made without leaking processes. The guard *vehicles* are the lever
+;; left for going denser than that -- each one carries a rider.
+(defconstant MOD_CHAOS_WANT_CRIMSON_GUARD_1 20)  ;; traffic type  6, retail 9
 (defconstant MOD_CHAOS_WANT_GUARD_BIKE       9)  ;; traffic type 18, retail 4
 (defconstant MOD_CHAOS_WANT_HELLCAT          7)  ;; traffic type 19, retail 3
 

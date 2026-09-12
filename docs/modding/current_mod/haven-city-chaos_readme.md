@@ -240,7 +240,7 @@ actors ever materialise. Modelled on `jak2/config/enhanced_spawnrates`, all gate
 
 | Lever | Retail | Mod | Where |
 |---|---|---|---|
-| Krimzon Guard want-count (type 6) | 9 | 22 | `mod-chaos-boost-ambient!` |
+| Krimzon Guard want-count (type 6) | 9 | 20 | `mod-chaos-boost-ambient!` |
 | guard-bike / hellcat want-count (18 / 19) | 4 / 3 | 9 / 7 | `mod-chaos-boost-ambient!` |
 | `inv-density-factor` | 5.0 | 3.0 | `mod-chaos-boost-ambient!` |
 | per-cell activation ranges | 81920 / 819200 / 491520 | 122880 / 983040 / 655360 | `traffic-engine.gc` |
@@ -325,6 +325,60 @@ the extra room into Metal Heads.
 
 
 
+### 3.5d The *other* ceiling: 20 reserve handles per traffic type
+
+A later build crashed with the same message as §3.5c but a different victim — a **Krimzon Guard**,
+during a level transition:
+
+```
+traffic-manager : level killed cpo
+GAMEPLAY: enter ctyfarmb
+nav-mesh::new-nav-control:  too many users for nav-mesh #f
+ERROR: nav-mesh::change-to: unable to allocate nav-mesh for #<crimson-guard ... initialize>
+```
+
+The nav-mesh governor was running and reporting plenty of headroom, which was the clue: something
+was holding slots that the governor could not see, because it was holding them outside the traffic
+engine's own bookkeeping.
+
+`reset-and-init-from-manager` hands every traffic type a **fixed 20-handle window** into
+`traffic-tracker::inactive-object-array`:
+
+```lisp
+(set! (-> a1-3 array) v1-4)
+(set! v1-4 (&-> v1-4 20))     ;; next type starts 20 handles later
+```
+
+and `add-reserved-process` refuses — silently, with no diagnostic — to record a 21st:
+
+```lisp
+(when (< a1-2 20)
+  (set! (-> v1-2 array a1-2) arg1)
+  (+! (-> v1-2 inactive-count) 1)
+  ...)
+```
+
+`spawn-all` spawns while `active-count + inactive-count < want-count`. Set a want-count above 20
+and the counters stall at 20 while that test stays true forever: every frame a fresh process is
+created, its handle is dropped on the floor, and nothing can ever find it again. It is in no
+tracker list, so `kill-excess-once` cannot reclaim it and `deactivate-all` cannot kill it — it
+simply holds its `nav-control` slot until the level is torn down. One leaked process per frame.
+
+The mod had `MOD_CHAOS_WANT_CRIMSON_GUARD_1` at 22, and its metal-head split could reach 25 for a
+30 %-share species at a budget of 60. Retail's largest want-count is 15, which is why nothing in
+the stock engine guards against this.
+
+The fix is `MOD_CHAOS_WANT_MAX` (20) and `mod-chaos-clamp-want`, through which **every** want-count
+the mod writes now passes — both `mod-chaos-enroll-species!` and `mod-chaos-bump-want!`. It is one
+`min`, and it is the only thing between a tuning-constant typo and a hard crash.
+
+> [!NOTE]
+> The consequence is that 20 is the hard per-type population ceiling, so a large share of a large
+> budget comes out short: the three default species at a budget of 60 want 25 / 25 / 8 and get
+> 20 / 20 / 8. Redistributing the clipped remainder would just push the other species toward the
+> same wall. Going denser than that means more traffic *types*, or more guard vehicles — each of
+> which carries a rider.
+
 ### 3.6 Why the table is re-asserted every second
 
 `traffic-manager::init-params` and the `restore-default-settings` event — which a dozen mission
@@ -405,12 +459,14 @@ faction war they are here for.
 `backup-collide-as` / `backup-collide-with` must be refreshed afterwards, because `citizen-init!`
 restores the root primitive from them every time the traffic engine recycles the process.
 
-### 4.4 The one behaviour that had to be written
+### 4.4 The generic `hostile` fallback
 
 `nav-enemy`'s `hostile` has a `:trans` and a `:post` but **no `:code`** — each retail enemy
-supplies its own chase animation loop. Inherited as-is, a chasing species would keep playing the
-`active` walk cycle while moving at run speed. `chaos-metalhead` solves it once for both, with a
-fallback for species that ship with `run-anim -1` because they have no run cycle at all:
+supplies its own chase animation loop. Inherited as-is, a species would keep playing the `active`
+walk cycle while moving at run speed. Both shipped species now override `hostile` with their retail
+one (§4.6), so nothing reaches the base version any more; it is kept because an *unported* third
+species inheriting the empty `:code` would look broken in a way that is hard to trace back to a
+missing override. It picks a chase animation with a fallback for species shipping `run-anim -1`:
 
 ```lisp
 (defmethod chaos-chase-anim ((this chaos-metalhead))
@@ -471,7 +527,13 @@ group and leaving the children alone, which is what the first attempt did, chang
 
 So `chaos-cityify-collision!` now ORs `civilian enemy` into the root primitive **and every child**.
 
-There is one more layer under that, and the Juice goon is the only species that trips it:
+All three reported symptoms — bodies overlapping instead of shoving, immunity to the guard's rifle
+butt, no damage dealt in return — were this one missing bit, since solid reaction and touch damage
+both come from the same primitive pairing.
+
+Note what `chaos-cityify-collision!` deliberately does **not** do: it does not force `deadly` onto
+the children. An earlier version did, because the Juice goon is the one species whose group is
+`deadly` while none of its children are —
 
 | | group | children |
 |---|---|---|
@@ -479,67 +541,84 @@ There is one more layer under that, and the Juice goon is the only species that 
 | `spyder` | `deadly` | four `deadly` |
 | `juicer` | `deadly` | **none** |
 
-The retail juicer's body damage is scripted — `juicer-method-184` toggles a primitive's `deadly`
-on and off inside its attack state. With no attack state to enter, a chaos juicer would charge a
-guard and do nothing however well its collide specs were set. `chaos-cityify-collision!` therefore
-mirrors the group's `deadly` down onto the solid body children when no child carries it, which is
-the arrangement the city grunt already has. That is not a free-for-all against Jak:
-`citizen-enemy::enemy-method-76` only converts a deadly touch into damage against a process
-carrying `process-mask guard` or `civilian`; everything else falls through to a forwarded `touch`
-and is handled by the other side, exactly as for the retail city species.
+— and a juicer with no deadly child could charge a guard and do nothing. But that asymmetry is not
+an oversight in the retail data: the juicer's contact damage is *scripted*. `juicer-method-184`
+opens and closes the window on the children from inside the attack animation. Forcing it on
+permanently was a workaround for not having ported that animation. Now that it is ported (§4.6),
+the workaround is gone and the window is driven by the animation exactly as in retail.
 
-All three reported symptoms — bodies overlapping instead of shoving, immunity to the guard's rifle
-butt, no damage dealt in return — were this one missing bit, since solid reaction and touch damage
-both come from the same primitive pairing.
+### 4.6 Porting the retail combat states
 
-**Second half of the same bug.** `enemy-method-104` stamps every `attack` event with the attacker's
-`attack-id`, and the victim remembers the last id it took damage from — so an unchanging id lands
-exactly once however long the contact lasts. Retail enemies get a fresh id every time they enter
-their `attack` state. `chaos-metalhead` has no scripted attack state to enter (the retail `attack`
-states are written against `juicer` / `spyder` fields that a `citizen-enemy` subclass does not
-have), so it re-stamps on a cadence instead:
+The first two playable builds gave both species a *generic* fight: charge the focus, re-stamp the
+attack id every 0.8 s for a repeating contact hit, and fire a projectile on a fixed 1.5 s cadence
+while running. It worked, and it was wrong in a way that is obvious on screen — the Spyder gunner
+is a stand-and-shoot enemy that never closes, and the Juice goon's damage is a scripted lunge, not
+a permanent aura. The brief is that these two fight exactly as they do in their own missions, with
+the single difference that the thing they are fighting is a Krimzon Guard rather than Jak.
 
-```lisp
-(when (time-elapsed? (-> self next-melee-time) MOD_CHAOS_MELEE_PERIOD)   ;; 0.8s
-  (set-time! (-> self next-melee-time))
-  ... bump *game-info* attack-id into (-> self attack-id) ...
-  (logior! (-> self focus-status) (focus-status dangerous)))
-```
+**The targeting half of that is free.** Who a city enemy fights is decided by
+`citizen-enemy-method-202`, which picks the nearest valid process and calls `go-hostile`;
+`citizen-init!` sets the focus collide-spec to `jak civilian player-list bot-targetable
+jak-vehicle`. Everything downstream of `(-> self focus handle)` is target-agnostic. "Make them
+fight guards" needed the collision work in §4.5 and no combat code at all.
 
-That turns a permanent shove into a repeating melee.
+**The combat half cannot be inherited**, and this is the structural constraint the whole file is
+shaped by. The retail `attack` / `circling` / `backup` states read `juicer` and `spyder` *fields* —
+`los`, `current-projectile`, `fire-info`, `status-flags`, the IK joints — at offsets that only
+exist in those types. A `citizen-enemy` subclass has `citizen`'s ~200 bytes of traffic plumbing
+sitting where those fields would be, so the state objects cannot simply be pointed at a chaos
+process. Nor can the problem be inverted by inheriting from `juicer` instead: `citizen` is what
+makes a process poolable, recyclable, nav-graph-walking and traffic-aware, and reimplementing that
+is an order of magnitude more work than reimplementing the combat.
 
-### 4.6 Giving them their guns back
+So the states are **ported**: each species redeclares the fields its retail states read, and the
+bodies are transcribed. Where the decompiler emitted `b!` / `label` control flow it is rewritten as
+the `cond` it came from; everything else is verbatim, tuning numbers included, so a future reader
+can diff against the retail file.
 
-Both extra species are shooters in their home levels and neither fired a shot in the city, for the
-same reason they had no melee: their firing lives inside `attack` states written against `juicer` /
-`spyder` fields that a `citizen-enemy` subclass does not have.
+#### Juice goon
 
-The projectile spawn itself, though, is not type-specific at all. `juicer::fire-projectile` and
-`spyder-method-183` both build a plain `projectile-init-by-other-params` and call
+| state | what it does |
+|---|---|
+| `hostile` | Charge, playing one of two charge cycles. Its `:post` holds every decision: walk at the focus, or — if the focus is more than a metre above us — pick a point on the mesh near its base instead, because a juicer cannot reach a ledge. Once blocked or arrived: `attack` if it has not fired recently and is more than 5 m out, else `circling`. Independently, `attack` on sight inside 2.8 m, or up to 13 m after a 5–8 s lull. |
+| `attack` | **Stop.** Plant the nav target on our own position, lock the focus, track it with the torso joint, play `juicer-attack0-start-ja`, and open the `deadly` window 11 frames in — that is the lunge's melee hit. Then hold `juicer-attack0-ja` for 0.25 s spawning a `juicer-shot` at anything past 7 m, swapping to `juicer-attack-turn-ja` whenever the body has to rotate. `:exit` closes the window and kills the shot. |
+| `circling` | Strafe for 2–7 charge cycles, then play a celebrate animation if the focus has drifted more than 5 m. |
 
-```lisp
-(spawn-projectile <shot-type> params this *default-dead-pool*)
-```
+The single-projectile discipline is worth noting: the juicer keeps one `juicer-shot` alive in
+`current-projectile` and sends it `reset` rather than spawning a second, which is what makes its
+fire read as a sustained stream rather than a burst.
 
-and `spawn-projectile` is a **function**, not a macro — it takes the type at runtime. So one shared
-`chaos-fire!` on `chaos-metalhead` serves every species, parameterised by two small methods:
+#### Spyder gunner
 
-```lisp
-(chaos-shot-type  (_type_) type)    ;; juicer-shot / spyder-shot, or #f for melee-only
-(chaos-shot-speed (_type_) float)   ;; the muzzle speed from that species' retail firing code
-```
+| state | what it does |
+|---|---|
+| `hostile` | A **stand-off**, not a chase. `chaos-spyder-reposition!` sets `move-dest` by rotating the vector to the focus 90° (alternating side each call) and scaling it to a random 8–16 m inside 35 m; outside 35 m it closes to 30 m. On arrival, if the focus is inside 35 m and in line of sight → `attack`. A spyder that walked *into* a guard was the clearest single sign the retail states were missing. |
+| `attack` | **Stop**, drop the turn rate to a twentieth, blend `spyder-shoot-low-ja` and `spyder-shoot-high-ja` together and hold the volley for eight 0.2 s ticks, walking the aim point in along the ground and compensating for how far the target moved during each tick. |
+| `backup` | Retreat to `move-dest` for up to six seconds, then back to `hostile`. |
 
-It fires from `(get-trans this 3)` rather than a named joint — the retail juicer uses joint 20 of
-its own skeleton, and hard-coding joint indices in a shared base class is the kind of thing that
-breaks silently when an art group changes. `ignore-handle` is the shooter, so a shot cannot
-detonate on its owner, and both `juicer-shot` and `spyder-shot` (a `metalhead-shot`) already list
-`civilian` and `enemy` in their collide-with, so they damage Krimzon Guards with no change to the
+The spyder's shots are fired **by the animation**, not by a timer: the art carries an
+`event-attack` tag, the effect system sends that event, and the state's `:event` handler turns it
+into a `spyder-shot` along whatever `fire-info` currently holds. That is why the gun fires in time
+with the muzzle flash — and it is exactly the "if there is a firing animation, it must be played"
+part of the brief.
+
+Both shot types (`juicer-shot`, and `spyder-shot` which is a `metalhead-shot`) already list
+`civilian` and `enemy` in their collide-with, so they damage Krimzon Guards with no change on the
 projectile side.
 
-Firing happens from the `hostile` trans on a 1.5 s cadence whenever the focus is between 8 m and
-45 m. The honest limitation: they shoot **while closing**, not from a stand-off, because there is
-no firing state to hold them in place. For the Juice goon — a suicide charger in its own level —
-that reads about right; the Spyder gunner is more of a compromise.
+#### What is deliberately left out
+
+- **The juicer's `intro-path`** and **the spyder's cloak**. Both read the actor's `entity`, and a
+  traffic-spawned process has none. Retail spyders without an `extra-id` res tag are uncloaked too,
+  so the city spyder takes the stock else-branch rather than an approximation.
+- **`notice`.** City metal heads are pushed straight into `hostile` by `citizen-enemy-method-202`;
+  there is no idle patrol to be noticed out of.
+- **The Atoll particle connections** on the juicer, whose particle definitions are not resident in
+  Haven City.
+
+The spyder's leg IK (`chaos-spyder-legs!`) *is* kept — without it four legs float over the city's
+kerbs and slopes. It costs one `*collide-cache*` fill per spyder per frame, which is why this
+species carries the smallest population share of the five.
 
 ---
 
@@ -802,9 +881,8 @@ Nothing here has been run yet. In order:
 
 ## 10. Known limitations
 
-1. **Combat fidelity of the two new species** — charge-and-contact on a fixed melee cadence plus a
-   shot fired on the move, rather than their home levels' scripted attacks (the juicer's charge,
-   the spyder's cloak-and-shoot). They never stand off to shoot. See §4.5 and §4.6.
+1. **Population ceiling per species** — 20, imposed by the traffic engine's fixed 20-handle
+   reserve window per type. Not tunable without resizing `traffic-tracker` itself. See §3.5d.
 2. **`:borrow-size` untouched** — relying on the PC port's 12× borrow multiplier to absorb the
    extra art. Deliberate (non-regression), but it is the first thing to raise if `lwideb` fails to
    load.
@@ -813,7 +891,7 @@ Nothing here has been run yet. In order:
 4. **Percentages are steady-state population, not spawn probability** — see §3.5. A species whose
    pool is momentarily empty is skipped by the draw, so short-term ratios will wobble.
 5. **`*default-nav-mesh*` is enlarged unconditionally** — see §3.5c. It is the one change that is
-   not behind `*mod-chaos-enable*`; it costs ~35 KB of extra global heap and nothing else.
+   not behind `*mod-chaos-enable*`; it costs ~35 KB of extra global heap (122 unused slots x 288 bytes) and nothing else.
 6. **The Metal Head population is whatever fits, not a fixed number** — the governor settles
    wherever the global nav-mesh has room, so the invasion is denser in a quiet district than in one
    already full of mission actors. `(mod-chaos-nav-report)` says what it settled on.

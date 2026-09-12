@@ -40,7 +40,17 @@
 
 (defconstant MOD_CHAOS_PED_COUNT 13)
 
-(defun mod-chaos-enroll-species! ((te traffic-engine) (ttype traffic-type) (want int) (lvl symbol))
+(defun mod-chaos-clamp-want ((want int))
+  "Clamp a want-count to what the traffic engine's fixed 20-handle reserve window per type can
+   actually hold. See the MOD_CHAOS_WANT_MAX comment in `pc/mods/haven-city-chaos-h.gc` for why
+   exceeding it is a per-frame process leak rather than a harmless overshoot.
+
+   Every want-count this mod writes goes through here. It is a single `min`, but it is the one
+   thing standing between a tuning constant typo and a hard `too many users for nav-mesh` crash."
+  (min MOD_CHAOS_WANT_MAX (max 0 want))
+  )
+
+(defun mod-chaos-enroll-species! ((te traffic-engine) (ttype traffic-type) (want-in int) (lvl symbol))
   "Give one traffic type its population budget and tell `spawn-all` which level has to be resident
    before it may build that type's reserve pool.
 
@@ -52,7 +62,9 @@
                      as a fresh city load.
    `level`        -> #f makes the type permanently inert, which is how a disabled species is
                      expressed (no pool is ever built, so nothing to tear down)."
-  (let ((info (-> te object-type-info-array ttype)))
+  (let ((info (-> te object-type-info-array ttype))
+        (want (mod-chaos-clamp-want want-in))
+        )
     (set! (-> info want-count) want)
     (set! (-> info target-count) (max 0 (+ want -1)))
     (set! (-> info reserve-count) (the-as uint (max 1000 (min #xfde8 (* 1000 want)))))
@@ -66,14 +78,16 @@
   (none)
   )
 
-(defun mod-chaos-bump-want! ((te traffic-engine) (ttype traffic-type) (want int))
+(defun mod-chaos-bump-want! ((te traffic-engine) (ttype traffic-type) (want-in int))
   "Raise one *retail* traffic type's population, leaving its `level` and `flags` exactly as
    `init-params` / `lwide-activate` left them.
 
    Used for the guard-side ambient types. Deliberately one-directional -- it never lowers a
    want-count -- so it can never disable a type the story is relying on, and so it is harmless
    to re-run every second."
-  (let ((info (-> te object-type-info-array ttype)))
+  (let ((info (-> te object-type-info-array ttype))
+        (want (mod-chaos-clamp-want want-in))
+        )
     (when (< (-> info want-count) want)
       (set! (-> info want-count) want)
       (set! (-> info target-count) (max 0 (+ want -1)))
@@ -219,7 +233,14 @@
    The shares are relative, not absolute: only the enabled species contribute to `total`, so the
    whole budget is always spent. With everything on the denominator is 85 and the split lands
    within one of the advertised percentages; with only the three defaults on it is 70 and those
-   three absorb the rest."
+   three absorb the rest.
+
+   One caveat on 'always spent': `mod-chaos-enroll-species!` clamps each result to
+   MOD_CHAOS_WANT_MAX (20), so a large share of a large budget can come out short -- the three
+   default species at a budget of 60 would each want 25 and 20 and 8, and get 20 / 20 / 8. That is
+   deliberate. The alternative, redistributing the clipped remainder onto the other species, would
+   push *them* toward the same ceiling, and the ceiling is not a tuning preference: crossing it
+   leaks one process per frame."
   ;; `pop` 0 means the governor has given every slot back -- MOD_CHAOS_MIN_WANT must not
   ;; resurrect the species behind its back, so test it explicitly.
   (if (and (> total 0) (> pop 0))

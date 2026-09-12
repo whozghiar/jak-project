@@ -213,20 +213,44 @@ Weighting both would double-count the ratio. So the advertised percentages are s
 *relative shares* and turned into want-counts at apply time:
 
 ```lisp
+;; one ground population, split three ways
+(defconstant MOD_CHAOS_GROUND_POP        100)
+(defconstant MOD_CHAOS_FACTION_CIVILIAN   10)
+(defconstant MOD_CHAOS_FACTION_METALHEAD  50)
+(defconstant MOD_CHAOS_FACTION_GUARD      40)
+
+;; then the Metal Head slice split again, by species
 (defconstant MOD_CHAOS_SHARE_GRUNT    30)  ;; "Grunt"
 (defconstant MOD_CHAOS_SHARE_FLITTER  30)  ;; "Stinger"
 (defconstant MOD_CHAOS_SHARE_PREDATOR 10)  ;; "Cloaker"
 (defconstant MOD_CHAOS_SHARE_RAPID    10)  ;; "Rapid gunner"
 (defconstant MOD_CHAOS_SHARE_SPYDER    5)  ;; "Spyder gunner"
-(defconstant MOD_CHAOS_METALHEAD_POP  60)  ;; retail lwideb runs 14 + 14 + 14 = 42
 
-;; want = share * POP / (sum of the shares that are currently switched on)
+;; want = share * faction-pop / (sum of the shares that are currently switched on)
 ```
 
-Only the species that are enabled contribute to the denominator, so the whole budget is always
-spent: with everything on it is 85, with only the three defaults on it is 70 and those three
-absorb the rest. That is what makes a per-species menu switch meaningful — turning Rapid gunner
-off makes the Grunts *more* numerous rather than making the invasion smaller.
+**Two levels of proportion.** The outer one is the faction mix — 10 % civilians, 50 % Metal Heads,
+40 % Krimzon Guards of every pedestrian in the city. The inner one splits the Metal Head slice
+between the species that are switched on.
+
+Only the species that are enabled contribute to the inner denominator, so the faction's whole
+budget is always spent: with everything on it is 85, with only the three defaults on it is 70 and
+those three absorb the rest. That is what makes a per-species menu switch meaningful — turning
+Rapid gunner off makes the Grunts *more* numerous rather than making the invasion smaller.
+
+Why `MOD_CHAOS_GROUND_POP` is 100 and not a rounder-feeling number: the Krimzon Guards have only
+**two** usable traffic types (4 and 6 — `lwide-activate` leaves 5 and 7 at `level #f`), and every
+type is clamped to 20 by `MOD_CHAOS_WANT_MAX` (§3.5d). 40 % of 100 is exactly 20 + 20, so 100 is
+the largest total at which the guard share is actually reachable. Past it the guards silently fall
+short and the real ratio drifts away from the advertised one.
+
+For the same reason the guard budget is split **evenly** between types 4 and 6 rather than in
+retail's 1 : 9. A 1 : 9 split of 40 clamps to 4 + 20 and delivers 24. Both types spawn the same
+`crimson-guard` process, so an even split costs nothing. Civilians keep retail's own 15/15/14/1
+proportions, so the crowd still looks like Haven City's crowd, only thinner.
+
+`mod-chaos-spread-want!` hands each faction's budget out by weight and gives the integer-division
+remainder to the first type, so the faction total lands exactly on its slice.
 
 `mod-chaos-enroll-species!` writes `want-count`, `target-count` and `reserve-count` together,
 mirroring `restore-default-settings`' own `(max 1000 (min #xfde8 (* 1000 want-count)))` formula so
@@ -234,20 +258,21 @@ that a mid-session toggle behaves exactly like a fresh city load.
 
 ### 3.5b Raising the overall spawn rates
 
-`MOD_CHAOS_METALHEAD_POP` alone is not enough: three other ceilings decide whether the extra
-actors ever materialise. Modelled on `jak2/config/enhanced_spawnrates`, all gated on
+`MOD_CHAOS_GROUND_POP` alone is not enough: three other ceilings decide whether the extra actors
+ever materialise. Modelled on `jak2/config/enhanced_spawnrates`, all gated on
 `*mod-chaos-enable*`:
 
 | Lever | Retail | Mod | Where |
 |---|---|---|---|
-| Krimzon Guard want-count (type 6) | 9 | 20 | `mod-chaos-boost-ambient!` |
+| pedestrian want-counts (types 0–10, 22, 23) | 45 civ / 10 guard / 42 MH | the faction ratio, ×`*mod-chaos-pop*` | `mod-chaos-apply-species!` |
 | guard-bike / hellcat want-count (18 / 19) | 4 / 3 | 9 / 7 | `mod-chaos-boost-ambient!` |
 | `inv-density-factor` | 5.0 | 3.0 | `mod-chaos-boost-ambient!` |
 | per-cell activation ranges | 81920 / 819200 / 491520 | 122880 / 983040 / 655360 | `traffic-engine.gc` |
 | `*default-nav-mesh*` slots | 128 | 250 | `nav-mesh.gc` (unconditional) |
 
-Citizen want-counts are deliberately left at retail values: every extra pedestrian costs a
-`nav-control` slot, and the Metal Heads are the better use of them.
+The guard *vehicles* sit outside the ground ratio on purpose — they are wheeled traffic — but each
+one carries a `crimson-guard` rider, so they do add ground-level Krimzon Guards and do consume
+`nav-control` slots. The governor measures the result rather than trying to account for it.
 
 ### 3.5c The ceiling that actually bites: `*default-nav-mesh*`
 
@@ -289,13 +314,14 @@ traffic table — and because vehicle riders, escort NPCs and mission actors nev
 table at all.
 
 **Attempt 3 — measure instead of predicting.** `mod-chaos-nav-governor!` runs every frame, counts
-the genuinely free slots, and moves the Metal Head budget to suit:
+the genuinely free slots, and moves the ground population budget to suit — the faction ratio is
+preserved at whatever total it settles on:
 
 ```lisp
 (cond
   ((< free MOD_CHAOS_NAV_LOW)                          ;; 16
    (set! *mod-chaos-pop* (max 0 (- *mod-chaos-pop* MOD_CHAOS_POP_SHRINK))))    ;; -4
-  ((and (< *mod-chaos-pop* MOD_CHAOS_METALHEAD_POP)
+  ((and (< *mod-chaos-pop* MOD_CHAOS_GROUND_POP)
         (> free MOD_CHAOS_NAV_HIGH))                   ;; 32, hysteresis
    (set! *mod-chaos-pop* (+ *mod-chaos-pop* MOD_CHAOS_POP_GROW))))             ;; +1
 ```
@@ -679,6 +705,43 @@ Two fixes, and the second one matters more than it looks:
 `chaos-chase-anim` on the shared base got the same treatment — it used to fall back from `run-anim`
 to `walk-anim`, which for this species is -1 to -1.
 
+#### Three numbers the city needed changing
+
+| Constant | Retail | Mod | Why |
+|---|---:|---:|---|
+| `MOD_CHAOS_RGUN_BURST` | 12 | 5 | Shorter bursts, more reloads — asked for directly. |
+| `MOD_CHAOS_RGUN_HOP_COST` | 2 | 1 | A hop costs part of the drum so a gunner under pressure eventually reloads instead of hopping forever. Kept at retail's ratio against the shorter burst. |
+| `MOD_CHAOS_RGUN_MELEE_DIST` | 5 m | 8 m | See below. |
+
+**The melee never triggered**, and the range was only half of why. Both `hostile` and `attack`
+measure it against the **focus**, and `citizen-enemy-method-202` only re-picks the nearest valid
+process while the actor is in `active`. This species never leaves `hostile` once a fight starts —
+it is an emplacement, it does not chase — so the focus stayed locked on whichever Krimzon Guard it
+first noticed, possibly twenty-five metres away, while a *different* guard walked right up to it.
+
+In the Ruins that cannot happen: the focus is Jak, and Jak is also the one closing the distance.
+
+`chaos-rapid-gunner::common-post` therefore re-picks while `hostile` too. The gate is specifically
+`'hostile` and not "anything but `active`": `citizen-enemy-method-202` ends with `go-hostile`, and
+`citizen-enemy::go-hostile` no-ops only when the process is already heading for `hostile`. Called
+from `attack` or `hop` it would restart the state five times a second and the gunner would never
+finish a burst. (The spyder is left out of this for the same reason — it *does* override
+`go-hostile`, unconditionally.)
+
+#### Moving without the tumble
+
+Retail's `hop` runs two animation channels at once: channel 0 holds `hop-left`/`hop-right` and
+channel 1 `hop-forward`/`hop-back`, cross-faded by the travel direction expressed in the gunner's
+local space (`rapid-gunner-method-186`). Any direction that is not axis-aligned plays two hop
+animations at roughly half weight each over an idle base, and the result reads as the gunner
+tumbling rather than relocating.
+
+The port now turns to face the destination and plays `hop-forward` alone at full weight. One
+animation, no cross-fade, no blend artefact — and since `hop-forward` is authored along the model's
+own forward axis, facing the destination is what makes it line up. The turn has to be explicit:
+`nav-enemy-method-142` is a no-op on this species (verbatim retail), so the nav controller never
+rotates the body itself.
+
 #### The line-of-sight wiring the city does not do
 
 Both ported species gate their `attack` on `check-los?`, and after the first playable build neither
@@ -984,7 +1047,7 @@ Nothing here has been run yet. In order:
 | Guards still chase Jak | `target-jak` re-set by a mission node; the `*mod-chaos-guards-ignore-jak*` override in `guard.gc` only applies to guards spawned since |
 | Traffic pools look wrong / crash on district change | The `traffic-engine` resize — verify `vehicle-tracker-array` resolved via `overlay-at`, not the old `:offset 7024` |
 | `too many users for nav-mesh #f` + crash on spawn | `*default-nav-mesh*` overflowed. First suspect a want-count above 20 (§3.5d), then the governor (§3.5c) |
-| `traffic-manager: unable to spawn` spam | The 126-entry pedestrian tracker is full — lower `MOD_CHAOS_METALHEAD_POP` |
+| `traffic-manager: unable to spawn` spam | The 126-entry pedestrian tracker is full — lower `MOD_CHAOS_GROUND_POP` |
 | Guard gunships circle but never engage | `mod-chaos-engage-vehicle!` not reaching them — check `(-> veh flags)` for `in-pursuit` in the REPL (§5.2) |
 | New species and guard shove without damage | The `common-post` override is not being reached — confirm `chaos-metalhead` actually overrides it (§4.5) |
 | A ported species reaches `hostile` but never fires | `check-los?` is false because `los dst-proc` is `#f` — the city never calls `enemy-method-63`. See the LOS subsection in §4.6 |

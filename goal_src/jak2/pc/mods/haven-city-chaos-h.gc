@@ -70,13 +70,28 @@
 (defconstant MOD_CHAOS_GUARD_HP_SCALE 1.5)
 
 ;; ------------------------------------------------------------------------------------------------
-;; Species mix
+;; Faction mix -- how the ground population is split three ways
+;;
+;; "Parmi les entites au sol : 10% civil / 50% metal heads / 40% gardes". These are shares of the
+;; *pedestrian* population only; wheeled traffic has its own table and is not counted here (their
+;; riders are, indirectly -- see `mod-chaos-boost-ambient!`).
+;;
+;; Summed and divided rather than assumed to add to 100, so editing one does not silently skew the
+;; others.
+;; ------------------------------------------------------------------------------------------------
+
+(defconstant MOD_CHAOS_FACTION_CIVILIAN  10)
+(defconstant MOD_CHAOS_FACTION_METALHEAD 50)
+(defconstant MOD_CHAOS_FACTION_GUARD     40)
+
+;; ------------------------------------------------------------------------------------------------
+;; Species mix (inside the Metal Head faction)
 ;;
 ;; The shares below are the percentages the mod advertises in its debug menu, straight from the
 ;; brief. They are *relative weights*, not absolute caps: `mod-chaos-apply-species!` sums the
-;; shares of the species currently switched on and divides MOD_CHAOS_METALHEAD_POP between them in
-;; proportion. Turning Rapid gunner and Spyder gunner off therefore does not thin the invasion out --
-;; the three default species absorb their share.
+;; shares of the species currently switched on and divides the Metal Head faction budget between
+;; them in proportion. Turning Rapid gunner and Spyder gunner off therefore does not thin the
+;; invasion out -- the three default species absorb their share.
 ;;
 ;; Why want-count and not a weighted random draw: the traffic engine already caps each type's live
 ;; population at `target-count` (`activate-by-type` refuses a type that is at its cap) and derives
@@ -91,30 +106,35 @@
 (defconstant MOD_CHAOS_SHARE_RAPID    10)  ;; "Rapid gunner"
 (defconstant MOD_CHAOS_SHARE_SPYDER    5)  ;; "Spyder gunner"
 
-;; Total metal-head population budget, split between the enabled species in proportion to their
-;; share. Retail `lwideb` runs 14 + 14 + 14 = 42; this is the "augmente les spawn rates" knob for
-;; the metal-head side specifically.
+;; Total *ground* population budget -- every pedestrian in the city, split by the faction shares
+;; above. Retail runs roughly 45 civilians + 10 guards + 42 Metal Heads.
 ;;
-;; Two ceilings constrain this, and the second one is fatal rather than merely untidy:
+;; 100 is not a round number picked for looks. Three ceilings constrain it:
 ;;
+;;   - MOD_CHAOS_WANT_MAX (20) per traffic type, and the Krimzon Guards have only two usable types
+;;     (4 and 6 -- `lwide-activate` leaves 5 and 7 at level #f). 40 % of 100 is exactly 20 + 20, so
+;;     100 is the largest total at which the guard share is actually reachable;
 ;;   - the pedestrian tracker holds at most 126 *live* processes
-;;     (`traffic-tracker::active-object-list`), shared with citizens and guards;
-;;   - `*default-nav-mesh*` holds at most `max-nav-control-count` *pooled* processes, and a
-;;     city citizen keeps its slot for as long as its process exists, active or not. Overflowing
-;;     it is a crash, not a degradation: `new-nav-control` returns #f and `nav-mesh::change-to`
-;;     kills the process mid-`initialize`.
+;;     (`traffic-tracker::active-object-list`) -- 100 pedestrians plus the 16 guard-vehicle riders
+;;     leaves headroom;
+;;   - `*default-nav-mesh*` holds at most `max-nav-control-count` *pooled* processes, and a city
+;;     citizen keeps its slot for as long as its process exists, active or not. Overflowing it is a
+;;     crash, not a degradation: `new-nav-control` returns #f and `nav-mesh::change-to` kills the
+;;     process mid-`initialize`.
 ;;
 ;; `mod-chaos-nav-governor!` measures the free nav-mesh slots every frame and moves the budget to
-;; suit, so this constant is a ceiling the mod climbs toward rather than a promise.
-(defconstant MOD_CHAOS_METALHEAD_POP 60)
+;; suit, so this is a ceiling the mod climbs toward rather than a promise. The faction ratio is
+;; preserved at every budget the governor settles on.
+(defconstant MOD_CHAOS_GROUND_POP 100)
 
-;; Where the governor starts on every city load, and the floor it will not climb down from until
-;; the nav-mesh is genuinely under pressure. Deliberately below retail's 42: the first frames of a
-;; city load run `spawn-all` in fast-spawn mode (120 spawns in one frame), which is the one moment
-;; the governor cannot react inside, so the budget has to be safe *before* it starts measuring.
-(defconstant MOD_CHAOS_START_POP 24)
+;; Where the governor starts on every city load, and what it falls back to when the nav-mesh is
+;; under pressure. Deliberately well below the ceiling: the first frames of a city load run
+;; `spawn-all` in fast-spawn mode (120 spawns in one frame), which is the one moment the governor
+;; cannot react inside, so the budget has to be safe *before* it starts measuring.
+(defconstant MOD_CHAOS_START_POP 44)
 
 ;; No species is ever given fewer than this, so a 5%-share species still actually shows up.
+;; Applies to the Metal Head split only -- civilians and guards are distributed by weight.
 (defconstant MOD_CHAOS_MIN_WANT 3)
 
 ;; ------------------------------------------------------------------------------------------------
@@ -171,15 +191,32 @@
 ;; sized at compile time, and an unused slot costs nothing but its 288 bytes.
 ;; ------------------------------------------------------------------------------------------------
 
-;; Note the ceiling: MOD_CHAOS_WANT_MAX is 20 and these are clamped to it, so 20 is as dense as the
-;; Krimzon Guard garrison can be made without leaking processes. The guard *vehicles* are the lever
-;; left for going denser than that -- each one carries a rider.
-(defconstant MOD_CHAOS_WANT_CRIMSON_GUARD_1 20)  ;; traffic type  6, retail 9
+;; The Krimzon Guard *pedestrian* counts are no longer set here -- they come out of the faction
+;; ratio above, in `mod-chaos-apply-species!`. What is left is the wheeled side, which is not part
+;; of the ground ratio but does add a `crimson-guard` rider each.
 (defconstant MOD_CHAOS_WANT_GUARD_BIKE       9)  ;; traffic type 18, retail 4
 (defconstant MOD_CHAOS_WANT_HELLCAT          7)  ;; traffic type 19, retail 3
 
 ;; Retail is 5.0; lower packs traffic tighter.
 (defconstant MOD_CHAOS_INV_DENSITY_FACTOR 3.0)
+
+;; ------------------------------------------------------------------------------------------------
+;; Rapid gunner tuning
+;;
+;; Three numbers the retail gunner hard-codes, pulled out because the city is not the Ruins.
+;; ------------------------------------------------------------------------------------------------
+
+;; Rounds per burst before it has to reload. Retail is 12.
+(defconstant MOD_CHAOS_RGUN_BURST 5)
+
+;; What a hop costs out of the drum, keeping retail's ratio (2 of 12 -> 1 of 5). Without a cost a
+;; gunner under sustained pressure would hop forever and never reload.
+(defconstant MOD_CHAOS_RGUN_HOP_COST 1)
+
+;; Range at which it stops shooting and swings instead. Retail is (meters 5), which in the Ruins is
+;; the distance Jak has to close to. In Haven City its opponent is a rifleman who stops and shoots,
+;; so at 5 m the melee simply never happened -- see the note in chaos-species.gc.
+(defconstant MOD_CHAOS_RGUN_MELEE_DIST (meters 8))
 
 ;; ------------------------------------------------------------------------------------------------
 ;; 3. Stock-safe hook defaults

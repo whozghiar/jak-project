@@ -22,7 +22,7 @@
 ;;             > Guards ignore Jak       -- the truce
 ;;
 ;; The percentages are relative shares, not caps: whatever is switched on splits the whole
-;; metal-head population budget between itself in these proportions (see MOD_CHAOS_METALHEAD_POP
+;; metal-head faction budget between itself in these proportions (see MOD_CHAOS_GROUND_POP
 ;; in pc/mods/haven-city-chaos-h.gc). Switching Rapid gunner and Spyder gunner off therefore makes
 ;; the other three *more* numerous, not the invasion smaller.
 ;;

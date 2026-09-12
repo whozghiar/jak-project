@@ -410,7 +410,6 @@
   (:methods
     (chaos-rgun-aim! (_type_ vector float) none)
     (chaos-rgun-facing? (_type_ float) symbol)
-    (chaos-rgun-blend! (_type_ int float int int) none)
     )
   )
 
@@ -493,35 +492,39 @@
     )
   )
 
-(defmethod chaos-rgun-blend! ((this chaos-rapid-gunner) (chan int) (amount float) (pos-anim int) (neg-anim int))
-  "Drive one animation channel from a signed amount: pick `pos-anim` or `neg-anim` by sign and set
-   the channel's blend to the magnitude. Verbatim `rapid-gunner-method-186`; it is what makes the
-   hop lean into whichever direction it is travelling."
-  (local-vars (v1-1 int))
-  0
-  (if (< 0.0 amount)
-      (set! v1-1 pos-anim)
-      (set! v1-1 neg-anim)
-      )
-  (let ((a1-2 (-> this skel root-channel chan)))
-    (let ((f0-2 (fabs amount)))
-      (set! (-> a1-2 frame-interp 1) f0-2)
-      (set! (-> a1-2 frame-interp 0) f0-2)
-      )
-    (set! (-> a1-2 frame-group) (the-as art-joint-anim (-> this draw art-group data v1-1)))
-    )
-  (none)
-  )
-
 (defmethod enemy-method-96 ((this chaos-rapid-gunner) (arg0 float) (arg1 symbol))
   "Aim tests go against the *predicted* point, not the focus. Verbatim override."
   (enemy-method-95 this (-> this target-next-pos) arg0)
   )
 
 (defmethod common-post ((this chaos-rapid-gunner))
-  "Base city post plus the line-of-sight refresh the retail gunner does every frame."
+  "Base city post, the line-of-sight refresh the retail gunner does every frame, and a re-target
+   the city does not do for us.
+
+   The re-target is what makes `spin-attack` reachable at all. `citizen-enemy-method-202` only
+   re-picks the nearest valid process while the actor is in `active`, and this species never
+   leaves `hostile` once a fight starts -- it is an emplacement, it does not chase. So the focus
+   stayed locked on whichever Krimzon Guard it first noticed, possibly twenty-five metres away,
+   while a *different* guard walked right up to it. Both `hostile` and `attack` measure the melee
+   range against the focus, so the swing never triggered.
+
+   In the Ruins that cannot happen: the focus is Jak, and Jak is also the one closing the distance.
+
+   Re-picking here is safe precisely because the gunner does not override `go-hostile` --
+   `citizen-enemy::go-hostile` no-ops when the process is already heading for `hostile`. That is
+   why the gate is `'hostile` and not simply 'not active': from `attack` or `hop` the same call
+   would restart `hostile` five times a second and the gunner would never finish a burst."
   ((method-of-type chaos-metalhead common-post) this)
   (los-control-method-9 (-> this los) (the-as process-focusable #f) (the-as vector #f) 2048.0)
+  (when (and (not (focus-test? this disable dead ignore inactive))
+             (< (-> this next-update-target) (current-time))
+             (not (logtest? (enemy-flag lock-focus) (-> this enemy-flags)))
+             (-> this next-state)
+             (= (-> this next-state name) 'hostile)
+             )
+    (citizen-enemy-method-202 this)
+    (set! (-> this next-update-target) (+ (current-time) (seconds 0.2)))
+    )
   0
   (none)
   )
@@ -738,7 +741,7 @@
                (f30-0 (vector-vector-distance s5-0 (-> self root trans)))
                )
           ;; Inside 5 m and roughly level: melee.
-          (if (and (< f30-0 20480.0)
+          (if (and (< f30-0 MOD_CHAOS_RGUN_MELEE_DIST)
                    (and (< (fabs (- (-> s5-0 y) (-> self root trans y))) 6144.0)
                         gp-0
                         (not (logtest? (-> (the-as process-focusable gp-0) focus-status) (focus-status disable dead ignore grabbed)))
@@ -748,7 +751,7 @@
               )
           ;; Inside 100 m with a clear line: open fire, reloading first if the drum is dry.
           (when (and (< f30-0 409600.0) (check-los? (-> self los) 0))
-            (if (>= (-> self shots-fired) (the-as uint 12))
+            (if (>= (-> self shots-fired) (the-as uint MOD_CHAOS_RGUN_BURST))
                 (go-virtual reload)
                 )
             (go-virtual attack)
@@ -871,7 +874,7 @@
             (f0-3 (vector-vector-distance (get-trans (the-as process-focusable gp-0) 0) (-> self root trans)))
             )
         (cond
-          ((and (< f0-3 20480.0)
+          ((and (< f0-3 MOD_CHAOS_RGUN_MELEE_DIST)
                 (and (< (fabs (- (-> s5-0 y) (-> self root trans y))) 6144.0)
                      gp-0
                      (not (logtest? (-> (the-as process-focusable gp-0) focus-status) (focus-status disable dead ignore grabbed)))
@@ -889,7 +892,7 @@
           ((not (chaos-rgun-facing? self 16384.0))
            (go-virtual hop-turn)
            )
-          ((>= (-> self shots-fired) (the-as uint 12))
+          ((>= (-> self shots-fired) (the-as uint MOD_CHAOS_RGUN_BURST))
            (when (skip-check-los? (-> self los) 0)
              (vector-normalize-copy! (-> self hop-dir) (-> self focus-dir) -1.0)
              (go-virtual hop)
@@ -1099,7 +1102,15 @@
            (vf7 :class vf)
            )
       (init-vf0-vector)
-      (set! (-> self shots-fired) (the-as uint (min 12 (the-as int (+ (-> self shots-fired) 2)))))
+      ;; A hop costs part of the drum, so a gunner under sustained pressure eventually has to
+      ;; reload instead of hopping forever. Retail charges 2 of 12; MOD_CHAOS_RGUN_HOP_COST keeps
+      ;; the ratio against the shorter burst.
+      (set! (-> self shots-fired)
+            (the-as uint (min MOD_CHAOS_RGUN_BURST
+                              (the-as int (+ (-> self shots-fired) MOD_CHAOS_RGUN_HOP_COST))
+                              )
+                    )
+            )
       (let ((gp-0 (new 'stack-no-clear 'vector)))
         (let ((s5-0 (-> self root trans)))
           (let ((a2-0 (new 'stack-no-clear 'vector)))
@@ -1140,29 +1151,24 @@
           (set! (-> a0-13 heading quad) (-> v1-17 quad))
           )
         0
-        (ja-channel-push! 2 (seconds 0.1))
-        (ja-no-eval :group! rapid-gunner-idle-ja :num! (seek!) :frame-num 0.0)
-        (let ((a0-17 (-> self skel root-channel 1)))
-          (let ((f0-7 0.0))
-            (set! (-> a0-17 frame-interp 1) f0-7)
-            (set! (-> a0-17 frame-interp 0) f0-7)
-            )
-          (set! (-> a0-17 frame-group) (the-as art-joint-anim rapid-gunner-idle-ja))
-          (set! (-> a0-17 param 0)
-                (the float (+ (-> (the-as art-joint-anim rapid-gunner-idle-ja) frames num-frames) -1))
-                )
-          (set! (-> a0-17 param 1) 1.0)
-          (set! (-> a0-17 frame-num) 0.0)
-          (joint-control-channel-group! a0-17 (the-as art-joint-anim rapid-gunner-idle-ja) num-func-seek!)
-          )
+        ;; --- deviation from retail, on purpose -------------------------------------------
+        ;; Retail hops on two channels at once: channel 0 holds `hop-left`/`hop-right` and
+        ;; channel 1 `hop-forward`/`hop-back`, cross-faded by the travel direction in local
+        ;; space (`rapid-gunner-method-186`). Any direction that is not axis-aligned therefore
+        ;; plays two hop animations at roughly half weight each, over an idle base, and the
+        ;; result reads as the gunner tumbling rather than moving.
+        ;;
+        ;; Here it turns to face where it is going and plays `hop-forward` alone at full weight.
+        ;; One animation, no cross-fade, no blend artefact -- and because `hop-forward` is
+        ;; authored along the model's own forward axis, facing the destination is what makes it
+        ;; line up. The turn has to be explicit: `nav-enemy-method-142` is a no-op on this species
+        ;; (verbatim retail), so the nav controller never rotates the body itself.
+        (ja-channel-push! 1 (seconds 0.1))
+        (ja-no-eval :group! rapid-gunner-hop-forward-ja :num! (seek!) :frame-num 0.0)
         (until (ja-done? 0)
-          (let ((s5-1 (vector-inv-orient-by-quat! (new 'stack-no-clear 'vector) gp-0 (-> self root quat))))
-            (chaos-rgun-blend! self 0 (-> s5-1 x) 10 11)
-            (chaos-rgun-blend! self 1 (-> s5-1 z) 8 9)
-            )
+          (seek-to-point-toward-point! (-> self root) (-> self dest-pos) (-> self nav max-rotation-rate) (seconds 0.1))
           (suspend)
           (ja :num! (seek!))
-          (ja :chan 1 :num! (chan 0))
           )
         )
       (let ((v1-67 self))

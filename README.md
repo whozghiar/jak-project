@@ -45,9 +45,10 @@ Jak is a bystander. Nothing you do raises the alarm, and no guard will come afte
   The shares are relative: whatever is switched on splits the whole population between itself in
   those proportions, so turning the last two off makes the first three *more* numerous rather than
   making the invasion smaller.
-- **Much denser than retail:** the Metal Head population budget goes from 42 to 60, the Krimzon
-  Guard garrison and its vehicles grow with it, and the traffic engine's density and streaming
-  ranges are widened to match.
+- **A city at war, by the numbers:** every pedestrian slot is dealt out **10 % civilians,
+  50 % Metal Heads, 40 % Krimzon Guards** — roughly a hundred of them at full strength, against
+  retail's 45 civilians and 10 guards. The guard vehicles grow with them, and the traffic engine's
+  density and streaming ranges are widened so the crowd stays populated further from the camera.
 - **The Krimzon Guard fight back harder:** red and yellow guards get 1.5× health, and their
   gunships break off patrol to hunt Metal Heads.
 - **A truce with Jak:** guards cannot see Jak at all. Nothing alerts them, nothing pursues him.
@@ -148,9 +149,11 @@ poursuit.
   Les parts sont relatives : les espèces activées se partagent toute la population dans ces
   proportions. Désactiver les deux dernières rend donc les trois premières **plus** nombreuses,
   cela ne réduit pas l'invasion.
-- **Bien plus dense que l'original :** le budget de population des têtes de métal passe de 42 à 60,
-  la garnison cramoisie et ses véhicules augmentent en conséquence, et les réglages de densité et
-  de distance de streaming du moteur de trafic sont élargis d'autant.
+- **Une ville en guerre, chiffres à l'appui :** chaque place de piéton est distribuée à
+  **10 % de civils, 50 % de têtes de métal, 40 % de gardes cramoisis** — une centaine au total à
+  pleine puissance, contre 45 civils et 10 gardes dans l'original. Les véhicules de garde
+  augmentent en conséquence, et les réglages de densité et de distance de streaming du moteur de
+  trafic sont élargis pour que la foule reste peuplée plus loin de la caméra.
 - **Des gardes cramoisis plus dangereux :** gardes rouges et jaunes à 1,5× de vie, et véhicules de
   garde qui rompent leur patrouille pour traquer les têtes de métal.
 - **Une trêve avec Jak :** les gardes ne peuvent tout simplement plus le voir. Rien ne les alerte,

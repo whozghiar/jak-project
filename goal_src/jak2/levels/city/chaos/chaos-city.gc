@@ -98,22 +98,40 @@
   (none)
   )
 
+(defun mod-chaos-set-want! ((te traffic-engine) (ttype traffic-type) (want-in int))
+  "Set one *retail* traffic type's population, leaving its `level` and `flags` exactly as
+   `init-params` / `lwide-activate` left them.
+
+   The difference from `mod-chaos-enroll-species!` is the two fields it does *not* touch. A retail
+   type's `level` is story state -- `lwide-activate` decides whether citizens come from `lwidea` or
+   `lwideb` -- and writing it from here would fight the mission system. The difference from
+   `mod-chaos-bump-want!` is that this one also lowers, which the faction ratio needs: 10 % of the
+   ground population is well below the retail civilian count."
+  (let ((info (-> te object-type-info-array ttype))
+        (want (mod-chaos-clamp-want want-in))
+        )
+    (set! (-> info want-count) want)
+    (set! (-> info target-count) (max 0 (+ want -1)))
+    (set! (-> info reserve-count) (the-as uint (max 1000 (min #xfde8 (* 1000 want)))))
+    )
+  0
+  (none)
+  )
+
 (defun mod-chaos-boost-ambient! ((te traffic-engine))
-  "The 'augmente les spawn rates' pass for everything that is not a metal head.
+  "The 'augmente les spawn rates' pass for the *wheeled* side, which is not part of the ground
+   faction ratio.
 
-   Only the Krimzon Guard types are raised: they are the other side of the war, and a denser
-   invasion with a retail-sized garrison just means the city is overrun in thirty seconds.
-   Citizens are left at their retail counts on purpose -- every extra pedestrian costs a
-   `nav-control` slot on `*default-nav-mesh*`, and the Metal Heads are the better use of them
-   (see the governor below).
+   Pedestrians -- civilians, Krimzon Guards and Metal Heads alike -- are all set from the faction
+   ratio in `mod-chaos-apply-species!` now. What is left here is the guard vehicles and the traffic
+   density knob.
 
-   Note the guard *vehicle* bumps cost slots too, indirectly: each guard-bike and hellcat carries a
+   Note the vehicle bumps do cost nav-mesh slots, indirectly: each guard-bike and hellcat carries a
    `crimson-guard` rider, which is a `citizen` like any other and never appears in the pedestrian
    want-count table. Nothing here tries to account for that -- the governor measures the result.
 
    `inv-density-factor` is the other half: the traffic engine divides a nav segment's capacity by
    it, so lowering it packs more of everything into the same streets."
-  (mod-chaos-bump-want! te (traffic-type crimson-guard-1) MOD_CHAOS_WANT_CRIMSON_GUARD_1)
   (mod-chaos-bump-want! te (traffic-type guard-bike) MOD_CHAOS_WANT_GUARD_BIKE)
   (mod-chaos-bump-want! te (traffic-type hellcat) MOD_CHAOS_WANT_HELLCAT)
   (set! (-> te inv-density-factor) MOD_CHAOS_INV_DENSITY_FACTOR)
@@ -194,7 +212,7 @@
           (the int (-> *default-nav-mesh* max-nav-control-count))
           (mod-chaos-nav-free)
           *mod-chaos-pop*
-          MOD_CHAOS_METALHEAD_POP
+          MOD_CHAOS_GROUND_POP
           )
   0
   (none)
@@ -218,7 +236,7 @@
                    )
            )
        )
-      ((and (< *mod-chaos-pop* MOD_CHAOS_METALHEAD_POP) (> free MOD_CHAOS_NAV_HIGH))
+      ((and (< *mod-chaos-pop* MOD_CHAOS_GROUND_POP) (> free MOD_CHAOS_NAV_HIGH))
        (set! *mod-chaos-pop* (+ *mod-chaos-pop* MOD_CHAOS_POP_GROW))
        )
       )
@@ -249,21 +267,107 @@
       )
   )
 
-(defun mod-chaos-apply-species! ((te traffic-engine) (lvl symbol))
-  "Rewrite the metal-head half of the traffic table for the borrowed city level `lvl`.
+;; ------------------------------------------------------------------------------------------------
+;; Faction distribution tables
+;;
+;; Each faction's budget is split across its traffic types by weight.
+;;
+;; Civilians keep retail's own proportions (15 / 15 / 14 / 1), so the crowd still looks like Haven
+;; City's crowd, only thinner.
+;;
+;; The Krimzon Guards are split *evenly*, and that is a forced choice rather than a taste one.
+;; Retail runs 1 and 9, but only types 4 and 6 are usable (`lwide-activate` leaves 5 and 7 at level
+;; #f) and every type is clamped to MOD_CHAOS_WANT_MAX. At a 40 % share of 100 that is 40 guards
+;; from two types -- reachable only as 20 + 20. A 1:9 split would clamp to 4 + 20 and quietly
+;; deliver 24 instead of 40. Both types spawn the same `crimson-guard` process, so nothing is lost.
+;; ------------------------------------------------------------------------------------------------
 
-   Only `lwideb` carries metal-head art, so on any other borrow every species is disabled. The
-   three retail types keep their retail `level` assignment (`lwide-activate` already set it) and
-   only have their population rebalanced to the requested mix.
+(define *mod-chaos-civ-types*   (new 'static 'array uint8 4 0 1 2 3))
+(define *mod-chaos-civ-weights* (new 'static 'array uint8 4 15 15 14 1))
+(defconstant MOD_CHAOS_CIV_COUNT 4)
+
+(define *mod-chaos-guard-types*   (new 'static 'array uint8 2 4 6))
+(define *mod-chaos-guard-weights* (new 'static 'array uint8 2 1 1))
+(defconstant MOD_CHAOS_GUARD_COUNT 2)
+
+(defun mod-chaos-faction-pop ((share int))
+  "This faction's slice of the ground population the governor is currently allowing.
+
+   The denominator is summed rather than assumed to be 100, so editing one share does not silently
+   skew the other two."
+  (let ((total (+ MOD_CHAOS_FACTION_CIVILIAN MOD_CHAOS_FACTION_METALHEAD MOD_CHAOS_FACTION_GUARD)))
+    (if (> total 0)
+        (/ (* share *mod-chaos-pop*) total)
+        0
+        )
+    )
+  )
+
+(defun mod-chaos-spread-want! ((te traffic-engine)
+                               (types (pointer uint8))
+                               (weights (pointer uint8))
+                               (count int)
+                               (pop int)
+                               )
+  "Hand `pop` out across `count` traffic types in proportion to `weights`, giving the rounding
+   remainder to the first type so the faction total lands exactly on `pop` rather than a few under."
+  (let ((total 0))
+    (dotimes (i count)
+      (+! total (the int (-> weights i)))
+      )
+    (when (> total 0)
+      (let ((handed-out 0))
+        ;; Types 1..n-1 by weight; type 0 mops up whatever integer division lost.
+        (let ((i 1))
+          (while (< i count)
+            (let ((want (/ (* (the int (-> weights i)) pop) total)))
+              (mod-chaos-set-want! te (the-as traffic-type (-> types i)) want)
+              (+! handed-out want)
+              )
+            (+! i 1)
+            )
+          )
+        (mod-chaos-set-want! te (the-as traffic-type (-> types 0)) (max 0 (- pop handed-out)))
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+(defun mod-chaos-apply-species! ((te traffic-engine) (lvl symbol))
+  "Rewrite the whole pedestrian half of the traffic table for the borrowed city level `lvl`.
+
+   Three factions, split 10 / 50 / 40 by the MOD_CHAOS_FACTION_* constants, each then spread across
+   its own traffic types. Only `lwideb` carries metal-head art, so on any other borrow every Metal
+   Head species is disabled and the civilians and guards keep the whole budget between them.
+
+   The retail types keep their retail `level` assignment (`lwide-activate` already set it) and only
+   have their populations rewritten -- see `mod-chaos-set-want!` on why that distinction matters.
 
    Called both on borrow changes and periodically from the per-frame hook. The repeat is
    deliberate: `traffic-manager::init-params` and the `restore-default-settings` event that a
    dozen mission hooks fire both rewrite the want-count table from retail values, and there is
    no ordering guarantee between those and `lwide-activate`. Re-asserting is far cheaper and
    far more robust than trying to intercept every writer."
-  ;; Ambient first: the guard want-counts it raises come off the same nav-mesh budget the
-  ;; Metal Heads are about to be given, so they have to be in place before it is measured.
   (mod-chaos-boost-ambient! te)
+  ;; Civilians and guards first: they are unconditional, and doing them here means a disabled
+  ;; invasion still leaves a correctly-proportioned city rather than a retail one.
+  ;; The `the-as` casts are belt and braces on how `(new 'static 'array uint8 ...)` types a global:
+  ;; the elements are read as raw bytes either way, and an explicit cast means a change in how the
+  ;; compiler types static arrays cannot turn this into a silent mis-parse.
+  (mod-chaos-spread-want! te
+                          (the-as (pointer uint8) *mod-chaos-civ-types*)
+                          (the-as (pointer uint8) *mod-chaos-civ-weights*)
+                          MOD_CHAOS_CIV_COUNT
+                          (mod-chaos-faction-pop MOD_CHAOS_FACTION_CIVILIAN)
+                          )
+  (mod-chaos-spread-want! te
+                          (the-as (pointer uint8) *mod-chaos-guard-types*)
+                          (the-as (pointer uint8) *mod-chaos-guard-weights*)
+                          MOD_CHAOS_GUARD_COUNT
+                          (mod-chaos-faction-pop MOD_CHAOS_FACTION_GUARD)
+                          )
   (let* ((mh-level (if (= lvl 'lwideb) lvl #f))
          ;; A species counts as on only if its art is actually there -- otherwise `spawn-all`
          ;; would keep trying to build a pool whose `initialize-skeleton` cannot succeed, and
@@ -280,7 +384,7 @@
                    (if on-spyder MOD_CHAOS_SHARE_SPYDER 0)
                    )
                 )
-         (pop *mod-chaos-pop*)
+         (pop (mod-chaos-faction-pop MOD_CHAOS_FACTION_METALHEAD))
          )
     (mod-chaos-enroll-species! te (traffic-type metalhead-grunt)
                                (if on-grunt (mod-chaos-want-for MOD_CHAOS_SHARE_GRUNT total pop) 0)

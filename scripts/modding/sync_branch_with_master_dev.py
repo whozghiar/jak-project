@@ -136,18 +136,51 @@ def main():
             print(f"[OK] Pushed to origin/{target_branch} successfully.")
     else:
         print(f"\nMerging {source_ref} into {target_branch}...")
-        commit_msg = f"chore: sync {target_branch} with latest {source_branch} (AI-assisted)"
-        merge_res = run_cmd(f'git merge {source_ref} -m "{commit_msg}"', check=False)
-        if merge_res.returncode != 0:
-            print("\n⚠️ Conflict encountered during merge!", file=sys.stderr)
+        # Ensure 'ours' merge driver is enabled for .gitattributes protection
+        run_cmd("git config merge.ours.driver true", check=False)
+
+        merge_res = run_cmd(f'git merge {source_ref} --no-commit', check=False)
+
+        # Auto-resolve deterministic documentation and workflow rules
+        unmerged_res = run_cmd("git diff --name-only --diff-filter=U", check=False)
+        unmerged = [l.strip() for l in unmerged_res.stdout.splitlines() if l.strip()]
+        if unmerged:
+            for f in unmerged:
+                if f == "README.md" or f.startswith("docs/modding/current_mod/"):
+                    # Preserve mod's own README and technical documentation
+                    run_cmd(f'git checkout HEAD -- "{f}" 2>/dev/null || true', check=False)
+                    run_cmd(f'git add "{f}"', check=False)
+                elif f == "docs/modding/branch_audit.md" or f.startswith("docs/modding/tools/"):
+                    # Take base branch global audit/status
+                    run_cmd(f'git checkout MERGE_HEAD -- "{f}" 2>/dev/null || true', check=False)
+                    run_cmd(f'git add "{f}"', check=False)
+                elif f.startswith(".github/workflows/"):
+                    # Drop unwanted workflows
+                    run_cmd(f'git rm -rf "{f}" 2>/dev/null || rm -rf "{f}"', check=False)
+
+        # CRITICAL: Always ensure mod's root README.md is strictly preserved from HEAD
+        # (prevents Git 3-way merge from silently splicing master-dev's dashboard/hub into mod's README)
+        run_cmd('git checkout HEAD -- README.md 2>/dev/null || true', check=False)
+        run_cmd('git add README.md', check=False)
+
+        # Verify if real source code conflicts remain
+        remaining_res = run_cmd("git diff --name-only --diff-filter=U", check=False)
+        remaining = [l.strip() for l in remaining_res.stdout.splitlines() if l.strip()]
+        if remaining:
+            print("\n⚠️ Real code conflict encountered during merge!", file=sys.stderr)
+            print(f"Conflicting files: {', '.join(remaining)}", file=sys.stderr)
             print("To resolve conflicts:", file=sys.stderr)
             print("  1. Resolve conflicted files in your editor.")
-            print("  2. git commit -m \"fix: resolve merge conflicts with master-dev (AI-assisted)\"")
+            print("  2. git add <resolved_files>")
+            print('  3. git commit -m "fix: resolve merge conflicts with master-dev (AI-assisted)"')
             print("Or abort with: git merge --abort")
-            sys.exit(merge_res.returncode)
+            sys.exit(1)
+
+        commit_msg = f"chore: sync {target_branch} with latest {source_branch} (AI-assisted)"
+        run_cmd(f'git commit -m "{commit_msg}"')
         print(f"\n[OK] Successfully merged {source_ref} into {target_branch}!")
         if args.push:
-            print(f"\nPusshing {target_branch} to origin...")
+            print(f"\nPushing {target_branch} to origin...")
             run_cmd(f"git push origin {target_branch}")
             print(f"[OK] Pushed to origin/{target_branch} successfully.")
 

@@ -396,10 +396,8 @@
   "anim-tester-x.o" ;; added
   "vag-player.o" ;; added
   "haven-city-chaos-h.o" ;; added (MOD) -- Haven City : Chaos toggles + hook defaults
-  "jetpack-crimsonguard-h.o" ;; added (MOD) -- Jetpack Crimson Guard toggles + tuning
   "mods-menu.o" ;; added -- unified "Debug > Mods" tab (see pc/debug/mods-menu.gc)
   "haven-city-chaos-menu.o" ;; added (MOD) -- Debug > Mods > haven-city-chaos (after mods-menu.o)
-  "jetpack-crimsonguard-menu.o" ;; added (MOD) -- Debug > Mods > jetpack-crimsonguard
   "default-menu-pc.o" ;; added
   "dir-tpages.go"
   "tpage-11.go"

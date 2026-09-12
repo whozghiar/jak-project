@@ -5,7 +5,7 @@
 ;; name in dgo: chaos-species
 ;; dgos: CWI
 ;;
-;; MOD "Haven City : Chaos" -- the four extra metal-head species.
+;; MOD "Haven City : Chaos" -- the extra metal-head species.
 ;; ================================================================================================
 ;; Retail Haven City knows exactly three metal heads: `metalhead-grunt`, `metalhead-flitter` and
 ;; `metalhead-predator`. They are not the standalone `grunt` / `flitter` / `predator` enemies --
@@ -13,12 +13,10 @@
 ;; but plug into the city traffic engine: they are pooled, recycled, walk the city nav-graph and
 ;; take part in the guard-vs-metal-head war.
 ;;
-;; This file follows exactly that recipe for four species that never set foot in the city:
+;; This file follows exactly that recipe for two species that never set foot in the city:
 ;;
-;;   chaos-juicer     "Juice goon"     (levels/atoll/juicer.gc)
-;;   chaos-spyder     "Spyder gunner"  (levels/common/enemy/spyder.gc)
-;;   chaos-centurion  "Centurion"      (levels/common/enemy/centurion.gc)
-;;   chaos-hopper     "Hopper"         (levels/common/enemy/hopper.gc)
+;;   chaos-juicer  "Juice goon"     (levels/atoll/juicer.gc)
+;;   chaos-spyder  "Spyder gunner"  (levels/common/enemy/spyder.gc)
 ;;
 ;; Everything that makes a city enemy work already lives in `citizen-enemy`:
 ;;   - `citizen-init!` derives the walk / run animation slots and travel speeds from `enemy-info`;
@@ -30,25 +28,38 @@
 ;; tuned by, and a collide-shape. We take all three straight from the retail enemy, which is why
 ;; each species below is barely forty lines and why their stats match the originals exactly.
 ;;
-;; The one behaviour we do add is a `hostile` :code thread. `nav-enemy`'s own `hostile` has no
-;; :code, so an inherited chase would keep playing the walk animation from `active` while moving
-;; at run speed. Each retail enemy solves this in its own overridden `hostile`; `chaos-metalhead`
-;; solves it once for all four.
+;; Two things we do have to add, because a retail arena enemy and a city enemy differ there:
+;;   - a `hostile` :code thread. `nav-enemy`'s own `hostile` has no :code, so an inherited chase
+;;     would keep playing the walk animation from `active` while moving at run speed.
+;;   - a city-shaped overlap filter and a melee cadence -- see `common-post` and the
+;;     MOD_CHAOS_MELEE_PERIOD block in `hostile` below. Without those the new species and the
+;;     Krimzon Guards are mutually intangible.
 ;; ================================================================================================
 
 ;; ------------------------------------------------------------------------------------------------
 ;; Shared base
 ;; ------------------------------------------------------------------------------------------------
 
+;; How often a metal head locked in melee is allowed to land a hit.
+;;
+;; Damage between two `enemy`s flows through `enemy-method-75` -> `enemy-method-104`, which sends
+;; an `attack` event stamped with the attacker's `attack-id`. The victim remembers the last id it
+;; took damage from, so an unchanging id lands exactly once however long the contact lasts. Retail
+;; enemies get a fresh id every time they enter their `attack` state; `chaos-metalhead` has no
+;; scripted attack animation to enter (see the note on the retail states below), so it re-stamps
+;; on this cadence instead, which is what turns a permanent shove into a repeating melee.
+(defconstant MOD_CHAOS_MELEE_PERIOD (seconds 0.8))
+
 (deftype chaos-metalhead (citizen-enemy)
-  ()
+  ((next-melee-time  time-frame)
+   )
   (:methods
     ;; Name of the skeleton group to wear, e.g. "skel-juicer". Resolved through
     ;; `art-group-get-by-name`, so the matching `<x>-ag.go` must be in a resident DGO
     ;; (the mod puts them in LWIDEB.DGO -- see goal_src/jak2/dgos/lwideb.gd).
     (chaos-skel-name (_type_) string)
     ;; Animation index to play while chasing. Falls back to the walk animation for species
-    ;; that ship with `run-anim -1` (the centurion has no run cycle at all).
+    ;; that ship with `run-anim -1`.
     (chaos-chase-anim (_type_) int)
     ;; The `nav-enemy-info` this species is tuned by. NOT inherited from anywhere: `metalhead-grunt`
     ;; declares `get-nav-info` in its own `:methods` block rather than `nav-enemy` or `enemy`
@@ -73,10 +84,10 @@
   )
 
 (defmethod get-nav-info ((this chaos-metalhead))
-  "Base implementation. `chaos-metalhead` is abstract -- only the four species below are ever
-   spawned, and each overrides this -- but the slot needs a body, and it has to be a body that
-   cannot crash `init-enemy-behaviour-and-stats!` if the hierarchy is ever extended carelessly.
-   The city grunt's tuning is the closest thing to a neutral default."
+  "Base implementation. `chaos-metalhead` is abstract -- only the species below are ever spawned,
+   and each overrides this -- but the slot needs a body, and it has to be a body that cannot crash
+   `init-enemy-behaviour-and-stats!` if the hierarchy is ever extended carelessly. The city grunt's
+   tuning is the closest thing to a neutral default."
   *metalhead-grunt-nav-enemy-info*
   )
 
@@ -103,7 +114,54 @@
     )
   (set! (-> this water-anim) -1)
   (set! (-> this minimap) #f)
+  (set! (-> this next-melee-time) 0)
   0
+  (none)
+  )
+
+(defmethod common-post ((this chaos-metalhead))
+  "`citizen-enemy::common-post` with exactly one thing changed: the overlap filter.
+
+   This is the fix for 'the Juice goon and the Krimzon Guard stand chest to chest and neither can
+   hurt the other'. Damage between two `enemy`s is touch-driven: `common-post` calls
+   `find-overlapping-shapes`, which fills `*touching-list*` and makes both sides receive a `touch`
+   event; `enemy-method-75` then turns a touch involving a `deadly` primitive into an `attack`.
+   Which shapes are even considered comes from `enemy-info.overlaps-others-collide-with-filter`,
+   and the two values differ by exactly the bits that matter here:
+
+     metalhead-grunt / flitter / predator : jak civilian enemy vehicle-sphere hit-by-others-list
+                                            player-list
+     juicer / spyder (arena enemies)      : jak bot player-list
+
+   `civilian` is what Krimzon Guards and citizens register as and `vehicle-sphere` is what city
+   traffic registers as, so with the arena filter a Juice goon in Haven City can only ever touch
+   Jak. The two shapes still collide as solids -- hence the shoving -- but no touch entry is ever
+   produced, so neither the guard's rifle-butt nor the juicer's own permanently-`deadly` body prim
+   can deal damage.
+
+   Patching `enemy-info` itself is not an option: `*juicer-nav-enemy-info*` is a shared static that
+   the Atoll juicers read too. Overriding here costs nothing and leaves the retail enemies alone."
+  (let ((params (new 'stack-no-clear 'overlaps-others-params)))
+    (set! (-> params options) (overlaps-others-options))
+    (set! (-> params collide-with-filter)
+          (collide-spec jak civilian enemy vehicle-sphere hit-by-others-list player-list)
+          )
+    (set! (-> params tlist) *touching-list*)
+    (find-overlapping-shapes (-> this root) params)
+    )
+  ;; Unchanged from `citizen-enemy::common-post`: re-pick a focus every 0.2s while idle, and
+  ;; keep the traffic danger sphere alive so vehicles swerve around us.
+  (when (and (not (focus-test? this disable dead ignore inactive))
+             (< (-> this next-update-target) (current-time))
+             (not (logtest? (enemy-flag lock-focus) (-> this enemy-flags)))
+             (-> this next-state)
+             (= (-> this next-state name) 'active)
+             )
+    (citizen-enemy-method-202 this)
+    (set! (-> this next-update-target) (+ (current-time) (seconds 0.2)))
+    (traffic-danger-init! this)
+    )
+  ((method-of-type citizen common-post) this)
   (none)
   )
 
@@ -116,12 +174,29 @@
           (parent-enter)
           )
       )
+    (set! (-> self next-melee-time) 0)
     )
   :trans (behavior ()
     (let ((parent-trans (-> (method-of-type citizen-enemy hostile) trans)))
       (if parent-trans
           (parent-trans)
           )
+      )
+    ;; Melee cadence -- see MOD_CHAOS_MELEE_PERIOD at the top of the file. The chaos species charge
+    ;; and deal contact damage rather than playing a scripted attack (their retail `attack` states
+    ;; are written against `juicer` / `spyder` fields that a `citizen-enemy` subclass does not
+    ;; have), so the attack id has to be re-stamped here for a hit to land more than once.
+    ;; `dangerous` is re-asserted with it because `enemy-method-75` tests it before dealing damage
+    ;; and several shared states clear it on exit.
+    (when (time-elapsed? (-> self next-melee-time) MOD_CHAOS_MELEE_PERIOD)
+      (set-time! (-> self next-melee-time))
+      (let* ((info *game-info*)
+             (id (+ (-> info attack-id) 1))
+             )
+        (set! (-> info attack-id) id)
+        (set! (-> self attack-id) id)
+        )
+      (logior! (-> self focus-status) (focus-status dangerous))
       )
     )
   :code (behavior ()
@@ -215,7 +290,8 @@
 
 (defmethod init-enemy-collision! ((this chaos-juicer))
   ;; Borrow the retail primitive layout (it is keyed to juicer joint indices, so hand-writing
-  ;; it would only introduce drift), then widen the root prim for city faction combat.
+  ;; it would only introduce drift), then widen the root prim for city faction combat. The
+  ;; juicer's root primitive is permanently `deadly`, which is what makes its charge hurt.
   ((method-of-type juicer init-enemy-collision!) (the-as juicer this))
   (chaos-cityify-collision! this)
   0
@@ -241,60 +317,9 @@
   )
 
 (defmethod init-enemy-collision! ((this chaos-spyder))
+  ;; Like the juicer, the spyder's root primitive carries `deadly` in retail, so the city version
+  ;; fights by contact without needing the gun turret its arena counterpart uses.
   ((method-of-type spyder init-enemy-collision!) (the-as spyder this))
-  (chaos-cityify-collision! this)
-  0
-  (none)
-  )
-
-;; ------------------------------------------------------------------------------------------------
-;; chaos-centurion -- "Centurion"  (5%)
-;; ------------------------------------------------------------------------------------------------
-
-(deftype chaos-centurion (chaos-metalhead)
-  ()
-  )
-
-(defmethod chaos-skel-name ((this chaos-centurion))
-  "Skeleton group worn by the Centurion. A method body that is nothing but a string would be read
-   as a docstring, hence this one."
-  "skel-centurion"
-  )
-
-(defmethod get-nav-info ((this chaos-centurion))
-  "The centurion ships with `run-anim -1` -- it only ever walks. `chaos-chase-anim` falls back to
-   `walk-anim`, so nothing here has to patch the shared static info (which would leak into the
-   Drill Platform and Mountain Temple centurions)."
-  *centurion-nav-enemy-info*
-  )
-
-(defmethod init-enemy-collision! ((this chaos-centurion))
-  ((method-of-type centurion init-enemy-collision!) (the-as centurion this))
-  (chaos-cityify-collision! this)
-  0
-  (none)
-  )
-
-;; ------------------------------------------------------------------------------------------------
-;; chaos-hopper -- "Hopper"  (5%)
-;; ------------------------------------------------------------------------------------------------
-
-(deftype chaos-hopper (chaos-metalhead)
-  ()
-  )
-
-(defmethod chaos-skel-name ((this chaos-hopper))
-  "Skeleton group worn by the Hopper. A method body that is nothing but a string would be read
-   as a docstring, hence this one."
-  "skel-hopper"
-  )
-
-(defmethod get-nav-info ((this chaos-hopper))
-  *hopper-nav-enemy-info*
-  )
-
-(defmethod init-enemy-collision! ((this chaos-hopper))
-  ((method-of-type hopper init-enemy-collision!) (the-as hopper this))
   (chaos-cityify-collision! this)
   0
   (none)

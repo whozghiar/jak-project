@@ -56,25 +56,23 @@
   ;; Extra city metal-head species. 21 stays reserved: retail code uses
   ;; `(traffic-type traffic-type-21)` as an "invalid / none" sentinel
   ;; (ctywide-obs.gc), so it must never become a spawnable slot.
-  ;; These four are inert on a stock game: `lwide-activate` leaves their
-  ;; `level` at #f and `init-params` gives them want-count 0, so `spawn-all`
-  ;; never creates a reserve process for them.
+  ;; Both are inert on a stock game: `lwide-activate` leaves their `level` at
+  ;; #f and `init-params` gives them want-count 0, so `spawn-all` never
+  ;; creates a reserve process for them.
   (chaos-juicer 22)
   (chaos-spyder 23)
-  (chaos-centurion 24)
-  (chaos-hopper 25)
   )
 ;; ---traffic-h:traffic-type
 
 ;; MOD haven-city-chaos -- number of entries in every per-traffic-type array
 ;; (`traffic-engine::object-type-info-array`, the want-count table, the
-;; spawn-mask width). Retail value was 21; the four chaos species push it to 26.
+;; spawn-mask width). Retail value was 21; the two chaos species push it to 24.
 ;; Anything that iterates traffic types must use this instead of a literal.
-(defconstant TRAFFIC_TYPE_COUNT 26)
+(defconstant TRAFFIC_TYPE_COUNT 24)
 
 ;; MOD haven-city-chaos -- bit set of traffic types `spawn-all` is allowed to
 ;; consider: every type in [0, TRAFFIC_TYPE_COUNT) except the 21 sentinel.
-(defconstant TRAFFIC_SPAWN_MASK #x3dfffff)
+(defconstant TRAFFIC_SPAWN_MASK #xdfffff)
 
 ;; +++traffic-h:traffic-spawn-flags
 (defenum traffic-spawn-flags
@@ -110,7 +108,7 @@
 ;; The shared city engine files (traffic-engine.gc, traffic-manager.gc, guard.gc) must stay
 ;; behaviour-identical when the mod is off, and must not depend on the mod's own files being
 ;; compiled first. They therefore only ever read these forward-declared globals, which
-;; `levels/city/chaos/chaos-h.gc` (declared before them in game.gp) defines with stock-safe
+;; `pc/mods/haven-city-chaos-h.gc` (declared before them in game.gp) defines with stock-safe
 ;; defaults. Turning the mod on only ever flips these values -- never patches engine code.
 ;; ================================================================================================
 

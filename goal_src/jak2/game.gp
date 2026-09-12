@@ -90,7 +90,7 @@
   :out '("$OUT/obj/dir-tpages.go")
   )
 (hash-table-set! *file-entry-map* "dir-tpages.go" #f)
-;; MOD haven-city-chaos -- these five objects are listed in .gd files but have no entry in
+;; MOD haven-city-chaos -- these four objects are listed in .gd files but have no entry in
 ;; all_objs.json (they are new source, not decompiled output). Pre-marking them stops `cgo-file`
 ;; from trying to resolve a source path for them; the explicit `goal-src` steps further down
 ;; build them instead, with hand-written dependencies that pin the compile order.
@@ -98,12 +98,6 @@
 (hash-table-set! *file-entry-map* "haven-city-chaos-menu.o" #f)
 (hash-table-set! *file-entry-map* "chaos-species.o" #f)
 (hash-table-set! *file-entry-map* "chaos-city.o" #f)
-(hash-table-set! *file-entry-map* "chaos-blast-bot.o" #f)
-;; MOD jetpack-crimsonguard -- new source, no all_objs.json entry; built by the explicit
-;; `goal-src` steps further down instead of being resolved by `cgo-file`.
-(hash-table-set! *file-entry-map* "jetpack-crimsonguard-h.o" #f)
-(hash-table-set! *file-entry-map* "jetpack-crimsonguard-menu.o" #f)
-(hash-table-set! *file-entry-map* "jetpack-guard.o" #f)
 
 (cgo-file "game.gd" '("$OUT/obj/gcommon.o" "$OUT/obj/gstate.o" "$OUT/obj/gstring.o" "$OUT/obj/gkernel.o"))
 
@@ -345,28 +339,16 @@
 ;; Compile order matters more than usual here, so each step names the last object it needs:
 ;;   haven-city-chaos-h   after traffic-h      -- it defines the symbols traffic-h declares
 ;;   haven-city-chaos-menu after mods-menu     -- calls `mods-menu-register`
-;;   chaos-species        after hopper         -- subclasses citizen-enemy, reads the four
+;;   chaos-species        after spyder         -- subclasses citizen-enemy, reads the two
 ;;                                               `*<x>-nav-enemy-info*` statics, plus
 ;;                                               `*metalhead-grunt-nav-enemy-info*` as its
 ;;                                               abstract-base default
 ;;   chaos-city           after chaos-species  -- and after traffic-manager for `*traffic-engine*`
-;;   chaos-blast-bot      after bombbot        -- subclasses it (LBOMBBOT is compiled late, which
-;;                                               is exactly why chaos-city reaches it via a hook)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (goal-src "pc/mods/haven-city-chaos-h.gc" "traffic-h" "settings")
 (goal-src "pc/debug/haven-city-chaos-menu.gc" "haven-city-chaos-h" "mods-menu")
-(goal-src "levels/city/chaos/chaos-species.gc" "citizen-enemy" "metalhead-grunt" "juicer" "spyder" "centurion" "hopper")
+(goal-src "levels/city/chaos/chaos-species.gc" "citizen-enemy" "metalhead-grunt" "juicer" "spyder")
 (goal-src "levels/city/chaos/chaos-city.gc" "chaos-species" "traffic-manager" "haven-city-chaos-h")
-(goal-src "levels/city/bombbot/chaos-blast-bot.gc" "bombbot" "haven-city-chaos-h")
-;; MOD -- Jetpack Crimson Guard
-;;   jetpack-crimsonguard-h    after traffic-h  -- declares mod-jetpack-tick, which
-;;                                                traffic-manager.gc calls
-;;   jetpack-crimsonguard-menu after mods-menu  -- calls `mods-menu-register`
-;;   jetpack-guard             after crimson-guard-hover and traffic-manager
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(goal-src "pc/mods/jetpack-crimsonguard-h.gc" "traffic-h")
-(goal-src "pc/debug/jetpack-crimsonguard-menu.gc" "jetpack-crimsonguard-h" "mods-menu")
-(goal-src "levels/city/jetpack/jetpack-guard.gc" "crimson-guard-hover" "traffic-manager" "jetpack-crimsonguard-h")
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; ANIMATIONS

@@ -12,8 +12,9 @@
 ;; level-borrow switch that turns the city into its metal-head-invasion variant.
 ;;
 ;; Why it lives in GAME.CGO and not next to the rest of the mod:
-;;   - `guard.gc` / `traffic-engine.gc` / `traffic-manager.gc` read `*mod-chaos-enable*` and friends,
-;;     and those files ship in CWI.DGO. CWI is only resident while the player is in Haven City.
+;;   - `guard.gc` / `traffic-engine.gc` / `traffic-manager.gc` / `nav-mesh.gc` read
+;;     `*mod-chaos-enable*` and friends, and most of those ship in CWI.DGO, which is only
+;;     resident while the player is in Haven City.
 ;;   - The debug menu (`pc/debug/haven-city-chaos-menu.gc`) can be opened anywhere, including in a
 ;;     level where CWI is gone. If the toggles lived in CWI they would be unbound symbols there.
 ;; The city-side half (`levels/city/chaos/*.gc`) overwrites the hook function pointers with real
@@ -37,14 +38,23 @@
 ;; #t => guards drop Jak from their focus collide-spec and only fight metal heads.
 (define *mod-chaos-guards-ignore-jak* #t)
 
-;; Sub-toggles, so the mod can be dialled back without turning it off entirely.
-(define *mod-chaos-extra-species* #t)   ;; juicer / spyder / centurion / hopper in the traffic mix
-(define *mod-chaos-guard-buffs* #t)     ;; HP scale + guard vehicles engaging metal heads
-(define *mod-chaos-blast-bots* #t)      ;; occasional anti-metal-head blast bot
-;; Flying Krimzon Guards come from jak2/features/jetpack-crimsonguard, now merged in. That mod
-;; owns its own toggle (`*mod-jetpack-enable*`) and its own dispatcher call in
-;; `traffic-manager::update`, so the chaos menu simply drives that symbol rather than keeping a
-;; duplicate of its own -- one switch, whichever menu you reach it from.
+;; HP scale + guard vehicles engaging metal heads.
+(define *mod-chaos-guard-buffs* #t)
+
+;; ------------------------------------------------------------------------------------------------
+;; Per-species switches
+;;
+;; One symbol per metal head the mod can put in the city, each independently toggleable from
+;; Debug > Mods > haven-city-chaos > species. The first three are the retail invasion species and
+;; cost no extra memory, so they are on by default; the two chaos additions stream extra art into
+;; LWIDEB and are off by default.
+;; ------------------------------------------------------------------------------------------------
+
+(define *mod-chaos-species-grunt*    #t)  ;; "Grunt"         traffic type  8  (metalhead-grunt)
+(define *mod-chaos-species-flitter*  #t)  ;; "Stinger"       traffic type  9  (metalhead-flitter)
+(define *mod-chaos-species-predator* #t)  ;; "Cloaker"       traffic type 10  (metalhead-predator)
+(define *mod-chaos-species-juicer*   #f)  ;; "Juice goon"    traffic type 22  (chaos-juicer)
+(define *mod-chaos-species-spyder*   #f)  ;; "Spyder gunner" traffic type 23  (chaos-spyder)
 
 ;; Set by the debug menu whenever a toggle changes something the city-side traffic table has to be
 ;; rebuilt from. The city half clears it on the next frame. This exists so the menu -- which is
@@ -59,25 +69,63 @@
 ;; "La vie des gardes (rouge & jaune) est multipliee par 1.5"
 (defconstant MOD_CHAOS_GUARD_HP_SCALE 1.5)
 
-;; Spawn weights, as requested. These are relative, not percentages: the traffic engine keeps each
-;; type's live population at `target-count`, and `set-target-level` derives target-count from
-;; want-count, so a want-count proportional to the weight reproduces the requested mix.
+;; ------------------------------------------------------------------------------------------------
+;; Species mix
 ;;
-;;   Grunt 30% | Stinger (flitter) 30% | Cloaker (predator) 10%
-;;   Juice goon 10% | Spyder gunner 5% | Centurion 5% | Hopper 5%
+;; The shares below are the percentages the mod advertises in its debug menu, straight from the
+;; brief. They are *relative weights*, not absolute caps: `mod-chaos-apply-species!` sums the
+;; shares of the species currently switched on and divides MOD_CHAOS_METALHEAD_POP between them in
+;; proportion. Turning Juice goon and Spyder gunner off therefore does not thin the invasion out --
+;; the three default species absorb their share.
 ;;
-;; The first three are the retail invasion species (traffic types 8/9/10) and cost no extra memory;
-;; the last four are the chaos additions (traffic types 22..25).
-(defconstant MOD_CHAOS_WANT_GRUNT      12)  ;; 30%
-(defconstant MOD_CHAOS_WANT_FLITTER    12)  ;; 30%  "Stinger"
-(defconstant MOD_CHAOS_WANT_PREDATOR    4)  ;; 10%  "Cloaker"
-(defconstant MOD_CHAOS_WANT_JUICER      4)  ;; 10%  "Juice goon"
-(defconstant MOD_CHAOS_WANT_SPYDER      2)  ;;  5%  "Spyder gunner"
-(defconstant MOD_CHAOS_WANT_CENTURION   2)  ;;  5%
-(defconstant MOD_CHAOS_WANT_HOPPER      2)  ;;  5%
+;; Why want-count and not a weighted random draw: the traffic engine already caps each type's live
+;; population at `target-count` (`activate-by-type` refuses a type that is at its cap) and derives
+;; `target-count` from `want-count`. The steady-state mix on screen is therefore governed by
+;; want-count; the random pick only decides who is *offered* a free slot first. Weighting both
+;; would double-count.
+;; ------------------------------------------------------------------------------------------------
 
-;; 5% of the guard-side reinforcement rolls become a blast bot, per the brief.
-(defconstant MOD_CHAOS_BLAST_BOT_PERCENT 5)
+(defconstant MOD_CHAOS_SHARE_GRUNT    30)  ;; "Grunt"
+(defconstant MOD_CHAOS_SHARE_FLITTER  30)  ;; "Stinger"
+(defconstant MOD_CHAOS_SHARE_PREDATOR 10)  ;; "Cloaker"
+(defconstant MOD_CHAOS_SHARE_JUICER   10)  ;; "Juice goon"
+(defconstant MOD_CHAOS_SHARE_SPYDER    5)  ;; "Spyder gunner"
+
+;; Total metal-head population budget, split between the enabled species in proportion to their
+;; share. Retail `lwideb` runs 14 + 14 + 14 = 42; this is the "augmente les spawn rates" knob for
+;; the metal-head side specifically.
+;;
+;; Ceiling check: the pedestrian tracker holds at most 126 live processes
+;; (`traffic-tracker::active-object-list`), shared with citizens and guards. Retail pedestrian
+;; want-counts sum to ~97 (targets ~87); 60 metal heads instead of 42 plus the guard bump in
+;; `mod-chaos-boost-ambient!` lands around 110 targets, which stays inside the array.
+(defconstant MOD_CHAOS_METALHEAD_POP 60)
+
+;; No species is ever given fewer than this, so a 5%-share species still actually shows up.
+(defconstant MOD_CHAOS_MIN_WANT 3)
+
+;; ------------------------------------------------------------------------------------------------
+;; Ambient density ("augmente les spawn rates", inspired by jak2/config/enhanced_spawnrates)
+;;
+;; Four independent levers, all inert while the mod is off:
+;;   - want-count bumps for the guard-side traffic types, so there is someone to fight the
+;;     invasion (`mod-chaos-boost-ambient!` in chaos-city.gc);
+;;   - a lower `inv-density-factor`, which packs traffic more tightly per nav segment;
+;;   - wider per-cell activation ranges, so the denser population stays populated further from
+;;     the camera (traffic-engine.gc);
+;;   - a higher nav-mesh concurrent-user ceiling, without which the extra actors simply fail to
+;;     spawn (nav-mesh.gc).
+;;
+;; The last one is read once, when the city nav-mesh entity is initialised, so it only takes
+;; effect on the next Haven City load -- enable the mod, then step indoors and back out.
+;; ------------------------------------------------------------------------------------------------
+
+(defconstant MOD_CHAOS_WANT_CRIMSON_GUARD_1 16)  ;; traffic type  6, retail 9
+(defconstant MOD_CHAOS_WANT_GUARD_BIKE       8)  ;; traffic type 18, retail 4
+(defconstant MOD_CHAOS_WANT_HELLCAT          6)  ;; traffic type 19, retail 3
+
+;; Retail is 5.0; lower packs traffic tighter.
+(defconstant MOD_CHAOS_INV_DENSITY_FACTOR 3.0)
 
 ;; ------------------------------------------------------------------------------------------------
 ;; 3. Stock-safe hook defaults
@@ -93,7 +141,7 @@
   )
 
 (defun mod-chaos-spawn-default ((parent process) (params object))
-  "Fallback spawn dispatch: claim nothing, so `traffic-object-spawn` runs its own retail `case`."
+  "Fallback spawn dispatch: claim nothing, so `traffic-object-spawn` runs its own retail case."
   (the-as process-drawable #f)
   )
 
@@ -109,29 +157,18 @@
   (none)
   )
 
-(defun mod-chaos-blast-bot-update-default ()
-  "Fallback blast-bot tick: do nothing.
-   The real one lives in `levels/city/bombbot/chaos-blast-bot.gc`, which ships in LBOMBBOT.DGO --
-   a borrow level, so it comes and goes. `chaos-city.gc` only calls through this pointer while
-   `lbombbot` reports active, which is what keeps the pointer from outliving its heap."
-  0
-  (none)
-  )
-
 (define *mod-chaos-citizen-type-hook* mod-chaos-citizen-type-default)
-(define *mod-chaos-blast-bot-hook* mod-chaos-blast-bot-update-default)
 (define *mod-chaos-spawn-hook* mod-chaos-spawn-default)
 (define *mod-chaos-traffic-update-hook* mod-chaos-traffic-update-default)
 (define *mod-chaos-lwide-activate-hook* mod-chaos-lwide-activate-default)
 
 (defun mod-chaos-reset-hooks! ()
-  "Point every hook back at the always-resident defaults. Called when Haven City unloads so the
-   function pointers can never outlive the CWI heap the real implementations live in."
+  "Point every hook above back at the always-resident defaults. Called when Haven City unloads so
+   the function pointers can never outlive the CWI heap the real implementations live in."
   (set! *mod-chaos-citizen-type-hook* mod-chaos-citizen-type-default)
   (set! *mod-chaos-spawn-hook* mod-chaos-spawn-default)
   (set! *mod-chaos-traffic-update-hook* mod-chaos-traffic-update-default)
   (set! *mod-chaos-lwide-activate-hook* mod-chaos-lwide-activate-default)
-  (set! *mod-chaos-blast-bot-hook* mod-chaos-blast-bot-update-default)
   0
   (none)
   )
@@ -157,21 +194,10 @@
 
    @param on #t to force the invasion city, #f to hand control back to the story."
   (set! (-> *setting-control* user-default borrow)
-        (cond
-          ;; Slot 1 = the ambient-population level (see above). Slot 0 is free for the whole
-          ;; game except during "Destroy the blast bots", which borrows `lbombbot` there --
-          ;; so the mod reuses that exact slot, and with it the memory budget the retail
-          ;; mission already proved fits.
-          ((and on *mod-chaos-blast-bots*)
-           '((ctywide 0 lbombbot display) (ctywide 1 lwideb special))
-           )
-          (on
+        (if on
             '((ctywide 1 lwideb special))
-            )
-          (else
             '()
             )
-          )
         )
   ;; Recompute user-current from user-default; the borrow comparison inside `apply-settings`
   ;; fires `update-task-masks 'event`, which re-runs `borrow-eval` and `add-borrow-levels`
@@ -192,6 +218,7 @@
             1.0
             )
         )
+  (set! *mod-chaos-species-dirty* #t)
   (mod-chaos-apply-borrow! on)
   0
   (none)

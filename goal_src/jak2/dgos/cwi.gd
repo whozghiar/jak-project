@@ -22,19 +22,6 @@
   "car.o"
   "test-bike.o"
   "test-car.o"
-  ;; MOD jetpack-crimsonguard -- the retail hover-guard stack, so `crimson-guard-hover` can be
-  ;; instantiated inside Haven City. Same object list and same order as FRA.DGO, which is where
-  ;; these normally ship; `hover-nav-network.o` is included because it defines `*nav-network*`
-  ;; (left at 0 in the city -- see the honflags-0 note in jetpack-guard.gc).
-  "hover-formation-h.o"
-  "hover-nav-control-h.o"
-  "hover-enemy-h.o"
-  "hover-nav-network.o"
-  "hover-nav-control.o"
-  "hover-enemy.o"
-  "hover-enemy-battle.o"
-  "hover-formation.o"
-  "crimson-guard-hover.o"
   "citizen.o"
   "civilian.o"
   "guard.o"
@@ -45,13 +32,11 @@
   "metalhead-predator.o"
   "metalhead-grunt.o"
   "metalhead-flitter.o"
-  ;; MOD haven-city-chaos -- retail enemy code for the four extra species. Their art lives in
+  ;; MOD haven-city-chaos -- retail enemy code for the two extra species. Their art lives in
   ;; LWIDEB.DGO; this is the behaviour half, and it has to be resident everywhere in the city
   ;; because `chaos-species.o` subclasses these types and reads their `*-nav-enemy-info*`.
   "juicer.o"
   "spyder.o"
-  "centurion.o"
-  "hopper.o"
   "chaos-species.o"
   "traffic-engine.o"
   "trail-graph.o"
@@ -60,9 +45,6 @@
   ;; MOD haven-city-chaos -- city-side control layer. After traffic-manager.o because it
   ;; installs the hooks traffic-manager.gc calls and reads `*traffic-engine*`.
   "chaos-city.o"
-  ;; MOD jetpack-crimsonguard -- the flying guard actor + its dispatcher. After traffic-manager.o
-  ;; because `traffic-manager::update` drives `mod-jetpack-tick`.
-  "jetpack-guard.o"
   "ctywide-texture.o"
   "ctywide-part.o"
   "ctywide-obs.o"

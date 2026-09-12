@@ -12,12 +12,19 @@
 ;; it defines is prefixed with the mod slug so two branches can never collide.
 ;;
 ;;   Debug > Mods > haven-city-chaos
-;;     Enable              -- the master switch; everything else is inert without it
-;;     Metal heads > Extra species      -- juicer / spyder / centurion / hopper in the mix
-;;     Guards     > Tougher guards      -- 1.5x hit points + vehicles engaging metal heads
-;;     Guards     > Guards ignore Jak   -- the truce
-;;     Guards     > Blast bots          -- rare anti-metal-head blast bot
-;;     Guards     > Jetpack guards      -- flying Krimzon Guards (jetpack-crimsonguard mod)
+;;     Enable                            -- the master switch; everything else is inert without it
+;;     species > Grunt (30%)             -- on by default  (retail invasion species, no extra art)
+;;             > Stinger (30%)           -- on by default
+;;             > Cloaker (10%)           -- on by default
+;;             > Juice goon (10%)        -- off by default (streams juicer art into LWIDEB)
+;;             > Spyder gunner (5%)      -- off by default (streams spyder art into LWIDEB)
+;;     guards  > Tougher guards          -- 1.5x hit points + vehicles engaging metal heads
+;;             > Guards ignore Jak       -- the truce
+;;
+;; The percentages are relative shares, not caps: whatever is switched on splits the whole
+;; metal-head population budget between itself in these proportions (see MOD_CHAOS_METALHEAD_POP
+;; in pc/mods/haven-city-chaos-h.gc). Switching Juice goon and Spyder gunner off therefore makes
+;; the other three *more* numerous, not the invasion smaller.
 ;;
 ;; All the state itself lives in `pc/mods/haven-city-chaos-h.gc`; this file only drives it, so the
 ;; mod is equally controllable from the REPL (`(mod-chaos-set-enable! #t)`) with the menu closed.
@@ -37,7 +44,11 @@
   "Master toggle. `mod-chaos-set-enable!` flips the city onto (or off) the `lwideb` borrow, which
    is what streams the metal-head art in, turns the invasion traffic types on and drops Jak from
    the guards' target list. The level stream takes a moment -- expect a second or two before the
-   first metal head walks around a corner."
+   first metal head walks around a corner.
+
+   One thing does *not* apply live: the nav-mesh concurrent-user ceiling is read once when Haven
+   City's nav mesh is initialised, so the densest spawn rates only arrive on the next city load.
+   Step indoors and back out after enabling."
   (case arg1
     (((debug-menu-msg press))
      (set! (-> arg0 value) (not (-> arg0 value)))
@@ -47,32 +58,85 @@
   (-> arg0 value)
   )
 
-(defun mod-haven-city-chaos-species-pick ((arg0 symbol) (arg1 debug-menu-msg))
-  "Extra species on/off. Turning them off sets their want-count path to a #f level, which stops
-   `spawn-all` building their pools; the live ones are recycled by the traffic engine rather than
-   killed by hand (see the `deactivate-by-type` note in the mods-menu docs)."
+(defun mod-haven-city-chaos-species-changed! ((ttype traffic-type) (now-on symbol))
+  "Shared tail of every species toggle.
+
+   Turning a species *off* also recycles the ones already walking around: once its want-count
+   drops to 0 the mod clears `trtflags-1` on the type, and `kill-excess-once` -- the traffic
+   manager's own reclaimer -- only looks at types that still carry that flag, so nothing would
+   ever collect them.
+
+   Either way the city half is asked to re-derive its traffic table on its next frame. Flagging
+   rather than calling keeps this GAME.CGO file free of any reference to CWI.DGO code, so the menu
+   still works in a level where Haven City is not loaded."
+  (when (and (not now-on) *traffic-manager*)
+    (send-event *traffic-manager* 'deactivate-by-type ttype)
+    )
+  (set! *mod-chaos-species-dirty* #t)
+  0
+  (none)
+  )
+
+(defun mod-haven-city-chaos-grunt-pick ((arg0 symbol) (arg1 debug-menu-msg))
   (case arg1
     (((debug-menu-msg press))
      (set! (-> arg0 value) (not (-> arg0 value)))
-     (when *traffic-manager*
-       (send-event *traffic-manager* 'deactivate-by-type (traffic-type chaos-juicer))
-       (send-event *traffic-manager* 'deactivate-by-type (traffic-type chaos-spyder))
-       (send-event *traffic-manager* 'deactivate-by-type (traffic-type chaos-centurion))
-       (send-event *traffic-manager* 'deactivate-by-type (traffic-type chaos-hopper))
-       )
-     ;; Ask the city half to re-derive its traffic table on its next frame. Flagging rather
-     ;; than calling keeps this GAME.CGO file free of any reference to CWI.DGO code, so the
-     ;; menu still works in a level where Haven City is not loaded.
-     (set! *mod-chaos-species-dirty* #t)
+     (mod-haven-city-chaos-species-changed! (traffic-type metalhead-grunt) (the-as symbol (-> arg0 value)))
+     )
+    )
+  (-> arg0 value)
+  )
+
+(defun mod-haven-city-chaos-flitter-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  (case arg1
+    (((debug-menu-msg press))
+     (set! (-> arg0 value) (not (-> arg0 value)))
+     (mod-haven-city-chaos-species-changed! (traffic-type metalhead-flitter) (the-as symbol (-> arg0 value)))
+     )
+    )
+  (-> arg0 value)
+  )
+
+(defun mod-haven-city-chaos-predator-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  (case arg1
+    (((debug-menu-msg press))
+     (set! (-> arg0 value) (not (-> arg0 value)))
+     (mod-haven-city-chaos-species-changed! (traffic-type metalhead-predator) (the-as symbol (-> arg0 value)))
+     )
+    )
+  (-> arg0 value)
+  )
+
+(defun mod-haven-city-chaos-juicer-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Juice goon on/off. Unlike the three retail species this one needs `skel-juicer` resident, which
+   only happens once `lwideb` has streamed in -- so with the mod freshly enabled the first few
+   seconds may show nothing. The city half re-probes art residency whenever this flag changes and
+   silently leaves the species out if the skeleton is missing, rather than crashing on spawn."
+  (case arg1
+    (((debug-menu-msg press))
+     (set! (-> arg0 value) (not (-> arg0 value)))
+     (mod-haven-city-chaos-species-changed! (traffic-type chaos-juicer) (the-as symbol (-> arg0 value)))
+     )
+    )
+  (-> arg0 value)
+  )
+
+(defun mod-haven-city-chaos-spyder-pick ((arg0 symbol) (arg1 debug-menu-msg))
+  "Spyder gunner on/off. Same art-residency caveat as the Juice goon."
+  (case arg1
+    (((debug-menu-msg press))
+     (set! (-> arg0 value) (not (-> arg0 value)))
+     (mod-haven-city-chaos-species-changed! (traffic-type chaos-spyder) (the-as symbol (-> arg0 value)))
      )
     )
   (-> arg0 value)
   )
 
 (defun mod-haven-city-chaos-guard-buffs-pick ((arg0 symbol) (arg1 debug-menu-msg))
-  "Guard buffs on/off. The hit-point scale only applies to guards spawned *after* the toggle --
-   `citizen-init!` reads it once per spawn -- so existing guards keep the health they were born
-   with until the traffic engine recycles them."
+  "Guard buffs on/off: the 1.5x hit points and the vehicle-vs-metal-head engagement, together.
+   The hit-point scale only applies to guards spawned *after* the toggle -- `citizen-init!` reads
+   it once per spawn -- so existing guards keep the health they were born with until the traffic
+   engine recycles them."
   (case arg1
     (((debug-menu-msg press))
      (set! (-> arg0 value) (not (-> arg0 value)))
@@ -82,20 +146,6 @@
                1.0
                )
            )
-     )
-    )
-  (-> arg0 value)
-  )
-
-(defun mod-haven-city-chaos-blast-bots-pick ((arg0 symbol) (arg1 debug-menu-msg))
-  "Blast bots on/off. Re-applies the borrow because the blast bot needs `lbombbot` streamed into
-   `ctywide` slot 0, and that is decided by the borrow list."
-  (case arg1
-    (((debug-menu-msg press))
-     (set! (-> arg0 value) (not (-> arg0 value)))
-     (if *mod-chaos-enable*
-         (mod-chaos-apply-borrow! #t)
-         )
      )
     )
   (-> arg0 value)
@@ -111,17 +161,16 @@
   (debug-menu-make-from-template ctx
     '(menu "haven-city-chaos"
        (flag "Enable" *mod-chaos-enable* mod-haven-city-chaos-enable-pick)
-       (menu "metal-heads"
-         (flag "Extra species" *mod-chaos-extra-species* mod-haven-city-chaos-species-pick)
+       (menu "species"
+         (flag "Grunt (30%)" *mod-chaos-species-grunt* mod-haven-city-chaos-grunt-pick)
+         (flag "Stinger (30%)" *mod-chaos-species-flitter* mod-haven-city-chaos-flitter-pick)
+         (flag "Cloaker (10%)" *mod-chaos-species-predator* mod-haven-city-chaos-predator-pick)
+         (flag "Juice goon (10%)" *mod-chaos-species-juicer* mod-haven-city-chaos-juicer-pick)
+         (flag "Spyder gunner (5%)" *mod-chaos-species-spyder* mod-haven-city-chaos-spyder-pick)
          )
        (menu "guards"
          (flag "Tougher guards" *mod-chaos-guard-buffs* mod-haven-city-chaos-guard-buffs-pick)
          (flag "Guards ignore Jak" *mod-chaos-guards-ignore-jak* dm-boolean-toggle-pick-func)
-         (flag "Blast bots" *mod-chaos-blast-bots* mod-haven-city-chaos-blast-bots-pick)
-         ;; Same symbol the jetpack mod's own submenu writes -- see
-         ;; pc/debug/jetpack-crimsonguard-menu.gc. Listed here too because "flying guards"
-         ;; reads as part of the chaos package from a player's point of view.
-         (flag "Jetpack guards" *mod-jetpack-enable* dm-boolean-toggle-pick-func)
          )
        )
     )

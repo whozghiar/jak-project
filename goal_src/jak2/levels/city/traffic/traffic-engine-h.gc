@@ -365,18 +365,18 @@
    (flags                   uint8)
    (alert-state             traffic-alert-state       :inline)
    (level-data-array        traffic-level-data        2 :inline)
-   ;; MOD haven-city-chaos: retail size was 21; widened to TRAFFIC_TYPE_COUNT (26) so the
-   ;; four chaos species get their own slot. `traffic-engine` is created at runtime with
+   ;; MOD haven-city-chaos: retail size was 21; widened to TRAFFIC_TYPE_COUNT (24) so the
+   ;; two chaos species get their own slot. `traffic-engine` is created at runtime with
    ;; `(new 'loading-level 'traffic-engine)` and never read back from level data, so
    ;; resizing it is safe -- but it does shift `tracker-array`, hence the `overlay-at`
    ;; below replacing the hard-coded `:offset 7024`.
-   (object-type-info-array  traffic-object-type-info  26 :inline)
+   (object-type-info-array  traffic-object-type-info  24 :inline)
    (tracker-array           traffic-tracker           2 :inline)
    (citizen-tracker-array   traffic-tracker           :inline :overlay-at (-> tracker-array 0))
    (vehicle-tracker-array   traffic-tracker           :inline :overlay-at (-> tracker-array 1))
-   ;; 20 reserve handles per traffic type: retail 21 * 20 = 420, now 26 * 20 = 520.
+   ;; 20 reserve handles per traffic type: retail 21 * 20 = 420, now 24 * 20 = 480.
    ;; `reset-and-init-from-manager` hands each type its own 20-handle window.
-   (inactive-object-array   handle                    520)
+   (inactive-object-array   handle                    480)
    (suppressor              traffic-suppressor        :inline)
    (danger-sphere-count     int8)
    (pad                     int8                      15)

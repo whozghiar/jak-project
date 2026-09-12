@@ -3382,10 +3382,13 @@
       (set! (-> a0-3 prev-flags) (-> a0-3 flags))
       )
     )
+  ;; MOD haven-city-chaos -- widen the per-cell activation ranges so the denser population
+  ;; (see MOD_CHAOS_METALHEAD_POP / mod-chaos-boost-ambient!) stays populated further from the
+  ;; camera instead of popping in at the retail radius. OFF => stock 81920 / 819200 / 491520.
   (let ((s5-0 (math-camera-pos))
-        (f30-0 81920.0)
-        (f28-0 819200.0)
-        (f26-0 491520.0)
+        (f30-0 (if *mod-chaos-enable* 122880.0 81920.0))
+        (f28-0 (if *mod-chaos-enable* 983040.0 819200.0))
+        (f26-0 (if *mod-chaos-enable* 655360.0 491520.0))
         )
     (dotimes (s4-0 (the-as int (-> this city-info cell-count)))
       (let ((s3-0 (-> this city-info cell-array s4-0)))

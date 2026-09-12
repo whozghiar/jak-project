@@ -5,11 +5,6 @@
 ;; name in dgo: nav-mesh
 ;; dgos: ENGINE, GAME
 
-;; MOD haven-city-chaos -- master toggle, defined in pc/mods/haven-city-chaos-h.gc (GAME.CGO,
-;; always resident). Declared here because nav-mesh.gc is engine code that also runs outside
-;; Haven City. See the `nav-max-users` block in `init-from-entity` below.
-(define-extern *mod-chaos-enable* symbol)
-
 ;; DECOMP BEGINS
 
 (rlet ((vf0 :class vf) (vf4 :class vf) (vf5 :class vf) (vf6 :class vf))
@@ -54,8 +49,84 @@
                                  )
                                )
                              :poly-count #x1
-                             :max-nav-control-count #x80
-                             :nav-control-array (new 'static 'inline-array nav-control 128
+                             ;; MOD haven-city-chaos: retail #x80 (128). Every Haven City citizen,
+                             ;; Krimzon Guard and Metal Head takes one of these slots for as long as
+                             ;; its process exists -- `citizen::init-enemy-behaviour-and-stats!`
+                             ;; forces `*default-nav-mesh*` on all of them because traffic-spawned
+                             ;; actors have no entity to resolve a real mesh from. Retail's pooled
+                             ;; pedestrian population sits around 105 of the 128, so raising the
+                             ;; ambient counts at all overflows it, and the overflow is fatal:
+                             ;; `new-nav-control` returns #f and `nav-mesh::change-to` kills the
+                             ;; process. 192 leaves room for the mod's denser city.
+                             ;; `max-nav-control-count` and `nav-control-count` are both uint8, so
+                             ;; 255 is the hard ceiling. The array below is zero-filled past the
+                             ;; elements that are written out, so only the count changes.
+                             :max-nav-control-count #xc0
+                             :nav-control-array (new 'static 'inline-array nav-control 192
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
+                               (new 'static 'nav-control)
                                (new 'static 'nav-control)
                                (new 'static 'nav-control)
                                (new 'static 'nav-control)
@@ -193,7 +264,8 @@
 (let ((gp-0 *default-nav-mesh*))
   (set! (-> gp-0 work) *nav-mesh-work*)
   (if (zero? (-> gp-0 user-list))
-      (set! (-> gp-0 user-list) (new 'global 'engine 'nav-engine 128 connection))
+      ;; MOD haven-city-chaos: kept in step with :max-nav-control-count above (retail 128).
+      (set! (-> gp-0 user-list) (new 'global 'engine 'nav-engine 192 connection))
       )
   (when (zero? (-> gp-0 poly-hash))
     (set! (-> gp-0 poly-hash) (new 'global 'grid-hash 16))
@@ -799,23 +871,7 @@
   (set! (-> this nearest-y-threshold) (res-lump-float arg0 'nearest-y-threshold :default 40960.0))
   (set! (-> this flags) (nav-mesh-flag))
   (set! (-> this water-max-height) (res-lump-float arg0 'water-max-height :default 8192.0))
-  ;; MOD haven-city-chaos -- raise the nav-mesh concurrent-user ceiling (clamped to [128, 200])
-  ;; so the mod's denser metal-head + guard population does not hit the stock limit, which shows
-  ;; up as `traffic-manager: unable to spawn` and a city that stays half-empty however high the
-  ;; want-counts are set. Read once, when the mesh entity is initialised, so the toggle only takes
-  ;; effect on the next level load. OFF => exact stock behaviour: default 64, no clamp.
-  (let ((s5-1 (if *mod-chaos-enable*
-                  (the-as uint128
-                          (min 200
-                               (max 128
-                                    (the-as int (res-lump-value arg0 'nav-max-users uint128 :default (the-as uint128 128) :time -1000000000.0))
-                                    )
-                               )
-                          )
-                  (res-lump-value arg0 'nav-max-users uint128 :default (the-as uint128 64) :time -1000000000.0)
-                  )
-              )
-        )
+  (let ((s5-1 (res-lump-value arg0 'nav-max-users uint128 :default (the-as uint128 64) :time -1000000000.0)))
     (set! (-> this user-list) (new 'loading-level 'engine 'nav-engine (the-as int s5-1) connection))
     (set! (-> this nav-control-array)
           (the-as (inline-array nav-control) (malloc 'loading-level (* 288 (the-as int s5-1))))

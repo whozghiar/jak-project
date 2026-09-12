@@ -101,6 +101,13 @@
     (the-as pair 0)
     )
   (init-enemy-behaviour-and-stats! this (get-nav-info this))
+  ;; `citizen::init-enemy-behaviour-and-stats!` writes `*default-nav-mesh*` into the
+  ;; `nav-enemy-info` it is handed -- traffic-spawned actors have no entity to resolve a mesh from,
+  ;; so the city forces one. For the retail city Metal Heads that is harmless: each owns its own
+  ;; static. Our species share theirs with the arena originals, so the write has to be undone or a
+  ;; Pumping Station juicer would afterwards path on the city's dummy mesh. `#f` is the shipped
+  ;; value for every `nav-enemy-info` involved, so this restores rather than approximates.
+  (set! (-> (get-nav-info this) nav-mesh) #f)
   (let ((neck (-> this neck)))
     (set! (-> neck up) (the-as uint 1))
     (set! (-> neck nose) (the-as uint 2))

@@ -244,16 +244,68 @@ actors ever materialise. Modelled on `jak2/config/enhanced_spawnrates`, all gate
 | guard-bike / hellcat want-count (18 / 19) | 4 / 3 | 8 / 6 | `mod-chaos-boost-ambient!` |
 | `inv-density-factor` | 5.0 | 3.0 | `mod-chaos-boost-ambient!` |
 | per-cell activation ranges | 81920 / 819200 / 491520 | 122880 / 983040 / 655360 | `traffic-engine.gc` |
-| nav-mesh `nav-max-users` | default 64 | clamped to `[128, 200]` | `nav-mesh.gc` |
+| `*default-nav-mesh*` slots | 128 | 192 | `nav-mesh.gc` (unconditional) |
 
-The nav-mesh ceiling is the one that bites hardest in practice: hitting it does not crash, it just
-makes `spawn-all` fail quietly (`traffic-manager: unable to spawn`) and the city stays half-empty
-however high the want-counts are. It is read once, in `nav-mesh::init-from-entity`, so **it only
-takes effect on the next Haven City load** — enable the mod, step indoors and come back out.
+Citizen want-counts are deliberately left at retail values: every extra pedestrian costs a
+`nav-control` slot, and the Metal Heads are the better use of them.
 
-Citizen want-counts are deliberately left at retail values: the pedestrian tracker is capped at
-126 live processes (`traffic-tracker::active-object-list`) and the metal-head budget plus the guard
-bump already claims the headroom.
+### 3.5c The ceiling that actually bites: `*default-nav-mesh*`
+
+The first playable build of the higher spawn rates crashed the moment the invasion started:
+
+```
+nav-mesh::new-nav-control:  too many users for nav-mesh #f
+ERROR: nav-mesh::change-to: unable to allocate nav-mesh for #<metalhead-flitter ... initialize>
+```
+
+That `#f` is the tell. `new-nav-control` prints `(res-lump-struct (-> this entity) 'name structure)`,
+and the mesh that overflowed has no entity — it is `*default-nav-mesh*`, the static 1-polygon mesh
+declared at the top of `nav-mesh.gc`.
+
+Why the whole city is on it: `citizen::init-enemy-behaviour-and-stats!` opens with
+
+```lisp
+(set! (-> arg0 nav-mesh) *default-nav-mesh*)
+```
+
+because a traffic-spawned actor has no entity, and `get-nav-control` falls back to
+`nav-mesh-from-res-tag (-> arg0 entity)` when handed `#f` — which would fail. So **every** Haven
+City citizen, Krimzon Guard and Metal Head takes one of that static mesh's `nav-control` slots, and
+keeps it for as long as its process exists — pooled and inactive counts exactly the same as active.
+The relevant number is therefore the sum of the *want-counts*, not the on-screen population.
+
+The arithmetic, against the retail `:max-nav-control-count #x80` (128):
+
+| | retail | first mod build |
+|---|---:|---:|
+| citizens (types 0–3) | 45 | 45 |
+| Krimzon Guards (types 4, 6) | 10 | 17 |
+| Metal Heads (8–10, 22, 23) | 42 | 58 |
+| guard-bike + hellcat riders | 7 | 14 |
+| **total** | **104** | **134** |
+
+104 fits; 134 does not, and overflowing is fatal rather than degrading — `new-nav-control` returns
+`#f` and `nav-mesh::change-to` kills the process mid-`initialize`.
+
+Two changes came out of this:
+
+1. **`*default-nav-mesh*` grew from 128 slots to 192** (`:max-nav-control-count #xc0`, the static
+   `inline-array` count, and the matching `nav-engine` connection pool). Both count fields are
+   `uint8`, so 255 is the hard ceiling. This one is **unconditional** — it is a static object sized
+   at compile time, there is no toggle to read, and an unused slot costs nothing but its 288 bytes
+   (192 slots ≈ 54 KB). Retail never approaches 128, so behaviour with the mod off is unchanged.
+2. **The mod now derives its budget from the live capacity** instead of assuming one.
+   `mod-chaos-ped-budget` reads `(-> *default-nav-mesh* max-nav-control-count)`, holds back
+   `MOD_CHAOS_NAV_RESERVE` (40) for vehicle riders and mission actors, subtracts what the citizen
+   and guard types have already claimed, and gives the Metal Heads what is left — capped at
+   `MOD_CHAOS_METALHEAD_POP`, floored at `MOD_CHAOS_MIN_POP`. Resize the mesh again in either
+   direction and the mod follows without this file being touched.
+
+> [!WARNING]
+> An earlier attempt raised `nav-max-users` in `nav-mesh::init-from-entity` instead. That is the
+> wrong lever twice over: it sizes *entity-backed* meshes, which the ambient city population never
+> reaches, and it is read at level-init time, so a debug-menu toggle could not affect the level the
+> player is standing in. It has been reverted.
 
 ### 3.6 Why the table is re-asserted every second
 
@@ -653,8 +705,8 @@ Nothing here has been run yet. In order:
 | No Metal Heads at all | Borrow did not apply — check `(-> *setting-control* user-current borrow)` in the REPL |
 | Guards still chase Jak | `target-jak` re-set by a mission node; the `*mod-chaos-guards-ignore-jak*` override in `guard.gc` only applies to guards spawned since |
 | Traffic pools look wrong / crash on district change | The `traffic-engine` resize — verify `vehicle-tracker-array` resolved via `overlay-at`, not the old `:offset 7024` |
-| City feels no busier than retail | The nav-mesh ceiling is read at level init — reload Haven City after enabling (§3.5b) |
-| `traffic-manager: unable to spawn` spam | Same ceiling, or the 126-entry pedestrian tracker is full — lower `MOD_CHAOS_METALHEAD_POP` |
+| `too many users for nav-mesh #f` + crash on spawn | `*default-nav-mesh*` overflowed — raise its slot count or `MOD_CHAOS_NAV_RESERVE` (§3.5c) |
+| `traffic-manager: unable to spawn` spam | The 126-entry pedestrian tracker is full — lower `MOD_CHAOS_METALHEAD_POP` |
 | Guard gunships circle but never engage | `mod-chaos-engage-vehicle!` not reaching them — check `(-> veh flags)` for `in-pursuit` in the REPL (§5.2) |
 | Juice goon and guard shove without damage | The `common-post` override is not being reached — confirm `chaos-metalhead` actually overrides it (§4.5) |
 
@@ -672,8 +724,8 @@ Nothing here has been run yet. In order:
    ones.
 4. **Percentages are steady-state population, not spawn probability** — see §3.5. A species whose
    pool is momentarily empty is skipped by the draw, so short-term ratios will wobble.
-5. **The nav-mesh user ceiling needs a level reload** — see §3.5b. Enabling the mod mid-session
-   gives the new want-counts immediately but not the headroom to fill them.
+5. **`*default-nav-mesh*` is enlarged unconditionally** — see §3.5c. It is the one change that is
+   not behind `*mod-chaos-enable*`; it costs ~18 KB of global heap and nothing else.
 
 ---
 

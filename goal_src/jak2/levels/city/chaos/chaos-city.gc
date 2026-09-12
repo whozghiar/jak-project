@@ -89,9 +89,14 @@
 
    Only the Krimzon Guard types are raised: they are the other side of the war, and a denser
    invasion with a retail-sized garrison just means the city is overrun in thirty seconds.
-   Citizens are left at their retail counts on purpose -- the pedestrian tracker is capped at 126
-   live processes and the metal-head budget already claims the headroom (see the ceiling note on
-   MOD_CHAOS_METALHEAD_POP).
+   Citizens are left at their retail counts on purpose -- every extra pedestrian costs a
+   `nav-control` slot on `*default-nav-mesh*`, and the Metal Heads are the better use of them
+   (see `mod-chaos-ped-budget`).
+
+   Note the guard *vehicle* bumps cost pedestrian slots too, indirectly: each guard-bike and
+   hellcat carries a `crimson-guard` rider, which is a `citizen` like any other. They are covered
+   by MOD_CHAOS_NAV_RESERVE rather than by the budget arithmetic, because the traffic engine
+   spawns them outside the pedestrian want-count table.
 
    `inv-density-factor` is the other half: the traffic engine divides a nav segment's capacity by
    it, so lowering it packs more of everything into the same streets."
@@ -118,15 +123,50 @@
   (none)
   )
 
-(defun mod-chaos-want-for ((share int) (total int))
-  "Turn one species' advertised percentage into a want-count.
+(defun mod-chaos-ped-budget ((te traffic-engine))
+  "How many pooled Metal Heads the mod may actually ask for, given what the nav-mesh can hold.
 
-   The shares are relative, not absolute: only the species that are switched on contribute to
-   `total`, so the whole MOD_CHAOS_METALHEAD_POP budget is always spent. With everything on the
-   denominator is 85 and the split lands within one of the advertised percentages; with only the
-   three defaults on it is 70 and those three absorb the rest."
+   This is the guard rail around the crash that the first build hit:
+   `nav-mesh::new-nav-control: too many users for nav-mesh #f` followed by
+   `nav-mesh::change-to: unable to allocate nav-mesh for #<metalhead-flitter ... initialize>`.
+
+   Every Haven City pedestrian -- citizen, Krimzon Guard, Metal Head -- holds a `nav-control` slot
+   on `*default-nav-mesh*` for the whole life of its process, pooled or active, because
+   `citizen::init-enemy-behaviour-and-stats!` forces that mesh on traffic-spawned actors (they have
+   no entity of their own to resolve a real one from). Run out of slots and the process is killed
+   during `initialize` -- a hard crash, not a quiet degradation.
+
+   So the budget is derived from the live capacity rather than assumed: take the mesh's own
+   `max-nav-control-count`, hold back MOD_CHAOS_NAV_RESERVE for everything that is not pooled
+   ambient traffic (vehicle riders, escort NPCs, mission actors), subtract what the citizen and
+   guard types have already claimed, and spend what is left -- never more than
+   MOD_CHAOS_METALHEAD_POP, never less than MOD_CHAOS_MIN_POP.
+
+   Deriving it means the mod stays safe if `*default-nav-mesh*` is ever resized again, in either
+   direction, without this file being touched."
+  (let ((cap (- (the int (-> *default-nav-mesh* max-nav-control-count)) MOD_CHAOS_NAV_RESERVE))
+        (claimed 0)
+        )
+    ;; Traffic types 0..7 are the citizens and the Krimzon Guards; 8..10 and 22/23 are the Metal
+    ;; Heads this function is budgeting for. `mod-chaos-boost-ambient!` has already run, so the
+    ;; guard bump is included here rather than being double counted later.
+    (dotimes (i 8)
+      (+! claimed (-> te object-type-info-array i want-count))
+      )
+    (max MOD_CHAOS_MIN_POP (min MOD_CHAOS_METALHEAD_POP (- cap claimed)))
+    )
+  )
+
+(defun mod-chaos-want-for ((share int) (total int) (pop int))
+  "Turn one species' advertised percentage into a want-count. `total` is the sum of the shares of
+   the species currently switched on; `pop` is what `mod-chaos-ped-budget` says we can afford.
+
+   The shares are relative, not absolute: only the enabled species contribute to `total`, so the
+   whole budget is always spent. With everything on the denominator is 85 and the split lands
+   within one of the advertised percentages; with only the three defaults on it is 70 and those
+   three absorb the rest."
   (if (> total 0)
-      (max MOD_CHAOS_MIN_WANT (/ (* share MOD_CHAOS_METALHEAD_POP) total))
+      (max MOD_CHAOS_MIN_WANT (/ (* share pop) total))
       0
       )
   )
@@ -143,6 +183,9 @@
    dozen mission hooks fire both rewrite the want-count table from retail values, and there is
    no ordering guarantee between those and `lwide-activate`. Re-asserting is far cheaper and
    far more robust than trying to intercept every writer."
+  ;; Ambient first: the guard want-counts it raises come off the same nav-mesh budget the
+  ;; Metal Heads are about to be given, so they have to be in place before it is measured.
+  (mod-chaos-boost-ambient! te)
   (let* ((mh-level (if (= lvl 'lwideb) lvl #f))
          ;; A species counts as on only if its art is actually there -- otherwise `spawn-all`
          ;; would keep trying to build a pool whose `initialize-skeleton` cannot succeed, and
@@ -159,29 +202,29 @@
                    (if on-spyder MOD_CHAOS_SHARE_SPYDER 0)
                    )
                 )
+         (pop (mod-chaos-ped-budget te))
          )
     (mod-chaos-enroll-species! te (traffic-type metalhead-grunt)
-                               (if on-grunt (mod-chaos-want-for MOD_CHAOS_SHARE_GRUNT total) 0)
+                               (if on-grunt (mod-chaos-want-for MOD_CHAOS_SHARE_GRUNT total pop) 0)
                                (if on-grunt mh-level #f)
                                )
     (mod-chaos-enroll-species! te (traffic-type metalhead-flitter)
-                               (if on-flitter (mod-chaos-want-for MOD_CHAOS_SHARE_FLITTER total) 0)
+                               (if on-flitter (mod-chaos-want-for MOD_CHAOS_SHARE_FLITTER total pop) 0)
                                (if on-flitter mh-level #f)
                                )
     (mod-chaos-enroll-species! te (traffic-type metalhead-predator)
-                               (if on-predator (mod-chaos-want-for MOD_CHAOS_SHARE_PREDATOR total) 0)
+                               (if on-predator (mod-chaos-want-for MOD_CHAOS_SHARE_PREDATOR total pop) 0)
                                (if on-predator mh-level #f)
                                )
     (mod-chaos-enroll-species! te (traffic-type chaos-juicer)
-                               (if on-juicer (mod-chaos-want-for MOD_CHAOS_SHARE_JUICER total) 0)
+                               (if on-juicer (mod-chaos-want-for MOD_CHAOS_SHARE_JUICER total pop) 0)
                                (if on-juicer mh-level #f)
                                )
     (mod-chaos-enroll-species! te (traffic-type chaos-spyder)
-                               (if on-spyder (mod-chaos-want-for MOD_CHAOS_SHARE_SPYDER total) 0)
+                               (if on-spyder (mod-chaos-want-for MOD_CHAOS_SHARE_SPYDER total pop) 0)
                                (if on-spyder mh-level #f)
                                )
     )
-  (mod-chaos-boost-ambient! te)
   0
   (none)
   )

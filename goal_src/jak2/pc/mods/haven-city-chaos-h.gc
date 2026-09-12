@@ -95,29 +95,44 @@
 ;; share. Retail `lwideb` runs 14 + 14 + 14 = 42; this is the "augmente les spawn rates" knob for
 ;; the metal-head side specifically.
 ;;
-;; Ceiling check: the pedestrian tracker holds at most 126 live processes
-;; (`traffic-tracker::active-object-list`), shared with citizens and guards. Retail pedestrian
-;; want-counts sum to ~97 (targets ~87); 60 metal heads instead of 42 plus the guard bump in
-;; `mod-chaos-boost-ambient!` lands around 110 targets, which stays inside the array.
+;; Two ceilings constrain this, and the second one is fatal rather than merely untidy:
+;;
+;;   - the pedestrian tracker holds at most 126 *live* processes
+;;     (`traffic-tracker::active-object-list`), shared with citizens and guards;
+;;   - `*default-nav-mesh*` holds at most `max-nav-control-count` *pooled* processes, and a
+;;     city citizen keeps its slot for as long as its process exists, active or not. Overflowing
+;;     it is a crash, not a degradation: `new-nav-control` returns #f and `nav-mesh::change-to`
+;;     kills the process mid-`initialize`.
+;;
+;; `mod-chaos-ped-budget` recomputes the affordable budget from the live nav-mesh capacity every
+;; time the table is applied, so this constant is a ceiling rather than a promise.
 (defconstant MOD_CHAOS_METALHEAD_POP 60)
+
+;; Never shrink the invasion below this many metal heads, whatever the nav-mesh budget says.
+;; Retail `lwideb` runs 42.
+(defconstant MOD_CHAOS_MIN_POP 24)
 
 ;; No species is ever given fewer than this, so a 5%-share species still actually shows up.
 (defconstant MOD_CHAOS_MIN_WANT 3)
 
+;; Nav-control slots held back for everything that is not pooled ambient pedestrian traffic:
+;; guard-bike and hellcat riders (one `crimson-guard` process each), escort NPCs, bomb bots,
+;; mission actors. Subtracted from `*default-nav-mesh*`'s capacity before the mod spends any of it.
+(defconstant MOD_CHAOS_NAV_RESERVE 40)
+
 ;; ------------------------------------------------------------------------------------------------
 ;; Ambient density ("augmente les spawn rates", inspired by jak2/config/enhanced_spawnrates)
 ;;
-;; Four independent levers, all inert while the mod is off:
+;; Three levers, all inert while the mod is off:
 ;;   - want-count bumps for the guard-side traffic types, so there is someone to fight the
 ;;     invasion (`mod-chaos-boost-ambient!` in chaos-city.gc);
 ;;   - a lower `inv-density-factor`, which packs traffic more tightly per nav segment;
 ;;   - wider per-cell activation ranges, so the denser population stays populated further from
-;;     the camera (traffic-engine.gc);
-;;   - a higher nav-mesh concurrent-user ceiling, without which the extra actors simply fail to
-;;     spawn (nav-mesh.gc).
+;;     the camera (traffic-engine.gc).
 ;;
-;; The last one is read once, when the city nav-mesh entity is initialised, so it only takes
-;; effect on the next Haven City load -- enable the mod, then step indoors and back out.
+;; The fourth thing the extra population needs is not a toggle but a capacity: `*default-nav-mesh*`
+;; in nav-mesh.gc grew from 128 to 192 slots. That one is unconditional -- it is a static object
+;; sized at compile time, and an unused slot costs nothing but its 288 bytes.
 ;; ------------------------------------------------------------------------------------------------
 
 (defconstant MOD_CHAOS_WANT_CRIMSON_GUARD_1 16)  ;; traffic type  6, retail 9

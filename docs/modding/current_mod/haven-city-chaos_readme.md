@@ -679,6 +679,41 @@ Two fixes, and the second one matters more than it looks:
 `chaos-chase-anim` on the shared base got the same treatment — it used to fall back from `run-anim`
 to `walk-anim`, which for this species is -1 to -1.
 
+#### The line-of-sight wiring the city does not do
+
+Both ported species gate their `attack` on `check-los?`, and after the first playable build neither
+fired a shot — the gunner reached `hostile`, raised its gun, and stood there aiming forever.
+
+`los-control-method-9` refuses to probe at all without a destination:
+
+```lisp
+(when (and (time-elapsed? (-> this last-check-time) (-> this check-interval))
+           (-> this src-proc)
+           (or process (-> this dst-proc)))
+  ...)
+```
+
+In their home levels that destination arrives through `enemy-method-63`, which every retail
+awareness path funnels through. **The city does not use those paths.**
+`citizen-enemy-method-202` picks the nearest valid process and calls `try-update-focus` *directly*,
+so `enemy-method-63` only ever runs when the enemy is attacked (through `enemy-method-62`).
+
+The result is silent rather than loud: `dst-proc` stays `#f`, both timestamps stay at 0, and
+
+```lisp
+(defmethod check-los? ((this los-control) (arg0 time-frame))
+  (and (time-elapsed? (-> this have-los) (+ (-> this check-interval) arg0))
+       (not (time-elapsed? (-> this have-no-los) (-> this check-interval)))))
+```
+
+evaluates to `(and #t (not #t))` — false, forever. (Note the field names read backwards:
+`have-no-los` is stamped when the probe finds **no blocker**, i.e. the line is clear.)
+
+The fix is three lines in `chaos-metalhead::common-post` — a handle compare and a conditional
+`set-dst-proc!` from the current focus, every frame. That is cheaper than re-routing the city's
+targeting through the awareness system, and it leaves `enemy-method-63` doing its retail job for
+the one case the city *does* hit (being shot at).
+
 #### One more city adaptation
 
 The gunner's `start-pos` — the spot it hops back to when it loses sight of its target — is refreshed
@@ -952,7 +987,7 @@ Nothing here has been run yet. In order:
 | `traffic-manager: unable to spawn` spam | The 126-entry pedestrian tracker is full — lower `MOD_CHAOS_METALHEAD_POP` |
 | Guard gunships circle but never engage | `mod-chaos-engage-vehicle!` not reaching them — check `(-> veh flags)` for `in-pursuit` in the REPL (§5.2) |
 | New species and guard shove without damage | The `common-post` override is not being reached — confirm `chaos-metalhead` actually overrides it (§4.5) |
-| Rapid gunner stands still and never shoots | `los` has no destination — check `enemy-method-63` is being inherited from `chaos-metalhead` (§4.6) |
+| A ported species reaches `hostile` but never fires | `check-los?` is false because `los dst-proc` is `#f` — the city never calls `enemy-method-63`. See the LOS subsection in §4.6 |
 | Hard crash (exit 5) with no GOAL error when a species spawns | An animation index of -1 reaching `(-> draw art-group data ...)`. Check that species' `enemy-info` for `-1` anims (§4.6) |
 
 ---

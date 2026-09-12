@@ -214,6 +214,29 @@
     (set! (-> this next-update-target) (+ (current-time) (seconds 0.2)))
     (traffic-danger-init! this)
     )
+  ;; Keep the line-of-sight probe pointed at whatever we are focused on. This is the one piece of
+  ;; wiring the city does not do for us, and without it neither ported species ever opens fire.
+  ;;
+  ;; Both of them gate their `attack` on `check-los?`, and `los-control-method-9` refuses to probe
+  ;; at all unless it has a destination:
+  ;;
+  ;;   (when (and (time-elapsed? ...) (-> this src-proc) (or process (-> this dst-proc))) ...)
+  ;;
+  ;; In their home levels the destination arrives through `enemy-method-63`, which every retail
+  ;; awareness path funnels through. The city does not use those paths: `citizen-enemy-method-202`
+  ;; picks the nearest valid process and calls `try-update-focus` *directly*, so `enemy-method-63`
+  ;; only ever fires when we are attacked (via `enemy-method-62`). `dst-proc` therefore stayed #f,
+  ;; both `have-los` and `have-no-los` stayed at 0, and `check-los?` -- which needs `have-no-los`
+  ;; stamped recently -- was false forever. The symptom is a gunner that reaches `hostile`, raises
+  ;; its gun, and stands there aiming for the rest of its life.
+  ;;
+  ;; A handle compare and a conditional store per frame is cheaper than re-routing the city's
+  ;; targeting through the awareness system, and it leaves `enemy-method-63` doing its retail job.
+  (let ((prey (-> this focus handle)))
+    (if (!= prey (-> this los dst-proc))
+        (set-dst-proc! (-> this los) prey)
+        )
+    )
   ((method-of-type citizen common-post) this)
   (none)
   )

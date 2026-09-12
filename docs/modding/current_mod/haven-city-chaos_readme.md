@@ -81,9 +81,7 @@ Instead the mod writes `user-default` directly:
 ```lisp
 (defun mod-chaos-apply-borrow! ((on symbol))
   (set! (-> *setting-control* user-default borrow)
-        (cond ((and on *mod-chaos-blast-bots*) '((ctywide 0 lbombbot display) (ctywide 1 lwideb special)))
-              (on                              '((ctywide 1 lwideb special)))
-              (else                            '())))
+        (if on '((ctywide 1 lwideb special)) '()))
   (apply-settings *setting-control*))
 ```
 
@@ -98,22 +96,22 @@ Why this works and why it is safe:
   which re-runs `borrow-eval` and `add-borrow-levels` — so the level system streams `lwideb` in (or
   drops it) with no further prodding.
 
-**Slot 0** is the other half of the trick. `ctywide` has two borrow slots and slot 0 is unused for
-the entire game *except* during "Destroy the blast bots", which borrows `lbombbot` there. The mod
-reuses that exact slot — and with it a memory budget the retail mission already proved fits.
+Only slot 1 is written. `ctywide` has a second borrow slot (slot 0), unused for the entire game
+except during "Destroy the blast bots", which borrows `lbombbot` there — worth knowing if this mod
+ever needs a second borrowed level, but nothing here claims it.
 
 ---
 
 ## 3. Adding traffic types
 
-The three retail city Metal Heads are `traffic-type` 8, 9 and 10. Adding four more meant widening
+The three retail city Metal Heads are `traffic-type` 8, 9 and 10. Adding two more meant widening
 a fixed-size system.
 
 ### 3.1 The enum, and the trap at 21
 
 ```lisp
 ;; traffic-h.gc
-(chaos-juicer 22) (chaos-spyder 23) (chaos-centurion 24) (chaos-hopper 25)
+(chaos-juicer 22) (chaos-spyder 23)
 ```
 
 **21 is skipped deliberately.** The retail enum declares `traffic-type-21` but the arrays are only
@@ -127,8 +125,8 @@ a fixed-size system.
 Two constants encode the result:
 
 ```lisp
-(defconstant TRAFFIC_TYPE_COUNT 26)
-(defconstant TRAFFIC_SPAWN_MASK #x3dfffff)   ;; bits 0..20 and 22..25; bit 21 is the hole
+(defconstant TRAFFIC_TYPE_COUNT 24)
+(defconstant TRAFFIC_SPAWN_MASK #xdfffff)   ;; bits 0..20 and 22..23; bit 21 is the hole
 ```
 
 ### 3.2 Resizing `traffic-engine`
@@ -184,14 +182,17 @@ Retail expresses its candidates as the contiguous range `[0, 11)` plus an exclus
 (rand-vu-int-count-excluding 11 exclude-mask)
 ```
 
-22..25 do not fit in a contiguous range, so the mod replaces the range with an explicit table and
-makes the bitmask index *the table* rather than the traffic type:
+22 and 23 do not fit in a contiguous range, so the mod replaces the range with an explicit table
+and makes the bitmask index *the table* rather than the traffic type:
 
 ```lisp
-(define *mod-chaos-ped-types* (new 'static 'array uint8 15 0 1 2 3 4 5 6 7 8 9 10 22 23 24 25))
+(define *mod-chaos-ped-types* (new 'static 'array uint8 13 0 1 2 3 4 5 6 7 8 9 10 22 23))
 ```
 
-The retail branch is kept intact next to it and runs whenever the mod is off.
+The retail branch is kept intact next to it and runs whenever the mod is off. A species that is
+switched off in the menu needs no special case here: it gets want-count 0 and level `#f`,
+`spawn-all` never builds its reserve pool, and an empty pool is exactly what the exclusion mask
+already skips.
 
 ### 3.5 Where the weights actually live
 
@@ -208,21 +209,51 @@ design decision most worth understanding.
 
 and `set-target-level` derives that cap from `want-count`. So the **steady-state mix on screen is
 governed by want-count**, and the random draw only decides who is *offered* a free slot first.
-Weighting both would double-count the ratio. Hence:
+Weighting both would double-count the ratio. So the advertised percentages are stored as
+*relative shares* and turned into want-counts at apply time:
 
 ```lisp
-(defconstant MOD_CHAOS_WANT_GRUNT 12)   ;; 30%
-(defconstant MOD_CHAOS_WANT_FLITTER 12) ;; 30%
-(defconstant MOD_CHAOS_WANT_PREDATOR 4) ;; 10%
-(defconstant MOD_CHAOS_WANT_JUICER 4)   ;; 10%
-(defconstant MOD_CHAOS_WANT_SPYDER 2)   ;;  5%
-(defconstant MOD_CHAOS_WANT_CENTURION 2);;  5%
-(defconstant MOD_CHAOS_WANT_HOPPER 2)   ;;  5%
+(defconstant MOD_CHAOS_SHARE_GRUNT    30)  ;; "Grunt"
+(defconstant MOD_CHAOS_SHARE_FLITTER  30)  ;; "Stinger"
+(defconstant MOD_CHAOS_SHARE_PREDATOR 10)  ;; "Cloaker"
+(defconstant MOD_CHAOS_SHARE_JUICER   10)  ;; "Juice goon"
+(defconstant MOD_CHAOS_SHARE_SPYDER    5)  ;; "Spyder gunner"
+(defconstant MOD_CHAOS_METALHEAD_POP  60)  ;; retail lwideb runs 14 + 14 + 14 = 42
+
+;; want = share * POP / (sum of the shares that are currently switched on)
 ```
+
+Only the species that are enabled contribute to the denominator, so the whole budget is always
+spent: with everything on it is 85, with only the three defaults on it is 70 and those three
+absorb the rest. That is what makes a per-species menu switch meaningful — turning Juice goon off
+makes the Grunts *more* numerous rather than making the invasion smaller.
 
 `mod-chaos-enroll-species!` writes `want-count`, `target-count` and `reserve-count` together,
 mirroring `restore-default-settings`' own `(max 1000 (min #xfde8 (* 1000 want-count)))` formula so
 that a mid-session toggle behaves exactly like a fresh city load.
+
+### 3.5b Raising the overall spawn rates
+
+`MOD_CHAOS_METALHEAD_POP` alone is not enough: three other ceilings decide whether the extra
+actors ever materialise. Modelled on `jak2/config/enhanced_spawnrates`, all gated on
+`*mod-chaos-enable*`:
+
+| Lever | Retail | Mod | Where |
+|---|---|---|---|
+| Krimzon Guard want-count (type 6) | 9 | 16 | `mod-chaos-boost-ambient!` |
+| guard-bike / hellcat want-count (18 / 19) | 4 / 3 | 8 / 6 | `mod-chaos-boost-ambient!` |
+| `inv-density-factor` | 5.0 | 3.0 | `mod-chaos-boost-ambient!` |
+| per-cell activation ranges | 81920 / 819200 / 491520 | 122880 / 983040 / 655360 | `traffic-engine.gc` |
+| nav-mesh `nav-max-users` | default 64 | clamped to `[128, 200]` | `nav-mesh.gc` |
+
+The nav-mesh ceiling is the one that bites hardest in practice: hitting it does not crash, it just
+makes `spawn-all` fail quietly (`traffic-manager: unable to spawn`) and the city stays half-empty
+however high the want-counts are. It is read once, in `nav-mesh::init-from-entity`, so **it only
+takes effect on the next Haven City load** — enable the mod, step indoors and come back out.
+
+Citizen want-counts are deliberately left at retail values: the pedestrian tracker is capped at
+126 live processes (`traffic-tracker::active-object-list`) and the metal-head budget plus the guard
+bump already claims the headroom.
 
 ### 3.6 Why the table is re-asserted every second
 
@@ -236,11 +267,11 @@ per-frame hook simply re-asserts:
  (mod-chaos-apply-species! te 'lwideb))
 ```
 
-Seven struct writes a second. Cheap, and immune to writers nobody has found yet.
+Five struct writes a second. Cheap, and immune to writers nobody has found yet.
 
 ---
 
-## 4. The four new species
+## 4. The two new species
 
 ### 4.1 The `citizen-enemy` recipe
 
@@ -264,7 +295,7 @@ engine. `metalhead-grunt::init-enemy!` makes this explicit:
 | pooling / recycling / district culling | the traffic engine, via `citizen-init-by-other` |
 
 So a new species needs only: a skeleton name, a `nav-enemy-info`, and a collide-shape. Each of the
-four is ~40 lines.
+two is ~40 lines.
 
 ### 4.2 Borrowing instead of transcribing
 
@@ -289,7 +320,7 @@ Both of these point straight at the retail enemy rather than copying it:
 ### 4.3 `chaos-cityify-collision!` — the two bits that matter
 
 Retail enemies live in arenas where the only thing worth colliding with is Jak. Comparing
-`metalhead-grunt::init-enemy-collision!` with `hopper::init-enemy-collision!` isolates the
+`metalhead-grunt::init-enemy-collision!` with `juicer::init-enemy-collision!` isolates the
 difference:
 
 ```lisp
@@ -308,8 +339,8 @@ restores the root primitive from them every time the traffic engine recycles the
 
 `nav-enemy`'s `hostile` has a `:trans` and a `:post` but **no `:code`** — each retail enemy
 supplies its own chase animation loop. Inherited as-is, a chasing species would keep playing the
-`active` walk cycle while moving at run speed. `chaos-metalhead` solves it once for all four, with
-a fallback for the centurion, which ships with `run-anim -1` because it has no run cycle at all:
+`active` walk cycle while moving at run speed. `chaos-metalhead` solves it once for both, with a
+fallback for species that ship with `run-anim -1` because they have no run cycle at all:
 
 ```lisp
 (defmethod chaos-chase-anim ((this chaos-metalhead))
@@ -318,13 +349,57 @@ a fallback for the centurion, which ships with `run-anim -1` because it has no r
 ```
 
 Doing it this way rather than patching `run-anim` on the shared static is the point: patching would
-leak into the Drill Platform and Mountain Temple centurions.
+leak into the retail enemies that share the object.
 
-> [!NOTE]
-> Combat fidelity is the honest limitation here. These species inherit `nav-enemy`'s generic
-> chase-and-contact behaviour, not their home levels' bespoke attacks (the juicer's charge, the
-> spyder's cloak-and-shoot). They read correctly as ambient city Metal Heads; they are not
-> frame-accurate reproductions. Adding per-species `attack` states is the obvious next iteration.
+### 4.5 The intangibility bug, and the filter that caused it
+
+The first playable build had the Juice goon and the Krimzon Guard walk into each other, shove, and
+then stand there: the guard swung its rifle butt with no effect, the juicer did nothing at all.
+
+Damage between two `enemy`s is **touch-driven**. `common-post` calls `find-overlapping-shapes`,
+which fills `*touching-list*` and makes both sides receive a `touch` event; `enemy-method-75` then
+turns a touch that involves a `deadly` primitive into an `attack`. Which shapes are even considered
+comes from one field:
+
+```lisp
+;; citizen-enemy::common-post
+(set! (-> a1-0 collide-with-filter) (-> this enemy-info overlaps-others-collide-with-filter))
+```
+
+and the retail values differ by exactly the bits that matter:
+
+| `enemy-info` | `overlaps-others-collide-with-filter` |
+|---|---|
+| `metalhead-grunt` / `-flitter` / `-predator` | `jak civilian enemy vehicle-sphere hit-by-others-list player-list` |
+| `juicer` / `spyder` (arena enemies) | `jak bot player-list` |
+
+`civilian` is what Krimzon Guards and citizens register as, and `vehicle-sphere` is what city
+traffic registers as. With the arena filter, a Juice goon in Haven City can only ever produce a
+touch entry against **Jak**. The two shapes still collide as solids — hence the shoving — but no
+touch entry means no `attack` in either direction, so neither the guard's rifle butt nor the
+juicer's own permanently-`deadly` body primitive can land.
+
+The fix is a `common-post` override on `chaos-metalhead` that uses the city filter. Patching
+`enemy-info` itself is not an option: `*juicer-nav-enemy-info*` is a shared static that the Pumping
+Station juicers read too.
+
+**Second half of the same bug.** `enemy-method-104` stamps every `attack` event with the attacker's
+`attack-id`, and the victim remembers the last id it took damage from — so an unchanging id lands
+exactly once however long the contact lasts. Retail enemies get a fresh id every time they enter
+their `attack` state. `chaos-metalhead` has no scripted attack state to enter (the retail `attack`
+states are written against `juicer` / `spyder` fields that a `citizen-enemy` subclass does not
+have), so it re-stamps on a cadence instead:
+
+```lisp
+(when (time-elapsed? (-> self next-melee-time) MOD_CHAOS_MELEE_PERIOD)   ;; 0.8s
+  (set-time! (-> self next-melee-time))
+  ... bump *game-info* attack-id into (-> self attack-id) ...
+  (logior! (-> self focus-status) (focus-status dangerous)))
+```
+
+That turns a permanent shove into a repeating melee. It is a charge-and-contact model, not a
+frame-accurate reproduction of the arena attacks — which for the juicer, a suicide charger whose
+root primitive is permanently `deadly` in retail, is close to the original intent anyway.
 
 ---
 
@@ -350,23 +425,59 @@ engine recycles them.
 
 Retail guard vehicles only ever pursue Jak: their target comes from
 `alert-state target-status-array 0`, which is only populated while `target-jak` is set — and the
-invasion city clears it. Left alone they would fly around doing nothing while the city burns.
+invasion city clears it. Left alone they fly around doing nothing while the city burns.
 
-`vehicle-method-134` is the retail "start pursuing this process" entry point — it stores the
-handle, raises the vehicle's alert flag and pushes it into its pursuit state — so everything
-downstream stays stock:
+The obvious implementation — call `vehicle-method-134`, the retail "start pursuing this process"
+entry point — **does not work**, and this took a while to pin down. Two reasons:
+
+1. `vehicle-method-134` also calls `vehicle-method-111`, which raises the *city alert level* with
+   the given process as the alert target. That writes a Metal Head into
+   `traffic-alert-state::target-status-array 0` — the slot the whole alert system reserves for Jak.
+2. It then leaves the actual engagement to the retail path, and the retail path stalls:
+
+   ```lisp
+   ;; vehicle-guard::active, :post
+   ((logtest? (rigid-body-object-flag alert) (-> self flags))
+    (vehicle-guard-method-150 self)                       ;; LOS scan -> maybe in-pursuit
+    (when (logtest? (rigid-body-object-flag in-pursuit) ...) (go-virtual hostile))
+    ...
+    (if (or (time-elapsed? (-> self state-time) (seconds 8)) ...)
+        (logclear! (-> self flags) (rigid-body-object-flag persistent alert))))   ;; <-- same frame
+   ```
+
+   `alert` is cleared at the end of the same frame once the vehicle has been in `active` for eight
+   seconds, which an ambient cruising vehicle always has. Meanwhile `vehicle-guard-method-150` only
+   refreshes line-of-sight on the vehicle's own sync frame — `sync-mask-16`, one frame in sixteen.
+   So the alert is raised and dropped again before the scan ever runs, and `in-pursuit` is never
+   reached.
+
+The mod sets `in-pursuit` itself, which closes the loop: `active`'s `:post` already reads
+"alert && in-pursuit" as "go hostile", and from `hostile` onwards the retail chase, turret tracking
+and `stop-and-shoot` logic all work unmodified on a non-Jak target — `traffic-engine-method-49`
+marks any non-`target` process visible without a line-of-sight test at all.
 
 ```lisp
-(when (not (mod-chaos-metalhead? current))          ;; only vehicles with no live target
-  (let ((prey (mod-chaos-nearest-metalhead te (-> veh root trans) MOD_CHAOS_VEHICLE_ENGAGE_DIST)))
-    (if prey (vehicle-method-134 veh (the-as process prey)))))
+(set! (-> veh pursuit-target) (process->handle prey))
+(logior! (-> veh flags) (rigid-body-object-flag alert target-in-sight))
+(set-time! (-> veh target-in-sight-time))
+(if (not (logtest? (-> veh flags) (rigid-body-object-flag in-pursuit)))
+    (vehicle-method-108 veh))     ;; retail "begin pursuit": persistent + in-pursuit + ignore-others
 ```
 
-Scanned every 8 frames; an engagement already under way is never interrupted.
+> [!NOTE]
+> `pursuit-target` and `traffic-target-status` look like two separate fields in the decompiled
+> `vehicle-guard`, but they are not: the 80-byte `traffic-target-status` struct is stored inline and
+> the decompiler split it, so `pursuit-target` *is* its `handle` member. Writing one writes the
+> other, which is why the LOS code picks up the new target without a second assignment.
+
+Scanned every 8 frames. The same pass also refreshes `target-in-sight-time` on vehicles already
+engaged — `vehicle-guard::hostile` drops a pursuit as soon as that timestamp is half a second stale
+with two other guards on the target, or eight seconds stale on its own — and skips any vehicle Jak
+is driving.
 
 ### 5.3 The metal-head test
 
-Used by the gunship retargeting, the blast bot and the jetpack guard alike:
+Used by the gunship retargeting and by the species' own focus checks:
 
 | Actor | `process-mask enemy` | `process-mask guard` |
 |---|---|---|
@@ -375,23 +486,6 @@ Used by the gunship retargeting, the blast bot and the jetpack guard alike:
 | Citizen (`civilian`) | ❌ | ❌ |
 
 `enemy && !guard` isolates Metal Heads exactly, with no type checks.
-
-### 5.4 Blast bot
-
-`chaos-blast-bot` is a `bombbot` subclass with **one** overridden method. The retail target picker,
-`bombbot-method-181`, does two things that are wrong here:
-
-1. it only accepts processes carrying `process-mask vehicle` (it was written to hunt the vehicle
-   Jak is driving), and
-2. whatever it found, it then overrides the choice with Jak if Jak is inside the search sphere.
-
-The override replaces both with the metal-head test and keeps the same output fields —
-`target-pos`, `start-target-pos`, `start-target-vel`, `focus` — so the firing solution downstream
-is untouched. The mission's own bots are unaffected: a stock playthrough never instantiates the
-subclass.
-
-Dispatch is a 5% roll every 20 seconds, capped at one live bot, onto one of the five retail
-`*bombbot-path-*` splines with the mission's own nav-mesh actor id.
 
 ---
 
@@ -403,38 +497,30 @@ lives:
 ```
 GAME.CGO  (always resident)          CWI.DGO  (Haven City only)
 ├─ pc/mods/haven-city-chaos-h.gc     ├─ levels/city/chaos/chaos-species.gc
-│   toggles, tuning, hook defaults   │   the four species
+│   toggles, tuning, hook defaults   │   the two species
 │   mod-chaos-apply-borrow!          ├─ levels/city/chaos/chaos-city.gc
 └─ pc/debug/haven-city-chaos-menu.gc │   hook implementations, per-frame work
     Debug > Mods registration        └─ (installs the real hooks on load)
-
-                                     LBOMBBOT.DGO  (borrow level)
-                                     └─ levels/city/bombbot/chaos-blast-bot.gc
 ```
 
 `guard.gc`, `traffic-engine.gc` and `traffic-manager.gc` ship in CWI, but the debug menu can be
 opened in a level where CWI is gone — so the toggles must live in GAME. Meanwhile the hook
 implementations must live in CWI, because that is where the types they touch are.
 
+`nav-mesh.gc` is the one exception in the other direction: it is engine code that runs outside
+Haven City too, so it carries its own `define-extern` for `*mod-chaos-enable*` and reads the
+GAME-resident symbol directly.
+
 ### 6.1 The dangling-pointer rule
 
-Function pointers into a level heap are a crash waiting to happen. Two mechanisms prevent it:
-
-1. `ctywide-deactivate` calls `mod-chaos-reset-hooks!`, which points every pointer back at the
-   always-resident no-ops in GAME **before** the CWI heap is recycled.
-2. The blast-bot hook lives in a *borrow* level that comes and goes independently, so it is only
-   ever followed behind a residency test:
-   ```lisp
-   (if (and *mod-chaos-blast-bots* (= (level-status *level* 'lbombbot) 'active))
-       (*mod-chaos-blast-bot-hook*))
-   ```
+Function pointers into a level heap are a crash waiting to happen. `ctywide-deactivate` calls
+`mod-chaos-reset-hooks!`, which points every pointer back at the always-resident no-ops in GAME
+**before** the CWI heap is recycled. Every engine call site is a `(if *mod-chaos-enable* (*hook* ...))`,
+so even a torn-down city only ever reaches a no-op.
 
 ### 6.2 Compile order, and why the menu flags instead of calling
 
-`chaos-blast-bot.gc` ships in LBOMBBOT.DGO, which `game.gp` compiles *after* CWI.DGO. So
-`chaos-city.gc` cannot name `chaos-blast-bot` at all — hence the hook.
-
-Likewise the debug menu wanted to rebuild the species table on a toggle, but it is a GAME file and
+The debug menu wanted to rebuild the species table on a toggle, but it is a GAME file and
 `mod-chaos-apply-species!` is a CWI symbol. Instead it raises a flag the city half consumes:
 
 ```lisp
@@ -452,12 +538,12 @@ Two rules fall out of this, worth generalising:
 ### 6.3 Non-regression
 
 Every engine touch point is `(if *mod-chaos-enable* ...)` or `(!= *mod-chaos-guard-hp-scale* 1.0)`.
-With the mod off that is one symbol read; the retail branch next to it is untouched. The four new
+With the mod off that is one symbol read; the retail branch next to it is untouched. The two new
 traffic types are inert by construction — `lwide-activate` leaves their `level` at `#f` and
 `init-params` gives them want-count 0, so `spawn-all` never builds a reserve pool for them.
 
-One genuine behavioural cost when the mod is off: `LWIDEB.DGO` now carries four extra art groups
-and two texture pages, which the retail late-game invasion will also load. The PC port runs borrow
+One genuine behavioural cost when the mod is off: `LWIDEB.DGO` now carries two extra art groups
+and one texture page, which the retail late-game invasion will also load. The PC port runs borrow
 heaps at `BORROW_MULT = DEBUG_LEVEL_HEAP_MULT = 12.0`, so `ctywide` slot 1's `#x82f` KB budget
 becomes ~25 MB and the addition should disappear into it. `:borrow-size` was deliberately **not**
 raised — if it ever does overflow, that is the one line to change.
@@ -471,21 +557,18 @@ raised — if it ever does overflow, that is the one line to change.
 | DGO | Added |
 |---|---|
 | `GAME.CGO` | `haven-city-chaos-h.o` (before `mods-menu.o`), `haven-city-chaos-menu.o` (after it) |
-| `CWI.DGO` | `juicer.o`, `spyder.o`, `centurion.o`, `hopper.o`, `chaos-species.o` (before `traffic-engine.o`); `chaos-city.o` (after `traffic-manager.o`) |
-| `LWIDEB.DGO` | `tpage-1607.go`, `tpage-1721.go`, `juicer-ag.go`, `spyder-ag.go`, `centurion-ag.go`, `hopper-ag.go` |
-| `LBOMBBOT.DGO` | `chaos-blast-bot.o` (after `bombbot.o`) |
+| `CWI.DGO` | `juicer.o`, `spyder.o`, `chaos-species.o` (before `traffic-engine.o`); `chaos-city.o` (after `traffic-manager.o`) |
+| `LWIDEB.DGO` | `tpage-1607.go`, `juicer-ag.go`, `spyder-ag.go` |
 
 Note that the enemies' **code** and **art** ship in different DGOs — code in CWI (resident
 everywhere in the city), art in the LWIDEB borrow. That is retail's own arrangement: `hopper.o` is
 in MTN/STA while `hopper-ag` is in MTX/STADBLMP.
 
-Texture pages were picked to minimise the cost — the four species need only two pages between
-them:
+Both species share a single texture page, so the art cost is one page:
 
 | Home DGO | Texture page | Species |
 |---|---|---|
 | `ATE.DGO` | `tpage-1607` (atollext-vis-pris) | juicer, spyder |
-| `MTX.DGO` | `tpage-1721` (mtnext-vis-pris) | centurion, hopper |
 
 ### 7.2 Circuit 2 — PC renderer
 
@@ -494,10 +577,7 @@ the resident `.fr3`:
 
 ```jsonc
 "extra_art_groups_by_dgo": {
-  "LWIDEB.DGO": [
-    "juicer-ag:ATE.DGO", "spyder-ag:ATE.DGO",
-    "centurion-ag:MTX.DGO", "hopper-ag:MTX.DGO"
-  ]
+  "LWIDEB.DGO": ["juicer-ag:ATE.DGO", "spyder-ag:ATE.DGO"]
 }
 ```
 
@@ -509,15 +589,14 @@ The `:HOME.DGO` suffix names the level whose texture remap table resolves the mo
 
 ### 7.3 `game.gp`
 
-The five new sources have no `all_objs.json` entry, so they are pre-marked in `*file-entry-map*`
+The four new sources have no `all_objs.json` entry, so they are pre-marked in `*file-entry-map*`
 and built by explicit `goal-src` steps whose dependencies pin the compile order:
 
 ```lisp
 (goal-src "pc/mods/haven-city-chaos-h.gc" "traffic-h" "settings")
 (goal-src "pc/debug/haven-city-chaos-menu.gc" "haven-city-chaos-h" "mods-menu")
-(goal-src "levels/city/chaos/chaos-species.gc" "citizen-enemy" "juicer" "spyder" "centurion" "hopper")
+(goal-src "levels/city/chaos/chaos-species.gc" "citizen-enemy" "metalhead-grunt" "juicer" "spyder")
 (goal-src "levels/city/chaos/chaos-city.gc" "chaos-species" "traffic-manager" "haven-city-chaos-h")
-(goal-src "levels/city/bombbot/chaos-blast-bot.gc" "bombbot" "haven-city-chaos-h")
 ```
 
 ---
@@ -527,18 +606,21 @@ and built by explicit `goal-src` steps whose dependencies pin the compile order:
 ```
 Debug ▸ Mods ▸ haven-city-chaos
   Enable                          master switch
-  metal-heads ▸ Extra species     juicer / spyder / centurion / hopper
+  species ▸ Grunt (30%)           on by default
+  species ▸ Stinger (30%)         on by default   (metalhead-flitter)
+  species ▸ Cloaker (10%)         on by default   (metalhead-predator)
+  species ▸ Juice goon (10%)      off by default  (chaos-juicer, extra art)
+  species ▸ Spyder gunner (5%)    off by default  (chaos-spyder, extra art)
   guards ▸ Tougher guards         1.5x health + gunships engaging metal heads
   guards ▸ Guards ignore Jak      the truce
-  guards ▸ Blast bots             the 5% anti-metal-head blast bot
-  guards ▸ Jetpack guards         flying Krimzon Guards (jetpack-crimsonguard, merged in)
 ```
 
-`jak2/features/jetpack-crimsonguard` is merged into this branch. It keeps its own submenu
-(`Debug ▸ Mods ▸ jetpack-crimsonguard`) and its own dispatcher call in `traffic-manager::update`,
-so it still works standalone; the chaos menu's `Jetpack guards` row simply writes the same
-`*mod-jetpack-enable*` symbol. One switch, two places to reach it. Its own deep-dive is at
-[`jetpack-crimsonguard_readme.md`](jetpack-crimsonguard_readme.md).
+The percentages in the labels are relative shares, not caps — see §3.5. Whatever is switched on
+splits the whole population budget between itself in those proportions, so the three defaults on
+their own are *more* numerous than they would be with all five running.
+
+Flying Krimzon Guards are **not** part of this branch. That work lives on its own branch,
+`jak2/features/jetpack-crimsonguard`.
 
 Equally drivable from the REPL with the menu closed:
 
@@ -566,19 +648,23 @@ Nothing here has been run yet. In order:
 | Symptom | First place to look |
 |---|---|
 | New species invisible, others fine | Step 2 skipped, or a wrong `:HOME.DGO` |
-| New species white / untextured | `tpage-1607` / `tpage-1721` missing from `lwideb.gd` |
+| New species white / untextured | `tpage-1607` missing from `lwideb.gd` |
 | `process-drawable-art-error` on spawn | `<x>-ag.go` missing from LWIDEB, or the art check in `mod-chaos-probe-art!` is passing wrongly |
 | No Metal Heads at all | Borrow did not apply — check `(-> *setting-control* user-current borrow)` in the REPL |
 | Guards still chase Jak | `target-jak` re-set by a mission node; the `*mod-chaos-guards-ignore-jak*` override in `guard.gc` only applies to guards spawned since |
 | Traffic pools look wrong / crash on district change | The `traffic-engine` resize — verify `vehicle-tracker-array` resolved via `overlay-at`, not the old `:offset 7024` |
-| Blast bot never appears | `lbombbot` not resident — check `(level-status *level* 'lbombbot)` |
+| City feels no busier than retail | The nav-mesh ceiling is read at level init — reload Haven City after enabling (§3.5b) |
+| `traffic-manager: unable to spawn` spam | Same ceiling, or the 126-entry pedestrian tracker is full — lower `MOD_CHAOS_METALHEAD_POP` |
+| Guard gunships circle but never engage | `mod-chaos-engage-vehicle!` not reaching them — check `(-> veh flags)` for `in-pursuit` in the REPL (§5.2) |
+| Juice goon and guard shove without damage | The `common-post` override is not being reached — confirm `chaos-metalhead` actually overrides it (§4.5) |
 
 ---
 
 ## 10. Known limitations
 
-1. **Combat fidelity of the four new species** — generic `nav-enemy` chase-and-contact rather than
-   their home levels' bespoke attacks. See §4.4.
+1. **Combat fidelity of the two new species** — charge-and-contact on a fixed melee cadence rather
+   than their home levels' bespoke attacks (the juicer's scripted charge, the spyder's
+   cloak-and-shoot). See §4.5.
 2. **`:borrow-size` untouched** — relying on the PC port's 12× borrow multiplier to absorb the
    extra art. Deliberate (non-regression), but it is the first thing to raise if `lwideb` fails to
    load.
@@ -586,6 +672,8 @@ Nothing here has been run yet. In order:
    ones.
 4. **Percentages are steady-state population, not spawn probability** — see §3.5. A species whose
    pool is momentarily empty is skipped by the draw, so short-term ratios will wobble.
+5. **The nav-mesh user ceiling needs a level reload** — see §3.5b. Enabling the mod mid-session
+   gives the new want-counts immediately but not the headroom to fill them.
 
 ---
 

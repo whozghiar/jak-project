@@ -20,9 +20,9 @@ Haven City, at war, on demand.
 
 Late in Jak 2 the city is overrun by Metal Heads and the Krimzon Guard stop caring about Jak
 entirely — they have bigger problems. This mod lets you switch that state on whenever you like,
-then pushes it much further: four Metal Head species that never set foot in the city join the
-invasion, the guards get tougher, their gunships start shooting Metal Heads, and blast bots roll
-out to hunt them.
+then pushes it much further: the invasion runs far denser than retail, two Metal Head species that
+never set foot in the city can join it, the guards get tougher, and their gunships break off patrol
+to shoot Metal Heads.
 
 Jak is a bystander. Nothing you do raises the alarm, and no guard will come after you.
 
@@ -31,22 +31,25 @@ Jak is a bystander. Nothing you do raises the alarm, and no guard will come afte
 
 ## ✨ Key Features
 - **Metal Head invasion on demand:** the late-game war zone, available from any point in the story.
-- **Seven Metal Head species instead of three.** The three the city already knows, rebalanced, plus
-  four pulled in from elsewhere in the game:
+- **Pick your invasion, species by species.** Each one has its own switch under
+  `Debug ▸ Mods ▸ haven-city-chaos ▸ species`, with its share in the label:
 
-  | Species | Share | Where it normally lives |
-  |---|---:|---|
-  | Grunt | 30% | Haven City invasion |
-  | Stinger | 30% | Haven City invasion |
-  | Cloaker | 10% | Haven City invasion |
-  | Juice goon | 10% | Pumping Station |
-  | Spyder gunner | 5% | Haven Forest / Pumping Station |
-  | Centurion | 5% | Drill Platform / Mountain Temple |
-  | Hopper | 5% | Mountain Temple |
+  | Species | Share | Default | Where it normally lives |
+  |---|---:|---|---|
+  | Grunt | 30% | on | Haven City invasion |
+  | Stinger | 30% | on | Haven City invasion |
+  | Cloaker | 10% | on | Haven City invasion |
+  | Juice goon | 10% | off | Pumping Station |
+  | Spyder gunner | 5% | off | Haven Forest / Pumping Station |
 
-- **The Krimzon Guard fight back harder:** red and yellow guards get 1.5× health, their gunships
-  break off and engage Metal Heads, and a blast bot is occasionally dispatched that targets
-  *only* Metal Heads.
+  The shares are relative: whatever is switched on splits the whole population between itself in
+  those proportions, so turning the last two off makes the first three *more* numerous rather than
+  making the invasion smaller.
+- **Much denser than retail:** the Metal Head population budget goes from 42 to 60, the Krimzon
+  Guard garrison and its vehicles grow with it, and the traffic engine's density and streaming
+  ranges are widened to match.
+- **The Krimzon Guard fight back harder:** red and yellow guards get 1.5× health, and their
+  gunships break off patrol to hunt Metal Heads.
 - **A truce with Jak:** guards cannot see Jak at all. Nothing alerts them, nothing pursues him.
 - **Off by default:** everything lives behind `Debug ▸ Mods ▸ haven-city-chaos`, with sub-toggles
   so you can dial any piece back on its own.
@@ -117,9 +120,10 @@ Haven City en guerre, à la demande.
 
 En fin de Jak 2, la ville est envahie par les têtes de métal et les gardes cramoisis se
 désintéressent complètement de Jak — ils ont d'autres soucis. Ce mod permet d'activer cet état
-quand on veut, puis va beaucoup plus loin : quatre espèces de têtes de métal absentes de la ville
-rejoignent l'invasion, les gardes deviennent plus coriaces, leurs véhicules ouvrent le feu sur les
-têtes de métal, et des blast bots partent à la chasse.
+quand on veut, puis va beaucoup plus loin : l'invasion est bien plus dense que dans le jeu
+d'origine, deux espèces de têtes de métal absentes de la ville peuvent la rejoindre, les gardes
+deviennent plus coriaces, et leurs véhicules quittent leur patrouille pour ouvrir le feu sur les
+têtes de métal.
 
 Jak n'est qu'un spectateur. Rien de ce qu'il fait ne déclenche l'alerte, et aucun garde ne le
 poursuit.
@@ -130,22 +134,25 @@ poursuit.
 ## ✨ Fonctionnalités Clés
 - **L'invasion à la demande :** la zone de guerre de fin de jeu, disponible à n'importe quel moment
   de l'histoire.
-- **Sept espèces de têtes de métal au lieu de trois.** Les trois que la ville connaît déjà,
-  rééquilibrées, plus quatre importées d'ailleurs dans le jeu :
+- **Une invasion configurable espèce par espèce.** Chacune a sa propre bascule dans
+  `Debug ▸ Mods ▸ haven-city-chaos ▸ species`, avec sa part indiquée dans le libellé :
 
-  | Espèce | Part | Lieu d'origine |
-  |---|---:|---|
-  | Grunt | 30% | Invasion de Haven City |
-  | Stinger | 30% | Invasion de Haven City |
-  | Cloaker | 10% | Invasion de Haven City |
-  | Juice goon | 10% | Station de pompage |
-  | Spyder gunner | 5% | Forêt de Haven / Station de pompage |
-  | Centurion | 5% | Plateforme de forage / Temple de la montagne |
-  | Hopper | 5% | Temple de la montagne |
+  | Espèce | Part | Par défaut | Lieu d'origine |
+  |---|---:|---|---|
+  | Grunt | 30% | activé | Invasion de Haven City |
+  | Stinger | 30% | activé | Invasion de Haven City |
+  | Cloaker | 10% | activé | Invasion de Haven City |
+  | Juice goon | 10% | désactivé | Station de pompage |
+  | Spyder gunner | 5% | désactivé | Forêt de Haven / Station de pompage |
 
-- **Des gardes cramoisis plus dangereux :** gardes rouges et jaunes à 1,5× de vie, véhicules de
-  garde qui rompent leur patrouille pour engager les têtes de métal, et un blast bot déployé de
-  temps à autre qui ne cible **que** les têtes de métal.
+  Les parts sont relatives : les espèces activées se partagent toute la population dans ces
+  proportions. Désactiver les deux dernières rend donc les trois premières **plus** nombreuses,
+  cela ne réduit pas l'invasion.
+- **Bien plus dense que l'original :** le budget de population des têtes de métal passe de 42 à 60,
+  la garnison cramoisie et ses véhicules augmentent en conséquence, et les réglages de densité et
+  de distance de streaming du moteur de trafic sont élargis d'autant.
+- **Des gardes cramoisis plus dangereux :** gardes rouges et jaunes à 1,5× de vie, et véhicules de
+  garde qui rompent leur patrouille pour traquer les têtes de métal.
 - **Une trêve avec Jak :** les gardes ne peuvent tout simplement plus le voir. Rien ne les alerte,
   rien ne le poursuit.
 - **Désactivé par défaut :** tout se trouve dans `Debug ▸ Mods ▸ haven-city-chaos`, avec des

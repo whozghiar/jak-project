@@ -174,23 +174,18 @@
   )
 
 (defun jetpack-guard-spawn ((pos vector))
-  "Create one jetpack guard at `pos`, or #f if the art is not resident.
+  "Create one jetpack guard at `pos`. Returns its ppointer, or #f if the art is not resident.
 
-   The art group check matters: `crimson-guard-hover-ag` is added to the LWIDEA / LWIDEB / LWIDEC
-   borrow levels, and there is a window during a district transition where none of them is up."
+   The art check matters: `crimson-guard-hover-ag` is added to the LWIDEA / LWIDEB / LWIDEC borrow
+   levels, and there is a window during a district transition where none of them is up. Without it
+   `initialize-skeleton` would take the process down with a `process-drawable-art-error`.
+
+   Parented to the traffic manager so a guard dies with Haven City rather than leaking into the
+   next level."
   (if (not (art-group-get-by-name *level* "skel-crimson-guard-hover" (the-as (pointer uint32) #f)))
-      (return (the-as process #f))
+      (return (the-as (pointer jetpack-crimson-guard) #f))
       )
-  (let ((proc (get-process *default-dead-pool* jetpack-crimson-guard #x4000)))
-    (when proc
-      (let ((t9-0 (method-of-type process activate)))
-        (t9-0 proc *traffic-manager* "jetpack-crimson-guard" (the-as pointer #x70004000))
-        )
-      (run-now-in-process proc jetpack-guard-init-by-other pos)
-      (return (ppointer->process (-> proc ppointer)))
-      )
-    )
-  (the-as process #f)
+  (process-spawn jetpack-crimson-guard pos :init jetpack-guard-init-by-other :to *traffic-manager*)
   )
 
 ;; ------------------------------------------------------------------------------------------------
@@ -245,9 +240,10 @@
             (set! (-> spawn-pos y) (+ (-> player-pos y) MOD_JETPACK_SPAWN_HEIGHT))
             (set! (-> spawn-pos z) (+ (-> player-pos z) (* MOD_JETPACK_SPAWN_DIST (cos angle))))
             (set! (-> spawn-pos w) 1.0)
-            (let ((proc (jetpack-guard-spawn spawn-pos)))
-              (if proc
-                  (set! (-> *mod-jetpack-guards* free-slot) (process->handle proc))
+            ;; `process-spawn` hands back a ppointer, not a process -- hence `ppointer->handle`.
+            (let ((spawned (jetpack-guard-spawn spawn-pos)))
+              (if spawned
+                  (set! (-> *mod-jetpack-guards* free-slot) (ppointer->handle spawned))
                   )
               )
             )

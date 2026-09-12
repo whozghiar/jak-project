@@ -183,7 +183,11 @@
   ()
   )
 
-(defmethod chaos-skel-name ((this chaos-juicer)) "skel-juicer")
+(defmethod chaos-skel-name ((this chaos-juicer))
+  "Skeleton group worn by the Juice goon. A method body that is nothing but a string would be read
+   as a docstring, hence this one."
+  "skel-juicer"
+  )
 
 (defmethod get-nav-info ((this chaos-juicer))
   "Reuse the Atoll juicer's tuning verbatim: 9 hit points, its charge speeds and its full
@@ -208,7 +212,11 @@
   ()
   )
 
-(defmethod chaos-skel-name ((this chaos-spyder)) "skel-spyder")
+(defmethod chaos-skel-name ((this chaos-spyder))
+  "Skeleton group worn by the Spyder gunner. A method body that is nothing but a string would be read
+   as a docstring, hence this one."
+  "skel-spyder"
+  )
 
 (defmethod get-nav-info ((this chaos-spyder))
   *spyder-nav-enemy-info*
@@ -229,7 +237,11 @@
   ()
   )
 
-(defmethod chaos-skel-name ((this chaos-centurion)) "skel-centurion")
+(defmethod chaos-skel-name ((this chaos-centurion))
+  "Skeleton group worn by the Centurion. A method body that is nothing but a string would be read
+   as a docstring, hence this one."
+  "skel-centurion"
+  )
 
 (defmethod get-nav-info ((this chaos-centurion))
   "The centurion ships with `run-anim -1` -- it only ever walks. `chaos-chase-anim` falls back to
@@ -253,7 +265,11 @@
   ()
   )
 
-(defmethod chaos-skel-name ((this chaos-hopper)) "skel-hopper")
+(defmethod chaos-skel-name ((this chaos-hopper))
+  "Skeleton group worn by the Hopper. A method body that is nothing but a string would be read
+   as a docstring, hence this one."
+  "skel-hopper"
+  )
 
 (defmethod get-nav-info ((this chaos-hopper))
   *hopper-nav-enemy-info*

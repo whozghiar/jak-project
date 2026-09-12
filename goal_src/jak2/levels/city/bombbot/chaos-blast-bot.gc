@@ -136,7 +136,10 @@
         (set! (-> params path) path)
         ;; Parented to the traffic manager so the bot dies with Haven City rather than leaking
         ;; into the next level.
-        (let ((proc (process-spawn chaos-blast-bot params :to *traffic-manager*)))
+        ;; `:init` is required: `process-spawn` would otherwise look for
+        ;; `chaos-blast-bot-init-by-other`, and the subclass deliberately has none -- the retail
+        ;; bring-up is exactly what we want.
+        (let ((proc (process-spawn chaos-blast-bot params :init bombbot-init-by-other :to *traffic-manager*)))
           (if proc
               (set! *mod-chaos-blast-bot* (ppointer->handle proc))
               )

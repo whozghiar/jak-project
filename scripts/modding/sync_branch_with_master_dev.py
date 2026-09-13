@@ -164,7 +164,7 @@ def main():
         run_cmd('git add README.md', check=False)
 
         # Generate or update index.json for the branch
-        run_cmd(f'python "{os.path.join(REPO_ROOT, "scripts", "modding", "update_mod_catalog.py")}"', check=False)
+        run_cmd(f'python "{os.path.join(REPO_ROOT, "scripts", "modding", "update_mod_catalog.py")}" --branch "{target_branch}"', check=False)
         run_cmd('git add index.json', check=False)
 
         # Verify if real source code conflicts remain

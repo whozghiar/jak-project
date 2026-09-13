@@ -94,14 +94,16 @@ def is_auto_resolvable(filepath):
     """Check if a conflicted file has a deterministic modding rule."""
     if filepath == "README.md":
         return True  # Always preserve mod's root README
-    if filepath == "docs/modding/branch_audit.md":
-        return True  # Take latest audit from base branch
+    if filepath == "docs/modding/branch_audit.md" or filepath == "AGENTS.md" or filepath.startswith(".agents/"):
+        return True  # Take latest audit/guidelines/skills from base branch
     if filepath.startswith("docs/modding/tools/"):
         return True  # Take latest modding tools/dashboards
     if filepath.startswith("docs/modding/current_mod/"):
         return True  # Preserve mod's technical documentation
+    if filepath == ".github/workflows/release.yml":
+        return True  # Keep release workflow
     if filepath.startswith(".github/workflows/"):
-        return True  # Drop unwanted workflows
+        return True  # Drop other unwanted workflows
     return False
 
 def test_merge_tree(source_ref, branch_ref):
@@ -150,15 +152,15 @@ def merge_and_push_branch(branch, source_ref):
             for f in unmerged:
                 if f == "README.md" or f.startswith("docs/modding/current_mod/"):
                     # Preserve mod's own README and technical documentation
-                    run_cmd(f'git checkout HEAD -- "{f}" 2>/dev/null || true')
+                    run_cmd(f'git checkout HEAD -- "{f}"')
                     run_cmd(f'git add "{f}"')
-                elif f == "docs/modding/branch_audit.md" or f.startswith("docs/modding/tools/"):
-                    # Take base branch global audit/status
-                    run_cmd(f'git checkout MERGE_HEAD -- "{f}" 2>/dev/null || true')
+                elif f == ".github/workflows/release.yml" or f == "docs/modding/branch_audit.md" or f.startswith("docs/modding/tools/") or f == "AGENTS.md" or f.startswith(".agents/"):
+                    # Always take release workflow, guidelines, skills and base modding tools/audits from base branch
+                    run_cmd(f'git checkout MERGE_HEAD -- "{f}"')
                     run_cmd(f'git add "{f}"')
                 elif f.startswith(".github/workflows/"):
-                    # Drop unwanted workflows
-                    run_cmd(f'git rm -rf "{f}" 2>/dev/null || rm -rf "{f}"')
+                    # Drop other unwanted workflows
+                    run_cmd(f'git rm -rf "{f}"')
 
             # Verify if any real code conflict remains
             remaining = [l.strip() for l in run_cmd("git diff --name-only --diff-filter=U").stdout.splitlines() if l.strip()]
@@ -168,15 +170,34 @@ def merge_and_push_branch(branch, source_ref):
 
         # CRITICAL: Always ensure mod's root README.md is strictly preserved from HEAD
         # (prevents Git 3-way merge from silently splicing master-dev's dashboard/hub into mod's README)
-        run_cmd('git checkout HEAD -- README.md 2>/dev/null || true')
+        run_cmd('git checkout HEAD -- README.md')
         run_cmd('git add README.md')
 
-        run_cmd(f'git commit -m "chore: sync {branch} with latest {source_ref} (AI-assisted)"')
+        # Generate or update index.json for the branch
+        run_cmd(f'python "{os.path.join(REPO_ROOT, "scripts", "modding", "update_mod_catalog.py")}"')
+        run_cmd('git add index.json')
+
+        commit_msg = (
+            f"chore(sync): align {branch} with latest {source_ref}\n\n"
+            f"- Integration of updated release CI workflow (.github/workflows/release.yml)\n"
+            f"  with semantic auto-increment (v1.0.0 -> v1.0.1), variable branch display name,\n"
+            f"  and automatic README overview extraction.\n"
+            f"- Creation of index.json catalog for 1-click install via OpenGOAL Launcher raw.githubusercontent.\n"
+            f"- Integration of latest engine fixes and Jak 3 Debug > Mods registry.\n\n"
+            f"(AI-assisted)"
+        )
+        run_cmd(f'git commit -m "{commit_msg}"')
         
         push_res = run_cmd(f"git push origin {temp_branch}:{branch}")
         if push_res.returncode != 0:
             err = (push_res.stderr or push_res.stdout).strip()
             return False, f"Échec git push: {err[:120]}"
+
+        # Also update local branch pointer if it exists
+        local_check = run_cmd(f"git show-ref --verify --quiet refs/heads/{branch}")
+        if local_check.returncode == 0:
+            run_cmd(f"git branch -f {branch} {temp_branch}")
+
         return True, "Fusionnée et poussée avec succès"
     finally:
         run_cmd("git checkout --force master-dev")

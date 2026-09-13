@@ -152,12 +152,12 @@ def merge_and_push_branch(branch, source_ref):
                     # Preserve mod's own README and technical documentation
                     run_cmd(f'git checkout HEAD -- "{f}" 2>/dev/null || true')
                     run_cmd(f'git add "{f}"')
-                elif f == "docs/modding/branch_audit.md" or f.startswith("docs/modding/tools/"):
-                    # Take base branch global audit/status
+                elif f == ".github/workflows/release.yml" or f == "docs/modding/branch_audit.md" or f.startswith("docs/modding/tools/"):
+                    # Always take release workflow and base modding tools/audits from base branch
                     run_cmd(f'git checkout MERGE_HEAD -- "{f}" 2>/dev/null || true')
                     run_cmd(f'git add "{f}"')
                 elif f.startswith(".github/workflows/"):
-                    # Drop unwanted workflows
+                    # Drop other unwanted workflows
                     run_cmd(f'git rm -rf "{f}" 2>/dev/null || rm -rf "{f}"')
 
             # Verify if any real code conflict remains

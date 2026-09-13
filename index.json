@@ -1,40 +1,8 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "jak3-jetBoard Source",
-  "lastUpdated": "2026-09-13T20:49:53Z",
+  "lastUpdated": "2026-09-13T20:52:28Z",
   "mods": {
-    "temp-sync-jak2-features-jak3-jetBoard": {
-      "displayName": "temp-sync-jak2-features-jak3-jetBoard",
-      "description": "Ports three signature Jetboard mechanics from Jak 3 directly into Jak 2: the Charge / Loaded Jump (`L1` + release `X`), the Circular Zap Attack (`Circle`), and the 180° Quick Turn-Around (`Triangle`) with an exit speed boost, complete with ported animations, particle VFX, and dedicated audio cues.",
-      "authors": [
-        "whozghiar"
-      ],
-      "tags": [
-        "gameplay",
-        "custom-engine"
-      ],
-      "supportedGames": [
-        "jak2"
-      ],
-      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/temp-sync-jak2-features-jak3-jetBoard",
-      "versions": [
-        {
-          "version": "1.0.0",
-          "publishedDate": "2026-09-13T20:47:58Z",
-          "supportedGames": [
-            "jak2"
-          ],
-          "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/windows-v1.0.0.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/linux-v1.0.0.zip"
-          },
-          "checksums": {
-            "windows": "",
-            "linux": ""
-          }
-        }
-      ]
-    },
     "jak3-jetBoard": {
       "displayName": "jak3-jetBoard",
       "description": "Ports three signature Jetboard mechanics from Jak 3 directly into Jak 2: the Charge / Loaded Jump (`L1` + release `X`), the Circular Zap Attack (`Circle`), and the 180° Quick Turn-Around (`Triangle`) with an exit speed boost, complete with ported animations, particle VFX, and dedicated audio cues.",
@@ -51,14 +19,14 @@
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/jak3-jetBoard",
       "versions": [
         {
-          "version": "1.0.1",
-          "publishedDate": "2026-09-13T20:49:53Z",
+          "version": "1.0.0",
+          "publishedDate": "2026-09-13T20:52:28Z",
           "supportedGames": [
             "jak2"
           ],
           "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/v1.0.1/windows-v1.0.1.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/v1.0.1/linux-v1.0.1.zip"
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/windows-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/linux-v1.0.0.zip"
           },
           "checksums": {
             "windows": "",

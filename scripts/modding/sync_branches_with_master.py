@@ -166,6 +166,11 @@ def merge_and_push_branch(branch, source_ref):
                 run_cmd("git merge --abort")
                 return False, f"Vrais conflits de code: {', '.join(remaining)}"
 
+        # CRITICAL: Always ensure mod's root README.md is strictly preserved from HEAD
+        # (prevents Git 3-way merge from silently splicing master-dev's dashboard/hub into mod's README)
+        run_cmd('git checkout HEAD -- README.md 2>/dev/null || true')
+        run_cmd('git add README.md')
+
         run_cmd(f'git commit -m "chore: sync {branch} with latest {source_ref} (AI-assisted)"')
         
         push_res = run_cmd(f"git push origin {temp_branch}:{branch}")
@@ -272,6 +277,7 @@ def main():
 
     # Ensure on master-dev
     run_cmd("git checkout master-dev")
+    run_cmd("git config merge.ours.driver true")
     run_cmd(f"git fetch origin {source_branch}")
 
     source_sha_res = run_cmd(f"git rev-parse --short {source_ref}")

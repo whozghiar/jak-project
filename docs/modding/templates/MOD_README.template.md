@@ -61,12 +61,12 @@ task boot-game
 
 ## 🎥 Demonstration Video
 
-[![Demonstration Video](https://img.youtube.com/vi/{YOUTUBE_ID}/maxresdefault.jpg)]({YOUTUBE_URL})
+[![Demonstration Video](https://img.youtube.com/vi/{YOUTUBE_ID}/maxresdefault.jpg)](https://youtu.be/{YOUTUBE_ID})
 
-▶️ **[Watch the demonstration video on YouTube]({YOUTUBE_URL})**
+▶️ **[Watch the demonstration video on YouTube](https://youtu.be/{YOUTUBE_ID})**
 
 > [!NOTE]
-> *Demonstration videos must be hosted externally on YouTube to prevent repository bloating. Replace `{YOUTUBE_ID}` with the YouTube video ID (e.g. `MnqnybexhSA`) and `{YOUTUBE_URL}` with the video URL (e.g. `https://youtu.be/MnqnybexhSA`).*
+> *Demonstration videos must be hosted externally on YouTube to prevent repository bloating. Replace `{YOUTUBE_ID}` with your YouTube video ID (e.g. `MnqnybexhSA` from `https://youtu.be/MnqnybexhSA`).*
 
 ## ✅ Compliance Checklist
 - [ ] **Native non-regression:** with the mod compiled but its toggle OFF, the game plays identically to stock.
@@ -130,12 +130,12 @@ task boot-game
 
 ## 🎥 Encart Vidéo Démonstrative
 
-[![Vidéo de Démonstration](https://img.youtube.com/vi/{YOUTUBE_ID}/maxresdefault.jpg)]({YOUTUBE_URL})
+[![Vidéo de Démonstration](https://img.youtube.com/vi/{YOUTUBE_ID}/maxresdefault.jpg)](https://youtu.be/{YOUTUBE_ID})
 
-▶️ **[Visionner la vidéo de démonstration sur YouTube]({YOUTUBE_URL})**
+▶️ **[Visionner la vidéo de démonstration sur YouTube](https://youtu.be/{YOUTUBE_ID})**
 
 > [!NOTE]
-> *Les vidéos de démonstration doivent être hébergées sur YouTube pour éviter d'alourdir le dépôt Git. Remplacez `{YOUTUBE_ID}` par l'identifiant de la vidéo YouTube (ex : `MnqnybexhSA`) et `{YOUTUBE_URL}` par l'URL de la vidéo (ex : `https://youtu.be/MnqnybexhSA`).*
+> *Les vidéos de démonstration doivent être hébergées sur YouTube pour éviter d'alourdir le dépôt Git. Remplacez `{YOUTUBE_ID}` par l'identifiant de votre vidéo YouTube (ex : `MnqnybexhSA` pour `https://youtu.be/MnqnybexhSA`).*
 
 ## ✅ Checklist de Conformité
 - [ ] **Non-régression native :** mod compilé mais bascule sur OFF → le jeu se joue à l'identique du jeu d'origine.

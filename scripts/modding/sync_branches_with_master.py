@@ -152,15 +152,15 @@ def merge_and_push_branch(branch, source_ref):
             for f in unmerged:
                 if f == "README.md" or f.startswith("docs/modding/current_mod/"):
                     # Preserve mod's own README and technical documentation
-                    run_cmd(f'git checkout HEAD -- "{f}" 2>/dev/null || true')
+                    run_cmd(f'git checkout HEAD -- "{f}"')
                     run_cmd(f'git add "{f}"')
                 elif f == ".github/workflows/release.yml" or f == "docs/modding/branch_audit.md" or f.startswith("docs/modding/tools/") or f == "AGENTS.md" or f.startswith(".agents/"):
                     # Always take release workflow, guidelines, skills and base modding tools/audits from base branch
-                    run_cmd(f'git checkout MERGE_HEAD -- "{f}" 2>/dev/null || true')
+                    run_cmd(f'git checkout MERGE_HEAD -- "{f}"')
                     run_cmd(f'git add "{f}"')
                 elif f.startswith(".github/workflows/"):
                     # Drop other unwanted workflows
-                    run_cmd(f'git rm -rf "{f}" 2>/dev/null || rm -rf "{f}"')
+                    run_cmd(f'git rm -rf "{f}"')
 
             # Verify if any real code conflict remains
             remaining = [l.strip() for l in run_cmd("git diff --name-only --diff-filter=U").stdout.splitlines() if l.strip()]
@@ -170,7 +170,7 @@ def merge_and_push_branch(branch, source_ref):
 
         # CRITICAL: Always ensure mod's root README.md is strictly preserved from HEAD
         # (prevents Git 3-way merge from silently splicing master-dev's dashboard/hub into mod's README)
-        run_cmd('git checkout HEAD -- README.md 2>/dev/null || true')
+        run_cmd('git checkout HEAD -- README.md')
         run_cmd('git add README.md')
 
         # Generate or update index.json for the branch

@@ -282,7 +282,8 @@ def main():
       else [args.repo.split("/")[0]]
   )
 
-  clean_version = tag.lstrip("v")
+  ver_match = re.search(r"(\d+\.\d+\.\d+)", tag)
+  clean_version = ver_match.group(1) if ver_match else tag.lstrip("v")
   now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
   catalog = {

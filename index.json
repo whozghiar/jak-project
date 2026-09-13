@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "crimson-blueguard/peaceful Source",
-  "lastUpdated": "2026-09-13T20:53:56Z",
+  "lastUpdated": "2026-09-13T20:59:34Z",
   "mods": {
     "crimson-blueguard-peaceful": {
       "displayName": "crimson-blueguard/peaceful",
@@ -19,14 +19,14 @@
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/crimson-blueguard/peaceful",
       "versions": [
         {
-          "version": "1.0.0",
-          "publishedDate": "2026-09-13T20:53:56Z",
+          "version": "crimson-blueguard/peaceful-v1.0.0",
+          "publishedDate": "2026-09-13T20:59:34Z",
           "supportedGames": [
             "jak2"
           ],
           "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/windows-v1.0.0.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/linux-v1.0.0.zip"
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/crimson-blueguard/peaceful-v1.0.0/windows-crimson-blueguard/peaceful-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/crimson-blueguard/peaceful-v1.0.0/linux-crimson-blueguard/peaceful-v1.0.0.zip"
           },
           "checksums": {
             "windows": "",

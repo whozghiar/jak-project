@@ -90,6 +90,71 @@ def extract_metadata_from_readme(readme_path: Path):
   return description
 
 
+def generate_release_notes(
+    output_path: Path,
+    branch: str,
+    tag: str,
+    repo: str,
+    checksums_path: Path = None,
+    display_name: str = None,
+    description: str = None,
+):
+  """Generates formatted markdown release notes for GitHub Releases."""
+  readme_desc = extract_metadata_from_readme(REPO_ROOT / "README.md")
+  branch_match = re.match(r"^jak([123])/([^/]+)/(.+)$", branch)
+  if branch_match:
+    variable_part = branch_match.group(3)
+  else:
+    parts = branch.split("/")
+    variable_part = parts[-1] if len(parts) > 1 else branch
+
+  disp_name = display_name or variable_part
+  desc = (
+      description
+      or readme_desc
+      or f"Mod OpenGOAL avec modifications de jeu."
+  )
+
+  checksums_content = ""
+  if checksums_path and checksums_path.exists():
+    try:
+      with open(checksums_path, "r", encoding="utf-8", errors="replace") as f:
+        checksums_content = f.read().strip()
+    except Exception:
+      checksums_content = ""
+
+  notes_parts = [
+      f"## 🎮 {disp_name} — {tag}",
+      "",
+      desc,
+      "",
+      "### 📦 Téléchargements Directs",
+      f"- **Windows :** [`windows-{tag}.zip`](https://github.com/{repo}/releases/download/{tag}/windows-{tag}.zip)",
+      f"- **Linux :** [`linux-{tag}.zip`](https://github.com/{repo}/releases/download/{tag}/linux-{tag}.zip)",
+      "",
+      "### 📋 Intégration OpenGOAL Launcher (Custom Mod Source)",
+      "Ajoutez ce mod directement dans l'OpenGOAL Launcher via l'URL du catalogue :",
+      "```text",
+      f"https://raw.githubusercontent.com/{repo}/{branch}/index.json",
+      "```",
+  ]
+
+  if checksums_content:
+    notes_parts.extend([
+        "",
+        "### 🔒 Checksums de Sécurité (SHA-256)",
+        "```text",
+        checksums_content,
+        "```",
+    ])
+
+  output_path.parent.mkdir(parents=True, exist_ok=True)
+  with open(output_path, "w", encoding="utf-8") as f:
+    f.write("\n".join(notes_parts) + "\n")
+
+  print(f"[OK] Generated release notes to {output_path}")
+
+
 def get_next_version(index_path: Path, mod_slug: str = "") -> str:
   """
   Calculates the next version string formatted as [nom-du-mod]-[version]
@@ -210,6 +275,15 @@ def main():
       action="store_true",
       help="Print release metadata JSON (tag, display_name, description) and exit",
   )
+  parser.add_argument(
+      "--generate-release-notes",
+      help="Output file path to generate markdown release notes and exit",
+  )
+  parser.add_argument(
+      "--checksums-file",
+      default="",
+      help="Path to SHA256SUMS.txt file to include in release notes",
+  )
   args = parser.parse_args()
 
   branch = args.branch or get_current_branch()
@@ -268,6 +342,26 @@ def main():
         "branch": branch,
     }
     print(json.dumps(meta, ensure_ascii=False))
+    return
+
+  if args.generate_release_notes:
+    output_path = Path(args.generate_release_notes)
+    if not output_path.is_absolute():
+      output_path = REPO_ROOT / output_path
+
+    checksums_path = Path(args.checksums_file) if args.checksums_file else None
+    if checksums_path and not checksums_path.is_absolute():
+      checksums_path = REPO_ROOT / checksums_path
+
+    generate_release_notes(
+        output_path=output_path,
+        branch=branch,
+        tag=tag,
+        repo=args.repo,
+        checksums_path=checksums_path,
+        display_name=display_name,
+        description=description,
+    )
     return
 
   mod_id = args.mod_id or detected_slug

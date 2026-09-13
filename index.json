@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "start_menu_wheel Source",
-  "lastUpdated": "2026-09-13T20:59:22Z",
+  "lastUpdated": "2026-09-13T21:01:05Z",
   "mods": {
     "start-menu-wheel": {
       "displayName": "start_menu_wheel",
@@ -19,8 +19,8 @@
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/config/start_menu_wheel",
       "versions": [
         {
-          "version": "start_menu_wheel-v1.0.0",
-          "publishedDate": "2026-09-13T20:59:22Z",
+          "version": "1.0.0",
+          "publishedDate": "2026-09-13T21:01:05Z",
           "supportedGames": [
             "jak2"
           ],

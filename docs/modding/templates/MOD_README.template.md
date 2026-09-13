@@ -26,7 +26,32 @@ Brief, simple description of what this mod introduces or modifies in the game.
 - **Feature 2:** Simple description of the second key feature.
 - **Feature 3:** Simple description of the third key feature.
 
-## 🚀 Step-by-Step Guide to Run the Mod
+## 📥 Download & Play via OpenGOAL Launcher (Players)
+
+> [!TIP]
+> **No developer environment required!** Players can install and play this mod directly using the official OpenGOAL Launcher:
+
+### Option A — Add Custom Mod Source (Recommended)
+1. In the **OpenGOAL Launcher**, navigate to **Settings ▸ Mods ▸ Add Custom Mod Source**.
+2. Paste this catalog URL:
+   ```text
+   https://raw.githubusercontent.com/{REPO_PATH}/{BRANCH_NAME}/index.json
+   ```
+3. Go to the **Mods** tab, locate **{MOD_TITLE}**, and click **Install**.
+4. Select your clean PS2 game ISO when prompted. The launcher will automatically extract assets and launch the game!
+
+### Option B — Manual Installation from GitHub Releases
+1. Download the pre-built package for your operating system from the [Releases](https://github.com/{REPO_PATH}/releases) tab (`windows-v*.zip` or `linux-v*.zip`).
+2. Extract the archive into your OpenGOAL Launcher features directory:
+   - **Windows:** `%APPDATA%\OpenGOAL-Launcher\features\{GAME_DIR}\mods\_local\{MOD_SLUG}\`
+   - **Linux:** `~/.config/OpenGOAL-Launcher/features/{GAME_DIR}/mods/_local/{MOD_SLUG}/`
+3. Launch the game from the OpenGOAL Launcher.
+
+---
+
+## 🛠️ Developer Setup & Local Compilation
+
+If you want to modify or compile this mod locally from source:
 
 ### 1. Select the Active Game
 Make sure your environment is targeting {TARGET_GAME}:
@@ -95,7 +120,32 @@ Description simple et accessible de ce que ce mod apporte ou modifie dans le jeu
 - **Fonctionnalité 2 :** Description simple de la deuxième fonctionnalité.
 - **Fonctionnalité 3 :** Description simple de la troisième fonctionnalité.
 
-## 🚀 Guide Pas à Pas pour Lancer le Mod
+## 📥 Téléchargement & Installation via OpenGOAL Launcher (Joueurs)
+
+> [!TIP]
+> **Aucun environnement de compilation requis !** Les joueurs peuvent installer et exécuter ce mod directement depuis l'OpenGOAL Launcher officiel :
+
+### Option A — Ajouter une Source de Mod Personnalisée (Recommandé)
+1. Dans l'**OpenGOAL Launcher**, rendez-vous dans **Settings ▸ Mods ▸ Add Custom Mod Source**.
+2. Collez l'URL suivante pointant vers le catalogue du mod :
+   ```text
+   https://raw.githubusercontent.com/{REPO_PATH}/{BRANCH_NAME}/index.json
+   ```
+3. Allez dans l'onglet **Mods**, sélectionnez **{MOD_TITLE}** et cliquez sur **Install**.
+4. Fournissez votre ISO PS2 propre lorsque demandé. Le launcher extrait les assets et installe le mod automatiquement !
+
+### Option B — Installation Manuelle depuis les Releases GitHub
+1. Téléchargez l'archive précompilée correspondant à votre OS dans l'onglet [Releases](https://github.com/{REPO_PATH}/releases) (`windows-v*.zip` ou `linux-v*.zip`).
+2. Décompressez l'archive dans le répertoire des mods de votre OpenGOAL Launcher :
+   - **Windows :** `%APPDATA%\OpenGOAL-Launcher\features\{GAME_DIR}\mods\_local\{MOD_SLUG}\`
+   - **Linux :** `~/.config/OpenGOAL-Launcher/features/{GAME_DIR}/mods/_local/{MOD_SLUG}/`
+3. Lancez le mod directement depuis l'OpenGOAL Launcher.
+
+---
+
+## 🛠️ Guide Développeur & Compilation Locale
+
+Si vous souhaitez modifier le code ou compiler ce mod vous-même depuis les sources :
 
 ### 1. Sélectionner le Jeu Actif
 Assurez-vous que l'environnement cible {TARGET_GAME} :

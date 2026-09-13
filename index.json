@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "mega_dark_jak Source",
-  "lastUpdated": "2026-09-13T21:07:31Z",
+  "lastUpdated": "2026-09-13T21:15:59Z",
   "mods": {
     "mega-dark-jak": {
       "displayName": "mega_dark_jak",
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-13T21:07:31Z",
+          "publishedDate": "2026-09-13T21:15:59Z",
           "supportedGames": [
             "jak3"
           ],

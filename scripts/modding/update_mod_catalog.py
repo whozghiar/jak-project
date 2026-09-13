@@ -183,6 +183,11 @@ def main():
       help="Linux archive SHA-256",
   )
   parser.add_argument(
+      "--branch",
+      default=os.environ.get("GITHUB_REF_NAME"),
+      help="Target branch name (e.g. jak2/features/jak3-jetBoard)",
+  )
+  parser.add_argument(
       "--next-version",
       action="store_true",
       help="Print calculated next version tag and exit",
@@ -194,7 +199,7 @@ def main():
   )
   args = parser.parse_args()
 
-  branch = get_current_branch()
+  branch = args.branch or get_current_branch()
   index_path = Path(args.index_file)
   if not index_path.is_absolute():
     index_path = REPO_ROOT / index_path

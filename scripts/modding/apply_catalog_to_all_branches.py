@@ -89,19 +89,16 @@ def main():
     run(f'python scripts/modding/update_mod_catalog.py --branch "{b}" --tag v1.0.0')
     run("git add index.json")
 
-    # Check if anything changed
+    # If there is an unresolved merge or staged changes, commit
     diff_check = subprocess.run("git diff --cached --quiet", shell=True, cwd=REPO_ROOT).returncode != 0
     if diff_check:
       commit_msg = (
-          f"chore(catalog): configure index.json with branch variable displayName and README overview\n\n"
-          f"- Integration of updated release CI workflow (.github/workflows/release.yml)\n"
-          f"  with semantic auto-increment (v1.0.0 -> v1.0.1), variable branch display name,\n"
-          f"  and automatic README overview extraction.\n"
-          f"- Creation of index.json catalog for 1-click install via OpenGOAL Launcher raw.githubusercontent.\n"
-          f"- Integration of latest engine fixes and Jak 3 Debug > Mods registry.\n\n"
+          f"fix(ci): strictly manual workflow_dispatch and valid release workflow syntax\n\n"
+          f"- Workflow triggers restricted to workflow_dispatch only (never triggers on push/commit)\n"
+          f"- Fixed line 378 YAML indentation syntax error\n"
+          f"- Synchronized latest release scripts from master-dev\n\n"
           f"(AI-assisted)"
       )
-      # Escape quotes for shell or write commit message via git commit -F
       msg_file = REPO_ROOT / ".git" / "COMMIT_EDITMSG_TEMP"
       with open(msg_file, "w", encoding="utf-8") as mf:
         mf.write(commit_msg)
@@ -109,11 +106,14 @@ def main():
       if msg_file.exists():
         msg_file.unlink()
 
-      # Push to origin
+    # Check if local branch is ahead of origin
+    local_rev = run(f"git rev-parse HEAD", check=False)
+    remote_rev = run(f"git rev-parse origin/{b}", check=False)
+    if local_rev != remote_rev:
       run(f"git push origin {b}")
-      print(f"[OK] Successfully committed and pushed {b}!")
+      print(f"[OK] Successfully pushed {b} to origin!")
     else:
-      print(f"[OK] Branch {b} is already completely up to date.")
+      print(f"[OK] Branch {b} is already completely up to date on origin.")
 
   run("git checkout master-dev")
   print("\n🎉 All 17 branches successfully synchronized and updated with accurate index.json!")

@@ -1,40 +1,8 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "crimson-blueguard/city-insurrection Source",
-  "lastUpdated": "2026-09-13T20:49:31Z",
+  "lastUpdated": "2026-09-13T20:52:08Z",
   "mods": {
-    "temp-sync-jak2-features-crimson-blueguard-city-insurrection": {
-      "displayName": "temp-sync-jak2-features-crimson-blueguard-city-insurrection",
-      "description": "Adds the **Blue Crimson Guard** as its own standalone entity (`crimson-blue-guard`) with high-fidelity combat AI and custom textures, alongside the **City Insurrection** mode: a full-scale territorial civil war across Haven City between Baron Praxis's loyalist forces and the rebel blue guard insurgent faction.",
-      "authors": [
-        "whozghiar"
-      ],
-      "tags": [
-        "gameplay",
-        "custom-engine"
-      ],
-      "supportedGames": [
-        "jak2"
-      ],
-      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/temp-sync-jak2-features-crimson-blueguard-city-insurrection",
-      "versions": [
-        {
-          "version": "1.0.0",
-          "publishedDate": "2026-09-13T20:47:32Z",
-          "supportedGames": [
-            "jak2"
-          ],
-          "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/windows-v1.0.0.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/linux-v1.0.0.zip"
-          },
-          "checksums": {
-            "windows": "",
-            "linux": ""
-          }
-        }
-      ]
-    },
     "crimson-blueguard-city-insurrection": {
       "displayName": "crimson-blueguard/city-insurrection",
       "description": "Adds the **Blue Crimson Guard** as its own standalone entity (`crimson-blue-guard`) with high-fidelity combat AI and custom textures, alongside the **City Insurrection** mode: a full-scale territorial civil war across Haven City between Baron Praxis's loyalist forces and the rebel blue guard insurgent faction.",
@@ -51,14 +19,14 @@
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/crimson-blueguard/city-insurrection",
       "versions": [
         {
-          "version": "1.0.1",
-          "publishedDate": "2026-09-13T20:49:31Z",
+          "version": "1.0.0",
+          "publishedDate": "2026-09-13T20:52:08Z",
           "supportedGames": [
             "jak2"
           ],
           "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/v1.0.1/windows-v1.0.1.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/v1.0.1/linux-v1.0.1.zip"
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/windows-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/linux-v1.0.0.zip"
           },
           "checksums": {
             "windows": "",

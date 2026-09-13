@@ -116,9 +116,20 @@ def main():
     custom_readme = custom_readme.replace("{BRANCH_BADGE}", branch_encoded)
     custom_readme = custom_readme.replace("{BRANCH_NAME}", branch)
     custom_readme = custom_readme.replace("{TASK_SET_GAME}", f"task set-game-jak{game_num}")
+    custom_readme = custom_readme.replace("{GAME_DIR}", f"jak{game_num}")
     custom_readme = custom_readme.replace("{MOD_SLUG}", mod_slug_clean)
     custom_readme = custom_readme.replace("{YOUTUBE_URL}", youtube_url)
     custom_readme = custom_readme.replace("{YOUTUBE_ID}", youtube_id)
+
+    # Detect repo path (owner/repo) from origin remote if possible
+    origin_res = run_cmd("git config --get remote.origin.url", check=False)
+    repo_path = "whozghiar/jak-project"
+    if origin_res.returncode == 0 and origin_res.stdout.strip():
+        origin_url = origin_res.stdout.strip()
+        repo_match = re.search(r"github\.com[:/]([^/]+/[^/\.]+)", origin_url)
+        if repo_match:
+            repo_path = repo_match.group(1)
+    custom_readme = custom_readme.replace("{REPO_PATH}", repo_path)
 
     # Write to root README.md
     print(f"Writing customized mod README to {README_PATH}...")

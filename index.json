@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "jak3-jetBoard Source",
-  "lastUpdated": "2026-09-13T20:59:46Z",
+  "lastUpdated": "2026-09-13T21:01:28Z",
   "mods": {
     "jak3-jetBoard": {
       "displayName": "jak3-jetBoard",
@@ -19,8 +19,8 @@
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/jak3-jetBoard",
       "versions": [
         {
-          "version": "jak3-jetBoard-v1.0.0",
-          "publishedDate": "2026-09-13T20:59:46Z",
+          "version": "1.0.0",
+          "publishedDate": "2026-09-13T21:01:28Z",
           "supportedGames": [
             "jak2"
           ],

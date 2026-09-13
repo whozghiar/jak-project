@@ -1,28 +1,28 @@
 # 📊 État de Synchronisation des Branches de Mods
 
-> **Dernière mise à jour :** `2026-09-13 14:11:58 UTC`  
-> **Branche source :** `master-dev` (`ef4392e68`)  
-> **Statut global :** 15/17 synchronisées (2 conflits)
+> **Dernière mise à jour :** `2026-09-13 20:47:22 UTC`  
+> **Branche source :** `master-dev` (`ef111a75d`)  
+> **Statut global :** 17/17 synchronisées (0 conflits)
 
 | Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |
 | :--- | :---: | :--- | :--- | :--- |
-| `jak2/config/enhanced_spawnrates` | 🔄 Synchronisée | `d1aebca00 - chore: sync jak2/config/enhanced_spawnrates with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
-| `jak2/config/start_menu_wheel` | 🔄 Synchronisée | `f53fa6cf1 - chore: sync jak2/config/start_menu_wheel with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
-| `jak2/features/crimson-blueguard/city-insurrection` | 🔄 Synchronisée | `1ceab7c7a - chore: sync jak2/features/crimson-blueguard/city-insurrection with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
-| `jak2/features/crimson-blueguard/crimson-redguard-behavior` | ⚠️ Conflit | `c67191dbe - feat(jak2/crimson-blueguard): blue minimap dot for guard vehicles (AI-assisted)` | • `.agents/skills/engine-internals/discoveries.md`<br>• `AGENTS.md` | `git checkout jak2/features/crimson-blueguard/crimson-redguard-behavior && git merge origin/master-dev` |
-| `jak2/features/crimson-blueguard/peaceful` | 🔄 Synchronisée | `a95733307 - chore: sync jak2/features/crimson-blueguard/peaceful with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
-| `jak2/features/dark_jak_enhanced` | 🔄 Synchronisée | `be1c5e590 - chore: sync jak2/features/dark_jak_enhanced with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
-| `jak2/features/haven-city-chaos` | ⚠️ Conflit | `f75162eec - feat(jak2/chaos): 10/50/40 ground faction ratio, plus three Rapid gunner fixes (AI-assisted)` | • `.agents/skills/engine-internals/discoveries.md` | `git checkout jak2/features/haven-city-chaos && git merge origin/master-dev` |
-| `jak2/features/jak3-jetBoard` | 🔄 Synchronisée | `b283ae6a3 - chore: sync jak2/features/jak3-jetBoard with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
-| `jak2/features/paddywagon/traffic` | 🔄 Synchronisée | `1aa0e9566 - chore: sync jak2/features/paddywagon/traffic with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
-| `jak2/features/transport-ag/alert` | 🔄 Synchronisée | `105f40c8b - chore: sync jak2/features/transport-ag/alert with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
-| `jak2/features/transport-ag/traffic` | 🔄 Synchronisée | `c607375b0 - chore: sync jak2/features/transport-ag/traffic with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
-| `jak2/features/yakow_killable` | 🔄 Synchronisée | `4c2108dab - chore: sync jak2/features/yakow_killable with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
-| `jak3/config/memory_increase` | 🔄 Synchronisée | `df1c7757e - chore: sync jak3/config/memory_increase with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
-| `jak3/features/city-behavior` | 🔄 Synchronisée | `b58a47d35 - chore: sync jak3/features/city-behavior with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
-| `jak3/features/jak2_skin_secret` | 🔄 Synchronisée | `164b2f428 - chore: sync jak3/features/jak2_skin_secret with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
-| `jak3/features/mega_dark_jak` | 🔄 Synchronisée | `981f13af4 - chore: sync jak3/features/mega_dark_jak with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
-| `jak3/features/redguard-entity` | 🔄 Synchronisée | `0afefe618 - chore: sync jak3/features/redguard-entity with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak2/config/enhanced_spawnrates` | 🔄 Synchronisée | `937f143c1 - chore(sync): align jak2/config/enhanced_spawnrates with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/config/start_menu_wheel` | 🔄 Synchronisée | `51a5cbc97 - chore(sync): align jak2/config/start_menu_wheel with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/crimson-blueguard/city-insurrection` | 🔄 Synchronisée | `39528536a - chore(sync): align jak2/features/crimson-blueguard/city-insurrection with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/crimson-blueguard/crimson-redguard-behavior` | 🔄 Synchronisée | `6924ec454 - chore(sync): align jak2/features/crimson-blueguard/crimson-redguard-behavior with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/crimson-blueguard/peaceful` | 🔄 Synchronisée | `2795f5fd7 - chore(sync): align jak2/features/crimson-blueguard/peaceful with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/dark_jak_enhanced` | 🔄 Synchronisée | `8ef05fc5a - chore(sync): align jak2/features/dark_jak_enhanced with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/haven-city-chaos` | 🔄 Synchronisée | `89fa4ed8e - chore(sync): align jak2/features/haven-city-chaos with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/jak3-jetBoard` | 🔄 Synchronisée | `e483b2749 - chore(sync): align jak2/features/jak3-jetBoard with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/paddywagon/traffic` | 🔄 Synchronisée | `b374051db - chore(sync): align jak2/features/paddywagon/traffic with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/transport-ag/alert` | 🔄 Synchronisée | `a41b58abf - chore(sync): align jak2/features/transport-ag/alert with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/transport-ag/traffic` | 🔄 Synchronisée | `adb814579 - chore(sync): align jak2/features/transport-ag/traffic with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/yakow_killable` | 🔄 Synchronisée | `2c3ada67c - chore(sync): align jak2/features/yakow_killable with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak3/config/memory_increase` | 🔄 Synchronisée | `8b35b4e6d - chore(sync): align jak3/config/memory_increase with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak3/features/city-behavior` | 🔄 Synchronisée | `b8a5abfa5 - chore(sync): align jak3/features/city-behavior with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak3/features/jak2_skin_secret` | 🔄 Synchronisée | `4f2679d0f - chore(sync): align jak3/features/jak2_skin_secret with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak3/features/mega_dark_jak` | 🔄 Synchronisée | `207434e5a - chore(sync): align jak3/features/mega_dark_jak with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak3/features/redguard-entity` | 🔄 Synchronisée | `e3a7ed3f2 - chore(sync): align jak3/features/redguard-entity with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
 
 ---
 ### Guide de Résolution des Conflits

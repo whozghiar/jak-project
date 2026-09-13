@@ -10,6 +10,14 @@ on:
         description: 'Tag de version du mod (ex: v1.0.0)'
         required: true
         default: 'v1.0.0'
+      build_binaries:
+        description: 'Recompiler C++ (auto: recompile seulement si C++ modifié)'
+        type: choice
+        options:
+          - auto
+          - 'false'
+          - 'true'
+        default: auto
       prerelease:
         description: 'Marquer comme pré-release'
         type: boolean
@@ -23,10 +31,86 @@ env:
 
 jobs:
   # =========================================================================
-  # 1. BUILD WINDOWS (x86_64-pc-windows-msvc via Clang-CL Statique)
+  # 0. DÉTECTION DU TYPE DE MOD (GOAL-only vs C++ Engine)
+  # =========================================================================
+  check_mode:
+    name: "🔍 Analyse des Changements (C++ vs GOAL)"
+    runs-on: ubuntu-latest
+    outputs:
+      build_binaries: ${{ steps.detect.outputs.build_binaries }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Détection automatique des modifications C++
+        id: detect
+        run: |
+          USER_CHOICE="${{ github.event.inputs.build_binaries }}"
+          if [ "$USER_CHOICE" = "true" ]; then
+            echo "Choix utilisateur explicite: Forcer la compilation C++"
+            echo "build_binaries=true" >> $GITHUB_OUTPUT
+          elif [ "$USER_CHOICE" = "false" ]; then
+            echo "Choix utilisateur explicite: Fast Packaging (Pas de compilation C++)"
+            echo "build_binaries=false" >> $GITHUB_OUTPUT
+          else
+            git fetch origin master-dev
+            CPP_DIFF=$(git diff origin/master-dev...HEAD -- common/ decompiler/ game/ goalc/ CMakeLists.txt)
+            if [ -z "$CPP_DIFF" ]; then
+              echo "✅ Aucun fichier C++ modifié par rapport à master-dev."
+              echo "⚡ Mode Fast Packaging activé (~45s)."
+              echo "build_binaries=false" >> $GITHUB_OUTPUT
+            else
+              echo "⚠️ Fichiers C++ modifiés détectés :"
+              git diff origin/master-dev...HEAD --name-only -- common/ decompiler/ game/ goalc/ CMakeLists.txt
+              echo "🔨 Mode Compilation C++ requis."
+              echo "build_binaries=true" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  # =========================================================================
+  # 1. FAST PACKAGING (~45s pour les mods GOAL-only)
+  # =========================================================================
+  fast-bundle:
+    name: "⚡ Fast Mod Packaging (No C++ Build)"
+    needs: check_mode
+    if: needs.check_mode.outputs.build_binaries == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bundle Windows & Linux Packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python ./scripts/modding/bundle_fast_release.py \
+            --tag "${RELEASE_TAG}" \
+            --out-dir "final-artifacts"
+
+      - name: Upload Fast Bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-fast-bundle
+          path: final-artifacts/*.zip
+          if-no-files-found: error
+
+  # =========================================================================
+  # 2. BUILD WINDOWS (Actif UNIQUEMENT si le C++ a été modifié)
   # =========================================================================
   build-windows:
     name: "🖥️ Windows (Clang-CL Static)"
+    needs: check_mode
+    if: needs.check_mode.outputs.build_binaries == 'true'
     runs-on: windows-2022
     timeout-minutes: 60
     steps:
@@ -61,28 +145,23 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
 
-      - name: Build Binaries
+      - name: Build Binaries (gk, goalc, extractor uniquement)
         shell: cmd
-        run: cmake --build build --config Release --parallel %NUMBER_OF_PROCESSORS%
+        run: cmake --build build --config Release --target gk --target goalc --target extractor --parallel %NUMBER_OF_PROCESSORS%
 
       - name: Package Windows Mod Bundle
         shell: bash
         run: |
           TAG_VAL="${RELEASE_TAG}"
-          echo "Packaging Windows bundle for tag: ${TAG_VAL}"
-
           PKG_DIR="dist_windows"
-          mkdir -p "$PKG_DIR"
           mkdir -p "$PKG_DIR/data/launcher"
           mkdir -p "$PKG_DIR/data/decompiler"
           mkdir -p "$PKG_DIR/data/game/graphics/opengl_renderer"
 
-          # 1. Executables à la racine
           cp build/bin/gk.exe "$PKG_DIR/"
           cp build/bin/goalc.exe "$PKG_DIR/"
           cp build/bin/extractor.exe "$PKG_DIR/"
 
-          # 2. Données requises pour extraction ISO, compilation GOAL et rendu
           cp -r decompiler/config "$PKG_DIR/data/decompiler/"
           cp -r goal_src "$PKG_DIR/data/"
           cp -r game/assets "$PKG_DIR/data/game/"
@@ -109,10 +188,12 @@ jobs:
           if-no-files-found: error
 
   # =========================================================================
-  # 2. BUILD LINUX (x86_64-unknown-linux-gnu via Clang Statique)
+  # 3. BUILD LINUX (Actif UNIQUEMENT si le C++ a été modifié)
   # =========================================================================
   build-linux:
     name: "🐧 Linux (Clang Static)"
+    needs: check_mode
+    if: needs.check_mode.outputs.build_binaries == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -145,8 +226,8 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=sccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
 
-      - name: Build Binaries
-        run: cmake --build build --config Release --parallel $(nproc)
+      - name: Build Binaries (gk, goalc, extractor uniquement)
+        run: cmake --build build --config Release --target gk --target goalc --target extractor --parallel $(nproc)
 
       - name: Strip Binaries
         run: |
@@ -157,21 +238,16 @@ jobs:
       - name: Package Linux Mod Bundle
         run: |
           TAG_VAL="${RELEASE_TAG}"
-          echo "Packaging Linux bundle for tag: ${TAG_VAL}"
-
           PKG_DIR="dist_linux"
-          mkdir -p "$PKG_DIR"
           mkdir -p "$PKG_DIR/data/launcher"
           mkdir -p "$PKG_DIR/data/decompiler"
           mkdir -p "$PKG_DIR/data/game/graphics/opengl_renderer"
 
-          # 1. Executables avec permissions d'execution
           cp build/game/gk "$PKG_DIR/"
           cp build/goalc/goalc "$PKG_DIR/"
           cp build/decompiler/extractor "$PKG_DIR/"
           chmod +x "$PKG_DIR/gk" "$PKG_DIR/goalc" "$PKG_DIR/extractor"
 
-          # 2. Données requises pour extraction ISO, compilation GOAL et rendu
           cp -r decompiler/config "$PKG_DIR/data/decompiler/"
           cp -r goal_src "$PKG_DIR/data/"
           cp -r game/assets "$PKG_DIR/data/game/"
@@ -198,11 +274,12 @@ jobs:
           if-no-files-found: error
 
   # =========================================================================
-  # 3. PUBLISH RELEASE & MOD CATALOG (index.json)
+  # 4. PUBLISH RELEASE & MOD CATALOG (index.json)
   # =========================================================================
   publish:
     name: "📦 Publish Release & Catalog"
-    needs: [build-windows, build-linux]
+    needs: [check_mode, fast-bundle, build-windows, build-linux]
+    if: always() && !cancelled() && needs.check_mode.result == 'success' && !contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -219,8 +296,8 @@ jobs:
         id: checksums
         run: |
           mkdir -p release-files
-          mv downloaded-artifacts/release-windows/* release-files/
-          mv downloaded-artifacts/release-linux/* release-files/
+          # Regroupe les fichiers provenant soit de fast-bundle, soit des builds Windows/Linux
+          find downloaded-artifacts -type f -name "*.zip" -exec mv {} release-files/ \;
 
           cd release-files
           sha256sum "windows-${RELEASE_TAG}.zip" > SHA256SUMS.txt
@@ -273,11 +350,11 @@ jobs:
           *(AI-assisted release packaging)*"
 
           if gh release view "${RELEASE_TAG}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Release exists, updating notes and uploading assets with --clobber..."
+            echo "La release existe déjà, mise à jour des notes et upload des assets avec --clobber..."
             gh release edit "${RELEASE_TAG}" --title "Release ${RELEASE_TAG}" --notes "$NOTES" $PRERELEASE_FLAG --repo "${{ github.repository }}"
             gh release upload "${RELEASE_TAG}" release-files/* --repo "${{ github.repository }}" --clobber
           else
-            echo "Creating new release..."
+            echo "Création de la release..."
             gh release create "${RELEASE_TAG}" \
               release-files/* \
               --title "Release ${RELEASE_TAG}" \

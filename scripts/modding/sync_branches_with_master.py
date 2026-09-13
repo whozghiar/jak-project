@@ -174,7 +174,7 @@ def merge_and_push_branch(branch, source_ref):
         run_cmd('git add README.md')
 
         # Generate or update index.json for the branch
-        run_cmd(f'python "{os.path.join(REPO_ROOT, "scripts", "modding", "update_mod_catalog.py")}"')
+        run_cmd(f'python "{os.path.join(REPO_ROOT, "scripts", "modding", "update_mod_catalog.py")}" --branch "{branch}"')
         run_cmd('git add index.json')
 
         commit_msg = (

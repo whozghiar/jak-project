@@ -4,10 +4,11 @@ on:
   push:
     tags:
       - 'v*.*.*'
+      - '*-v*.*.*'
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag de version du mod (ex: v1.0.0, ou "auto" pour incrémenter)'
+        description: 'Tag de version du mod (laisser "auto" pour [nom-du-mod]-[version] automatique)'
         required: false
         default: 'auto'
       build_binaries:
@@ -55,11 +56,11 @@ jobs:
         run: |
           INPUT_TAG="${{ github.event.inputs.tag_name }}"
           if [ -n "$INPUT_TAG" ] && [ "$INPUT_TAG" != "auto" ]; then
-            TAG="$INPUT_TAG"
+            TAG=$(python ./scripts/modding/update_mod_catalog.py --branch "${{ github.ref_name }}" --tag "$INPUT_TAG" --next-version)
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             TAG="${{ github.ref_name }}"
           else
-            TAG=$(python ./scripts/modding/update_mod_catalog.py --next-version)
+            TAG=$(python ./scripts/modding/update_mod_catalog.py --branch "${{ github.ref_name }}" --next-version)
           fi
 
           echo "Tag sélectionné : $TAG"
@@ -393,13 +394,13 @@ $(cat release-files/SHA256SUMS.txt)
 
           if gh release view "${RELEASE_TAG}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "La release existe déjà, mise à jour des notes et upload des assets avec --clobber..."
-            gh release edit "${RELEASE_TAG}" --title "${DISPLAY_NAME} ${RELEASE_TAG}" --notes "$NOTES" $PRERELEASE_FLAG --repo "${{ github.repository }}"
+            gh release edit "${RELEASE_TAG}" --title "${RELEASE_TAG}" --notes "$NOTES" $PRERELEASE_FLAG --repo "${{ github.repository }}"
             gh release upload "${RELEASE_TAG}" release-files/* --repo "${{ github.repository }}" --clobber
           else
             echo "Création de la release..."
             gh release create "${RELEASE_TAG}" \
               release-files/* \
-              --title "${DISPLAY_NAME} ${RELEASE_TAG}" \
+              --title "${RELEASE_TAG}" \
               --notes "$NOTES" \
               --repo "${{ github.repository }}" \
               $PRERELEASE_FLAG

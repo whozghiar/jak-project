@@ -72,7 +72,7 @@ jobs:
 
             # Discard any upstream workflow changes for deleted workflows
             for file in $conflicts; do
-              if [[ "$file" == .github/workflows/* && "$file" != ".github/workflows/sync-upstream.yaml" ]]; then
+              if [[ "$file" == .github/workflows/* && "$file" != ".github/workflows/sync-upstream.yaml" && "$file" != ".github/workflows/release.yml" ]]; then
                 echo "Ignoring upstream changes and removing unwanted workflow: $file"
                 git rm -f "$file"
               fi
@@ -87,9 +87,9 @@ jobs:
             fi
           fi
 
-          # Safety cleanup: ensure master-dev strictly keeps only sync-upstream.yaml
+          # Safety cleanup: ensure master-dev strictly keeps sync-upstream.yaml and release.yml
           for f in .github/workflows/*; do
-            if [ "$f" != ".github/workflows/sync-upstream.yaml" ]; then
+            if [ "$f" != ".github/workflows/sync-upstream.yaml" ] && [ "$f" != ".github/workflows/release.yml" ]; then
               echo "Pruning unwanted workflow: $f"
               git rm -rf "$f" 2>/dev/null || rm -rf "$f"
             fi

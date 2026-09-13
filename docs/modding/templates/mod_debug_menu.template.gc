@@ -36,6 +36,12 @@
      and return a node, never spawn anything from it.
 
   Replace every `crimson-blueguard` / `city-peaceful` below with your own names.
+
+  Works as-is on Jak 2 and Jak 3 -- the registry API is identical in both
+  (`goal_src/jak[2|3]/pc/debug/mods-menu.gc`). The traffic example below is
+  Jak 2 flavoured; on Jak 3 the equivalent manager call is the same shape.
+  Jak 1 has no registry yet -- see section 6 of
+  docs/modding/tools/mods_debug_menu.md.
 |#
 
 (declare-file (debug))

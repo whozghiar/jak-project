@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0.0",
+  "sourceName": "temp-sync-jak3-features-jak2_skin_secret Source",
+  "lastUpdated": "2026-09-13T20:48:27Z",
+  "mods": {
+    "temp-sync-jak3-features-jak2-skin-secret": {
+      "displayName": "temp-sync-jak3-features-jak2_skin_secret",
+      "description": "Adds Jak's iconic Jak II outfit to the in-game Secrets Menu in Jak 3, allowing players to purchase and toggle his classic Haven City rebel appearance at any time.",
+      "authors": [
+        "whozghiar"
+      ],
+      "tags": [
+        "gameplay",
+        "custom-engine"
+      ],
+      "supportedGames": [
+        "jak2"
+      ],
+      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/temp-sync-jak3-features-jak2_skin_secret",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "publishedDate": "2026-09-13T20:48:27Z",
+          "supportedGames": [
+            "jak2"
+          ],
+          "assets": {
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/windows-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/linux-v1.0.0.zip"
+          },
+          "checksums": {
+            "windows": "",
+            "linux": ""
+          }
+        }
+      ]
+    }
+  },
+  "texturePacks": {}
+}

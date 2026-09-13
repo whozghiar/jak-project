@@ -1,28 +1,28 @@
 # 📊 État de Synchronisation des Branches de Mods
 
-> **Dernière mise à jour :** `2026-09-13 20:49:21 UTC`  
-> **Branche source :** `master-dev` (`9d8213058`)  
+> **Dernière mise à jour :** `2026-09-13 20:55:08 UTC`  
+> **Branche source :** `master-dev` (`5cedd256c`)  
 > **Statut global :** 17/17 synchronisées (0 conflits)
 
 | Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |
 | :--- | :---: | :--- | :--- | :--- |
-| `jak2/config/enhanced_spawnrates` | 🔄 Synchronisée | `e94c1d407 - chore(sync): align jak2/config/enhanced_spawnrates with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/config/start_menu_wheel` | 🔄 Synchronisée | `9ca5a6798 - chore(sync): align jak2/config/start_menu_wheel with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/crimson-blueguard/city-insurrection` | 🔄 Synchronisée | `fab6de8b1 - chore(sync): align jak2/features/crimson-blueguard/city-insurrection with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/crimson-blueguard/crimson-redguard-behavior` | 🔄 Synchronisée | `fa93c2043 - chore(sync): align jak2/features/crimson-blueguard/crimson-redguard-behavior with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/crimson-blueguard/peaceful` | 🔄 Synchronisée | `099a2b2f8 - chore(sync): align jak2/features/crimson-blueguard/peaceful with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/dark_jak_enhanced` | 🔄 Synchronisée | `485e0528d - chore(sync): align jak2/features/dark_jak_enhanced with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/haven-city-chaos` | 🔄 Synchronisée | `4ecdd42f5 - chore(sync): align jak2/features/haven-city-chaos with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/jak3-jetBoard` | 🔄 Synchronisée | `e34b2f22a - chore(sync): align jak2/features/jak3-jetBoard with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/paddywagon/traffic` | 🔄 Synchronisée | `66db051a7 - chore(sync): align jak2/features/paddywagon/traffic with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/transport-ag/alert` | 🔄 Synchronisée | `67c38dd2c - chore(sync): align jak2/features/transport-ag/alert with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/transport-ag/traffic` | 🔄 Synchronisée | `93231c55d - chore(sync): align jak2/features/transport-ag/traffic with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/yakow_killable` | 🔄 Synchronisée | `476f3c0e6 - chore(sync): align jak2/features/yakow_killable with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak3/config/memory_increase` | 🔄 Synchronisée | `0a4507ece - chore(sync): align jak3/config/memory_increase with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak3/features/city-behavior` | 🔄 Synchronisée | `790623032 - chore(sync): align jak3/features/city-behavior with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak3/features/jak2_skin_secret` | 🔄 Synchronisée | `960e9a035 - chore(sync): align jak3/features/jak2_skin_secret with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak3/features/mega_dark_jak` | 🔄 Synchronisée | `6e469f919 - chore(sync): align jak3/features/mega_dark_jak with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak3/features/redguard-entity` | 🔄 Synchronisée | `2eabc1f3c - chore(sync): align jak3/features/redguard-entity with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/config/enhanced_spawnrates` | ✅ À jour | `8b3f396bc - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak2/config/start_menu_wheel` | ✅ À jour | `039c17b37 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak2/features/crimson-blueguard/city-insurrection` | ✅ À jour | `d28b71d7a - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak2/features/crimson-blueguard/crimson-redguard-behavior` | ✅ À jour | `615f82cdb - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak2/features/crimson-blueguard/peaceful` | ✅ À jour | `6aa6d107c - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak2/features/dark_jak_enhanced` | ✅ À jour | `8f1a4df8a - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak2/features/haven-city-chaos` | ✅ À jour | `12b639685 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak2/features/jak3-jetBoard` | ✅ À jour | `fb7736171 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak2/features/paddywagon/traffic` | ✅ À jour | `0518abd2d - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak2/features/transport-ag/alert` | ✅ À jour | `ecbd5c14f - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak2/features/transport-ag/traffic` | ✅ À jour | `5b5531df5 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak2/features/yakow_killable` | ✅ À jour | `ca9cb7e73 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak3/config/memory_increase` | ✅ À jour | `ec56d954b - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak3/features/city-behavior` | ✅ À jour | `e384cdd6b - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak3/features/jak2_skin_secret` | ✅ À jour | `6ea90aa00 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak3/features/mega_dark_jak` | ✅ À jour | `7e5a6ee13 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak3/features/redguard-entity` | ✅ À jour | `f0d147f02 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
 
 ---
 ### Guide de Résolution des Conflits

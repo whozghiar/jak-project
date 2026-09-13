@@ -90,12 +90,13 @@ def extract_metadata_from_readme(readme_path: Path):
   return description
 
 
-def get_next_version(index_path: Path) -> str:
+def get_next_version(index_path: Path, mod_slug: str = "") -> str:
   """
-  Calculates the next version string (e.g. 'v1.0.0', 'v1.0.1', 'v1.0.2').
+  Calculates the next version string formatted as [nom-du-mod]-[version]
+  (e.g. 'jak3-jetBoard-v1.0.0', 'jak3-jetBoard-v1.0.1').
   1. Reads index.json for latest version.
-  2. Increments patch number.
-  3. Checks git tags to ensure tag uniqueness.
+  2. Increments patch number if previous version was released with checksums.
+  3. Checks git tags to ensure tag uniqueness across repository.
   """
   candidate_major = 1
   candidate_minor = 0
@@ -113,7 +114,7 @@ def get_next_version(index_path: Path) -> str:
           if versions:
             latest_v_str = versions[0].get("version", "")
             win_ck = versions[0].get("checksums", {}).get("windows", "")
-            m = re.match(r"^v?(\d+)\.(\d+)\.(\d+)", latest_v_str)
+            m = re.search(r"(\d+)\.(\d+)\.(\d+)", latest_v_str)
             if m:
               candidate_major = int(m.group(1))
               candidate_minor = int(m.group(2))
@@ -125,7 +126,8 @@ def get_next_version(index_path: Path) -> str:
     except Exception:
       pass
 
-  candidate_tag = f"v{candidate_major}.{candidate_minor}.{candidate_patch}"
+  prefix = f"{mod_slug}-" if mod_slug else ""
+  candidate_tag = f"{prefix}v{candidate_major}.{candidate_minor}.{candidate_patch}"
 
   # Verify against existing git tags
   existing_tags_raw = run_cmd("git tag -l")
@@ -133,7 +135,7 @@ def get_next_version(index_path: Path) -> str:
 
   while candidate_tag in existing_tags:
     candidate_patch += 1
-    candidate_tag = f"v{candidate_major}.{candidate_minor}.{candidate_patch}"
+    candidate_tag = f"{prefix}v{candidate_major}.{candidate_minor}.{candidate_patch}"
 
   return candidate_tag
 
@@ -150,7 +152,7 @@ def main():
   parser.add_argument(
       "--tag",
       default=os.environ.get("RELEASE_TAG") or os.environ.get("TAG", ""),
-      help="Release tag (e.g. v1.0.0)",
+      help="Release tag (e.g. jak3-jetBoard-v1.0.0 or v1.0.0)",
   )
   parser.add_argument(
       "--repo",
@@ -215,10 +217,6 @@ def main():
   if not index_path.is_absolute():
     index_path = REPO_ROOT / index_path
 
-  if args.next_version:
-    print(get_next_version(index_path))
-    return
-
   readme_desc = extract_metadata_from_readme(REPO_ROOT / "README.md")
 
   # Determine target game and variable part of branch
@@ -245,10 +243,21 @@ def main():
       or f"Mod OpenGOAL {detected_game.upper()} avec modifications C++ et LISP."
   )
 
-  # Determine tag
+  # Determine tag formatted as [nom-du-mod]-[version]
   tag = args.tag.strip() if args.tag else ""
   if not tag:
-    tag = get_next_version(index_path)
+    tag = get_next_version(index_path, mod_slug=variable_part)
+  else:
+    if not tag.startswith(f"{variable_part}-"):
+      v_match = re.search(r"v?\d+\.\d+\.\d+", tag)
+      ver_str = v_match.group(0) if v_match else tag
+      if not ver_str.startswith("v"):
+        ver_str = f"v{ver_str}"
+      tag = f"{variable_part}-{ver_str}"
+
+  if args.next_version:
+    print(tag)
+    return
 
   if args.print_metadata:
     meta = {

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "city-behavior Source",
-  "lastUpdated": "2026-09-13T21:00:10Z",
+  "lastUpdated": "2026-09-13T21:01:51Z",
   "mods": {
     "city-behavior": {
       "displayName": "city-behavior",
@@ -19,8 +19,8 @@
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak3/features/city-behavior",
       "versions": [
         {
-          "version": "city-behavior-v1.0.0",
-          "publishedDate": "2026-09-13T21:00:10Z",
+          "version": "1.0.0",
+          "publishedDate": "2026-09-13T21:01:51Z",
           "supportedGames": [
             "jak3"
           ],

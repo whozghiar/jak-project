@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0.0",
+  "sourceName": "temp-sync-jak2-config-start_menu_wheel Source",
+  "lastUpdated": "2026-09-13T20:47:28Z",
+  "mods": {
+    "temp-sync-jak2-config-start-menu-wheel": {
+      "displayName": "temp-sync-jak2-config-start_menu_wheel",
+      "description": "This quality-of-life (QoL) mod modernizes the in-game Start / Pause menu wheel navigation in Jak 2 to match the fluidity and responsiveness of Jak 3.",
+      "authors": [
+        "whozghiar"
+      ],
+      "tags": [
+        "gameplay",
+        "custom-engine"
+      ],
+      "supportedGames": [
+        "jak2"
+      ],
+      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/temp-sync-jak2-config-start_menu_wheel",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "publishedDate": "2026-09-13T20:47:28Z",
+          "supportedGames": [
+            "jak2"
+          ],
+          "assets": {
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/windows-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/linux-v1.0.0.zip"
+          },
+          "checksums": {
+            "windows": "",
+            "linux": ""
+          }
+        }
+      ]
+    }
+  },
+  "texturePacks": {}
+}

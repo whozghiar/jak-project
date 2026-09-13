@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "paddywagon/traffic Source",
-  "lastUpdated": "2026-09-13T20:53:19Z",
+  "lastUpdated": "2026-09-13T20:54:11Z",
   "mods": {
     "paddywagon-traffic": {
       "displayName": "paddywagon/traffic",
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-13T20:53:19Z",
+          "publishedDate": "2026-09-13T20:54:11Z",
           "supportedGames": [
             "jak2"
           ],

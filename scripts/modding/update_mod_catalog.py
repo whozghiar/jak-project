@@ -20,6 +20,11 @@ import re
 import subprocess
 import sys
 
+if hasattr(sys.stdout, "reconfigure"):
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -101,15 +106,21 @@ def get_next_version(index_path: Path) -> str:
       with open(index_path, "r", encoding="utf-8") as f:
         data = json.load(f)
         mods = data.get("mods", {})
-        for mod_data in mods.values():
+        for mod_key, mod_data in mods.items():
+          if mod_key.startswith("temp-sync-"):
+            continue
           versions = mod_data.get("versions", [])
           if versions:
             latest_v_str = versions[0].get("version", "")
+            win_ck = versions[0].get("checksums", {}).get("windows", "")
             m = re.match(r"^v?(\d+)\.(\d+)\.(\d+)", latest_v_str)
             if m:
               candidate_major = int(m.group(1))
               candidate_minor = int(m.group(2))
-              candidate_patch = int(m.group(3)) + 1
+              if win_ck:
+                candidate_patch = int(m.group(3)) + 1
+              else:
+                candidate_patch = int(m.group(3))
             break
     except Exception:
       pass
@@ -279,6 +290,8 @@ def main():
         loaded = json.load(f)
         if isinstance(loaded, dict) and "mods" in loaded:
           catalog = loaded
+          if isinstance(catalog["mods"], dict):
+            catalog["mods"] = {k: v for k, v in catalog["mods"].items() if not k.startswith("temp-sync-")}
     except Exception as err:
       print(
           f"Warning: Could not read existing index.json, creating a fresh one: {err}"
@@ -322,9 +335,11 @@ def main():
       },
   }
 
-  # Remove previous identical version entry if updating
+  # Remove previous identical version entry, and drop unreleased drafts without checksums
   mod_entry["versions"] = [
-      v for v in mod_entry.get("versions", []) if v.get("version") != clean_version
+      v for v in mod_entry.get("versions", [])
+      if v.get("version") != clean_version
+      and (v.get("checksums", {}).get("windows") or v.get("checksums", {}).get("linux"))
   ]
   mod_entry["versions"].insert(0, new_version)
 

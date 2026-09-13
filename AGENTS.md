@@ -88,6 +88,11 @@ task modding-sync-docs                            # Pull docs/modding + AGENTS.m
 task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "..." --push
 task modding-branch-status                        # Refresh branch sync dashboard
 task modding-audit                                # Regenerate docs/modding/branch_audit.md
+
+# Mod Distribution & Packaging (OpenGOAL Launcher & Releases)
+# Reference: docs/modding/tools/mod_distribution_guide.md
+git tag v1.0.0 && git push origin v1.0.0          # Trigger automated multi-OS CI/CD build & release
+python scripts/modding/update_mod_catalog.py     # Generate/update OpenGOAL Mod Source catalog (index.json)
 ```
 
 > [!IMPORTANT]

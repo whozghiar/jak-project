@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "start_menu_wheel Source",
-  "lastUpdated": "2026-09-13T21:01:05Z",
+  "lastUpdated": "2026-09-13T21:06:35Z",
   "mods": {
     "start-menu-wheel": {
       "displayName": "start_menu_wheel",
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-13T21:01:05Z",
+          "publishedDate": "2026-09-13T21:06:35Z",
           "supportedGames": [
             "jak2"
           ],

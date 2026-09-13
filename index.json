@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "crimson-blueguard/city-insurrection Source",
-  "lastUpdated": "2026-09-13T20:52:08Z",
+  "lastUpdated": "2026-09-13T20:52:59Z",
   "mods": {
     "crimson-blueguard-city-insurrection": {
       "displayName": "crimson-blueguard/city-insurrection",
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-13T20:52:08Z",
+          "publishedDate": "2026-09-13T20:52:59Z",
           "supportedGames": [
             "jak2"
           ],

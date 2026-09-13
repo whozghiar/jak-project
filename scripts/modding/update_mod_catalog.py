@@ -6,7 +6,9 @@ https://github.com/open-goal/launcher/tree/main/schemas/mod-source/v1
 
 Usage:
     python scripts/modding/update_mod_catalog.py
-    python scripts/modding/update_mod_catalog.py --tag v1.0.0 --repo user/repo
+    python scripts/modding/update_mod_catalog.py --tag v1.0.0 --repo whozghiar/jak-project
+    python scripts/modding/update_mod_catalog.py --next-version
+    python scripts/modding/update_mod_catalog.py --print-metadata
 """
 
 import argparse
@@ -44,45 +46,85 @@ def get_current_branch() -> str:
 
 
 def extract_metadata_from_readme(readme_path: Path):
-  """Extract display name and overview description from mod's root README.md."""
-  display_name = None
+  """Extract overview description from mod's root README.md without AI mentions."""
   description = None
 
   if not readme_path.exists():
-    return display_name, description
+    return description
 
   try:
     with open(readme_path, "r", encoding="utf-8", errors="replace") as f:
       content = f.read()
 
-    # Extract title from first markdown H1, ignoring language headers like '# 🇬🇧 English Version'
-    for line in content.splitlines():
-      line_str = line.strip()
-      if line_str.startswith("# ") and "Version" not in line_str and "OpenGOAL" not in line_str:
-        raw_title = line_str.lstrip("# ").strip()
-        # Split at '—' or '-' if it contains game name
-        if "—" in raw_title:
-          display_name = raw_title.split("—")[0].strip()
-        elif " - " in raw_title:
-          display_name = raw_title.split(" - ")[0].strip()
-        else:
-          display_name = raw_title
-        break
-
     # Extract overview section if present
     desc_match = re.search(
-        r"##\s+(?:📖\s+)?(?:Overview|Présentation du Mod)\s*\n+([^#\n\r][^\n\r]+)",
+        r"##\s+(?:📖\s+)?(?:Overview|Présentation du Mod)\s*\n+([\s\S]*?)(?=\n\s*(?:- \*\*Target Game|##|---|\Z))",
         content,
         re.MULTILINE,
     )
     if desc_match:
-      candidate = desc_match.group(1).strip()
-      if not candidate.startswith("-") and not candidate.startswith("*"):
-        description = candidate
+      raw_desc = desc_match.group(1).strip()
+      cleaned_lines = []
+      for line in raw_desc.splitlines():
+        line_s = line.strip()
+        if not line_s:
+          continue
+        if line_s.startswith("-") or line_s.startswith("*") or line_s.startswith("<") or line_s.startswith("!["):
+          continue
+        cleaned_lines.append(line_s)
+      if cleaned_lines:
+        candidate = " ".join(cleaned_lines)
+        # Strip AI disclosure or badges from description
+        candidate = re.sub(r"\s*\(AI-assisted[^)]*\)", "", candidate, flags=re.IGNORECASE)
+        candidate = re.sub(r"\s*\(AI--assisted[^)]*\)", "", candidate, flags=re.IGNORECASE)
+        candidate = re.sub(r"AI--assisted-Modding-[^.\s]+\.svg", "", candidate)
+        description = candidate.strip()
   except Exception as err:
     print(f"Warning: Failed to parse README.md: {err}", file=sys.stderr)
 
-  return display_name, description
+  return description
+
+
+def get_next_version(index_path: Path) -> str:
+  """
+  Calculates the next version string (e.g. 'v1.0.0', 'v1.0.1', 'v1.0.2').
+  1. Reads index.json for latest version.
+  2. Increments patch number.
+  3. Checks git tags to ensure tag uniqueness.
+  """
+  candidate_major = 1
+  candidate_minor = 0
+  candidate_patch = 0
+
+  if index_path.exists():
+    try:
+      with open(index_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+        mods = data.get("mods", {})
+        for mod_data in mods.values():
+          versions = mod_data.get("versions", [])
+          if versions:
+            latest_v_str = versions[0].get("version", "")
+            m = re.match(r"^v?(\d+)\.(\d+)\.(\d+)", latest_v_str)
+            if m:
+              candidate_major = int(m.group(1))
+              candidate_minor = int(m.group(2))
+              candidate_patch = int(m.group(3)) + 1
+            break
+    except Exception:
+      pass
+
+  candidate_tag = f"v{candidate_major}.{candidate_minor}.{candidate_patch}"
+
+  # Verify against existing git tags
+  existing_tags_raw = run_cmd("git tag -l")
+  existing_tags = set(t.strip() for t in existing_tags_raw.splitlines() if t.strip())
+
+  while candidate_tag in existing_tags:
+    candidate_patch += 1
+    candidate_tag = f"v{candidate_major}.{candidate_minor}.{candidate_patch}"
+
+  return candidate_tag
 
 
 def main():
@@ -96,13 +138,13 @@ def main():
   )
   parser.add_argument(
       "--tag",
-      default=os.environ.get("RELEASE_TAG") or os.environ.get("TAG", "v0.1.0"),
+      default=os.environ.get("RELEASE_TAG") or os.environ.get("TAG", ""),
       help="Release tag (e.g. v1.0.0)",
   )
   parser.add_argument(
       "--repo",
       default=os.environ.get("GITHUB_REPOSITORY")
-      or os.environ.get("REPO", "open-goal/jak-project"),
+      or os.environ.get("REPO", "whozghiar/jak-project"),
       help="GitHub repository owner/repo",
   )
   parser.add_argument(
@@ -113,7 +155,12 @@ def main():
   parser.add_argument(
       "--display-name",
       default=os.environ.get("DISPLAY_NAME"),
-      help="User-friendly display name",
+      help="User-friendly display name (defaults to variable branch part)",
+  )
+  parser.add_argument(
+      "--description",
+      default=os.environ.get("DESCRIPTION"),
+      help="Mod description (defaults to Overview in README.md)",
   )
   parser.add_argument(
       "--authors",
@@ -135,22 +182,68 @@ def main():
       default=os.environ.get("LIN_SHA", ""),
       help="Linux archive SHA-256",
   )
+  parser.add_argument(
+      "--next-version",
+      action="store_true",
+      help="Print calculated next version tag and exit",
+  )
+  parser.add_argument(
+      "--print-metadata",
+      action="store_true",
+      help="Print release metadata JSON (tag, display_name, description) and exit",
+  )
   args = parser.parse_args()
 
   branch = get_current_branch()
-  readme_title, readme_desc = extract_metadata_from_readme(
-      REPO_ROOT / "README.md"
-  )
+  index_path = Path(args.index_file)
+  if not index_path.is_absolute():
+    index_path = REPO_ROOT / index_path
 
-  # Determine target game from branch (e.g. jak2/features/foo -> jak2)
+  if args.next_version:
+    print(get_next_version(index_path))
+    return
+
+  readme_desc = extract_metadata_from_readme(REPO_ROOT / "README.md")
+
+  # Determine target game and variable part of branch
+  # Formats: jak[123]/[category]/[variable_part...]
   detected_game = "jak2"
   branch_match = re.match(r"^jak([123])/([^/]+)/(.+)$", branch)
   if branch_match:
     game_num = branch_match.group(1)
     detected_game = f"jak{game_num}"
-    detected_slug = branch_match.group(3).replace("_", "-")
+    variable_part = branch_match.group(3)
+    detected_slug = variable_part.replace("/", "-").replace("_", "-")
   else:
+    parts = branch.split("/")
+    variable_part = parts[-1] if len(parts) > 1 else branch
     detected_slug = branch.replace("/", "-").replace("_", "-")
+
+  # Rule: Display name MUST ALWAYS be the variable part of the branch
+  display_name = args.display_name or variable_part
+
+  # Rule: Description MUST be the same as mod's general README Overview
+  description = (
+      args.description
+      or readme_desc
+      or f"Mod OpenGOAL {detected_game.upper()} avec modifications C++ et LISP."
+  )
+
+  # Determine tag
+  tag = args.tag.strip() if args.tag else ""
+  if not tag:
+    tag = get_next_version(index_path)
+
+  if args.print_metadata:
+    meta = {
+        "tag": tag,
+        "display_name": display_name,
+        "description": description,
+        "game": detected_game,
+        "branch": branch,
+    }
+    print(json.dumps(meta, ensure_ascii=False))
+    return
 
   mod_id = args.mod_id or detected_slug
   supported_games = (
@@ -163,23 +256,9 @@ def main():
       if args.authors
       else [args.repo.split("/")[0]]
   )
-  display_name = (
-      args.display_name
-      or readme_title
-      or f"{mod_id.replace('-', ' ').title()} ({detected_game.upper()})"
-  )
-  description = (
-      readme_desc
-      or f"Mod OpenGOAL {detected_game.upper()} avec modifications C++ et LISP."
-  )
 
-  tag = args.tag.strip()
   clean_version = tag.lstrip("v")
   now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-  index_path = Path(args.index_file)
-  if not index_path.is_absolute():
-    index_path = REPO_ROOT / index_path
 
   catalog = {
       "schemaVersion": "1.0.0",
@@ -200,6 +279,7 @@ def main():
           f"Warning: Could not read existing index.json, creating a fresh one: {err}"
       )
 
+  catalog["sourceName"] = f"{display_name} Source"
   catalog["lastUpdated"] = now_iso
 
   # Base download URLs from GitHub Releases
@@ -248,12 +328,10 @@ def main():
     json.dump(catalog, f, indent=2, ensure_ascii=False)
     f.write("\n")
 
-  print(f"[OK] Successfully wrote mod catalog to {index_path}")
-  print(f"     Mod ID      : {mod_id}")
-  print(f"     Version     : {clean_version}")
-  print(f"     Target Games: {', '.join(supported_games)}")
-  print(f"     Windows URL : {win_url}")
-  print(f"     Linux URL   : {lin_url}")
+  print(f"[OK] Successfully wrote catalog to {index_path}")
+  print(f"     Display Name: {display_name}")
+  print(f"     Description : {description[:80]}...")
+  print(f"     Version     : {clean_version} ({tag})")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0.0",
+  "sourceName": "temp-sync-jak3-features-mega_dark_jak Source",
+  "lastUpdated": "2026-09-13T20:48:32Z",
+  "mods": {
+    "temp-sync-jak3-features-mega-dark-jak": {
+      "displayName": "temp-sync-jak3-features-mega_dark_jak",
+      "description": "Overhauls Jak 3's Dark Jak into a devastating powerhouse, featuring increased melee reach, permanent empowered dark strikes, boosted mobility, and enhanced aura effects.",
+      "authors": [
+        "whozghiar"
+      ],
+      "tags": [
+        "gameplay",
+        "custom-engine"
+      ],
+      "supportedGames": [
+        "jak2"
+      ],
+      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/temp-sync-jak3-features-mega_dark_jak",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "publishedDate": "2026-09-13T20:48:32Z",
+          "supportedGames": [
+            "jak2"
+          ],
+          "assets": {
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/windows-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/linux-v1.0.0.zip"
+          },
+          "checksums": {
+            "windows": "",
+            "linux": ""
+          }
+        }
+      ]
+    }
+  },
+  "texturePacks": {}
+}

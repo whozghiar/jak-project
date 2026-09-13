@@ -272,10 +272,16 @@ jobs:
           \`\`\`
           *(AI-assisted release packaging)*"
 
-          gh release create "${RELEASE_TAG}" \
-            release-files/* \
-            --title "Release ${RELEASE_TAG}" \
-            --notes "$NOTES" \
-            --repo "${{ github.repository }}" \
-            $PRERELEASE_FLAG \
-            --clobber
+          if gh release view "${RELEASE_TAG}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release exists, updating notes and uploading assets with --clobber..."
+            gh release edit "${RELEASE_TAG}" --title "Release ${RELEASE_TAG}" --notes "$NOTES" $PRERELEASE_FLAG --repo "${{ github.repository }}"
+            gh release upload "${RELEASE_TAG}" release-files/* --repo "${{ github.repository }}" --clobber
+          else
+            echo "Creating new release..."
+            gh release create "${RELEASE_TAG}" \
+              release-files/* \
+              --title "Release ${RELEASE_TAG}" \
+              --notes "$NOTES" \
+              --repo "${{ github.repository }}" \
+              $PRERELEASE_FLAG
+          fi

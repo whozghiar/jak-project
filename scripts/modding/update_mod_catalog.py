@@ -284,6 +284,11 @@ def main():
       default="",
       help="Path to SHA256SUMS.txt file to include in release notes",
   )
+  parser.add_argument(
+      "--export-github-output",
+      action="store_true",
+      help="Export release_tag and display_name directly to GITHUB_OUTPUT environment file",
+  )
   args = parser.parse_args()
 
   branch = args.branch or get_current_branch()
@@ -318,19 +323,29 @@ def main():
   )
 
   # Determine tag formatted as [nom-du-mod]-[version]
+  tag_slug = variable_part.replace("/", "-")
   tag = args.tag.strip() if args.tag else ""
-  if not tag:
-    tag = get_next_version(index_path, mod_slug=variable_part)
+  if not tag or tag == "auto":
+    tag = get_next_version(index_path, mod_slug=tag_slug)
   else:
-    if not tag.startswith(f"{variable_part}-"):
+    if not tag.startswith(f"{tag_slug}-"):
       v_match = re.search(r"v?\d+\.\d+\.\d+", tag)
       ver_str = v_match.group(0) if v_match else tag
       if not ver_str.startswith("v"):
         ver_str = f"v{ver_str}"
-      tag = f"{variable_part}-{ver_str}"
+      tag = f"{tag_slug}-{ver_str}"
 
   if args.next_version:
     print(tag)
+    return
+
+  if args.export_github_output:
+    out_file = os.environ.get("GITHUB_OUTPUT")
+    if out_file:
+      with open(out_file, "a", encoding="utf-8") as f:
+        f.write(f"release_tag={tag}\n")
+        f.write(f"display_name={display_name}\n")
+    print(f"[OK] Exported metadata to GITHUB_OUTPUT: release_tag={tag}, display_name={display_name}")
     return
 
   if args.print_metadata:

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "yakow_killable Source",
-  "lastUpdated": "2026-09-13T21:15:44Z",
+  "lastUpdated": "2026-09-13T21:25:07Z",
   "mods": {
     "yakow-killable": {
       "displayName": "yakow_killable",
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-13T21:15:44Z",
+          "publishedDate": "2026-09-13T21:25:07Z",
           "supportedGames": [
             "jak2"
           ],
@@ -29,8 +29,8 @@
             "linux": "https://github.com/whozghiar/jak-project/releases/download/yakow_killable-v1.0.0/linux-yakow_killable-v1.0.0.zip"
           },
           "checksums": {
-            "windows": "",
-            "linux": ""
+            "windows": "8fa073222d6553498c8b48a86dce581ed73142ab2b11f8c06c62af5a3dca7cd2",
+            "linux": "6ed116d07bd30e28e25f14128eb851b4b4f1e2a6f1579429f025b306e9b87d8a"
           }
         }
       ]

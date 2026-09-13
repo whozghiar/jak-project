@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "start_menu_wheel Source",
-  "lastUpdated": "2026-09-13T20:53:44Z",
+  "lastUpdated": "2026-09-13T20:59:22Z",
   "mods": {
     "start-menu-wheel": {
       "displayName": "start_menu_wheel",
@@ -19,14 +19,14 @@
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/config/start_menu_wheel",
       "versions": [
         {
-          "version": "1.0.0",
-          "publishedDate": "2026-09-13T20:53:44Z",
+          "version": "start_menu_wheel-v1.0.0",
+          "publishedDate": "2026-09-13T20:59:22Z",
           "supportedGames": [
             "jak2"
           ],
           "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/windows-v1.0.0.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/linux-v1.0.0.zip"
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/start_menu_wheel-v1.0.0/windows-start_menu_wheel-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/start_menu_wheel-v1.0.0/linux-start_menu_wheel-v1.0.0.zip"
           },
           "checksums": {
             "windows": "",

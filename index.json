@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0.0",
+  "sourceName": "temp-sync-jak2-features-paddywagon-traffic Source",
+  "lastUpdated": "2026-09-13T20:48:02Z",
+  "mods": {
+    "temp-sync-jak2-features-paddywagon-traffic": {
+      "displayName": "temp-sync-jak2-features-paddywagon-traffic",
+      "description": "The Krimzon Guard **paddy wagon** — the armoured prisoner van you chase during Guard at the controls**. It is a real guard vehicle: red dot on the minimap, joins the hunt during an alert, and **can be boarded and driven** — stealing it raises the city alarm exactly like stealing a hellcat or a guard bike.",
+      "authors": [
+        "whozghiar"
+      ],
+      "tags": [
+        "gameplay",
+        "custom-engine"
+      ],
+      "supportedGames": [
+        "jak2"
+      ],
+      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/temp-sync-jak2-features-paddywagon-traffic",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "publishedDate": "2026-09-13T20:48:02Z",
+          "supportedGames": [
+            "jak2"
+          ],
+          "assets": {
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/windows-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/linux-v1.0.0.zip"
+          },
+          "checksums": {
+            "windows": "",
+            "linux": ""
+          }
+        }
+      ]
+    }
+  },
+  "texturePacks": {}
+}

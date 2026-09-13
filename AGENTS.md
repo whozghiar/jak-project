@@ -143,8 +143,8 @@ All mod development must adhere to the conventions documented in this guide, the
    - All behavior changes must ship **OFF by default**, gated behind the mod's toggle.
 3. **Debug ▸ Mods Toggle Mandatory:**
    - Every mod must be switchable on/off at runtime via the in-game debug menu.
-   - Jak 2: Register via `(mods-menu-register "<slug>" builder)` — see [`docs/modding/tools/mods_debug_menu.md`](docs/modding/tools/mods_debug_menu.md). Never edit `default-menu*.gc` directly.
-   - Jak 1 / Jak 3: Prefix submenus cleanly with the mod slug.
+   - Jak 2 / Jak 3: Register via `(mods-menu-register "<slug>" builder)` — see [`docs/modding/tools/mods_debug_menu.md`](docs/modding/tools/mods_debug_menu.md). Never edit `default-menu*.gc` directly.
+   - Jak 1: no registry yet (see §6 of that guide) — prefix submenus cleanly with the mod slug.
 4. **Mandatory In-Code Comments:**
    - Every function, method, state, hook, and type modification in `.gc` must be thoroughly commented (purpose, arguments, return values, side effects).
 5. **Non-Destructive Modifications:**

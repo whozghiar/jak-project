@@ -38,7 +38,7 @@
 (defconstant SYM_TO_STRING_OFFSET #x20000) ;; changed from #xff38
 
 ;; pointers larger than this are invalid by valid?
-(defconstant END_OF_MEMORY #x8000000)
+(defconstant END_OF_MEMORY #x20000000)  ;; 512 MB, matches EE_MAIN_MEM_SIZE (expanded for PC port custom content)
 
 ;; GOAL boxed offsets use the lower three bits to indicate if they are
 ;; an integer (binteger), a pair, or a strucutre with type info (basic)

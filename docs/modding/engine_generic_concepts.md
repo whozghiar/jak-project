@@ -179,6 +179,40 @@ game/runtime.cpp   ── mmap( EE_MAIN_MEM_SIZE ) ──►  ┌─────
 - 🇫🇷 **Toujours valider à l'exécution.** Un changement mémoire qui compile peut
   quand même paniquer au boot. Suivez la boucle du §8 et vérifiez le log.
 
+### Where each game stands on `master-dev` / État de chaque jeu sur `master-dev`
+
+| | Jak 1 | Jak 2 | Jak 3 |
+|---|---|---|---|
+| `EE_MAIN_MEM_SIZE` (shared) | 512 MB | 512 MB | 512 MB |
+| `GLOBAL_HEAP_END` (shared) | `0x12D00000` (~300 MB) | idem | idem |
+| `END_OF_MEMORY` | `#x20000000` | `#x20000000` | `#x20000000` |
+| level-heap tuning | `LEVEL_HEAP_SIZE_DEBUG`, still stock | `DEBUG_LEVEL_HEAP_MULT 12.0` | `DEBUG_LEVEL_HEAP_MULT 15.0` |
+| debug heap | `jak1::DEBUG_HEAP_SIZE` | `jak2::DEBUG_HEAP_SIZE` | `jak3::DEBUG_HEAP_SIZE` |
+
+- 🇬🇧 **Jak 3 is already at the ceiling** — 15.0 is the highest tested multiplier of
+  the three. There is nothing left to raise for Jak 3 without re-measuring the global
+  heap first.
+- 🇬🇧 **Jak 1 has a different level-heap architecture**: no page/multiplier scheme, just
+  `LEVEL_HEAP_SIZE_DEBUG` malloc'd `LEVEL_COUNT` (= 2) times from the global heap. It is
+  still at the stock 11,000 KB; raising it is arithmetically safe (270+ MB of global heap
+  are free) but has not been runtime-validated, so it was left alone.
+- 🇬🇧 **Trap worth knowing:** raising the *shared* `DEBUG_HEAP_START` broke Jak 1
+  outright — its `InitMachine` computed the debug heap end from a 128 MB address mask,
+  so the size underflowed. Whenever you move a shared constant, boot **all three games**
+  with `-debug`, not just the one you are modding.
+- 🇫🇷 **Jak 3 est déjà au plafond** — 15.0 est le multiplicateur le plus élevé testé des
+  trois. Il n'y a plus rien à augmenter pour Jak 3 sans remesurer d'abord le tas global.
+- 🇫🇷 **Jak 1 a une architecture de level-heap différente** : pas de schéma
+  pages/multiplicateur, juste `LEVEL_HEAP_SIZE_DEBUG` alloué `LEVEL_COUNT` (= 2) fois
+  depuis le tas global. Il est resté à la valeur d'origine de 11 000 Ko ; l'augmenter est
+  arithmétiquement sûr (270+ Mo de tas global sont libres) mais n'a pas été validé à
+  l'exécution, donc il a été laissé tel quel.
+- 🇫🇷 **Piège à connaître :** relever le `DEBUG_HEAP_START` *partagé* a purement et
+  simplement cassé Jak 1 — son `InitMachine` calculait la fin du tas debug à partir d'un
+  masque d'adresse 128 Mo, donc la taille débordait par en dessous. Dès que vous déplacez
+  une constante partagée, démarrez **les trois jeux** en `-debug`, pas seulement celui
+  que vous moddez.
+
 ---
 
 ## 5 — DGOs and level streaming / DGO et streaming des niveaux

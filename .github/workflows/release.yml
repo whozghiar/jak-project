@@ -34,7 +34,6 @@ jobs:
       build_binaries: ${{ steps.detect.outputs.build_binaries }}
       release_tag: ${{ steps.meta.outputs.release_tag }}
       display_name: ${{ steps.meta.outputs.display_name }}
-      description: ${{ steps.meta.outputs.description }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -51,24 +50,16 @@ jobs:
         id: meta
         run: |
           INPUT_TAG="${{ github.event.inputs.tag_name }}"
-          if [ -n "$INPUT_TAG" ] && [ "$INPUT_TAG" != "auto" ]; then
-            TAG=$(python ./scripts/modding/update_mod_catalog.py --branch "${{ github.ref_name }}" --tag "$INPUT_TAG" --next-version)
-          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            TAG="${{ github.ref_name }}"
-          else
-            TAG=$(python ./scripts/modding/update_mod_catalog.py --branch "${{ github.ref_name }}" --next-version)
+          if [ -z "$INPUT_TAG" ] || [ "$INPUT_TAG" = "auto" ]; then
+            if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+              INPUT_TAG="${{ github.ref_name }}"
+            fi
           fi
 
-          echo "Tag sélectionné : $TAG"
-          META=$(python ./scripts/modding/update_mod_catalog.py --print-metadata --tag "$TAG")
-          DISPLAY_NAME=$(python -c "import json; d=json.loads('''$META'''); print(d.get('display_name', ''))")
-          DESCRIPTION=$(python -c "import json; d=json.loads('''$META'''); print(d.get('description', ''))")
-
-          echo "release_tag=$TAG" >> $GITHUB_OUTPUT
-          echo "display_name=$DISPLAY_NAME" >> $GITHUB_OUTPUT
-          echo "description<<EOF" >> $GITHUB_OUTPUT
-          echo "$DESCRIPTION" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          python ./scripts/modding/update_mod_catalog.py \
+            --branch "${{ github.ref_name }}" \
+            --tag "$INPUT_TAG" \
+            --export-github-output
 
       - name: Détection automatique des modifications C++
         id: detect

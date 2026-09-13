@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag de version du mod (ex: v1.0.0)'
-        required: true
-        default: 'v1.0.0'
+        description: 'Tag de version du mod (ex: v1.0.0, ou "auto" pour incrémenter)'
+        required: false
+        default: 'auto'
       build_binaries:
         description: 'Recompiler C++ (auto: recompile seulement si C++ modifié)'
         type: choice
@@ -26,24 +26,52 @@ on:
 permissions:
   contents: write
 
-env:
-  RELEASE_TAG: ${{ github.event.inputs.tag_name || github.ref_name }}
-
 jobs:
   # =========================================================================
-  # 0. DÉTECTION DU TYPE DE MOD (GOAL-only vs C++ Engine)
+  # 0. DÉTECTION DU TYPE DE MOD & RÉSOLUTION DE VERSION / MÉTADONNÉES
   # =========================================================================
   check_mode:
-    name: "🔍 Analyse des Changements (C++ vs GOAL)"
+    name: "🔍 Analyse des Changements & Version"
     runs-on: ubuntu-latest
     outputs:
       build_binaries: ${{ steps.detect.outputs.build_binaries }}
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      display_name: ${{ steps.meta.outputs.display_name }}
+      description: ${{ steps.meta.outputs.description }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           submodules: false
           fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Résolution de la Version et Métadonnées
+        id: meta
+        run: |
+          INPUT_TAG="${{ github.event.inputs.tag_name }}"
+          if [ -n "$INPUT_TAG" ] && [ "$INPUT_TAG" != "auto" ]; then
+            TAG="$INPUT_TAG"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG=$(python ./scripts/modding/update_mod_catalog.py --next-version)
+          fi
+
+          echo "Tag sélectionné : $TAG"
+          META=$(python ./scripts/modding/update_mod_catalog.py --print-metadata --tag "$TAG")
+          DISPLAY_NAME=$(python -c "import json; d=json.loads('''$META'''); print(d.get('display_name', ''))")
+          DESCRIPTION=$(python -c "import json; d=json.loads('''$META'''); print(d.get('description', ''))")
+
+          echo "release_tag=$TAG" >> $GITHUB_OUTPUT
+          echo "display_name=$DISPLAY_NAME" >> $GITHUB_OUTPUT
+          echo "description<<EOF" >> $GITHUB_OUTPUT
+          echo "$DESCRIPTION" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Détection automatique des modifications C++
         id: detect
@@ -92,6 +120,7 @@ jobs:
       - name: Bundle Windows & Linux Packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
         run: |
           python ./scripts/modding/bundle_fast_release.py \
             --tag "${RELEASE_TAG}" \
@@ -152,7 +181,7 @@ jobs:
       - name: Package Windows Mod Bundle
         shell: bash
         run: |
-          TAG_VAL="${RELEASE_TAG}"
+          TAG_VAL="${{ needs.check_mode.outputs.release_tag }}"
           PKG_DIR="dist_windows"
           mkdir -p "$PKG_DIR/data/launcher"
           mkdir -p "$PKG_DIR/data/decompiler"
@@ -237,7 +266,7 @@ jobs:
 
       - name: Package Linux Mod Bundle
         run: |
-          TAG_VAL="${RELEASE_TAG}"
+          TAG_VAL="${{ needs.check_mode.outputs.release_tag }}"
           PKG_DIR="dist_linux"
           mkdir -p "$PKG_DIR/data/launcher"
           mkdir -p "$PKG_DIR/data/decompiler"
@@ -274,7 +303,7 @@ jobs:
           if-no-files-found: error
 
   # =========================================================================
-  # 4. PUBLISH RELEASE & MOD CATALOG (index.json)
+  # 4. PUBLICATION DE LA RELEASE & CATALOGUE MOD (index.json)
   # =========================================================================
   publish:
     name: "📦 Publish Release & Catalog"
@@ -286,6 +315,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Download Build Artifacts
         uses: actions/download-artifact@v4
@@ -294,9 +329,10 @@ jobs:
 
       - name: Compute Checksums & Prepare Assets
         id: checksums
+        env:
+          RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
         run: |
           mkdir -p release-files
-          # Regroupe les fichiers provenant soit de fast-bundle, soit des builds Windows/Linux
           find downloaded-artifacts -type f -name "*.zip" -exec mv {} release-files/ \;
 
           cd release-files
@@ -312,6 +348,8 @@ jobs:
           cd ..
 
       - name: Generate Mod Catalog (index.json)
+        env:
+          RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
         run: |
           python ./scripts/modding/update_mod_catalog.py \
             --tag "${RELEASE_TAG}" \
@@ -325,40 +363,59 @@ jobs:
       - name: Create or Update GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
+          DISPLAY_NAME: ${{ needs.check_mode.outputs.display_name }}
+          MOD_DESCRIPTION: ${{ needs.check_mode.outputs.description }}
         run: |
           PRERELEASE_FLAG=""
           if [ "${{ github.event.inputs.prerelease }}" = "true" ]; then
             PRERELEASE_FLAG="--prerelease"
           fi
 
-          NOTES="## 🎮 OpenGOAL Mod Release — ${RELEASE_TAG}
+          NOTES="## 🎮 ${DISPLAY_NAME} — ${RELEASE_TAG}
 
-          ### 📦 Téléchargements Directs
-          - **Windows :** [\`windows-${RELEASE_TAG}.zip\`](https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/windows-${RELEASE_TAG}.zip)
-          - **Linux :** [\`linux-${RELEASE_TAG}.zip\`](https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/linux-${RELEASE_TAG}.zip)
+${MOD_DESCRIPTION}
 
-          ### 📋 Intégration OpenGOAL Launcher (Custom Mod Source)
-          Ajoutez ce mod directement dans l'OpenGOAL Launcher via l'URL du catalogue :
-          \`\`\`text
-          https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/index.json
-          \`\`\`
+### 📦 Téléchargements Directs
+- **Windows :** [\`windows-${RELEASE_TAG}.zip\`](https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/windows-${RELEASE_TAG}.zip)
+- **Linux :** [\`linux-${RELEASE_TAG}.zip\`](https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/linux-${RELEASE_TAG}.zip)
 
-          ### 🔒 Checksums de Sécurité (SHA-256)
-          \`\`\`text
-          $(cat release-files/SHA256SUMS.txt)
-          \`\`\`
-          *(AI-assisted release packaging)*"
+### 📋 Intégration OpenGOAL Launcher (Custom Mod Source)
+Ajoutez ce mod directement dans l'OpenGOAL Launcher via l'URL du catalogue :
+\`\`\`text
+https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/index.json
+\`\`\`
+
+### 🔒 Checksums de Sécurité (SHA-256)
+\`\`\`text
+$(cat release-files/SHA256SUMS.txt)
+\`\`\`"
 
           if gh release view "${RELEASE_TAG}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "La release existe déjà, mise à jour des notes et upload des assets avec --clobber..."
-            gh release edit "${RELEASE_TAG}" --title "Release ${RELEASE_TAG}" --notes "$NOTES" $PRERELEASE_FLAG --repo "${{ github.repository }}"
+            gh release edit "${RELEASE_TAG}" --title "${DISPLAY_NAME} ${RELEASE_TAG}" --notes "$NOTES" $PRERELEASE_FLAG --repo "${{ github.repository }}"
             gh release upload "${RELEASE_TAG}" release-files/* --repo "${{ github.repository }}" --clobber
           else
             echo "Création de la release..."
             gh release create "${RELEASE_TAG}" \
               release-files/* \
-              --title "Release ${RELEASE_TAG}" \
+              --title "${DISPLAY_NAME} ${RELEASE_TAG}" \
               --notes "$NOTES" \
               --repo "${{ github.repository }}" \
               $PRERELEASE_FLAG
+          fi
+
+      - name: Commit & Push Updated index.json to Branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): update index.json for ${RELEASE_TAG}"
+            git push origin "HEAD:${{ github.ref_name }}" || echo "Warning: Could not push index.json directly to ref ${{ github.ref_name }}"
+          else
+            echo "index.json déjà à jour sur la branche."
           fi

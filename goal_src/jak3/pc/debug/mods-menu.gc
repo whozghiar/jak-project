@@ -3,7 +3,7 @@
 
 #|
 
-  mods-menu.gc -- Unified "Mods" tab for the OpenGOAL debug menu (Jak 2 PC port).
+  mods-menu.gc -- Unified "Mods" tab for the OpenGOAL debug menu (Jak 3 PC port).
 
   GOAL / Circuit 1 (logic & skeletons).
 
@@ -24,16 +24,17 @@
   file. The registry rebuilds the live menu, sorted by label, so branch merge
   order never changes what the player sees.
 
-  The public API is deliberately identical across Jak 1 / Jak 2 / Jak 3, so a
-  mod's menu code can be moved between games without being rewritten.
+  This is a port of `goal_src/jak2/pc/debug/mods-menu.gc`. The public API is
+  deliberately identical across Jak 1 / Jak 2 / Jak 3, so a mod's menu code can
+  be moved between games without being rewritten.
 
   ------------------------------------------------------------------------------
   RESULTING HIERARCHY
   ------------------------------------------------------------------------------
     Debug > Mods > [mod-slug] > [variant / sub-module] > [options & toggles]
 
-  Example (branch jak2/features/crimson-blueguard):
-    Debug > Mods > crimson-blueguard > city-peaceful > [Enable / Disable]
+  Example (branch jak3/features/spargus-invasion):
+    Debug > Mods > spargus-invasion > [Enable raid / Raider count]
 
   ------------------------------------------------------------------------------
   PUBLIC API (call these from your mod file, nothing else)
@@ -49,7 +50,7 @@
         Force a rebuild of the live menu from the registry. Rarely needed by
         hand -- `mods-menu-register` already calls it.
 
-  See the copy-paste template + traffic-manager example in
+  See the copy-paste template + example in
   docs/modding/templates/mod_debug_menu.template.gc and the full write-up in
   docs/modding/tools/mods_debug_menu.md
 
@@ -219,7 +220,7 @@
 
 (defun mods-menu-register ((name string) (builder (function debug-menu-context debug-menu-node)))
   "Register a mod's submenu builder under Debug > Mods.
-     name    : menu label -- use your branch mod slug (e.g. \"crimson-blueguard\").
+     name    : menu label -- use your branch mod slug (e.g. \"spargus-invasion\").
      builder : (function debug-menu-context debug-menu-node). Called now and on
                every rebuild; must be idempotent and allocation-light. Return a
                submenu node (see `debug-menu-make-from-template`) or #f to hide.

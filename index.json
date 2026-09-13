@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "jak2_skin_secret Source",
-  "lastUpdated": "2026-09-13T20:54:34Z",
+  "lastUpdated": "2026-09-13T21:00:14Z",
   "mods": {
     "jak2-skin-secret": {
       "displayName": "jak2_skin_secret",
@@ -19,14 +19,14 @@
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak3/features/jak2_skin_secret",
       "versions": [
         {
-          "version": "1.0.0",
-          "publishedDate": "2026-09-13T20:54:34Z",
+          "version": "jak2_skin_secret-v1.0.0",
+          "publishedDate": "2026-09-13T21:00:14Z",
           "supportedGames": [
             "jak3"
           ],
           "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/windows-v1.0.0.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/linux-v1.0.0.zip"
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/jak2_skin_secret-v1.0.0/windows-jak2_skin_secret-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/jak2_skin_secret-v1.0.0/linux-jak2_skin_secret-v1.0.0.zip"
           },
           "checksums": {
             "windows": "",

@@ -4,17 +4,31 @@
 >
 > **Status / Statut**
 >
-> 🇬🇧 The `mods-menu.gc` registry is **live on `master-dev` for Jak 2**
-> (`goal_src/jak2/pc/debug/mods-menu.gc`, wired in `goal_src/jak2/dgos/game.gd`).
-> The Jak 1 and Jak 3 ports are a tracked follow-up — until they land, Jak 1/3 mods
-> add a mod-slug-prefixed submenu to their `default-menu*.gc` and document it in the
-> mod README so the port can absorb it cleanly.
+> 🇬🇧 The `mods-menu.gc` registry is **live on `master-dev` for Jak 2 and Jak 3**,
+> with an identical public API in both:
 >
-> 🇫🇷 Le registre `mods-menu.gc` est **actif sur `master-dev` pour Jak 2**
-> (`goal_src/jak2/pc/debug/mods-menu.gc`, câblé dans `goal_src/jak2/dgos/game.gd`).
-> Les portages Jak 1 et Jak 3 sont un suivi planifié — en attendant, les mods Jak 1/3
-> ajoutent un sous-menu préfixé par leur slug dans leur `default-menu*.gc` et le
-> documentent dans le README du mod pour que le portage l'absorbe proprement.
+> | Game | Registry file | Wired in |
+> | --- | --- | --- |
+> | Jak 2 | `goal_src/jak2/pc/debug/mods-menu.gc` | `goal_src/jak2/dgos/game.gd` |
+> | Jak 3 | `goal_src/jak3/pc/debug/mods-menu.gc` | `goal_src/jak3/dgos/game.gd` |
+> | Jak 1 | — **not ported**, see §6 | — |
+>
+> Until Jak 1 is ported, Jak 1 mods add a mod-slug-prefixed submenu to their
+> `default-menu*.gc` and document it in the mod README so a future port can absorb it
+> cleanly.
+>
+> 🇫🇷 Le registre `mods-menu.gc` est **actif sur `master-dev` pour Jak 2 et Jak 3**,
+> avec une API publique identique dans les deux :
+>
+> | Jeu | Fichier du registre | Câblé dans |
+> | --- | --- | --- |
+> | Jak 2 | `goal_src/jak2/pc/debug/mods-menu.gc` | `goal_src/jak2/dgos/game.gd` |
+> | Jak 3 | `goal_src/jak3/pc/debug/mods-menu.gc` | `goal_src/jak3/dgos/game.gd` |
+> | Jak 1 | — **non porté**, voir §6 | — |
+>
+> Tant que Jak 1 n'est pas porté, les mods Jak 1 ajoutent un sous-menu préfixé par leur
+> slug dans leur `default-menu*.gc` et le documentent dans le README du mod pour qu'un
+> futur portage l'absorbe proprement.
 
 ---
 
@@ -35,9 +49,9 @@ edited `goal_src/jak2/engine/debug/default-menu.gc` or
 
 ## 2. Solution — one tab + a runtime registry
 
-`goal_src/jak2/pc/debug/mods-menu.gc` (registered once in
-`goal_src/jak2/dgos/game.gd`, right before `default-menu-pc.o`) installs a single
-root tab and a small registry:
+`goal_src/jak[2|3]/pc/debug/mods-menu.gc` (registered once in the matching
+`goal_src/jak[2|3]/dgos/game.gd`, right before `default-menu-pc.o`) installs a
+single root tab and a small registry:
 
 ```
 Debug ▸ Mods ▸ [mod-slug] ▸ [variant / sub-module] ▸ [options & toggles]
@@ -63,6 +77,7 @@ The registry:
 | --- | --- | --- |
 | `mods-menu-register` | `(function string (function debug-menu-context debug-menu-node) none)` | Register/replace one mod's submenu builder. |
 | `mods-menu-rebuild` | `(function none)` | Force a rebuild from the registry (rarely called by hand). |
+| `mods-menu-install!` | `(function debug-menu)` | Attach/find the root tab. Runs itself at file load; `mods-menu-register` retries it, so a mod whose `.o` links before the root menu exists still gets its tab. |
 
 `mods-menu.gc` is `(declare-file (debug))` — it is stripped from release builds
 exactly like the rest of the menu code.
@@ -119,7 +134,7 @@ Two options:
 
 1. **No new file** — paste steps 1–4 into an existing mod `.gc` that is already
    in a `.gd`.
-2. **Dedicated file** — create `goal_src/jak2/.../<slug>-menu.gc` and add
+2. **Dedicated file** — create `goal_src/jak[2|3]/.../<slug>-menu.gc` and add
    `"<slug>-menu.o"` to your level or game `.gd` **after `mods-menu.o`** (so
    `mods-menu-register` is already defined at compile time).
 
@@ -151,6 +166,41 @@ Open the debug menu in-game and navigate to `Mods ▸ <slug>`.
 - **`.o` order in the `.gd`.** Your menu file's `.o` must come after
   `mods-menu.o`.
 
+## 6. Why Jak 1 is not ported
+
+The registry is game-agnostic on paper: Jak 1's `engine/debug/menu.gc` exposes the
+same `debug-menu-context` / `debug-menu` / `debug-menu-item-submenu` types, the same
+`debug-menu-append-item` / `debug-menu-remove-all-items` /
+`debug-menu-find-from-template`, and the same `sort` / `string<=?` / `dcons` helpers.
+The Jak 3 file compiles for Jak 1 with only the doc comments changed.
+
+It does not **run**. With the file wired into `engine.gd` + `game.gd` and booted with
+`-debug`, Jak 1 segfaults reproducibly a few objects after `mods-menu` links. The cause
+was bisected to the top-level install:
+
+| Jak 1 boot (`-debug`) | Result |
+| --- | --- |
+| `mods-menu.o` in the manifests, top-level `(mods-menu-install!)` removed | boots normally |
+| install reduced to `(new 'debug 'debug-menu ...)` only | boots normally |
+| install calling `debug-menu-append-item` on the **root menu** | **segfault**, twice, at the same object |
+| same, with `mods-menu.o` moved after `default-menu-pc.o` | still unstable |
+
+So appending to Jak 1's root menu *during link-and-exec* is what breaks. Jak 1's
+`debug-menu-append-item` calls `debug-menu-rebuild`, which walks every existing root
+item through `debug-menu-item-get-max-width` and then
+`debug-menu-context-default-selection` — one of those is not safe to run that early in
+Jak 1. Jak 2 and Jak 3 have textually identical `debug-menu-append-item` bodies and are
+unaffected, so it is something in the root menu's *contents*, not the append itself.
+
+Porting Jak 1 therefore needs a **deferred install** (attach the tab on the first frame,
+or on the first `mods-menu-register` from a level file) rather than at link time — plus
+a Jak 1 mod to verify it against, of which there are currently none. Until then the
+Jak 1 column of the status table stays empty on purpose.
+
+> Unrelated but found in the same session: Jak 1 would not boot with `-debug` **at all**
+> on `master-dev`. See `.agents/skills/engine-internals/discoveries.md` — the fix is in
+> `game/kernel/jak1/kmachine.cpp`.
+
 ---
 
 <a name="-version-française"></a>
@@ -171,9 +221,9 @@ Historiquement chaque branche éditait directement
 
 ## 2. Solution — un onglet + un registre à l'exécution
 
-`goal_src/jak2/pc/debug/mods-menu.gc` (déclaré une seule fois dans
-`goal_src/jak2/dgos/game.gd`, juste avant `default-menu-pc.o`) installe un unique
-onglet racine et un petit registre :
+`goal_src/jak[2|3]/pc/debug/mods-menu.gc` (déclaré une seule fois dans le
+`goal_src/jak[2|3]/dgos/game.gd` correspondant, juste avant `default-menu-pc.o`)
+installe un unique onglet racine et un petit registre :
 
 ```
 Debug ▸ Mods ▸ [slug-du-mod] ▸ [variante / sous-module] ▸ [options & bascules]
@@ -200,6 +250,7 @@ Le registre :
 | --- | --- | --- |
 | `mods-menu-register` | `(function string (function debug-menu-context debug-menu-node) none)` | Enregistre/remplace le builder de sous-menu d'un mod. |
 | `mods-menu-rebuild` | `(function none)` | Force une reconstruction depuis le registre (rarement appelé à la main). |
+| `mods-menu-install!` | `(function debug-menu)` | Attache/retrouve l'onglet racine. S'exécute seul au chargement du fichier ; `mods-menu-register` le retente, donc un mod dont le `.o` est lié avant l'existence du menu racine obtient quand même son onglet. |
 
 `mods-menu.gc` est en `(declare-file (debug))` — il est retiré des builds release
 comme le reste du code de menu.
@@ -257,7 +308,7 @@ Deux options :
 
 1. **Aucun nouveau fichier** — collez les étapes 1 à 4 dans un `.gc` de mod déjà
    présent dans un `.gd`.
-2. **Fichier dédié** — créez `goal_src/jak2/.../<slug>-menu.gc` et ajoutez
+2. **Fichier dédié** — créez `goal_src/jak[2|3]/.../<slug>-menu.gc` et ajoutez
    `"<slug>-menu.o"` à votre `.gd` de niveau ou de jeu **après `mods-menu.o`**
    (pour que `mods-menu-register` soit déjà défini à la compilation).
 
@@ -288,3 +339,38 @@ Ouvrez le menu debug en jeu et allez dans `Mods ▸ <slug>`.
   redémarrez. Recharger un fichier de mod seul est toujours sûr.
 - **Ordre des `.o` dans le `.gd`.** Le `.o` de votre fichier de menu doit venir
   après `mods-menu.o`.
+
+## 6. Pourquoi Jak 1 n'est pas porté
+
+Sur le papier le registre est agnostique du jeu : le `engine/debug/menu.gc` de Jak 1
+expose les mêmes types `debug-menu-context` / `debug-menu` / `debug-menu-item-submenu`,
+les mêmes `debug-menu-append-item` / `debug-menu-remove-all-items` /
+`debug-menu-find-from-template`, et les mêmes helpers `sort` / `string<=?` / `dcons`.
+Le fichier Jak 3 compile pour Jak 1 avec seulement les commentaires changés.
+
+Mais il ne **s'exécute** pas. Avec le fichier câblé dans `engine.gd` + `game.gd` et un
+démarrage en `-debug`, Jak 1 segfaulte de façon reproductible quelques objets après la
+liaison de `mods-menu`. La cause a été isolée par bissection à l'installation top-level :
+
+| Démarrage Jak 1 (`-debug`) | Résultat |
+| --- | --- |
+| `mods-menu.o` dans les manifests, `(mods-menu-install!)` top-level retiré | démarre normalement |
+| installation réduite à `(new 'debug 'debug-menu ...)` seul | démarre normalement |
+| installation appelant `debug-menu-append-item` sur le **menu racine** | **segfault**, deux fois, au même objet |
+| idem, avec `mods-menu.o` déplacé après `default-menu-pc.o` | toujours instable |
+
+C'est donc l'ajout au menu racine *pendant le link-and-exec* qui casse. Le
+`debug-menu-append-item` de Jak 1 appelle `debug-menu-rebuild`, qui parcourt chaque
+élément racine existant via `debug-menu-item-get-max-width` puis
+`debug-menu-context-default-selection` — l'un des deux n'est pas sûr aussi tôt dans
+Jak 1. Jak 2 et Jak 3 ont un corps de `debug-menu-append-item` textuellement identique
+et ne sont pas touchés : c'est donc lié au *contenu* du menu racine, pas à l'ajout.
+
+Porter Jak 1 demande donc une **installation différée** (attacher l'onglet à la première
+frame, ou au premier `mods-menu-register` d'un fichier de niveau) plutôt qu'au link —
+plus un mod Jak 1 pour la vérifier, et il n'en existe aucun aujourd'hui. D'ici là la
+colonne Jak 1 du tableau de statut reste vide volontairement.
+
+> Sans rapport mais trouvé dans la même session : Jak 1 ne démarrait **pas du tout** en
+> `-debug` sur `master-dev`. Voir `.agents/skills/engine-internals/discoveries.md` — le
+> correctif est dans `game/kernel/jak1/kmachine.cpp`.

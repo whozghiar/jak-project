@@ -150,18 +150,22 @@ def main():
                     # Preserve mod's own README and technical documentation
                     run_cmd(f'git checkout HEAD -- "{f}" 2>/dev/null || true', check=False)
                     run_cmd(f'git add "{f}"', check=False)
-                elif f == "docs/modding/branch_audit.md" or f.startswith("docs/modding/tools/"):
-                    # Take base branch global audit/status
+                elif f == ".github/workflows/release.yml" or f == "docs/modding/branch_audit.md" or f.startswith("docs/modding/tools/") or f == "AGENTS.md" or f.startswith(".agents/"):
+                    # Take release workflow, base branch global audit/status, instructions and skills
                     run_cmd(f'git checkout MERGE_HEAD -- "{f}" 2>/dev/null || true', check=False)
                     run_cmd(f'git add "{f}"', check=False)
                 elif f.startswith(".github/workflows/"):
-                    # Drop unwanted workflows
+                    # Drop other unwanted workflows
                     run_cmd(f'git rm -rf "{f}" 2>/dev/null || rm -rf "{f}"', check=False)
 
         # CRITICAL: Always ensure mod's root README.md is strictly preserved from HEAD
         # (prevents Git 3-way merge from silently splicing master-dev's dashboard/hub into mod's README)
         run_cmd('git checkout HEAD -- README.md 2>/dev/null || true', check=False)
         run_cmd('git add README.md', check=False)
+
+        # Generate or update index.json for the branch
+        run_cmd(f'python "{os.path.join(REPO_ROOT, "scripts", "modding", "update_mod_catalog.py")}"', check=False)
+        run_cmd('git add index.json', check=False)
 
         # Verify if real source code conflicts remain
         remaining_res = run_cmd("git diff --name-only --diff-filter=U", check=False)
@@ -176,7 +180,15 @@ def main():
             print("Or abort with: git merge --abort")
             sys.exit(1)
 
-        commit_msg = f"chore: sync {target_branch} with latest {source_branch} (AI-assisted)"
+        commit_msg = (
+            f"chore(sync): align {target_branch} with latest {source_branch}\n\n"
+            f"- Integration of updated release CI workflow (.github/workflows/release.yml)\n"
+            f"  with semantic auto-increment (v1.0.0 -> v1.0.1), variable branch display name,\n"
+            f"  and automatic README overview extraction.\n"
+            f"- Creation of index.json catalog for 1-click install via OpenGOAL Launcher raw.githubusercontent.\n"
+            f"- Integration of latest engine fixes and Jak 3 Debug > Mods registry.\n\n"
+            f"(AI-assisted)"
+        )
         run_cmd(f'git commit -m "{commit_msg}"')
         print(f"\n[OK] Successfully merged {source_ref} into {target_branch}!")
         if args.push:

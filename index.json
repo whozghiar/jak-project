@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "crimson-blueguard/city-insurrection Source",
-  "lastUpdated": "2026-09-13T20:59:26Z",
+  "lastUpdated": "2026-09-13T21:01:09Z",
   "mods": {
     "crimson-blueguard-city-insurrection": {
       "displayName": "crimson-blueguard/city-insurrection",
@@ -19,8 +19,8 @@
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/crimson-blueguard/city-insurrection",
       "versions": [
         {
-          "version": "crimson-blueguard/city-insurrection-v1.0.0",
-          "publishedDate": "2026-09-13T20:59:26Z",
+          "version": "1.0.0",
+          "publishedDate": "2026-09-13T21:01:09Z",
           "supportedGames": [
             "jak2"
           ],

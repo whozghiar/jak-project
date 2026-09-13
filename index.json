@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "paddywagon/traffic Source",
-  "lastUpdated": "2026-09-13T20:54:11Z",
+  "lastUpdated": "2026-09-13T20:59:50Z",
   "mods": {
     "paddywagon-traffic": {
       "displayName": "paddywagon/traffic",
@@ -19,14 +19,14 @@
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/paddywagon/traffic",
       "versions": [
         {
-          "version": "1.0.0",
-          "publishedDate": "2026-09-13T20:54:11Z",
+          "version": "paddywagon/traffic-v1.0.0",
+          "publishedDate": "2026-09-13T20:59:50Z",
           "supportedGames": [
             "jak2"
           ],
           "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/windows-v1.0.0.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/v1.0.0/linux-v1.0.0.zip"
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/paddywagon/traffic-v1.0.0/windows-paddywagon/traffic-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/paddywagon/traffic-v1.0.0/linux-paddywagon/traffic-v1.0.0.zip"
           },
           "checksums": {
             "windows": "",

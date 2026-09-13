@@ -26,6 +26,15 @@ constexpr u32 LINK_CONTROL_NAME_ADDR = 0x13AD80;
 //! Where to place the debug heap
 constexpr u32 DEBUG_HEAP_START = 0x14000000;  // 320 MB, moved past expanded global heap
 
+namespace jak1 {
+// Jak 1 used to derive its debug heap end from a 128 MB address mask
+// ((0xffffffff - DEBUG_HEAP_SPACE_FOR_STACK + 1) & 0x7ffffff). Once DEBUG_HEAP_START
+// moved to 0x14000000 for the expanded PC-port layout that subtraction underflows and
+// the runtime segfaults on boot, so Jak 1 now carries an explicit size like Jak 2/3.
+// 0x2f00000 matches the ~48 MB the original expression produced.
+constexpr u32 DEBUG_HEAP_SIZE = 0x2f00000;
+}
+
 namespace jak2 {
 constexpr u32 DEBUG_HEAP_SIZE = 0x2f00000;
 }

@@ -167,7 +167,7 @@ tasks:
     cmds:
       - "{{.PYTHON}} ./scripts/modding/sync_branch_with_master_dev.py {{.CLI_ARGS}}"
   modding-sync-docs:
-    desc: "Pull docs/modding + AGENTS.md + CLAUDE.md from master-dev into the current branch, pruning files deleted upstream (scripts/modding/sync_docs_from_master.py)"
+    desc: "Pull .agents + docs/modding + AGENTS.md + CLAUDE.md from master-dev into the current branch, pruning files deleted upstream (scripts/modding/sync_docs_from_master.py)"
     cmds:
       - "{{.PYTHON}} ./scripts/modding/sync_docs_from_master.py {{.CLI_ARGS}}"
   modding-land-doc:

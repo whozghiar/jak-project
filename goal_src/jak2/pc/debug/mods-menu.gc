@@ -24,12 +24,15 @@
   file. The registry rebuilds the live menu, sorted by label, so branch merge
   order never changes what the player sees.
 
+  The public API is deliberately identical across Jak 1 / Jak 2 / Jak 3, so a
+  mod's menu code can be moved between games without being rewritten.
+
   ------------------------------------------------------------------------------
   RESULTING HIERARCHY
   ------------------------------------------------------------------------------
     Debug > Mods > [mod-slug] > [variant / sub-module] > [options & toggles]
 
-  Example (branch jak2/gameplay/crimson-blueguard):
+  Example (branch jak2/features/crimson-blueguard):
     Debug > Mods > crimson-blueguard > city-peaceful > [Enable / Disable]
 
   ------------------------------------------------------------------------------
@@ -100,12 +103,26 @@
 ;; (the framework refuses to open a submenu with zero items).
 ;; ============================================================================
 
+(defun mods-menu-count ()
+  "How many mods are currently registered. Walks the registry list; only ever
+   called from the console 'About' row, never per-frame."
+  (let ((n 0)
+        (iter *mods-menu-entries*)
+        )
+    (while (not (null? iter))
+      (+! n 1)
+      (set! iter (cdr iter))
+      )
+    n
+    )
+  )
+
 (defun mods-menu-about ((arg0 object))
   "Activate-func for the permanent 'About' entry. Prints usage to the console."
   (format #t "~%=== Debug > Mods ===~%")
   (format #t "Unified modding tab. Each mod registers its own submenu at load with:~%")
   (format #t "  (mods-menu-register \"<mod-slug>\" <builder-fn>)~%")
-  (format #t "Registered mods: ~D~%" (length *mods-menu-entries*))
+  (format #t "Registered mods: ~D~%" (mods-menu-count))
   (let ((iter *mods-menu-entries*))
     (while (not (null? iter))
       (format #t "  - ~A~%" (-> (the-as mod-menu-entry (car iter)) name))
@@ -124,7 +141,7 @@
 (defun mods-menu-rebuild ()
   "Clear the live 'Mods' submenu and repopulate it from the registry, sorted by
    label. Cheap and allocation-light: only runs on register / hot-reload, never
-   per-frame and never on district / level transitions."
+   per-frame and never on level transitions."
   (when *mods-menu*
     (debug-menu-remove-all-items *mods-menu*)
     ;; permanent first row (keeps the submenu non-empty + self-documents)
@@ -162,6 +179,41 @@
   )
 
 ;; ============================================================================
+;; Install -- create/find the "Mods" root tab, then rebuild
+;; ============================================================================
+
+(defun mods-menu-install! ()
+  "Attach the 'Mods' submenu to the debug root menu. Idempotent: on a hot-reload
+   of this file it finds the existing tab and reuses it rather than adding a
+   second one.
+
+   Returns the live submenu, or #f while the root menu does not exist yet (this
+   file linked before `default-menu.gc` ran its top-level
+   `debug-menu-context-make-default-menus`). That is not an error:
+   `mods-menu-register` retries the install, so a mod whose .o links early still
+   gets its tab as soon as the menu exists."
+  (when (and (not *mods-menu*) (-> *debug-menu-context* root-menu))
+    (let ((existing (debug-menu-find-from-template *debug-menu-context* '("Mods"))))
+      (cond
+        (existing
+          ;; reuse the tab that a previous load already attached
+          (set! *mods-menu* existing)
+          )
+        (else
+          (set! *mods-menu* (new 'debug 'debug-menu *debug-menu-context* "Mods menu"))
+          (debug-menu-append-item
+            (-> *debug-menu-context* root-menu)
+            (new 'debug 'debug-menu-item-submenu "Mods" *mods-menu*)
+            )
+          )
+        )
+      )
+    (mods-menu-rebuild)
+    )
+  *mods-menu*
+  )
+
+;; ============================================================================
 ;; Register (public)
 ;; ============================================================================
 
@@ -190,37 +242,12 @@
             )
       )
     )
-  ;; reflect the change immediately if the menu is already on screen
-  (mods-menu-rebuild)
-  (none)
-  )
-
-;; ============================================================================
-;; Install -- create/find the "Mods" root tab, then rebuild
-;; ============================================================================
-
-(defun mods-menu-install! ()
-  "Attach the 'Mods' submenu to the debug root menu. Idempotent: on a hot-reload
-   of this file it finds the existing tab and reuses it rather than adding a
-   second one."
-  (when (-> *debug-menu-context* root-menu)
-    (let ((existing (debug-menu-find-from-template *debug-menu-context* '("Mods"))))
-      (cond
-        (existing
-          ;; reuse the tab that a previous load already attached
-          (set! *mods-menu* existing)
-          )
-        (else
-          (set! *mods-menu* (new 'debug 'debug-menu *debug-menu-context* "Mods menu"))
-          (debug-menu-append-item
-            (-> *debug-menu-context* root-menu)
-            (new 'debug 'debug-menu-item-submenu "Mods" *mods-menu*)
-            )
-          )
-        )
+  ;; Bring the tab up if it isn't yet (mod linked before the root menu existed),
+  ;; otherwise just reflect the change immediately.
+  (if *mods-menu*
+      (mods-menu-rebuild)
+      (mods-menu-install!)
       )
-    (mods-menu-rebuild)
-    )
   (none)
   )
 

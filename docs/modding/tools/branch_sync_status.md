@@ -1,31 +1,28 @@
 # 📊 État de Synchronisation des Branches de Mods
 
-> **Dernière mise à jour :** `2026-09-04 10:18:42 UTC`  
-> **Branche source :** `master-dev` (`471b23aa6`)  
-> **Statut global :** 20/20 synchronisées (0 conflits)
+> **Dernière mise à jour :** `2026-09-13 14:11:58 UTC`  
+> **Branche source :** `master-dev` (`ef4392e68`)  
+> **Statut global :** 15/17 synchronisées (2 conflits)
 
 | Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |
 | :--- | :---: | :--- | :--- | :--- |
-| `jak2/config/custom_animation_and_sound` | ✅ À jour | `02efde7a7 - chore: merge master-dev build tooling and update README for LAYER_1_2 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/config/enhanced_spawnrates` | ✅ À jour | `d334b81e9 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/config/memory_increase` | ✅ À jour | `23a90b2d5 - chore: merge master-dev build tooling and update README for LAYER_1 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/config/start_menu_wheel` | ✅ À jour | `5abcb0c18 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/blueguard` | ✅ À jour | `265bc0c14 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/dark_jak_enhanced` | ✅ À jour | `d9c09817c - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/enhanced_city_traffic_v2` | ✅ À jour | `babbf6420 - chore: merge master-dev build tooling and update README for LAYER_2 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/jak3-jetBoard` | ✅ À jour | `0fbdcd148 - chore: merge master-dev build tooling and update README for LAYER_1_2 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/merc-fr3-injection-poc` | ✅ À jour | `e8f3a927e - chore: merge master-dev build tooling and update README for LAYER_2 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/multiplayer` | ✅ À jour | `2df03f7f5 - chore: merge master-dev build tooling and update README for LAYER_1 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/paddy_wagon_v2` | ✅ À jour | `1cf0c6d0b - chore: merge master-dev build tooling and update README for LAYER_2 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/transport_alert` | ✅ À jour | `60141c0ee - docs: establish mod README with Layer 1 & 2 build instructions (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/transport_traffic` | ✅ À jour | `d83fda313 - docs: update README build instructions for Layer 1 & 2 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/transport_v2` | ✅ À jour | `3f75566e2 - chore: merge master-dev build tooling and update README for LAYER_2 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/yakow_killable` | ✅ À jour | `e520aa06c - chore: merge master-dev build tooling and update README for Layer 3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak3/config/memory_increase` | ✅ À jour | `2c0cadd28 - chore: merge master-dev build tooling and update README for LAYER_1 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/city-behavior` | ✅ À jour | `b49f9461e - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/jak2_skin_secret` | ✅ À jour | `63cd4c961 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/mega_dark_jak` | ✅ À jour | `fa58df047 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/redguard-entity` | ✅ À jour | `4177d0b5b - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)` | Déjà à jour | — |
+| `jak2/config/enhanced_spawnrates` | 🔄 Synchronisée | `d1aebca00 - chore: sync jak2/config/enhanced_spawnrates with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak2/config/start_menu_wheel` | 🔄 Synchronisée | `f53fa6cf1 - chore: sync jak2/config/start_menu_wheel with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak2/features/crimson-blueguard/city-insurrection` | 🔄 Synchronisée | `1ceab7c7a - chore: sync jak2/features/crimson-blueguard/city-insurrection with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak2/features/crimson-blueguard/crimson-redguard-behavior` | ⚠️ Conflit | `c67191dbe - feat(jak2/crimson-blueguard): blue minimap dot for guard vehicles (AI-assisted)` | • `.agents/skills/engine-internals/discoveries.md`<br>• `AGENTS.md` | `git checkout jak2/features/crimson-blueguard/crimson-redguard-behavior && git merge origin/master-dev` |
+| `jak2/features/crimson-blueguard/peaceful` | 🔄 Synchronisée | `a95733307 - chore: sync jak2/features/crimson-blueguard/peaceful with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak2/features/dark_jak_enhanced` | 🔄 Synchronisée | `be1c5e590 - chore: sync jak2/features/dark_jak_enhanced with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak2/features/haven-city-chaos` | ⚠️ Conflit | `f75162eec - feat(jak2/chaos): 10/50/40 ground faction ratio, plus three Rapid gunner fixes (AI-assisted)` | • `.agents/skills/engine-internals/discoveries.md` | `git checkout jak2/features/haven-city-chaos && git merge origin/master-dev` |
+| `jak2/features/jak3-jetBoard` | 🔄 Synchronisée | `b283ae6a3 - chore: sync jak2/features/jak3-jetBoard with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak2/features/paddywagon/traffic` | 🔄 Synchronisée | `1aa0e9566 - chore: sync jak2/features/paddywagon/traffic with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak2/features/transport-ag/alert` | 🔄 Synchronisée | `105f40c8b - chore: sync jak2/features/transport-ag/alert with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak2/features/transport-ag/traffic` | 🔄 Synchronisée | `c607375b0 - chore: sync jak2/features/transport-ag/traffic with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak2/features/yakow_killable` | 🔄 Synchronisée | `4c2108dab - chore: sync jak2/features/yakow_killable with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak3/config/memory_increase` | 🔄 Synchronisée | `df1c7757e - chore: sync jak3/config/memory_increase with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak3/features/city-behavior` | 🔄 Synchronisée | `b58a47d35 - chore: sync jak3/features/city-behavior with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak3/features/jak2_skin_secret` | 🔄 Synchronisée | `164b2f428 - chore: sync jak3/features/jak2_skin_secret with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak3/features/mega_dark_jak` | 🔄 Synchronisée | `981f13af4 - chore: sync jak3/features/mega_dark_jak with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
+| `jak3/features/redguard-entity` | 🔄 Synchronisée | `0afefe618 - chore: sync jak3/features/redguard-entity with latest origin/master-dev (AI-assisted)` | Fusionnée et poussée avec succès | — |
 
 ---
 ### Guide de Résolution des Conflits

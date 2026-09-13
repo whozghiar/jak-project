@@ -307,8 +307,6 @@ AutoSplitterBlock g_auto_splitter_block_jak1;
  * TODO finish up things which are commented.
  */
 int InitMachine() {
-  u32 debug_heap_end = (0xffffffff - DEBUG_HEAP_SPACE_FOR_STACK + 1) & 0x7ffffff;
-
   // initialize the global heap
   u32 global_heap_size = GLOBAL_HEAP_END - HEAP_START;
   float size_mb = ((float)global_heap_size) / (float)(1 << 20);
@@ -318,7 +316,11 @@ int InitMachine() {
 
   // initialize the debug heap, if appropriate
   if (MasterDebug) {
-    u32 debug_heap_size = debug_heap_end - DEBUG_HEAP_START;
+    // og:preserve-this use the explicit size like jak2/jak3: the old
+    // `(0xffffffff - DEBUG_HEAP_SPACE_FOR_STACK + 1) & 0x7ffffff` end address is below
+    // DEBUG_HEAP_START now, so the subtraction underflowed and boot segfaulted.
+    u32 debug_heap_size = jak1::DEBUG_HEAP_SIZE;
+    u32 debug_heap_end = DEBUG_HEAP_START + debug_heap_size;
     kinitheap(kdebugheap, Ptr<u8>(DEBUG_HEAP_START), debug_heap_size);
     float debug_size_mb = ((float)debug_heap_size) / (float)(1 << 20);
     float gap_size_mb = ((float)DEBUG_HEAP_START - GLOBAL_HEAP_END) / (float)(1 << 20);

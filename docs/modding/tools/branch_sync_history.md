@@ -55,3 +55,95 @@ Ce document consigne l'historique complet des tentatives de fusions automatiques
 | `2026-09-04 10:18:43` | ✅ Conflit Résolu | `jak3/features/jak2_skin_secret` | Conflit résolu manuellement. Synchronisée avec origin/master-dev (`63cd4c961 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)`) |
 | `2026-09-04 10:18:44` | ✅ Conflit Résolu | `jak3/features/mega_dark_jak` | Conflit résolu manuellement. Synchronisée avec origin/master-dev (`fa58df047 - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)`) |
 | `2026-09-04 10:18:44` | ✅ Conflit Résolu | `jak3/features/redguard-entity` | Conflit résolu manuellement. Synchronisée avec origin/master-dev (`4177d0b5b - chore: merge master-dev build tooling and update README for LAYER_3 workflow (AI-assisted)`) |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/config/enhanced_spawnrates` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/config/start_menu_wheel` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/crimson-blueguard/city-insurrection` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/crimson-blueguard/peaceful` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/dark_jak_enhanced` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/jak3-jetBoard` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/paddywagon/traffic` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/transport-ag/alert` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/transport-ag/traffic` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak2/features/yakow_killable` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak3/config/memory_increase` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak3/features/city-behavior` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak3/features/jak2_skin_secret` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak3/features/mega_dark_jak` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:29:25` | ⚠️ Conflit | `jak3/features/redguard-entity` | Conflit détecté lors de la fusion avec origin/master-dev dans: `README.md`, `docs/modding/branch_audit.md` |
+| `2026-09-11 13:39:20` | ❌ Erreur | `jak2/config/enhanced_spawnrates` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 13:39:21` | ❌ Erreur | `jak2/config/start_menu_wheel` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 13:39:21` | ❌ Erreur | `jak2/features/crimson-blueguard/city-insurrection` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 13:39:22` | ❌ Erreur | `jak2/features/crimson-blueguard/peaceful` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 13:39:22` | ❌ Erreur | `jak2/features/dark_jak_enhanced` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 13:39:23` | ❌ Erreur | `jak2/features/jak3-jetBoard` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 13:39:23` | ❌ Erreur | `jak2/features/paddywagon/traffic` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 13:39:24` | ❌ Erreur | `jak2/features/transport-ag/alert` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 13:39:24` | ❌ Erreur | `jak2/features/transport-ag/traffic` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 13:39:25` | ❌ Erreur | `jak2/features/yakow_killable` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 13:39:25` | ❌ Erreur | `jak3/config/memory_increase` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 13:39:26` | ❌ Erreur | `jak3/features/city-behavior` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 13:39:27` | ❌ Erreur | `jak3/features/jak2_skin_secret` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 13:39:27` | ❌ Erreur | `jak3/features/mega_dark_jak` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 13:39:28` | ❌ Erreur | `jak3/features/redguard-entity` | Échec git push: Échec checkout: error: Your local changes to the following files would be overwritten by checkout:
+	.github/workflows/sync-upstream.yaml |
+| `2026-09-11 14:14:43` | 🔄 Auto-fusion | `jak2/config/enhanced_spawnrates` | Fusion automatique réussie avec origin/master-dev (`4c256d3ae - chore: sync jak2/config/enhanced_spawnrates with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-11 14:14:44` | 🔄 Auto-fusion | `jak2/config/start_menu_wheel` | Fusion automatique réussie avec origin/master-dev (`dddf3b07b - chore: sync jak2/config/start_menu_wheel with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-11 14:14:46` | 🔄 Auto-fusion | `jak2/features/crimson-blueguard/city-insurrection` | Fusion automatique réussie avec origin/master-dev (`add9b78f5 - chore: sync jak2/features/crimson-blueguard/city-insurrection with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-11 14:14:48` | 🔄 Auto-fusion | `jak2/features/crimson-blueguard/peaceful` | Fusion automatique réussie avec origin/master-dev (`885762935 - chore: sync jak2/features/crimson-blueguard/peaceful with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-11 14:14:50` | 🔄 Auto-fusion | `jak2/features/dark_jak_enhanced` | Fusion automatique réussie avec origin/master-dev (`ae54e0687 - chore: sync jak2/features/dark_jak_enhanced with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-11 14:14:52` | 🔄 Auto-fusion | `jak2/features/jak3-jetBoard` | Fusion automatique réussie avec origin/master-dev (`e9515ece0 - chore: sync jak2/features/jak3-jetBoard with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-11 14:14:54` | 🔄 Auto-fusion | `jak2/features/paddywagon/traffic` | Fusion automatique réussie avec origin/master-dev (`6b7f9f60b - chore: sync jak2/features/paddywagon/traffic with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-11 14:14:56` | 🔄 Auto-fusion | `jak2/features/transport-ag/alert` | Fusion automatique réussie avec origin/master-dev (`4a9c35121 - chore: sync jak2/features/transport-ag/alert with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-11 14:14:58` | 🔄 Auto-fusion | `jak2/features/transport-ag/traffic` | Fusion automatique réussie avec origin/master-dev (`cb74d948f - chore: sync jak2/features/transport-ag/traffic with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-11 14:15:00` | 🔄 Auto-fusion | `jak2/features/yakow_killable` | Fusion automatique réussie avec origin/master-dev (`fd33510c2 - chore: sync jak2/features/yakow_killable with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-11 14:15:01` | 🔄 Auto-fusion | `jak3/config/memory_increase` | Fusion automatique réussie avec origin/master-dev (`c779a9cd3 - chore: sync jak3/config/memory_increase with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-11 14:15:03` | 🔄 Auto-fusion | `jak3/features/city-behavior` | Fusion automatique réussie avec origin/master-dev (`df82fc321 - chore: sync jak3/features/city-behavior with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-11 14:15:06` | 🔄 Auto-fusion | `jak3/features/jak2_skin_secret` | Fusion automatique réussie avec origin/master-dev (`804309e89 - chore: sync jak3/features/jak2_skin_secret with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-11 14:15:08` | 🔄 Auto-fusion | `jak3/features/mega_dark_jak` | Fusion automatique réussie avec origin/master-dev (`95c5e583d - chore: sync jak3/features/mega_dark_jak with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-11 14:15:10` | 🔄 Auto-fusion | `jak3/features/redguard-entity` | Fusion automatique réussie avec origin/master-dev (`67e71b047 - chore: sync jak3/features/redguard-entity with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-12 13:28:22` | 🔄 Auto-fusion | `jak2/config/enhanced_spawnrates` | Fusion automatique réussie avec origin/master-dev (`3542c71f3 - chore: sync jak2/config/enhanced_spawnrates with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-12 13:28:24` | 🔄 Auto-fusion | `jak2/config/start_menu_wheel` | Fusion automatique réussie avec origin/master-dev (`8e35b9e2b - chore: sync jak2/config/start_menu_wheel with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-12 13:28:26` | 🔄 Auto-fusion | `jak2/features/crimson-blueguard/city-insurrection` | Fusion automatique réussie avec origin/master-dev (`f59799a85 - chore: sync jak2/features/crimson-blueguard/city-insurrection with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-12 13:28:26` | ⚠️ Conflit | `jak2/features/crimson-blueguard/crimson-redguard-behavior` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `.agents/skills/engine-internals/discoveries.md` |
+| `2026-09-12 13:28:28` | 🔄 Auto-fusion | `jak2/features/dark_jak_enhanced` | Fusion automatique réussie avec origin/master-dev (`e9165452a - chore: sync jak2/features/dark_jak_enhanced with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-12 13:28:30` | 🔄 Auto-fusion | `jak2/features/jak3-jetBoard` | Fusion automatique réussie avec origin/master-dev (`90b8bf24e - chore: sync jak2/features/jak3-jetBoard with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-12 13:28:32` | 🔄 Auto-fusion | `jak2/features/paddywagon/traffic` | Fusion automatique réussie avec origin/master-dev (`6cfd70d66 - chore: sync jak2/features/paddywagon/traffic with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-12 13:28:34` | 🔄 Auto-fusion | `jak2/features/transport-ag/alert` | Fusion automatique réussie avec origin/master-dev (`671c16020 - chore: sync jak2/features/transport-ag/alert with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-12 13:28:37` | 🔄 Auto-fusion | `jak2/features/transport-ag/traffic` | Fusion automatique réussie avec origin/master-dev (`071165e33 - chore: sync jak2/features/transport-ag/traffic with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-12 13:28:39` | 🔄 Auto-fusion | `jak2/features/yakow_killable` | Fusion automatique réussie avec origin/master-dev (`90d7b2b51 - chore: sync jak2/features/yakow_killable with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-12 13:28:41` | 🔄 Auto-fusion | `jak3/config/memory_increase` | Fusion automatique réussie avec origin/master-dev (`b07728535 - chore: sync jak3/config/memory_increase with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-12 13:28:42` | 🔄 Auto-fusion | `jak3/features/city-behavior` | Fusion automatique réussie avec origin/master-dev (`9c11dc555 - chore: sync jak3/features/city-behavior with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-12 13:28:44` | 🔄 Auto-fusion | `jak3/features/jak2_skin_secret` | Fusion automatique réussie avec origin/master-dev (`3e585944d - chore: sync jak3/features/jak2_skin_secret with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-12 13:28:46` | 🔄 Auto-fusion | `jak3/features/mega_dark_jak` | Fusion automatique réussie avec origin/master-dev (`51200c2e1 - chore: sync jak3/features/mega_dark_jak with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-12 13:28:48` | 🔄 Auto-fusion | `jak3/features/redguard-entity` | Fusion automatique réussie avec origin/master-dev (`4a0eb2269 - chore: sync jak3/features/redguard-entity with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:00` | 🔄 Auto-fusion | `jak2/config/enhanced_spawnrates` | Fusion automatique réussie avec origin/master-dev (`d1aebca00 - chore: sync jak2/config/enhanced_spawnrates with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:01` | 🔄 Auto-fusion | `jak2/config/start_menu_wheel` | Fusion automatique réussie avec origin/master-dev (`f53fa6cf1 - chore: sync jak2/config/start_menu_wheel with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:03` | 🔄 Auto-fusion | `jak2/features/crimson-blueguard/city-insurrection` | Fusion automatique réussie avec origin/master-dev (`1ceab7c7a - chore: sync jak2/features/crimson-blueguard/city-insurrection with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:03` | ⚠️ Conflit | `jak2/features/crimson-blueguard/crimson-redguard-behavior` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `.agents/skills/engine-internals/discoveries.md`, `AGENTS.md` |
+| `2026-09-13 14:12:05` | 🔄 Auto-fusion | `jak2/features/crimson-blueguard/peaceful` | Fusion automatique réussie avec origin/master-dev (`a95733307 - chore: sync jak2/features/crimson-blueguard/peaceful with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:07` | 🔄 Auto-fusion | `jak2/features/dark_jak_enhanced` | Fusion automatique réussie avec origin/master-dev (`be1c5e590 - chore: sync jak2/features/dark_jak_enhanced with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:07` | ⚠️ Conflit | `jak2/features/haven-city-chaos` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `.agents/skills/engine-internals/discoveries.md` |
+| `2026-09-13 14:12:09` | 🔄 Auto-fusion | `jak2/features/jak3-jetBoard` | Fusion automatique réussie avec origin/master-dev (`b283ae6a3 - chore: sync jak2/features/jak3-jetBoard with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:11` | 🔄 Auto-fusion | `jak2/features/paddywagon/traffic` | Fusion automatique réussie avec origin/master-dev (`1aa0e9566 - chore: sync jak2/features/paddywagon/traffic with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:13` | 🔄 Auto-fusion | `jak2/features/transport-ag/alert` | Fusion automatique réussie avec origin/master-dev (`105f40c8b - chore: sync jak2/features/transport-ag/alert with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:15` | 🔄 Auto-fusion | `jak2/features/transport-ag/traffic` | Fusion automatique réussie avec origin/master-dev (`c607375b0 - chore: sync jak2/features/transport-ag/traffic with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:16` | 🔄 Auto-fusion | `jak2/features/yakow_killable` | Fusion automatique réussie avec origin/master-dev (`4c2108dab - chore: sync jak2/features/yakow_killable with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:18` | 🔄 Auto-fusion | `jak3/config/memory_increase` | Fusion automatique réussie avec origin/master-dev (`df1c7757e - chore: sync jak3/config/memory_increase with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:20` | 🔄 Auto-fusion | `jak3/features/city-behavior` | Fusion automatique réussie avec origin/master-dev (`b58a47d35 - chore: sync jak3/features/city-behavior with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:22` | 🔄 Auto-fusion | `jak3/features/jak2_skin_secret` | Fusion automatique réussie avec origin/master-dev (`164b2f428 - chore: sync jak3/features/jak2_skin_secret with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:23` | 🔄 Auto-fusion | `jak3/features/mega_dark_jak` | Fusion automatique réussie avec origin/master-dev (`981f13af4 - chore: sync jak3/features/mega_dark_jak with latest origin/master-dev (AI-assisted)`) |
+| `2026-09-13 14:12:25` | 🔄 Auto-fusion | `jak3/features/redguard-entity` | Fusion automatique réussie avec origin/master-dev (`0afefe618 - chore: sync jak3/features/redguard-entity with latest origin/master-dev (AI-assisted)`) |

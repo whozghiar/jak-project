@@ -1,0 +1,279 @@
+name: 🚀 Build & Release OpenGOAL Mod Package
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag de version du mod (ex: v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+      prerelease:
+        description: 'Marquer comme pré-release'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ github.event.inputs.tag_name || github.ref_name }}
+
+jobs:
+  # =========================================================================
+  # 1. BUILD WINDOWS (x86_64-pc-windows-msvc via Clang-CL Statique)
+  # =========================================================================
+  build-windows:
+    name: "🖥️ Windows (Clang-CL Static)"
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install NASM
+        run: choco install nasm
+
+      - name: Setup sccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          variant: sccache
+          key: windows-release-static-${{ github.sha }}
+          restore-keys: windows-release-static-
+
+      - name: Setup MSVC Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Remove Strawberry Perl from PATH
+        run: |
+          $env:PATH = $env:PATH -replace "C:\\Strawberry\\c\\bin;", ""
+          "PATH=$env:PATH" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Configure CMake
+        shell: cmd
+        run: |
+          cmake -B build --preset=Release-windows-clang-static ^
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+      - name: Build Binaries
+        shell: cmd
+        run: cmake --build build --config Release --parallel %NUMBER_OF_PROCESSORS%
+
+      - name: Package Windows Mod Bundle
+        shell: bash
+        run: |
+          TAG_VAL="${RELEASE_TAG}"
+          echo "Packaging Windows bundle for tag: ${TAG_VAL}"
+
+          PKG_DIR="dist_windows"
+          mkdir -p "$PKG_DIR"
+          mkdir -p "$PKG_DIR/data/launcher"
+          mkdir -p "$PKG_DIR/data/decompiler"
+          mkdir -p "$PKG_DIR/data/game/graphics/opengl_renderer"
+
+          # 1. Executables à la racine
+          cp build/bin/gk.exe "$PKG_DIR/"
+          cp build/bin/goalc.exe "$PKG_DIR/"
+          cp build/bin/extractor.exe "$PKG_DIR/"
+
+          # 2. Données requises pour extraction ISO, compilation GOAL et rendu
+          cp -r decompiler/config "$PKG_DIR/data/decompiler/"
+          cp -r goal_src "$PKG_DIR/data/"
+          cp -r game/assets "$PKG_DIR/data/game/"
+          cp -r game/graphics/opengl_renderer/shaders "$PKG_DIR/data/game/graphics/opengl_renderer/"
+
+          if [ -d "custom_assets" ]; then
+            cp -r custom_assets "$PKG_DIR/data/"
+          fi
+
+          if [ -f ".github/scripts/releases/error-code-metadata.json" ]; then
+            cp .github/scripts/releases/error-code-metadata.json "$PKG_DIR/data/launcher/"
+          fi
+
+          mkdir -p final-artifacts
+          cd "$PKG_DIR"
+          7z a -tzip "../final-artifacts/windows-${TAG_VAL}.zip" *
+          cd ..
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: final-artifacts/*.zip
+          if-no-files-found: error
+
+  # =========================================================================
+  # 2. BUILD LINUX (x86_64-unknown-linux-gnu via Clang Statique)
+  # =========================================================================
+  build-linux:
+    name: "🐧 Linux (Clang Static)"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake clang gcc g++ nasm \
+            libxrandr-dev libxinerama-dev libxcursor-dev libpulse-dev \
+            libxi-dev libgl1-mesa-dev libssl-dev ninja-build zip
+
+      - name: Setup sccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          variant: sccache
+          key: linux-release-static-${{ github.sha }}
+          restore-keys: linux-release-static-
+
+      - name: Configure CMake
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake -B build --preset=Release-linux-clang-static \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+      - name: Build Binaries
+        run: cmake --build build --config Release --parallel $(nproc)
+
+      - name: Strip Binaries
+        run: |
+          strip build/game/gk
+          strip build/goalc/goalc
+          strip build/decompiler/extractor
+
+      - name: Package Linux Mod Bundle
+        run: |
+          TAG_VAL="${RELEASE_TAG}"
+          echo "Packaging Linux bundle for tag: ${TAG_VAL}"
+
+          PKG_DIR="dist_linux"
+          mkdir -p "$PKG_DIR"
+          mkdir -p "$PKG_DIR/data/launcher"
+          mkdir -p "$PKG_DIR/data/decompiler"
+          mkdir -p "$PKG_DIR/data/game/graphics/opengl_renderer"
+
+          # 1. Executables avec permissions d'execution
+          cp build/game/gk "$PKG_DIR/"
+          cp build/goalc/goalc "$PKG_DIR/"
+          cp build/decompiler/extractor "$PKG_DIR/"
+          chmod +x "$PKG_DIR/gk" "$PKG_DIR/goalc" "$PKG_DIR/extractor"
+
+          # 2. Données requises pour extraction ISO, compilation GOAL et rendu
+          cp -r decompiler/config "$PKG_DIR/data/decompiler/"
+          cp -r goal_src "$PKG_DIR/data/"
+          cp -r game/assets "$PKG_DIR/data/game/"
+          cp -r game/graphics/opengl_renderer/shaders "$PKG_DIR/data/game/graphics/opengl_renderer/"
+
+          if [ -d "custom_assets" ]; then
+            cp -r custom_assets "$PKG_DIR/data/"
+          fi
+
+          if [ -f ".github/scripts/releases/error-code-metadata.json" ]; then
+            cp .github/scripts/releases/error-code-metadata.json "$PKG_DIR/data/launcher/"
+          fi
+
+          mkdir -p final-artifacts
+          cd "$PKG_DIR"
+          zip -r "../final-artifacts/linux-${TAG_VAL}.zip" ./*
+          cd ..
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: final-artifacts/*.zip
+          if-no-files-found: error
+
+  # =========================================================================
+  # 3. PUBLISH RELEASE & MOD CATALOG (index.json)
+  # =========================================================================
+  publish:
+    name: "📦 Publish Release & Catalog"
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      - name: Compute Checksums & Prepare Assets
+        id: checksums
+        run: |
+          mkdir -p release-files
+          mv downloaded-artifacts/release-windows/* release-files/
+          mv downloaded-artifacts/release-linux/* release-files/
+
+          cd release-files
+          sha256sum "windows-${RELEASE_TAG}.zip" > SHA256SUMS.txt
+          sha256sum "linux-${RELEASE_TAG}.zip" >> SHA256SUMS.txt
+          echo "=== SHA-256 CHECKSUMS ==="
+          cat SHA256SUMS.txt
+
+          WIN_HASH=$(sha256sum "windows-${RELEASE_TAG}.zip" | awk '{print $1}')
+          LIN_HASH=$(sha256sum "linux-${RELEASE_TAG}.zip" | awk '{print $1}')
+          echo "win_sha=$WIN_HASH" >> $GITHUB_OUTPUT
+          echo "lin_sha=$LIN_HASH" >> $GITHUB_OUTPUT
+          cd ..
+
+      - name: Generate Mod Catalog (index.json)
+        run: |
+          python ./scripts/modding/update_mod_catalog.py \
+            --tag "${RELEASE_TAG}" \
+            --repo "${{ github.repository }}" \
+            --win-sha "${{ steps.checksums.outputs.win_sha }}" \
+            --lin-sha "${{ steps.checksums.outputs.lin_sha }}" \
+            --index-file "./index.json"
+
+          cp index.json release-files/
+
+      - name: Create or Update GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PRERELEASE_FLAG=""
+          if [ "${{ github.event.inputs.prerelease }}" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          NOTES="## 🎮 OpenGOAL Mod Release — ${RELEASE_TAG}
+
+          ### 📦 Téléchargements Directs
+          - **Windows :** [\`windows-${RELEASE_TAG}.zip\`](https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/windows-${RELEASE_TAG}.zip)
+          - **Linux :** [\`linux-${RELEASE_TAG}.zip\`](https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/linux-${RELEASE_TAG}.zip)
+
+          ### 📋 Intégration OpenGOAL Launcher (Custom Mod Source)
+          Vous pouvez ajouter ce mod directement dans votre OpenGOAL Launcher via l'URL du catalogue :
+          \`\`\`text
+          https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/index.json
+          \`\`\`
+
+          ### 🔒 Checksums de Sécurité (SHA-256)
+          \`\`\`text
+          $(cat release-files/SHA256SUMS.txt)
+          \`\`\`
+          *(AI-assisted release packaging)*"
+
+          gh release create "${RELEASE_TAG}" \
+            release-files/* \
+            --title "Release ${RELEASE_TAG}" \
+            --notes "$NOTES" \
+            --repo "${{ github.repository }}" \
+            $PRERELEASE_FLAG \
+            --clobber

@@ -91,10 +91,21 @@ To inject an existing or custom model into a level without burning scarce level 
 Custom models must be exported from Blender as binary glTF (`.glb`).
 
 ### Armature & Skeleton Rules
-- **Root Bone:** The root bone must be located at `(0, 0, 0)`.
+- **Root Bone (`align` Rule):** Joint 0 MUST be located at `(0, 0, 0)` and **named `align`**. Omitting `align` as joint 0 offsets every bone index by 1, leading to immediate mesh dislocation or engine crashes when applying animations.
 - **Bone Hierarchy:** Joints must match the bone index expectation of the target game. If replacing or extending an existing actor (e.g., Jak or a Crimson Guard), the bone count, naming, and orientations must strictly match the original skeleton.
 - **Joint Channels:** In OpenGOAL, skeletal animations are compressed into joint channels (translation, quaternion rotation, scale). Apply scale and rotation in Blender before exporting (`Ctrl+A` -> Apply All Transforms).
 - **Scale:** Ensure Blender units match OpenGOAL world scale (1 Blender meter corresponds to game meters).
+
+### Required Blender Plugins & Standalone Tools
+- **Blender Add-ons (`custom_assets/blender_plugins/`):**
+  - `opengoal.py`: Mesh tools, surface collision flags (PAT), and vertex-colour bake helpers.
+  - `gltf2_blender_extract.py`: Custom exporter drop-in replacement (place inside Blender's `scripts/addons/io_scene_gltf2/blender/exp/`) to ensure proper joint layout and vertex-colour exports for `build-actor`.
+- **Standalone Tools Compilation (CMake targets):**
+  ```bash
+  cmake --build out/build/Release --target retarget_anim --config Release
+  cmake --build out/build/Release --target build_actor   --config Release
+  cmake --build out/build/Release --target build_sbk     --config Release
+  ```
 
 ### Export Settings (Blender glTF 2.0 Exporter)
 - **Format:** `glTF Binary (.glb)`
@@ -114,32 +125,45 @@ When grafting custom animations onto an existing character (e.g. Jak or Daxter):
   - `:joint-channel`: Specifies which bones are driven by the animation and which are ignored.
 - In `game.gd`, place custom art groups **immediately after** the parent art group so master art group indices stay coherent.
 
+### Linking Hook (`register-custom-art-group`)
+Art-groups built with `:master-art-group` contain a `joint-geo` at slot 0, which makes native `needs-link?` return `#f`. Without manual registration, their animations are never linked to the character at level load.
+In top-level mod code, register your art-group name (without `-ag`):
+```lisp
+;; Register custom art-group into *custom-art-groups-to-link* (checked in joint.gc and level.gc)
+(register-custom-art-group "mes-anims-jak")
+```
+
 ---
 
 ## 6. Custom Sound Banks (SBK Audio Pipeline)
 
 Adding dedicated sound effects for a custom entity:
 
-1. Place 16-bit 48kHz WAV audio files under:
-   ```text
-   custom_assets/jak[x]/sounds/sfx/<BANK_NAME>/
-   ```
-2. In `goal_src/jak[x]/game.gp`, invoke the `build-sbk` macro:
-   ```lisp
-   (build-sbk "BOARD" "custom_assets/jak1/sounds/sfx/BOARD")
-   ```
-3. `build-sbk` registers `BOARD.SBK` into `*all-sbk*`, which is appended to the `iso` group in `game.gp`:
-   ```lisp
-   (group-list "iso"
-     `("$OUT/iso/0COMMON.TXT"
-       ...
-       ,@(reverse *all-sbk*)
-       ...))
-   ```
-4. Play the sound in GOAL code:
-   ```lisp
-   (sound-play "board-loop")
-   ```
+### 1. Source Audio Files
+Place 16-bit 48kHz PCM WAV audio files + `metadata.txt` under:
+```text
+custom_assets/jak[x]/sounds/sfx/<BANK_NAME>/
+```
+*(Tip: generate a valid `metadata.txt` layout by extracting an existing bank via `rip_sound_banks` decompiler override).*
+
+### 2. Delivery Routes
+- **Route A — Append to `COMMON` (Recommended for global sounds):**
+  1. In `goal_src/jak[x]/game.gp`, remove `"COMMON"` from `copy-sbk-files` (avoids duplicate output build error).
+  2. Append your sounds into `COMMON.SBK`:
+     ```lisp
+     (append-sbk "COMMON" "custom_assets/jak2/sounds/sfx/MY_SFX" :force-run #t)
+     ```
+  3. Play directly anywhere: `(sound-play "my-sound")`.
+- **Route B — Standalone Bank (`build-sbk`):**
+  1. Build a new `.SBK`:
+     ```lisp
+     (build-sbk "MYBANK" "custom_assets/jak2/sounds/sfx/MYBANK" :force-run #t :bank-id #x6d79736e)
+     ```
+  2. Load before use: `(sound-bank-load (static-sound-name "MYBANK"))`.
+  3. ⚠️ Overlord provides 3 dedicated slots (`common`, `gun`, `board`) and a 3-slot rotating level pool. Route B uses the rotating pool and can conflict with level sound banks.
+
+### 3. Looping Sounds
+For looped or frame-updated sounds (`sound-play-by-name`), pre-allocate the sound ID **once** in the actor's `-init` state via `(new-sound-id)`, never inside the frame loop.
 
 ---
 

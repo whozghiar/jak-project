@@ -98,6 +98,7 @@ def generate_release_notes(
     checksums_path: Path = None,
     display_name: str = None,
     description: str = None,
+    cover_url: str = None,
 ):
   """Generates formatted markdown release notes for GitHub Releases."""
   readme_desc = extract_metadata_from_readme(REPO_ROOT / "README.md")
@@ -123,9 +124,25 @@ def generate_release_notes(
     except Exception:
       checksums_content = ""
 
+  cover_path = REPO_ROOT / "docs" / "img" / "mod" / "mod_cover.png"
+  resolved_cover = cover_url
+  if not resolved_cover and (cover_path.is_file() or branch.startswith(("jak1/", "jak2/", "jak3/"))):
+    resolved_cover = f"https://raw.githubusercontent.com/{repo}/{branch}/docs/img/mod/mod_cover.png"
+
   notes_parts = [
       f"## 🎮 {disp_name} — {tag}",
       "",
+  ]
+
+  if resolved_cover:
+    notes_parts.extend([
+        f'<p align="center">',
+        f'  <img src="{resolved_cover}" alt="{disp_name}" width="500">',
+        f'</p>',
+        "",
+    ])
+
+  notes_parts.extend([
       desc,
       "",
       "### 📦 Téléchargements Directs",
@@ -137,7 +154,7 @@ def generate_release_notes(
       "```text",
       f"https://raw.githubusercontent.com/{repo}/{branch}/index.json",
       "```",
-  ]
+  ])
 
   if checksums_content:
     notes_parts.extend([
@@ -232,12 +249,16 @@ def main():
   )
   parser.add_argument(
       "--display-name",
-      default=os.environ.get("DISPLAY_NAME"),
+      nargs="?",
+      const="",
+      default=os.environ.get("DISPLAY_NAME", ""),
       help="User-friendly display name (defaults to variable branch part)",
   )
   parser.add_argument(
       "--description",
-      default=os.environ.get("DESCRIPTION"),
+      nargs="?",
+      const="",
+      default=os.environ.get("DESCRIPTION", ""),
       help="Mod description (defaults to Overview in README.md)",
   )
   parser.add_argument(
@@ -249,6 +270,13 @@ def main():
       "--supported-games",
       default=os.environ.get("SUPPORTED_GAMES"),
       help="Comma-separated games: jak1, jak2, jak3",
+  )
+  parser.add_argument(
+      "--cover-url",
+      nargs="?",
+      const="",
+      default=os.environ.get("COVER_URL", ""),
+      help="Direct URL for cover image (defaults to docs/img/mod/mod_cover.png on GitHub)",
   )
   parser.add_argument(
       "--win-sha",
@@ -312,15 +340,22 @@ def main():
     variable_part = parts[-1] if len(parts) > 1 else branch
     detected_slug = branch.replace("/", "-").replace("_", "-")
 
-  # Rule: Display name MUST ALWAYS be the variable part of the branch
-  display_name = args.display_name or variable_part
+  # Mod metadata resolution
+  disp_arg = args.display_name.strip() if args.display_name else ""
+  display_name = disp_arg or variable_part
 
-  # Rule: Description MUST be the same as mod's general README Overview
+  desc_arg = args.description.strip() if args.description else ""
   description = (
-      args.description
+      desc_arg
       or readme_desc
       or f"Mod OpenGOAL {detected_game.upper()} avec modifications C++ et LISP."
   )
+
+  # Cover image resolution: docs/img/mod/mod_cover.png or explicit --cover-url
+  cover_path = REPO_ROOT / "docs" / "img" / "mod" / "mod_cover.png"
+  resolved_cover_url = args.cover_url
+  if not resolved_cover_url and (cover_path.is_file() or branch.startswith(("jak1/", "jak2/", "jak3/"))):
+    resolved_cover_url = f"https://raw.githubusercontent.com/{args.repo}/{branch}/docs/img/mod/mod_cover.png"
 
   # Determine tag formatted as [nom-du-mod]-[version]
   tag_slug = variable_part.replace("/", "-")
@@ -345,6 +380,11 @@ def main():
       with open(out_file, "a", encoding="utf-8") as f:
         f.write(f"release_tag={tag}\n")
         f.write(f"display_name={display_name}\n")
+        f.write("description<<EOF\n")
+        f.write(f"{description}\n")
+        f.write("EOF\n")
+        if resolved_cover_url:
+          f.write(f"cover_url={resolved_cover_url}\n")
     print(f"[OK] Exported metadata to GITHUB_OUTPUT: release_tag={tag}, display_name={display_name}")
     return
 
@@ -355,6 +395,7 @@ def main():
         "description": description,
         "game": detected_game,
         "branch": branch,
+        "cover_url": resolved_cover_url,
     }
     print(json.dumps(meta, ensure_ascii=False))
     return
@@ -376,6 +417,7 @@ def main():
         checksums_path=checksums_path,
         display_name=display_name,
         description=description,
+        cover_url=resolved_cover_url,
     )
     return
 
@@ -439,6 +481,10 @@ def main():
   mod_entry["displayName"] = display_name
   mod_entry["description"] = description
   mod_entry["supportedGames"] = supported_games
+
+  if resolved_cover_url:
+    mod_entry["coverArtUrl"] = resolved_cover_url
+    mod_entry["thumbnailArtUrl"] = resolved_cover_url
 
   new_version = {
       "version": clean_version,

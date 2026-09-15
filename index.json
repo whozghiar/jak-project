@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "jak2_skin_secret Source",
-  "lastUpdated": "2026-09-13T21:15:55Z",
+  "lastUpdated": "2026-09-15T14:45:47Z",
   "mods": {
     "jak2-skin-secret": {
       "displayName": "jak2_skin_secret",
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-13T21:15:55Z",
+          "publishedDate": "2026-09-15T14:45:47Z",
           "supportedGames": [
             "jak3"
           ],
@@ -33,7 +33,9 @@
             "linux": ""
           }
         }
-      ]
+      ],
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak3/features/jak2_skin_secret/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak3/features/jak2_skin_secret/docs/img/mod/mod_cover.png"
     }
   },
   "texturePacks": {}

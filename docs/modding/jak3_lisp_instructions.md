@@ -107,18 +107,22 @@
 (c "custom/my-jak3-mod.gc")
 ```
 
-### B5 — Debug ▸ Mods toggle / Bascule Debug ▸ Mods
+### B5 — In-game Mods toggle / Bascule Mods en jeu
 
-- 🇬🇧 **Follow-up:** the unified `mods-menu.gc` registry exists for Jak 2 today
-  ([`docs/modding/tools/mods_debug_menu.md`](tools/mods_debug_menu.md)). The Jak 3
-  port is planned. Until it lands, a Jak 3 mod adds a **mod-slug-prefixed** submenu
-  to `goal_src/jak3/engine/debug/default-menu.gc` / `pc/debug/default-menu-pc.gc` and
-  documents it in the mod README.
-- 🇫🇷 **Suivi :** le registre unifié `mods-menu.gc` existe aujourd'hui pour Jak 2
-  ([`docs/modding/tools/mods_debug_menu.md`](tools/mods_debug_menu.md)). Le portage
-  Jak 3 est prévu. En attendant, un mod Jak 3 ajoute un sous-menu **préfixé par le
-  slug** à `goal_src/jak3/engine/debug/default-menu.gc` / `pc/debug/default-menu-pc.gc`
-  et le documente dans le README du mod.
+- 🇬🇧 The unified registry is **live for Jak 3** in
+  `goal_src/jak3/pc/features/mods-menu.gc`. Register with
+  `(mods-menu-register "<slug>" builder)` from one of your mod's own `.gc` files;
+  the menu opens in-game with **L3 + SELECT** and works in a retail boot. Never add
+  `(declare-file (debug))` to that file. Full guide and template:
+  [`docs/modding/tools/mods_menu.md`](tools/mods_menu.md),
+  [`docs/modding/templates/mod_menu.template.gc`](templates/mod_menu.template.gc).
+- 🇫🇷 Le registre unifié est **actif pour Jak 3** dans
+  `goal_src/jak3/pc/features/mods-menu.gc`. On enregistre avec
+  `(mods-menu-register "<slug>" builder)` depuis un `.gc` du mod ; le menu s'ouvre
+  en jeu avec **L3 + SELECT** et fonctionne en boot retail. N'ajoutez jamais
+  `(declare-file (debug))` à ce fichier. Guide complet et template :
+  [`docs/modding/tools/mods_menu.md`](tools/mods_menu.md),
+  [`docs/modding/templates/mod_menu.template.gc`](templates/mod_menu.template.gc).
 
 ---
 

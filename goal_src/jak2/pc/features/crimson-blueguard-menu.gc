@@ -1,0 +1,62 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: crimson-blueguard-menu.gc
+;; name in dgo: crimson-blueguard-menu
+;; dgos: GAME
+;;
+;; ================================================================================================
+;; Crimson Blue Guard mod -- Mods > crimson-blueguard
+;; Branch: jak2/features/crimson-blueguard/crimson-redguard-behavior
+;; ================================================================================================
+;; The mod's ONLY switch. It plugs into the unified "Mods" menu from master-dev
+;; (pc/features/mods-menu.gc) through `mods-menu-register`, openable in-game with L3 + SELECT.
+;;
+;;   [L3 + SELECT] > Mods > crimson-blueguard > Enable / Disable
+;;
+;; The flag itself (`*mod-crimson-blueguard-enable*`) is defined in engine/ai/traffic-h.gc,
+;; an always-loaded engine header. The mod ships OFF by default.
+;;
+;; Who reads the flag:
+;;   levels/city/traffic/traffic-manager.gc        -- traffic-object-spawn picks the guard type
+;;   levels/city/traffic/vehicle/vehicle-rider.gc  -- crimson-guard-rider picks the skeleton-group
+;; ================================================================================================
+
+(define-extern *mod-crimson-blueguard-enable* symbol)
+
+(defun mod-crimson-blueguard-enable-toggle ()
+  "Toggle master enable flag and recycle traffic pools immediately so change is visible."
+  (set! *mod-crimson-blueguard-enable* (not *mod-crimson-blueguard-enable*))
+  (when *traffic-manager*
+    (send-event *traffic-manager* 'kill-all)
+    (send-event *traffic-manager* 'spawn-all)
+    )
+  (none)
+  )
+
+;; ============================================================================
+;; Menu definition (static, costs no heap)
+;; ============================================================================
+
+(define *mod-crimson-blueguard-menu*
+  (new 'static 'popup-menu-submenu :label "crimson-blueguard"
+    :entries (new 'static 'boxed-array :type popup-menu-entry
+      (new 'static 'popup-menu-flag :label "Enable / Disable"
+           :is-toggled? (lambda () *mod-crimson-blueguard-enable*)
+           :on-confirm (lambda () (mod-crimson-blueguard-enable-toggle) (none))
+           )
+      )
+    )
+  )
+
+;; ============================================================================
+;; Menu builder -- pure: returns the static submenu entry.
+;; ============================================================================
+
+(defun mod-crimson-blueguard-build-menu ()
+  "Return this mod's submenu entry."
+  (the-as popup-menu-entry *mod-crimson-blueguard-menu*)
+  )
+
+;; Register with the unified Mods menu (top-level, runs at file load).
+(mods-menu-register "crimson-blueguard" mod-crimson-blueguard-build-menu)

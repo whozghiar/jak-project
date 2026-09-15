@@ -61,11 +61,10 @@ entity live on their own branches:
 - **Optional grenade launcher.** Roughly one guard in three carries one and lobs `vehicle-grenade`
   projectiles on a ballistic arc instead of firing straight bolts, from the same engagement
   ranges as a rifle guard.
-- **One clean toggle.** `Debug ▸ Mods ▸ crimson-blueguard ▸ Enable / Disable`, in the unified Mods
-  tab. Flipping it flushes and refills ambient traffic, so the swap is visible within a second or
+- **One clean toggle.** `[L3 + SELECT] ▸ Mods ▸ crimson-blueguard ▸ Enable / Disable`, in the unified Mods
+  menu (operable in retail boot without debug mode). Flipping it flushes and refills ambient traffic, so the swap is visible within a second or
   two, both ways.
-- **Off by default, no regression.** The mod ships disabled and is stripped from release builds
-  along with the rest of the debug menu. With the toggle off, the game plays exactly like stock.
+- **Off by default, no regression.** The mod ships disabled. With the toggle off, the game plays exactly like stock.
 
 ## 🚀 Step-by-Step Guide to Run the Mod
 
@@ -217,11 +216,10 @@ même entité vivent sur leurs propres branches :
 - **Lance-grenade optionnel.** Environ un garde sur trois en porte un et envoie des projectiles
   `vehicle-grenade` en cloche au lieu de tirer des rafales rectilignes, depuis les mêmes portées
   d'engagement qu'un garde fusil.
-- **Une seule bascule, propre.** `Debug ▸ Mods ▸ crimson-blueguard ▸ Enable / Disable`, dans
-  l'onglet Mods unifié. L'activer vide et reremplit le trafic ambiant : le changement est visible
+- **Une seule bascule, propre.** `[L3 + SELECT] ▸ Mods ▸ crimson-blueguard ▸ Enable / Disable`, dans
+  le menu Mods unifié (accessible en boot normal sans mode debug). L'activer vide et reremplit le trafic ambiant : le changement est visible
   en une ou deux secondes, dans les deux sens.
-- **Désactivé par défaut, aucune régression.** Le mod est livré désactivé et disparaît des builds
-  release avec le reste du menu debug. Bascule désactivée, le jeu se joue exactement comme
+- **Désactivé par défaut, aucune régression.** Le mod est livré désactivé. Bascule désactivée, le jeu se joue exactement comme
   d'origine.
 
 ## 🚀 Guide Pas à Pas pour Lancer le Mod

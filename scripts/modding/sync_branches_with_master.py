@@ -17,6 +17,11 @@ import re
 import subprocess
 import sys
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DASHBOARD_FILE = os.path.join(REPO_ROOT, "docs", "modding", "tools", "branch_sync_status.md")
 HISTORY_LOG_FILE = os.path.join(REPO_ROOT, "docs", "modding", "tools", "branch_sync_history.md")
@@ -90,6 +95,11 @@ def check_ancestor(ancestor, branch):
     res = run_cmd(f"git merge-base --is-ancestor {ancestor} {branch}")
     return res.returncode == 0
 
+def is_working_tree_clean():
+    """Check if local git working tree has uncommitted modifications."""
+    res = run_cmd("git status --porcelain")
+    return len(res.stdout.strip()) == 0
+
 def is_auto_resolvable(filepath):
     """Check if a conflicted file has a deterministic modding rule."""
     if filepath == "README.md":
@@ -141,7 +151,7 @@ def merge_and_push_branch(branch, source_ref):
     """Perform actual merge on a temporary ref and push to remote, auto-resolving mod doc conflicts."""
     temp_branch = f"temp-sync-{branch.replace('/', '-')}"
     try:
-        checkout_res = run_cmd(f"git checkout --force -B {temp_branch} origin/{branch}")
+        checkout_res = run_cmd(f"git checkout -B {temp_branch} origin/{branch}")
         if checkout_res.returncode != 0:
             err = (checkout_res.stderr or checkout_res.stdout).strip()
             return False, f"Échec checkout: {err[:120]}"
@@ -200,7 +210,7 @@ def merge_and_push_branch(branch, source_ref):
 
         return True, "Fusionnée et poussée avec succès"
     finally:
-        run_cmd("git checkout --force master-dev")
+        run_cmd("git checkout master-dev")
         run_cmd(f"git branch -D {temp_branch}")
 
 def generate_dashboard(results, source_ref, source_sha, updated_at):
@@ -295,6 +305,14 @@ def main():
     print(f"=== Modding Branches Sync Manager ===")
     print(f"Source: {source_ref}")
     print(f"Mode: {'Push Clean Merges' if args.push else 'Inspection / Dry-Run'}")
+
+    # Prevent accidental data loss if the working tree has uncommitted modifications
+    if not is_working_tree_clean():
+        print("\n❌ Erreur : L'arbre de travail contient des modifications non commitées.", file=sys.stderr)
+        print("Pour éviter toute perte accidentelle de vos modifications locales,", file=sys.stderr)
+        print("veuillez commiter ou remiser (stash) vos changements avant de lancer la synchronisation :", file=sys.stderr)
+        print("    git stash", file=sys.stderr)
+        sys.exit(1)
 
     # Ensure on master-dev
     run_cmd("git checkout master-dev")

@@ -1514,6 +1514,9 @@
     ;; og:preserve-this Let the popup menu code handle inputs instead of the code written for the original debug menu
     (when (not *popup-menu-open*)
       (*menu-hook*))
+    ;; og:preserve-this the mods menu is NOT debug code: it must keep running
+    ;; in a retail boot, where *menu-hook* above is dead. See pc/features/mods-menu.gc
+    (*mods-menu-hook*)
 
     ; load the right language file.
     (load-level-text-files -1)

@@ -85,29 +85,15 @@ def main():
     print(f"Updating {', '.join(SYNCED_PATHS)} from {source_ref}...")
     run_cmd(f"git checkout {source_ref} -- {' '.join(SYNCED_PATHS)}")
 
-    # 2. Synchronize docs/modding files selectively:
-    #    Protect current_mod/ so mod-specific readmes and images are never overwritten
-    #    or deleted, and do not copy other mods' readmes over.
+    # 2. Synchronize all docs/modding files from master-dev
     master_modding_files = tracked_files(source_ref, "docs/modding")
-    files_to_checkout = []
-    for f in master_modding_files:
-        if f.startswith("docs/modding/current_mod/"):
-            # Only sync the general directory README.md guide, unless on the specific branch
-            if f == "docs/modding/current_mod/README.md":
-                files_to_checkout.append(f)
-            elif current_branch == "jak2/config/custom_animation_and_sound" and f.endswith("custom_animation_and_sound_readme.md"):
-                files_to_checkout.append(f)
-        else:
-            files_to_checkout.append(f)
+    if master_modding_files:
+        print(f"Updating {len(master_modding_files)} docs/modding file(s) from {source_ref}...")
+        run_cmd(f"git checkout {source_ref} -- " + " ".join(f'"{f}"' for f in master_modding_files))
 
-    if files_to_checkout:
-        print(f"Updating {len(files_to_checkout)} docs/modding file(s) from {source_ref}...")
-        run_cmd(f"git checkout {source_ref} -- " + " ".join(f'"{f}"' for f in files_to_checkout))
-
-    # 3. Prune: anything under docs/modding/ that master-dev no longer tracks,
-    #    BUT NEVER prune anything inside docs/modding/current_mod/!
+    # 3. Prune: anything under docs/modding/ that master-dev no longer tracks
     here = tracked_files("HEAD", "docs/modding")
-    stale = sorted(f for f in (here - master_modding_files) if not f.startswith("docs/modding/current_mod/"))
+    stale = sorted(here - master_modding_files)
     if stale:
         print(f"Pruning {len(stale)} obsolete file(s) removed on {source_ref}:")
         for f in stale:

@@ -1,0 +1,50 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: yakow-killable-menu.gc
+;; name in dgo: yakow-killable-menu
+;; dgos: GAME
+;;
+;; MOD "Yakow Killable" -- Mods > yakow-killable
+;; ================================================================================================
+;; Registers with the shared `mods-menu.gc` registry, openable in-game with L3 + SELECT in retail.
+;;
+;;   [L3 + SELECT] > Mods > yakow-killable
+;;     Enable   -- allows yakows to take damage and die
+;;
+;; Resident in GAME.CGO so registration persists across farm level streams.
+;; ================================================================================================
+
+;; ============================================================================
+;; The flag (single master switch -- the whole mod is one cohesive feature)
+;; ============================================================================
+;; define-perm: keep the player's choice across farm level reloads; #f on first boot.
+(define-perm *mod-yakow-killable-enable* symbol #f)
+
+;; ============================================================================
+;; Menu definition (static, costs no heap)
+;; ============================================================================
+
+(define *mod-yakow-killable-menu*
+  (new 'static 'popup-menu-submenu :label "yakow-killable"
+    :entries (new 'static 'boxed-array :type popup-menu-entry
+      (new 'static 'popup-menu-flag :label "Enable"
+           :is-toggled? (lambda () *mod-yakow-killable-enable*)
+           :on-confirm (lambda ()
+                         (set! *mod-yakow-killable-enable* (not *mod-yakow-killable-enable*))
+                         (none))
+           )
+      )
+    )
+  )
+
+;; ============================================================================
+;; Menu builder -- pure: returns the static submenu entry.
+;; ============================================================================
+
+(defun mod-yakow-killable-build-menu ()
+  "Return this mod's submenu entry."
+  (the-as popup-menu-entry *mod-yakow-killable-menu*)
+  )
+
+(mods-menu-register "yakow-killable" mod-yakow-killable-build-menu)

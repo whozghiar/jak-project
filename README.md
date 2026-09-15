@@ -41,10 +41,10 @@ Enable`.
 - **Extended Detection & Activation Ranges:** Expanded cell activation radius from 200m to 240m for vehicles and 120m to 160m for pedestrians.
 - **Doubled Nav-Mesh Capacity:** Raised per-district nav-mesh user quota from 64 to 128 simultaneous pathfinding actors, permanently fixing the `too many users for nav-mesh` crash during district streaming.
 - **Real-Time Memory & Population Diagnostics:** Live console logging of active/inactive entities, alarm level, and remaining `*default-dead-pool*` memory headroom.
-- **Ships OFF, one runtime switch:** everything above is gated behind a single `*mod-enhanced-spawnrates-enable*` flag, toggled from `Debug ▸ Mods ▸ enhanced-spawnrates ▸ Enable`. Disabled = stock Jak 2.
+- **Ships OFF, one runtime switch:** everything above is gated behind a single `*mod-enhanced-spawnrates-enable*` flag, toggled from `[L3 + SELECT] ▸ Mods ▸ enhanced-spawnrates ▸ Enable`. Disabled = stock Jak 2.
 
 ## 🎮 Usage & Controls
-1. Boot the game, open the debug menu (`~` / select+L1 depending on your setup) and go to **`Debug ▸ Mods ▸ enhanced-spawnrates`**.
+1. Boot the game normally (no debug mode required!). Press **L3 + SELECT** to open the unified in-game **Mods** menu and select **`enhanced-spawnrates`**.
 2. Toggle **`Enable`**.
 3. **Reload Haven City** (warp, or enter and leave any interior) so `init-params` re-reads the want-counts and the nav-mesh is re-sized — otherwise you keep stock traffic density.
 4. To turn the mod off again: toggle `Enable` off and reload the city once more.
@@ -61,7 +61,7 @@ task set-game-jak2
 
 ### 2. Binary Compilation
 - **Status:** Layer 3 (GOAL only) — Not required if standard binaries already exist.
-- **Details:** Only GOAL scripts are modified (`traffic-h.gc`, `traffic-manager.gc`, `traffic-engine.gc`, `nav-mesh.gc`, the new `pc/debug/enhanced-spawnrates-menu.gc`, and `dgos/game.gd`). No C++ rebuild needed. For a first-time build, use the fast targeted task:
+- **Details:** Only GOAL scripts are modified (`traffic-h.gc`, `traffic-manager.gc`, `traffic-engine.gc`, `nav-mesh.gc`, the new `pc/features/enhanced-spawnrates-menu.gc`, and `dgos/game.gd`). No C++ rebuild needed. For a first-time build, use the fast targeted task:
 ```bash
 task build-release-game
 ```
@@ -83,28 +83,11 @@ task boot-game
 ## 🎥 Demonstration Video
 [![Demonstration Video](https://img.youtube.com/vi/ojMdc_wdyZc/maxresdefault.jpg)](https://youtu.be/ojMdc_wdyZc)
 
-<<<<<<< HEAD
 ▶️ **[Watch the demonstration video on YouTube](https://youtu.be/ojMdc_wdyZc)**
 
 ## 📖 Technical Documentation
 For the complete technical breakdown, architecture, and developer notes, refer to:
 - 📄 [`docs/modding/current_mod/enhanced_spawnrates_readme.md`](docs/modding/current_mod/enhanced_spawnrates_readme.md)
-=======
-| [`AGENTS.md`](AGENTS.md) | Unified AI agent directives and modding rules (branching, golden rules, REPL workflow, task reference). |
-| [`.agents/skills/`](.agents/skills/) | Modularized developer and agent skills (GOAL Lisp, engine internals, 3D assets/actors, texture modding). |
-| [`docs/modding/`](docs/modding/README.md) | Modding documentation hub (verified Lisp references, engine primer, engineering workflows, tools). |
-| [`docs/modding/jak1_lisp_instructions.md`](docs/modding/jak1_lisp_instructions.md) · [`jak2`](docs/modding/jak2_lisp_instructions.md) · [`jak3`](docs/modding/jak3_lisp_instructions.md) | **Verified** OpenGOAL Lisp reference per game — consult before coding. |
-| [`docs/modding/engine_generic_concepts.md`](docs/modding/engine_generic_concepts.md) | Shared non-Lisp engine primer (memory, heaps, DGOs, level streaming, process life cycle). |
-| [`docs/modding/tools/`](docs/modding/tools/) | Tool & pipeline guides (build workflow, custom assets, [Debug ▸ Mods menu](docs/modding/tools/mods_debug_menu.md)). |
-| [`docs/modding/templates/`](docs/modding/templates/) | [`MOD_README.template.md`](docs/modding/templates/MOD_README.template.md), [`mod_debug_menu.template.gc`](docs/modding/templates/mod_debug_menu.template.gc). |
-| [`docs/modding/branch_audit.md`](docs/modding/branch_audit.md) | Generated per-branch compliance report (`task modding-audit`). |
-| [`scripts/modding/`](scripts/modding/) | Python automation (branch creation, branch/doc sync, doc landing, branch audit). |
-| [`goal_src/`](goal_src/) | Decompiled and modified GOAL source code by game (`jak1/`, `jak2/`, `jak3/`). |
-| [`goalc/`](goalc/) | OpenGOAL compiler with modding adjustments. |
-| [`game/`](game/) | C++ runtime simulating the Emotion Engine memory on PC. |
-| [`decompiler/`](decompiler/) | Asset extraction and decompiler tools. |
-| [`custom_assets/`](custom_assets/) | Custom texture replacements and models. |
->>>>>>> origin/master-dev
 
 ---
 
@@ -137,10 +120,10 @@ limites nav-mesh d'origine, aucun message console. Activez-le dans
 - **Portée de Détection et d'Activation Élargie :** Rayon des cellules de grille porté de 200m à 240m pour les véhicules et de 120m à 160m pour les piétons.
 - **Doublement de la Capacité Nav-Mesh :** Quota maximal de chaque nav-mesh doublé de 64 à 128 acteurs simultanés, éliminant définitivement les plantages `too many users for nav-mesh` lors du streaming entre quartiers.
 - **Diagnostics Mémoire & Population en Direct :** Suivi périodique en console des entités actives/inactives, de l'alarme et de la marge mémoire restante dans le heap de process (`*default-dead-pool*`).
-- **Livré DÉSACTIVÉ, un seul interrupteur :** tout ce qui précède est conditionné à l'unique variable `*mod-enhanced-spawnrates-enable*`, basculée depuis `Debug ▸ Mods ▸ enhanced-spawnrates ▸ Enable`. Désactivé = Jak 2 d'origine.
+- **Livré DÉSACTIVÉ, un seul interrupteur :** tout ce qui précède est conditionné à l'unique variable `*mod-enhanced-spawnrates-enable*`, basculée depuis `[L3 + SELECT] ▸ Mods ▸ enhanced-spawnrates ▸ Enable`. Désactivé = Jak 2 d'origine.
 
 ## 🎮 Utilisation & Commandes
-1. Lancez le jeu, ouvrez le menu debug et allez dans **`Debug ▸ Mods ▸ enhanced-spawnrates`**.
+1. Lancez le jeu normalement (aucun mode debug requis !). Appuyez sur **L3 + SELECT** pour ouvrir le menu unifié **Mods** et sélectionnez **`enhanced-spawnrates`**.
 2. Basculez **`Enable`**.
 3. **Rechargez Abriville** (warp, ou entrez puis sortez d'un intérieur) pour que `init-params` relise les want-counts et que le nav-mesh soit redimensionné — sinon la densité de trafic reste celle d'origine.
 4. Pour désactiver le mod : rebasculez `Enable` et rechargez la ville une nouvelle fois.
@@ -157,7 +140,7 @@ task set-game-jak2
 
 ### 2. Compilation des Binaires
 - **Statut :** Couche 3 (GOAL uniquement) — Non requise si les binaires standards existent déjà.
-- **Détails :** Seuls des scripts GOAL sont modifiés (`traffic-h.gc`, `traffic-manager.gc`, `traffic-engine.gc`, `nav-mesh.gc`, le nouveau `pc/debug/enhanced-spawnrates-menu.gc` et `dgos/game.gd`), aucune recompilation C++ n'est nécessaire. En cas de premier build machine, utilisez la tâche ciblée rapide :
+- **Détails :** Seuls des scripts GOAL sont modifiés (`traffic-h.gc`, `traffic-manager.gc`, `traffic-engine.gc`, `nav-mesh.gc`, le nouveau `pc/features/enhanced-spawnrates-menu.gc` et `dgos/game.gd`), aucune recompilation C++ n'est nécessaire. En cas de premier build machine, utilisez la tâche ciblée rapide :
 ```bash
 task build-release-game
 ```

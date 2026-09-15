@@ -3,13 +3,12 @@
 
 #|
   ============================================================================
-  enhanced-spawnrates-menu.gc  ->  Debug > Mods > enhanced-spawnrates
+  enhanced-spawnrates-menu.gc  ->  Mods > enhanced-spawnrates
   ============================================================================
 
   Registers the "Enhanced Spawn Rates" mod (branch
-  jak2/config/enhanced_spawnrates) with the unified "Mods" debug tab
-  (goal_src/jak2/pc/debug/mods-menu.gc), per the mandatory procedure in
-  docs/modding/tools/mods_debug_menu.md and CLAUDE.md's golden rules.
+  jak2/config/enhanced_spawnrates) with the unified "Mods" menu
+  (goal_src/jak2/pc/features/mods-menu.gc), openable in-game with L3 + SELECT.
 
   The mod raises Haven City ambient-traffic density, guard alert focus-target
   counts, nav-mesh user capacity and cell-culling ranges, and turns on a small
@@ -18,9 +17,7 @@
 
   The flag is *mod-enhanced-spawnrates-enable*, defined (`define-perm`, #f) in
   goal_src/jak2/engine/ai/traffic-h.gc -- a non-debug file resident in ENGINE +
-  GAME, next to (and before) every consumer, so the gated code links in release
-  builds too (this menu file is `(declare-file (debug))` and is stripped from
-  release).
+  GAME, next to (and before) every consumer.
 
   IMPORTANT -- applies on the NEXT city load:
     * want-counts are read once in traffic-manager/init-params at city load;
@@ -33,41 +30,38 @@
   immediately after "mods-menu.o".
 |#
 
-;; debug-only file: stripped from release builds like the rest of the menu code.
-(declare-file (debug))
-
 ;; the flag lives in traffic-h.gc; just declare its type for this file.
 (define-extern *mod-enhanced-spawnrates-enable* symbol)
 
 ;; ============================================================================
-;; Pick-func -- no side effects, just flips the bool on `press`. The heavy
-;; changes (want-counts, nav capacity) are re-read on the next city load; the
-;; live overlays (alert counts, cull ranges) pick up the new value next frame.
+;; Menu definition (static, costs no heap)
 ;; ============================================================================
 
-(defun mod-enhanced-spawnrates-enable-pick ((arg0 symbol) (arg1 debug-menu-msg))
-  "Master enable toggle. arg0's `value` slot is *mod-enhanced-spawnrates-enable*."
-  (if (= arg1 (debug-menu-msg press))
-      (set! (-> arg0 value) (not (-> arg0 value))))
-  (-> arg0 value)
-  )
-
-;; ============================================================================
-;; Menu builder -- pure: only builds and returns the submenu node.
-;; ============================================================================
-
-(defun mod-enhanced-spawnrates-build-menu ((ctx debug-menu-context))
-  "Return the 'enhanced-spawnrates' submenu node."
-  (debug-menu-make-from-template ctx
-    '(menu "enhanced-spawnrates"
-       (flag "Enable (denser traffic - reload the city to apply)"
-             *mod-enhanced-spawnrates-enable* mod-enhanced-spawnrates-enable-pick)
-       )
+(define *mod-enhanced-spawnrates-menu*
+  (new 'static 'popup-menu-submenu :label "enhanced-spawnrates"
+    :entries (new 'static 'boxed-array :type popup-menu-entry
+      (new 'static 'popup-menu-flag :label "Enable (denser traffic - reload city to apply)"
+           :is-toggled? (lambda () *mod-enhanced-spawnrates-enable*)
+           :on-confirm (lambda ()
+                         (set! *mod-enhanced-spawnrates-enable*
+                               (not *mod-enhanced-spawnrates-enable*))
+                         (none))
+           )
+      )
     )
   )
 
 ;; ============================================================================
-;; Register with the unified Mods tab (top-level, runs at file load / (mi)).
+;; Menu builder -- pure: returns the static submenu entry.
+;; ============================================================================
+
+(defun mod-enhanced-spawnrates-build-menu ()
+  "Return the 'enhanced-spawnrates' submenu entry."
+  (the-as popup-menu-entry *mod-enhanced-spawnrates-menu*)
+  )
+
+;; ============================================================================
+;; Register with the unified Mods menu (top-level, runs at file load).
 ;; ============================================================================
 
 (mods-menu-register "enhanced-spawnrates" mod-enhanced-spawnrates-build-menu)

@@ -130,20 +130,24 @@
 (c "custom/my-script.gc")
 ```
 
-### B6 — Debug ▸ Mods toggle / Bascule Debug ▸ Mods
+### B6 — In-game Mods toggle / Bascule Mods en jeu
 
-- 🇬🇧 **Follow-up:** the unified `mods-menu.gc` registry exists for Jak 2 today
-  ([`docs/modding/tools/mods_debug_menu.md`](tools/mods_debug_menu.md)). The Jak 1
-  port is planned. Until it lands, a Jak 1 mod adds its toggle to
-  `goal_src/jak1/engine/debug/default-menu.gc` / `pc/debug/default-menu-pc.gc` with a
-  **mod-slug-prefixed** submenu, and documents it in the mod README so the port can
-  absorb it cleanly.
-- 🇫🇷 **Suivi :** le registre unifié `mods-menu.gc` existe aujourd'hui pour Jak 2
-  ([`docs/modding/tools/mods_debug_menu.md`](tools/mods_debug_menu.md)). Le portage
-  Jak 1 est prévu. En attendant, un mod Jak 1 ajoute sa bascule dans
-  `goal_src/jak1/engine/debug/default-menu.gc` / `pc/debug/default-menu-pc.gc` avec un
-  sous-menu **préfixé par le slug du mod**, et le documente dans le README du mod
-  pour que le portage l'absorbe proprement.
+- 🇬🇧 **Follow-up:** the unified `mods-menu.gc` registry is live for **Jak 2 and
+  Jak 3** ([`docs/modding/tools/mods_menu.md`](tools/mods_menu.md)). Jak 1 is **not
+  ported**: it has no `popup-menu` in `pc/util/`, and appending to its debug root
+  menu at link time segfaults the boot. Until a port lands, a Jak 1 mod adds its
+  toggle to `goal_src/jak1/engine/debug/default-menu.gc` /
+  `pc/debug/default-menu-pc.gc` with a **mod-slug-prefixed** submenu, and documents
+  it in the mod README — stating explicitly that the toggle is **debug-only** and
+  therefore unreachable for a player launching the mod normally.
+- 🇫🇷 **Suivi :** le registre unifié `mods-menu.gc` est actif pour **Jak 2 et
+  Jak 3** ([`docs/modding/tools/mods_menu.md`](tools/mods_menu.md)). Jak 1 n'est
+  **pas porté** : il n'a pas de `popup-menu` dans `pc/util/`, et ajouter une entrée
+  à son menu debug racine au link fait segfaulter le boot. En attendant, un mod
+  Jak 1 ajoute sa bascule dans `goal_src/jak1/engine/debug/default-menu.gc` /
+  `pc/debug/default-menu-pc.gc` avec un sous-menu **préfixé par le slug du mod**, et
+  le documente dans le README du mod — en précisant explicitement que la bascule est
+  **debug-only**, donc hors de portée d'un joueur qui lance le mod normalement.
 
 ---
 

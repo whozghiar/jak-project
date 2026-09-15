@@ -1,0 +1,80 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+#|
+  ============================================================================
+  crimson-blueguard-peaceful-menu.gc -- Mods > crimson-blueguard-peaceful
+  ============================================================================
+
+  Registers the Crimson Blue Guard (City Peaceful) mod's master on/off switch
+  with the unified "Mods" menu (goal_src/jak2/pc/features/mods-menu.gc),
+  openable in-game with L3 + SELECT in retail and debug boots.
+
+  The flag is *mod-city-peaceful?*, defined in mod-city-hooks.gc -- a non-debug
+  file resident in the CWI DGO next to every engine site that reads it.
+
+  With *mod-city-peaceful?* #f the city is byte-for-byte stock Jak 2: no blue
+  guards spawn (see traffic-object-spawn), ambient guard-vehicle want-counts are
+  the retail 4 / 3 (see init-params), and every *mod-city-*-hook* resolves to
+  its stock-equivalent default. Turning it on enables the whole package: blue
+  ambient guards + neutral patrol squads + civilian alert suppression.
+
+  Wiring: "crimson-blueguard-peaceful-menu.o" is listed in
+  goal_src/jak2/dgos/game.gd immediately after "mods-menu.o".
+|#
+
+;; the flag lives in mod-city-hooks.gc; declare its type for this file.
+(define-extern *mod-city-peaceful?* symbol)
+
+;; ============================================================================
+;; Toggle side effect: re-roll the ambient guards under the new mode.
+;; ============================================================================
+
+(defun mod-crimson-blueguard-peaceful-flush-guards ()
+  "Recycle the ambient city traffic so the new mode is visible within a second or
+   two, instead of only after reloading a save.
+   'kill-all + 'spawn-all forces the traffic engine to rebuild pooled processes
+   so mod-city-hook-guard-spawn-blue? re-evaluates."
+  (when *traffic-manager*
+    (send-event *traffic-manager* 'kill-all)
+    (send-event *traffic-manager* 'spawn-all)
+    )
+  (none)
+  )
+
+(defun mod-crimson-blueguard-peaceful-enable-toggle ()
+  "Toggle the master flag and recycle city traffic."
+  (set! *mod-city-peaceful?* (not *mod-city-peaceful?*))
+  (mod-crimson-blueguard-peaceful-flush-guards)
+  (none)
+  )
+
+;; ============================================================================
+;; Menu definition (static, costs no heap)
+;; ============================================================================
+
+(define *mod-crimson-blueguard-peaceful-menu*
+  (new 'static 'popup-menu-submenu :label "crimson-blueguard-peaceful"
+    :entries (new 'static 'boxed-array :type popup-menu-entry
+      (new 'static 'popup-menu-flag :label "Enable (blue guards + neutral patrol squads)"
+           :is-toggled? (lambda () *mod-city-peaceful?*)
+           :on-confirm (lambda () (mod-crimson-blueguard-peaceful-enable-toggle) (none))
+           )
+      )
+    )
+  )
+
+;; ============================================================================
+;; Menu builder -- pure: returns the static submenu entry.
+;; ============================================================================
+
+(defun mod-crimson-blueguard-peaceful-build-menu ()
+  "Return the 'crimson-blueguard-peaceful' submenu entry."
+  (the-as popup-menu-entry *mod-crimson-blueguard-peaceful-menu*)
+  )
+
+;; ============================================================================
+;; Register with the unified Mods menu (top-level, runs at file load).
+;; ============================================================================
+
+(mods-menu-register "crimson-blueguard-peaceful" mod-crimson-blueguard-peaceful-build-menu)

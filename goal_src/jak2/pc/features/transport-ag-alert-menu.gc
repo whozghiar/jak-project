@@ -1,0 +1,46 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: transport-ag-alert-menu.gc
+;; name in dgo: transport-ag-alert-menu
+;; dgos: GAME
+;;
+;; MOD "Transport AG Alert" -- Mods > transport-ag-alert
+;; ================================================================================================
+;; Registers with the shared `mods-menu.gc` registry, openable in-game with L3 + SELECT in retail.
+;;
+;;   [L3 + SELECT] > Mods > transport-ag-alert
+;;     Enable   -- dispatch scripted Crimson Guard troop transport during city alerts
+;;
+;; With it OFF the city plays exactly like stock Jak 2.
+;; ================================================================================================
+
+(define-extern *mod-transport-ag-alert-enable* symbol)
+
+;; ============================================================================
+;; Menu definition (static, costs no heap)
+;; ============================================================================
+
+(define *mod-transport-ag-alert-menu*
+  (new 'static 'popup-menu-submenu :label "transport-ag-alert"
+    :entries (new 'static 'boxed-array :type popup-menu-entry
+      (new 'static 'popup-menu-flag :label "Enable"
+           :is-toggled? (lambda () *mod-transport-ag-alert-enable*)
+           :on-confirm (lambda ()
+                         (set! *mod-transport-ag-alert-enable* (not *mod-transport-ag-alert-enable*))
+                         (none))
+           )
+      )
+    )
+  )
+
+;; ============================================================================
+;; Menu builder -- pure: returns the static submenu entry.
+;; ============================================================================
+
+(defun mod-transport-ag-alert-build-menu ()
+  "Return this mod's submenu entry."
+  (the-as popup-menu-entry *mod-transport-ag-alert-menu*)
+  )
+
+(mods-menu-register "transport-ag-alert" mod-transport-ag-alert-build-menu)

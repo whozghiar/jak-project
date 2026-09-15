@@ -60,10 +60,10 @@ task boot-game
 ### 5. Enable the Mod (OFF by default)
 This mod ships **disabled** — a fresh install plays Haven City exactly like stock
 Jak 2 (no alert drop-ship, retail story transports untouched). Open the in-game
-debug menu and go to:
+Mods menu with **L3 + SELECT** (works in retail boot, no debug mode required):
 
 ```
-Debug ▸ Mods ▸ transport-ag-alert ▸ Enable
+Mods ▸ transport-ag-alert ▸ Enable
 ```
 
 The choice persists across level reloads. Turn it off to restore vanilla traffic.
@@ -126,10 +126,11 @@ task boot-game
 ### 5. Activer le Mod (DÉSACTIVÉ par défaut)
 Ce mod est livré **désactivé** — une installation neuve joue Abriville exactement
 comme dans Jak 2 d'origine (pas de drop-ship d'alerte, transports scriptés de
-l'histoire intacts). Ouvrez le menu debug en jeu et allez dans :
+l'histoire intacts). Ouvrez le menu Mods en jeu avec **L3 + SELECT** (fonctionne en
+boot retail, aucun mode debug requis) :
 
 ```
-Debug ▸ Mods ▸ transport-ag-alert ▸ Enable
+Mods ▸ transport-ag-alert ▸ Enable
 ```
 
 Le choix persiste au rechargement des niveaux. Désactivez-le pour rétablir le

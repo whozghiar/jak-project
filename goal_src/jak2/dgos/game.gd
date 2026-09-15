@@ -331,6 +331,7 @@
   "menu.o"
   "popup-menu.o" ;; added
   "speedruns.o" ;; added
+  "mods-menu.o" ;; added -- unified in-game "Mods" menu (see pc/features/mods-menu.gc)
   "drawable.o"
   "drawable-group.o"
   "drawable-inline-array.o"
@@ -395,8 +396,7 @@
   "default-menu.o"
   "anim-tester-x.o" ;; added
   "vag-player.o" ;; added
-  "mods-menu.o" ;; added -- unified "Debug > Mods" tab (see pc/debug/mods-menu.gc)
-  "transport-ag-traffic-menu.o" ;; added (MOD) -- Debug > Mods > transport-ag-traffic toggle
+  "transport-ag-traffic-menu.o" ;; added (MOD) -- Mods > transport-ag-traffic (see pc/features/transport-ag-traffic-menu.gc)
   "default-menu-pc.o" ;; added
   "dir-tpages.go"
   "tpage-11.go"

@@ -188,3 +188,27 @@ The GOAL kernel provides non-preemptive green threading for processes:
    - Methods must be declared in `:methods` before being defined with `defmethod`. Never reorder or remove methods on existing engine classes as it shifts the vtable indices for the entire engine.
 5. **Memory Heap Selection:**
    - Allocating transient actor data on `'global` leaks memory permanently across level loads. Use the process heap (`'process`) or level heap (`'level`) for gameplay instances.
+
+---
+
+## 8. Mod Architecture & In-Game Mods Menu Integration
+
+All new mods (strictly required for `jak[x]/features/*`) must be toggleable at runtime and ship **OFF by default** to preserve native non-regression.
+- **Unified Menu Registration:** Register via `(mods-menu-register "<slug>" builder-fn)`.
+- **Runtime Invocation:** The unified menu opens in-game via **L3 + SELECT** in both retail boot (OpenGOAL Launcher) and debug mode (Jak 2 and Jak 3).
+- **Flag Pattern:**
+  ```lisp
+  (define *mod-my-feature-enabled?* #f)
+
+  (defun mod-my-feature-build-menu ()
+    (let ((menu (new 'debug 'popup-menu-submenu "My Feature")))
+      (popup-menu-add-entry! menu
+        (new 'debug 'popup-menu-flag "Enable Feature"
+          :is-toggled? (lambda () *mod-my-feature-enabled?*)
+          :on-confirm (lambda () (set! *mod-my-feature-enabled?* (not *mod-my-feature-enabled?*)))))
+      menu))
+
+  (mods-menu-register "my-feature" mod-my-feature-build-menu)
+  ```
+- **Never Modify `default-menu*.gc`:** Do not attach mod toggles to debug menus or mark your files with `(declare-file (debug))` as debug segments are skipped in retail boot.
+- Full reference: [`docs/modding/tools/mods_menu.md`](../../docs/modding/tools/mods_menu.md) and [`docs/modding/templates/mod_menu.template.gc`](../../docs/modding/templates/mod_menu.template.gc).

@@ -3,10 +3,14 @@ name: 🚀 Build & Release OpenGOAL Mod Package
 on:
   workflow_dispatch:
     inputs:
-      tag_name:
-        description: 'Tag de version du mod (laisser "auto" pour [nom-du-mod]-[version] automatique)'
+      mod_name:
+        description: 'Nom d''affichage du mod (ex: Jak 3 JetBoard - laisser vide pour détection auto)'
         required: false
-        default: 'auto'
+        default: ''
+      mod_description:
+        description: 'Descriptif court du mod (inclus dans index.json — laisser vide pour détection auto)'
+        required: false
+        default: ''
       build_binaries:
         description: 'Recompiler C++ (auto: recompile seulement si C++ modifié)'
         type: choice
@@ -15,6 +19,10 @@ on:
           - 'false'
           - 'true'
         default: auto
+      tag_name:
+        description: 'Tag de version du mod (laisser "auto" pour [nom-du-mod]-[version] automatique)'
+        required: false
+        default: 'auto'
       prerelease:
         description: 'Marquer comme pré-release'
         type: boolean
@@ -34,6 +42,8 @@ jobs:
       build_binaries: ${{ steps.detect.outputs.build_binaries }}
       release_tag: ${{ steps.meta.outputs.release_tag }}
       display_name: ${{ steps.meta.outputs.display_name }}
+      description: ${{ steps.meta.outputs.description }}
+      target_branch: ${{ steps.meta.outputs.target_branch }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -48,7 +58,21 @@ jobs:
 
       - name: Résolution de la Version et Métadonnées
         id: meta
+        env:
+          INPUT_MOD_NAME: ${{ github.event.inputs.mod_name }}
+          INPUT_MOD_DESC: ${{ github.event.inputs.mod_description }}
         run: |
+          TARGET_BRANCH="${{ github.ref_name }}"
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            # Tag détecté : identifier la branche origin/jak* associée
+            RESOLVED=$(git branch -r --contains HEAD | grep -E 'origin/jak[123]/' | head -n 1 | sed 's/^[[:space:]]*origin\///')
+            if [ -n "$RESOLVED" ]; then
+              echo "Tag détecté (${{ github.ref_name }}), branche parente résolue : $RESOLVED"
+              TARGET_BRANCH="$RESOLVED"
+            fi
+          fi
+          echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
+
           INPUT_TAG="${{ github.event.inputs.tag_name }}"
           if [ -z "$INPUT_TAG" ] || [ "$INPUT_TAG" = "auto" ]; then
             if [[ "${{ github.ref }}" == refs/tags/* ]]; then
@@ -57,8 +81,10 @@ jobs:
           fi
 
           python ./scripts/modding/update_mod_catalog.py \
-            --branch "${{ github.ref_name }}" \
+            --branch "$TARGET_BRANCH" \
             --tag "$INPUT_TAG" \
+            --display-name "$INPUT_MOD_NAME" \
+            --description "$INPUT_MOD_DESC" \
             --export-github-output
 
       - name: Détection automatique des modifications C++
@@ -338,10 +364,16 @@ jobs:
       - name: Generate Mod Catalog (index.json)
         env:
           RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
+          TARGET_BRANCH: ${{ needs.check_mode.outputs.target_branch }}
+          DISPLAY_NAME: ${{ needs.check_mode.outputs.display_name }}
+          DESCRIPTION: ${{ needs.check_mode.outputs.description }}
         run: |
           python ./scripts/modding/update_mod_catalog.py \
             --tag "${RELEASE_TAG}" \
             --repo "${{ github.repository }}" \
+            --branch "${TARGET_BRANCH}" \
+            --display-name "${DISPLAY_NAME}" \
+            --description "${DESCRIPTION}" \
             --win-sha "${{ steps.checksums.outputs.win_sha }}" \
             --lin-sha "${{ steps.checksums.outputs.lin_sha }}" \
             --index-file "./index.json"
@@ -351,12 +383,17 @@ jobs:
       - name: Generate Release Notes
         env:
           RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
+          TARGET_BRANCH: ${{ needs.check_mode.outputs.target_branch }}
+          DISPLAY_NAME: ${{ needs.check_mode.outputs.display_name }}
+          DESCRIPTION: ${{ needs.check_mode.outputs.description }}
         run: |
           python ./scripts/modding/update_mod_catalog.py \
             --generate-release-notes release_notes.md \
-            --branch "${{ github.ref_name }}" \
+            --branch "${TARGET_BRANCH}" \
             --tag "${RELEASE_TAG}" \
             --repo "${{ github.repository }}" \
+            --display-name "${DISPLAY_NAME}" \
+            --description "${DESCRIPTION}" \
             --checksums-file release-files/SHA256SUMS.txt
 
       - name: Create or Update GitHub Release
@@ -387,13 +424,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
+          TARGET_BRANCH: ${{ needs.check_mode.outputs.target_branch }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add index.json
           if ! git diff --cached --quiet; then
             git commit -m "chore(release): update index.json for ${RELEASE_TAG}"
-            git push origin "HEAD:${{ github.ref_name }}" || echo "Warning: Could not push index.json directly to ref ${{ github.ref_name }}"
+            git push origin "HEAD:${TARGET_BRANCH}" || echo "Warning: Could not push index.json directly to ref ${TARGET_BRANCH}"
           else
             echo "index.json déjà à jour sur la branche."
           fi

@@ -1,28 +1,28 @@
 # 📊 État de Synchronisation des Branches de Mods
 
-> **Dernière mise à jour :** `2026-09-13 20:55:08 UTC`  
-> **Branche source :** `master-dev` (`5cedd256c`)  
+> **Dernière mise à jour :** `2026-09-14 16:15:17 UTC`  
+> **Branche source :** `master-dev` (`cac31f184`)  
 > **Statut global :** 17/17 synchronisées (0 conflits)
 
 | Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |
 | :--- | :---: | :--- | :--- | :--- |
-| `jak2/config/enhanced_spawnrates` | ✅ À jour | `8b3f396bc - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak2/config/start_menu_wheel` | ✅ À jour | `039c17b37 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak2/features/crimson-blueguard/city-insurrection` | ✅ À jour | `d28b71d7a - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak2/features/crimson-blueguard/crimson-redguard-behavior` | ✅ À jour | `615f82cdb - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak2/features/crimson-blueguard/peaceful` | ✅ À jour | `6aa6d107c - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak2/features/dark_jak_enhanced` | ✅ À jour | `8f1a4df8a - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak2/features/haven-city-chaos` | ✅ À jour | `12b639685 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak2/features/jak3-jetBoard` | ✅ À jour | `fb7736171 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak2/features/paddywagon/traffic` | ✅ À jour | `0518abd2d - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak2/features/transport-ag/alert` | ✅ À jour | `ecbd5c14f - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak2/features/transport-ag/traffic` | ✅ À jour | `5b5531df5 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak2/features/yakow_killable` | ✅ À jour | `ca9cb7e73 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak3/config/memory_increase` | ✅ À jour | `ec56d954b - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak3/features/city-behavior` | ✅ À jour | `e384cdd6b - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak3/features/jak2_skin_secret` | ✅ À jour | `6ea90aa00 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak3/features/mega_dark_jak` | ✅ À jour | `7e5a6ee13 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
-| `jak3/features/redguard-entity` | ✅ À jour | `f0d147f02 - chore(catalog): configure index.json with branch variable displayName and README overview` | Déjà à jour | — |
+| `jak2/config/enhanced_spawnrates` | ✅ À jour | `0669ed967 - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak2/config/start_menu_wheel` | ✅ À jour | `d38f47aed - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak2/features/crimson-blueguard/city-insurrection` | ✅ À jour | `cd12ecad7 - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak2/features/crimson-blueguard/crimson-redguard-behavior` | ✅ À jour | `f7f06f832 - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak2/features/crimson-blueguard/peaceful` | ✅ À jour | `33d1e9f04 - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak2/features/dark_jak_enhanced` | ✅ À jour | `7076cd20f - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak2/features/haven-city-chaos` | ✅ À jour | `5bf495226 - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak2/features/jak3-jetBoard` | ✅ À jour | `73d489ee6 - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak2/features/paddywagon/traffic` | ✅ À jour | `3d9ac6359 - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak2/features/transport-ag/alert` | ✅ À jour | `63ade46e9 - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak2/features/transport-ag/traffic` | ✅ À jour | `df087efa3 - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak2/features/yakow_killable` | ✅ À jour | `58421d731 - chore(release): update index.json for yakow_killable-v1.0.1` | Déjà à jour | — |
+| `jak3/config/memory_increase` | ✅ À jour | `7887b9b24 - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak3/features/city-behavior` | ✅ À jour | `daa7717a8 - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak3/features/jak2_skin_secret` | ✅ À jour | `e5fa8644e - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak3/features/mega_dark_jak` | ✅ À jour | `bc31f0b91 - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
+| `jak3/features/redguard-entity` | ✅ À jour | `64b0d4209 - fix(ci): strictly manual workflow_dispatch and valid release workflow syntax` | Déjà à jour | — |
 
 ---
 ### Guide de Résolution des Conflits

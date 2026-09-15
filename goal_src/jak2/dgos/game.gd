@@ -331,6 +331,7 @@
   "menu.o"
   "popup-menu.o" ;; added
   "speedruns.o" ;; added
+  "mods-menu.o" ;; added -- unified in-game "Mods" menu (see pc/features/mods-menu.gc)
   "drawable.o"
   "drawable-group.o"
   "drawable-inline-array.o"
@@ -395,8 +396,7 @@
   "default-menu.o"
   "anim-tester-x.o" ;; added
   "vag-player.o" ;; added
-  "mods-menu.o" ;; added -- unified "Debug > Mods" tab (see pc/debug/mods-menu.gc)
-  "dark-jak-enhanced-menu.o" ;; dark_jak_enhanced mod -- Debug > Mods > dark-jak-enhanced on/off (after mods-menu.o)
+  "dark-jak-enhanced-menu.o" ;; added -- Mods > dark-jak-enhanced (see pc/features/dark-jak-enhanced-menu.gc)
   "default-menu-pc.o" ;; added
   "dir-tpages.go"
   "tpage-11.go"

@@ -1,0 +1,47 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: transport-ag-traffic-menu.gc
+;; name in dgo: transport-ag-traffic-menu
+;; dgos: GAME
+;;
+;; MOD "Transport AG Traffic" -- Mods > transport-ag-traffic
+;; ================================================================================================
+;; Registers with the shared `mods-menu.gc` registry, openable in-game with L3 + SELECT in retail.
+;;
+;;   [L3 + SELECT] > Mods > transport-ag-traffic
+;;     Enable (applies on next city load) -- weave Crimson Guard troop transports into city traffic
+;;
+;; NOTE: the want-count is read in `traffic-manager` `init-params`, which runs when the city
+;; (re)loads -- toggling this flag takes effect on the next city load / level reload.
+;; ================================================================================================
+
+(define-extern *mod-transport-ag-traffic-enable* symbol)
+
+;; ============================================================================
+;; Menu definition (static, costs no heap)
+;; ============================================================================
+
+(define *mod-transport-ag-traffic-menu*
+  (new 'static 'popup-menu-submenu :label "transport-ag-traffic"
+    :entries (new 'static 'boxed-array :type popup-menu-entry
+      (new 'static 'popup-menu-flag :label "Enable (applies on next city load)"
+           :is-toggled? (lambda () *mod-transport-ag-traffic-enable*)
+           :on-confirm (lambda ()
+                         (set! *mod-transport-ag-traffic-enable* (not *mod-transport-ag-traffic-enable*))
+                         (none))
+           )
+      )
+    )
+  )
+
+;; ============================================================================
+;; Menu builder -- pure: returns the static submenu entry.
+;; ============================================================================
+
+(defun mod-transport-ag-traffic-build-menu ()
+  "Return this mod's submenu entry."
+  (the-as popup-menu-entry *mod-transport-ag-traffic-menu*)
+  )
+
+(mods-menu-register "transport-ag-traffic" mod-transport-ag-traffic-build-menu)

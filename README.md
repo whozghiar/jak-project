@@ -59,11 +59,11 @@ task boot-game
 
 ### 5. Enable the Mod (OFF by default)
 This mod ships **disabled** — a fresh install has stock Haven City traffic (no
-transport gunship) and stock Crimson Guard behaviour. Open the in-game debug
-menu and go to:
+transport gunship) and stock Crimson Guard behaviour. Open the in-game
+Mods menu with **L3 + SELECT** (works in retail boot, no debug mode required):
 
 ```
-Debug ▸ Mods ▸ transport-ag-traffic ▸ Enable
+Mods ▸ transport-ag-traffic ▸ Enable
 ```
 
 The choice persists across level reloads and **takes effect on the next city
@@ -128,10 +128,11 @@ task boot-game
 ### 5. Activer le Mod (DÉSACTIVÉ par défaut)
 Ce mod est livré **désactivé** — une installation neuve a le trafic d'Abriville
 d'origine (pas de canonnière de transport) et le comportement d'origine des
-Gardes Grenat. Ouvrez le menu debug en jeu et allez dans :
+Gardes Grenat. Ouvrez le menu Mods en jeu avec **L3 + SELECT** (fonctionne en
+boot retail, aucun mode debug requis) :
 
 ```
-Debug ▸ Mods ▸ transport-ag-traffic ▸ Enable
+Mods ▸ transport-ag-traffic ▸ Enable
 ```
 
 Le choix persiste au rechargement des niveaux et **prend effet au prochain

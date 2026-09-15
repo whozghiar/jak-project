@@ -108,11 +108,12 @@ def audit_branch(branch):
     if menu_edits:
         todos.append("Move debug toggles off shared menu files "
                      f"({', '.join('`'+m+'`' for m in menu_edits)}) into a `mods-menu-register` submenu.")
-    if not has_toggle and game == "jak2":
-        todos.append("Add an in-game Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_menu.md`).")
-    if not has_toggle and game in ("jak1", "jak3"):
+    if not has_toggle and game in ("jak2", "jak3"):
+        prefix = "MANDATORY" if "/features/" in branch else "Recommended"
+        todos.append(f"Add an in-game Mods toggle via `mods-menu-register` ({prefix} for features; see `docs/modding/tools/mods_menu.md`).")
+    if not has_toggle and game == "jak1":
         todos.append("Add a mod-slug-prefixed debug submenu; port to `mods-menu-register` once the "
-                     f"{game} framework lands.")
+                     "jak1 framework lands.")
     if engine_changes:
         todos.append(f"Confirm native non-regression: {len(engine_changes)} `goal_src/**` file(s) changed — "
                      "each behaviour change must be OFF by default, behind the mod toggle.")

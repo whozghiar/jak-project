@@ -153,5 +153,15 @@ def main():
     print(f"When browsing this branch on GitHub, your mod README will be displayed automatically on the root page.")
     print(f"Tip: Place your mod's launcher cover image at: docs/img/mod/mod_cover.png")
 
+    # Reminder about mandatory in-game Mods menu toggle
+    print("\n" + "="*70)
+    print("⚠️  MANDATORY MODDING REQUIREMENT (ESPECIALLY FOR FEATURES):")
+    print("   Every new mod MUST be toggleable at runtime via the in-game Mods Menu")
+    print("   (opens with L3 + SELECT in retail boots on Jak 2 & Jak 3).")
+    print(f"   Register your submenu via: (mods-menu-register \"{mod_slug_clean}\" builder)")
+    print("   Guide   : docs/modding/tools/mods_menu.md")
+    print("   Template: docs/modding/templates/mod_menu.template.gc")
+    print("="*70 + "\n")
+
 if __name__ == "__main__":
     main()

@@ -95,7 +95,7 @@ task boot-game
 
 ## ✅ Compliance Checklist
 - [ ] **Native non-regression:** with the mod compiled but its toggle OFF, the game plays identically to stock.
-- [ ] **In-game Mods toggle:** the mod registers at least one enable/disable entry via `(mods-menu-register "{MOD_SLUG}" ...)` (Jak 2 / Jak 3, opens with **L3 + SELECT**, works in a retail boot) or a `{MOD_SLUG}`-prefixed **debug-only** submenu (Jak 1). See [`docs/modding/tools/mods_menu.md`](docs/modding/tools/mods_menu.md).
+- [ ] **In-game Mods toggle [MANDATORY FOR FEATURES]:** the mod registers at least one enable/disable entry via `(mods-menu-register "{MOD_SLUG}" ...)` (Jak 2 / Jak 3, opens with **L3 + SELECT**, works in a retail boot) or a `{MOD_SLUG}`-prefixed **debug-only** submenu (Jak 1). See [`docs/modding/tools/mods_menu.md`](docs/modding/tools/mods_menu.md).
 - [ ] **No direct `default-menu*.gc` edits.**
 - [ ] **Symbols prefixed** with the mod slug (`*mod-{MOD_SLUG}-*`, `mod-{MOD_SLUG}-*`).
 - [ ] **Verified Lisp instructions** used by this mod are present in `docs/modding/jak[x]_lisp_instructions.md` (landed on `master-dev` via `task modding-land-doc`).
@@ -190,7 +190,7 @@ task boot-game
 
 ## ✅ Checklist de Conformité
 - [ ] **Non-régression native :** mod compilé mais bascule sur OFF → le jeu se joue à l'identique du jeu d'origine.
-- [ ] **Bascule Mods en jeu :** le mod enregistre au moins une entrée activer/désactiver via `(mods-menu-register "{MOD_SLUG}" ...)` (Jak 2 / Jak 3, ouverture **L3 + SELECT**, fonctionne en boot retail) ou un sous-menu **debug-only** préfixé `{MOD_SLUG}` (Jak 1). Voir [`docs/modding/tools/mods_menu.md`](docs/modding/tools/mods_menu.md).
+- [ ] **Bascule Mods en jeu [OBLIGATOIRE POUR LES FEATURES] :** le mod enregistre au moins une entrée activer/désactiver via `(mods-menu-register "{MOD_SLUG}" ...)` (Jak 2 / Jak 3, ouverture **L3 + SELECT**, fonctionne en boot retail) ou un sous-menu **debug-only** préfixé `{MOD_SLUG}` (Jak 1). Voir [`docs/modding/tools/mods_menu.md`](docs/modding/tools/mods_menu.md).
 - [ ] **Aucune édition directe de `default-menu*.gc`.**
 - [ ] **Symboles préfixés** par le slug du mod (`*mod-{MOD_SLUG}-*`, `mod-{MOD_SLUG}-*`).
 - [ ] **Instructions Lisp vérifiées** utilisées par ce mod présentes dans `docs/modding/jak[x]_lisp_instructions.md` (intégrées sur `master-dev` via `task modding-land-doc`).

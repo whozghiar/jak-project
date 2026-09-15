@@ -139,12 +139,15 @@ All mod development must adhere to the conventions documented in this guide, the
    - 📗 `docs/modding/jak[1|2|3]_lisp_instructions.md` — Verified OpenGOAL LISP reference. **Never hallucinate or invent an instruction.**
    - 📘 [`docs/modding/engine_generic_concepts.md`](docs/modding/engine_generic_concepts.md) — Shared engine concepts (memory heaps, DGOs, process lifecycle).
 2. **Native Non-Regression:**
-   - A mod MUST NOT alter default game behavior unless explicitly required.
-   - All behavior changes must ship **OFF by default**, gated behind the mod's toggle.
-3. **In-Game Mods Toggle Mandatory:**
-   - Every mod must be switchable on/off at runtime from a **retail boot** (the way the launcher starts the game), not only in debug mode.
-   - Jak 2 / Jak 3: Register via `(mods-menu-register "<slug>" builder)` — the menu opens in-game with **L3 + SELECT**. See [`docs/modding/tools/mods_menu.md`](docs/modding/tools/mods_menu.md). Never edit `default-menu*.gc` directly, and never put your menu file behind `(declare-file (debug))` — a DEBUG segment is not linked in a retail boot.
-   - Jak 1: no registry yet (see §7 of that guide) — prefix submenus cleanly with the mod slug, and state in the mod README that the toggle is debug-only.
+   - A mod MUST NOT alter default game behavior unless explicitly requested.
+   - All behavior changes must ship **OFF by default**, gated behind the mod's runtime toggle.
+3. **In-Game Mods Toggle Mandatory (Especially for `features/*`):**
+   - Every newly created mod — and **strictly without exception for any `features/*` mod** — must register an in-game toggle in the unified Mods menu (`mods-menu-register "<slug>" builder`).
+   - The mod must be switchable on/off at runtime from a **retail boot** (the default launcher boot mode, `-boot -fakeiso`), not only in debug mode.
+   - **Jak 2 / Jak 3:** The Mods menu opens in-game with **L3 + SELECT** in both retail and debug boots. Register via `(mods-menu-register "<slug>" builder)`. See [`docs/modding/tools/mods_menu.md`](docs/modding/tools/mods_menu.md) and template [`docs/modding/templates/mod_menu.template.gc`](docs/modding/templates/mod_menu.template.gc).
+   - **Never Edit Shared Menus:** Never edit `default-menu*.gc` directly, and never put your menu file behind `(declare-file (debug))` — a DEBUG segment is not linked in a retail boot.
+   - **Jak 1:** No registry yet (see §7 of that guide) — prefix submenus cleanly with the mod slug, and document in the mod README that the toggle is debug-only.
+   - **Audit Enforcement:** Any `features/*` branch lacking an active `mods-menu-register` call is considered non-compliant and will be flagged as an action item by `task modding-audit`.
 4. **Mandatory In-Code Comments:**
    - Every function, method, state, hook, and type modification in `.gc` must be thoroughly commented (purpose, arguments, return values, side effects).
 5. **Non-Destructive Modifications:**
@@ -166,7 +169,7 @@ All mod development must adhere to the conventions documented in this guide, the
 - **Two-Tier Mod Documentation Architecture:**
   1. **Tier 1 — Root `README.md` (User & Player-Facing):**
      - Must be initialized from the bilingual template ([`docs/modding/templates/MOD_README.template.md`](docs/modding/templates/MOD_README.template.md)).
-     - Filled with clear, generic, and player-accessible information conforming to the template: Mod Overview, Key Features, Step-by-Step guide to run the mod, Controls & gameplay usage, Demonstrative video/media (embedded YouTube thumbnail, never commit `.mp4` files to Git), Mod Cover thumbnail (`docs/img/mod/mod_cover.png` for OpenGOAL Launcher display), and high-level Modding Changes Log.
+     - Filled with clear, generic, and player-accessible information conforming to the template: Mod Overview, Key Features, Step-by-Step guide to run the mod, Controls & gameplay usage (including in-game Mods Menu activation via **L3 + SELECT**), Demonstrative video/media (embedded YouTube thumbnail, never commit `.mp4` files to Git), Mod Cover thumbnail (`docs/img/mod/mod_cover.png` for OpenGOAL Launcher display), and high-level Modding Changes Log.
   2. **Tier 2 — `docs/modding/current_mod/<slug>_readme.md` (Technical & Pedagogical Deep-Dive):**
      - Dedicated in-depth engineering documentation for developers, agents, and future maintainers.
      - Uses a pedagogical approach with concrete GOAL Lisp code examples, type layouts (`deftype`), state machine transitions (`defstate`), engine hooks, audio bank/asset injection pipelines, and architectural explanations.

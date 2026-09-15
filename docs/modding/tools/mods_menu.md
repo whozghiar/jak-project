@@ -25,6 +25,11 @@
 > | Jak 2 | `goal_src/jak2/pc/features/mods-menu.gc` | `goal_src/jak2/dgos/game.gd` | L3 + SELECT |
 > | Jak 3 | `goal_src/jak3/pc/features/mods-menu.gc` | `goal_src/jak3/dgos/game.gd` | L3 + SELECT |
 > | Jak 1 | — **non porté**, voir §7 | — | — |
+>
+> [!IMPORTANT]
+> **Mandatory Integration Policy / Règle d'Intégration Obligatoire :**
+> - 🇬🇧 **Every new mod created (strictly required without exception for `jak[x]/features/*`) MUST register into this menu via `(mods-menu-register "<slug>" builder)`.** Mod features must ship OFF by default and be toggleable by players at runtime in retail boots via **L3 + SELECT**.
+> - 🇫🇷 **Tout nouveau mod créé (strictement obligatoire sans exception pour les branches `jak[x]/features/*`) DOIT s'enregistrer dans ce menu via `(mods-menu-register "<slug>" builder)`.** Les fonctionnalités doivent être désactivées par défaut et activables à chaud par le joueur en boot retail via **L3 + SELECT**.
 
 ---
 

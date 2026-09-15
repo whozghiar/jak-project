@@ -45,6 +45,16 @@ These curated, verified documents are the **single source of truth** hosted on `
 | 🎛️ [`tools/mods_menu.md`](tools/mods_menu.md) | How to register mods into the in-game Mods menu (L3 + SELECT, works in a retail boot) via `(mods-menu-register "<slug>" builder)`. |
 | 📦 [`tools/mod_distribution_guide.md`](tools/mod_distribution_guide.md) | Full guide on packaging, CI/CD automated releases, launcher catalog (`index.json`), and custom cover thumbnails (`docs/img/mod/mod_cover.png`). |
 
+> [!IMPORTANT]
+> ### 🎛️ Règle Impérative : Enregistrement Obligatoire au Menu « Mods » (`mods-menu-register`)
+> Tout nouveau mod créé sur le dépôt — **en particulier les branches de type fonctionnalités (`jak[x]/features/*`)** — doit **obligatoirement être activable en jeu** via le registre unifié :
+> ```lisp
+> (mods-menu-register "<slug-du-mod>" <fonction-builder>)
+> ```
+> - **Compatibilité Retail Boot :** L'OpenGOAL Launcher lance le jeu en mode retail (`-boot -fakeiso`), désactivant le menu debug et le tas debug. Le menu Mods s'ouvre avec **L3 + SELECT** aussi bien en retail qu'en debug (Jak 2 et Jak 3).
+> - **Non-Régression Native :** Toutes les fonctionnalités doivent démarrer **désactivées par défaut (`#f`)** et être activables à la demande du joueur depuis ce menu.
+> - **Ressources :** Consultez le guide complet [`tools/mods_menu.md`](tools/mods_menu.md) et le fichier modèle [`templates/mod_menu.template.gc`](templates/mod_menu.template.gc).
+
 ---
 
 ## 🌿 4. Branch Dashboards & Compliance

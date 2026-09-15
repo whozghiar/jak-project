@@ -387,6 +387,94 @@ grep -iE "main memory|bad address|not a valid object|unable to malloc" log/jak2.
 
 <!-- ➕ APPEND NEW VERIFIED CONCEPTS BELOW THIS LINE — master-dev only, one block at a time -->
 
+### 9.1 — Overlord sound bank architecture & SPU slot allocation / Architecture des banques de sons Overlord & allocation des slots SPU
+
+> 🇬🇧 **The Sound Subsystem (Overlord):** OpenGOAL sound banks (`.SBK`) are loaded into
+> simulated PS2 SPU RAM by the Overlord I/O processor. In Jak 2 and Jak 3, Overlord
+> provides **fixed dedicated slots** for resident sound banks (`common`, `gun`, `board`)
+> plus a **3-slot rotating pool** shared dynamically by active level banks.
+>
+> When adding custom sound effects:
+> - **Route A — Append to `COMMON` (Recommended for global SFX):** Calling
+>   `(append-sbk "COMMON" "custom_assets/jak2/sounds/sfx/MY_SFX")` merges sounds directly into
+>   the resident `COMMON.SBK`. They are resident everywhere with zero runtime memory management
+>   or bank conflict. (Requires removing `"COMMON"` from `copy-sbk-files` in `game.gp` to avoid
+>   duplicate make targets).
+> - **Route B — Standalone Bank (`build-sbk`):** Compiling a dedicated bank with `(build-sbk ...)`
+>   places it into the 3-slot rotating level pool when loaded via `(sound-bank-load ...)`.
+>   Avoid this for global features, as it can conflict with level sound banks unless an
+>   additional dedicated C++ SPU slot is added in `game/overlord/common/sbank.cpp`.
+> - **Looping Sounds:** When triggering looped or frame-updated sounds with `sound-play-by-name`,
+>   always allocate the sound ID **once** in the actor's `-init` state via `(new-sound-id)`.
+>
+> 🇫🇷 **Le sous-système audio (Overlord) :** Les banques de sons OpenGOAL (`.SBK`) sont
+> chargées dans la RAM SPU de la PS2 par le processeur d'E/S Overlord. Dans Jak 2 et Jak 3,
+> Overlord fournit **des slots dédiés fixes** pour les banques résidentes (`common`, `gun`, `board`)
+> ainsi qu'un **pool tournant de 3 slots** partagé dynamiquement par les banques de niveau.
+>
+> Lors de l'ajout d'effets sonores personnalisés :
+> - **Voie A — Ajout à `COMMON` (Recommandé pour les sons globaux) :**
+>   `(append-sbk "COMMON" "custom_assets/jak2/sounds/sfx/MES_SFX")` fusionne vos sons directement
+>   dans la banque résidente `COMMON.SBK`. Ils sont disponibles partout sans gestion de chargement
+>   ni conflit de slot. (Nécessite de retirer `"COMMON"` de `copy-sbk-files` dans `game.gp` pour
+>   éviter une règle de build en doublon).
+> - **Voie B — Banque autonome (`build-sbk`) :** Créer une banque avec `(build-sbk ...)`
+>   la place dans le pool tournant de 3 slots lors du `(sound-bank-load ...)`. À réserver
+>   aux niveaux custom, car elle peut entrer en conflit avec les banques de sons du niveau actif,
+>   sauf si un nouveau slot C++ SPU est ajouté dans `game/overlord/common/sbank.cpp`.
+> - **Sons en boucle :** Pour un son continu mis à jour à chaque frame, allouez son ID
+>   **une seule fois** dans le `-init` de l'acteur avec `(new-sound-id)`.
+
+```lisp
+;; EN: Append custom sound directory to COMMON bank in game.gp
+;; FR: Ajouter un dossier de sons custom à la banque COMMON dans game.gp
+(append-sbk "COMMON" "custom_assets/jak2/sounds/sfx/MY_SFX" :force-run #t)
+
+;; EN: Trigger sound anywhere in GOAL logic
+;; FR: Jouer le son n'importe où dans la logique GOAL
+(sound-play "my-custom-sound")
+```
+
+- 🇬🇧 **Why you care:** Playing a sound from an unallocated bank fails silently; exhausting
+  the 3-slot level pool evicts essential level audio and crashes Overlord.
+- 🇫🇷 **Pourquoi c'est important :** Jouer un son depuis une banque non chargée échoue
+  silencieusement ; saturer le pool de 3 slots expulse l'audio du niveau et fait planter Overlord.
+
+---
+
+### 9.2 — Art-Group linking & Master Art-Groups / Liaison d'Art-Group & Master Art-Groups
+
+> 🇬🇧 **Skeletal Art-Group Linking:** In retail Naughty Dog engines, an `art-group` loaded
+> in memory is linked to a master skeleton via `art-group::relocate` if `needs-link?` returns true.
+> However, an art-group built with `:master-art-group` has a `joint-geo` at slot 0, causing
+> `needs-link?` to return `#f`. Consequently, custom animations grafted onto existing characters
+> (e.g. Jak or Daxter) are not linked into the master art-group by default.
+>
+> In OpenGOAL, the generic hook `(register-custom-art-group "<name>")` in `joint.gc` and `level.gc`
+> registers custom art-groups into `*custom-art-groups-to-link*`. At level load time, the engine
+> links any art-group where `(or (needs-link? this) (custom-art-group-to-link? this))` is true.
+>
+> 🇫🇷 **Liaison d'Art-Group squelettique :** Dans le moteur original, un `art-group` chargé
+> en mémoire est relié au squelette maître via `art-group::relocate` si `needs-link?` renvoie vrai.
+> Cependant, un art-group construit avec `:master-art-group` possède un `joint-geo` au slot 0, ce qui
+> fait renvoyer `#f` à `needs-link?`. Par conséquent, les animations custom greffées sur un
+> personnage existant (ex : Jak ou Daxter) ne sont pas liées au master art-group par défaut.
+>
+> Dans OpenGOAL, le hook générique `(register-custom-art-group "<nom>")` dans `joint.gc` et `level.gc`
+> enregistre les art-groups custom dans `*custom-art-groups-to-link*`. Au chargement de niveau, le moteur
+> lie tout art-group pour lequel `(or (needs-link? this) (custom-art-group-to-link? this))` est vrai.
+
+```lisp
+;; EN: Register custom animations at top-level in your mod file (name without "-ag")
+;; FR: Enregistrer les animations custom au niveau racine de votre fichier de mod (sans "-ag")
+(register-custom-art-group "jak-custom-anims")
+```
+
+- 🇬🇧 **Why you care:** Without this registration, imported animations for native characters
+  fail to link and trigger `could not find a master slot to link` or invisible animation states.
+- 🇫🇷 **Pourquoi c'est important :** Sans cet enregistrement, les animations importées pour des
+  personnages natifs ne sont pas reliées et provoquent des erreurs de slot introuvable ou des poses figées.
+
 ---
 
 ## How to contribute / Comment contribuer

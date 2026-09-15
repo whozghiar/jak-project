@@ -73,9 +73,12 @@ Le workflow se déclenche automatiquement, compile pour Windows et Linux, calcul
 1. Ouvrez votre dépôt sur GitHub et rendez-vous dans l'onglet **Actions**.
 2. Dans le menu de gauche, sélectionnez **🚀 Build & Release OpenGOAL Mod Package**.
 3. Cliquez sur **Run workflow** :
-   - Choisissez votre branche de mod active.
-   - Saisissez le tag désiré (ex: `v0.1.0-test`).
-   - Cochez facultativement "Marquer comme pré-release".
+   - **Branche :** Choisissez votre branche de mod active (ex: `jak2/features/my-mod`).
+   - **Nom du mod (`mod_name`) :** Saisissez le nom d'affichage personnalisé (ex: `Jak 3 JetBoard`). Laisser vide pour détection automatique d'après le nom de branche.
+   - **Descriptif court (`mod_description`) :** Saisissez un court résumé (1 à 2 phrases) intégré dans le catalogue `index.json`. Laisser vide pour reprise automatique de l'Overview du `README.md`.
+   - **Recompiler C++ (`build_binaries`) :** `auto` (recompile seulement si C++ modifié), `'false'` (Fast Packaging ~45s), ou `'true'` (compilation C++ forcée).
+   - **Tag de version (`tag_name`) :** Laisser `auto` pour génération automatique `[nom-du-mod]-[version]`, ou saisir un tag explicite (ex: `v1.0.0`).
+   - **Marquer comme pré-release :** Cochez si la version est expérimentale.
 4. Cliquez sur **Run workflow**.
 
 ---
@@ -97,6 +100,8 @@ Le script `scripts/modding/update_mod_catalog.py` génère automatiquement un fi
       "tags": ["gameplay", "custom-engine"],
       "supportedGames": ["jak2"],
       "websiteUrl": "https://github.com/user/repo/tree/jak2/features/my-mod",
+      "coverArtUrl": "https://raw.githubusercontent.com/user/repo/jak2/features/my-mod/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/user/repo/jak2/features/my-mod/docs/img/mod/mod_cover.png",
       "versions": [
         {
           "version": "1.0.0",
@@ -117,6 +122,10 @@ Le script `scripts/modding/update_mod_catalog.py` génère automatiquement un fi
   "texturePacks": {}
 }
 ```
+
+### 🖼️ Miniature / Image de Couverture du Mod (`mod_cover.png`)
+
+Pour chaque mod, vous pouvez déposer manuellement une miniature de couverture dans `docs/img/mod/mod_cover.png` sur la branche du mod. Elle est automatiquement détectée et injectée dans `index.json` (`coverArtUrl` et `thumbnailArtUrl`) pour l'affichage visuel dans le Launcher OpenGOAL, ainsi que dans les notes de release GitHub.
 
 ### 🎮 Pour les joueurs :
 Dans l'OpenGOAL Launcher :

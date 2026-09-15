@@ -42,7 +42,8 @@ These curated, verified documents are the **single source of truth** hosted on `
 | 🚀 [`custom_entity_workflow.md`](custom_entity_workflow.md) | Comprehensive engineering guide on importing custom 3D models, custom animations, and new sound banks (`.SBK`) with `og-j1-board` case study. |
 | ⚡ [`tools/build_and_iteration_workflow.md`](tools/build_and_iteration_workflow.md) | Three-layer build model, `sccache` acceleration, and targeted build tasks (`build-release-game`, `build-release-decomp`). |
 | 🎨 [`tools/model_and_entity_level_injection_guide.md`](tools/model_and_entity_level_injection_guide.md) | No-borrow Merc `.fr3` injection pipeline (`extra_art_groups_by_dgo`) to inject models into any level. |
-| 🎛️ [`tools/mods_debug_menu.md`](tools/mods_debug_menu.md) | How to register mods into the in-game Debug ▸ Mods menu via `(mods-menu-register "<slug>" builder)`. |
+| 🎛️ [`tools/mods_menu.md`](tools/mods_menu.md) | How to register mods into the in-game Mods menu (L3 + SELECT, works in a retail boot) via `(mods-menu-register "<slug>" builder)`. |
+| 📦 [`tools/mod_distribution_guide.md`](tools/mod_distribution_guide.md) | Full guide on packaging, CI/CD automated releases, launcher catalog (`index.json`), and custom cover thumbnails (`docs/img/mod/mod_cover.png`). |
 
 ---
 
@@ -57,7 +58,7 @@ These curated, verified documents are the **single source of truth** hosted on `
 ## 📁 5. Templates & Mod Readmes
 
 - 📝 [`templates/MOD_README.template.md`](templates/MOD_README.template.md): Bilingual presentation template for root `README.md` on mod branches.
-- ⚙️ [`templates/mod_debug_menu.template.gc`](templates/mod_debug_menu.template.gc): Ready-to-use GOAL template for debug menu registration.
+- ⚙️ [`templates/mod_menu.template.gc`](templates/mod_menu.template.gc): Ready-to-use GOAL template for in-game Mods menu registration.
 - 📂 [`current_mod/`](current_mod/): Folder storing mod-specific feature readmes (e.g. [`current_mod/custom_animation_and_sound_readme.md`](current_mod/custom_animation_and_sound_readme.md)).
 
 ---

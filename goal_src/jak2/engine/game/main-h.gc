@@ -359,6 +359,11 @@
 (declare-type debug-menu-context basic)
 (define *menu-hook* (the-as (function debug-menu-context) nothing))
 
+;; hook to run the mods menu (retail-safe, see pc/features/mods-menu.gc)
+;; separate from *menu-hook* on purpose: *menu-hook* is the debug menu and is
+;; skipped entirely in a retail boot, where the mods menu must still run.
+(define *mods-menu-hook* nothing)
+
 ;; hook to run the progress menu
 (define *progress-hook* nothing)
 

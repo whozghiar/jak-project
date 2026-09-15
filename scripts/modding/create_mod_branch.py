@@ -145,8 +145,13 @@ def main():
         print(f"\nPushing {branch} to origin...")
         run_cmd(f"git push -u origin {branch}")
 
+    # Ensure docs/img/mod directory exists for mod cover image
+    mod_img_dir = os.path.join(REPO_ROOT, "docs", "img", "mod")
+    os.makedirs(mod_img_dir, exist_ok=True)
+
     print(f"\n[OK] Mod branch '{branch}' successfully created and initialized!")
     print(f"When browsing this branch on GitHub, your mod README will be displayed automatically on the root page.")
+    print(f"Tip: Place your mod's launcher cover image at: docs/img/mod/mod_cover.png")
 
 if __name__ == "__main__":
     main()

@@ -28,7 +28,7 @@ The goal of this repository is to explore the use of AI to create mods for the J
 * **Modifications to compiler & decompiler:** Some liberties were taken with the GOAL compiler (`goalc`), the C++ runtime (`game`), and the extraction tools (`decompiler`) to change default behaviors and facilitate AI-assisted modding.
 * **Code reliability:** The code is not guaranteed to be 100% reliable. The focus is to reach the intended objective for each mod. Most commits created with agent assistance include the `(AI-assisted)` tag.
 * **Documentation for developers:** Two curated bilingual references live under `docs/modding/` — `jak[x]_lisp_instructions.md` (verified OpenGOAL Lisp per game) and `engine_generic_concepts.md` (shared engine architecture). Agents consult them before coding and never hallucinate an instruction. Mod-specific notes live in each mod branch's root `README.md`.
-* **Two golden rules:** (1) **native non-regression** — a mod never changes default behaviour unless its spec requires it; changes ship OFF by default; (2) **Debug ▸ Mods toggle** — every mod is switchable at runtime from the in-game debug menu.
+* **Two golden rules:** (1) **native non-regression** — a mod never changes default behaviour unless its spec requires it; changes ship OFF by default; (2) **In-game Mods toggle** — every mod is switchable at runtime from the in-game Mods menu (L3 + SELECT), which works in a normal launcher boot.
 * **Dedicated mod README:** Each mod branch features its own `README.md` at the root of the repository, including an installation guide, feature list, usage instructions, and a demo video.
 * **Contributions & feedback:** Constructive feedback and contributions are welcome.
 
@@ -69,13 +69,15 @@ The goal of this repository is to explore the use of AI to create mods for the J
 
 ## 📂 Directory Overview
 
+| Directory / File | Description |
+| :--- | :--- |
 | [`AGENTS.md`](AGENTS.md) | Unified AI agent directives and modding rules (branching, golden rules, REPL workflow, task reference). |
 | [`.agents/skills/`](.agents/skills/) | Modularized developer and agent skills (GOAL Lisp, engine internals, 3D assets/actors, texture modding). |
 | [`docs/modding/`](docs/modding/README.md) | Modding documentation hub (verified Lisp references, engine primer, engineering workflows, tools). |
 | [`docs/modding/jak1_lisp_instructions.md`](docs/modding/jak1_lisp_instructions.md) · [`jak2`](docs/modding/jak2_lisp_instructions.md) · [`jak3`](docs/modding/jak3_lisp_instructions.md) | **Verified** OpenGOAL Lisp reference per game — consult before coding. |
 | [`docs/modding/engine_generic_concepts.md`](docs/modding/engine_generic_concepts.md) | Shared non-Lisp engine primer (memory, heaps, DGOs, level streaming, process life cycle). |
-| [`docs/modding/tools/`](docs/modding/tools/) | Tool & pipeline guides (build workflow, custom assets, [Debug ▸ Mods menu](docs/modding/tools/mods_debug_menu.md)). |
-| [`docs/modding/templates/`](docs/modding/templates/) | [`MOD_README.template.md`](docs/modding/templates/MOD_README.template.md), [`mod_debug_menu.template.gc`](docs/modding/templates/mod_debug_menu.template.gc). |
+| [`docs/modding/tools/`](docs/modding/tools/) | Tool & pipeline guides (build workflow, custom assets, [Mods menu](docs/modding/tools/mods_menu.md)). |
+| [`docs/modding/templates/`](docs/modding/templates/) | [`MOD_README.template.md`](docs/modding/templates/MOD_README.template.md), [`mod_menu.template.gc`](docs/modding/templates/mod_menu.template.gc). |
 | [`docs/modding/branch_audit.md`](docs/modding/branch_audit.md) | Generated per-branch compliance report (`task modding-audit`). |
 | [`scripts/modding/`](scripts/modding/) | Python automation (branch creation, branch/doc sync, doc landing, branch audit). |
 | [`goal_src/`](goal_src/) | Decompiled and modified GOAL source code by game (`jak1/`, `jak2/`, `jak3/`). |
@@ -99,7 +101,7 @@ L'objectif de ce projet est d'utiliser l'IA pour créer des mods pour la trilogi
 * **Modifications du compilateur et décompilateur :** Certaines libertés ont été prises au niveau du compilateur GOAL (`goalc`), du runtime C++ (`game`) et des outils d'extraction (`decompiler`) pour modifier des comportements natifs du projet original et faciliter le modding avec l'IA.
 * **Fiabilité du code :** Le code produit avec l'assistance d'agents IA n'est pas garanti fiable à 100%. L'accent est mis sur l'atteinte de l'objectif fixé pour chaque mod. La plupart des commits correspondants portent la mention `(AI-assisted)`.
 * **Documentation pour les développeurs :** Deux références bilingues curatées sous `docs/modding/` — `jak[x]_lisp_instructions.md` (Lisp OpenGOAL vérifié par jeu) et `engine_generic_concepts.md` (architecture moteur partagée). Les agents les consultent avant de coder et n'hallucinent jamais d'instruction. Les notes propres à un mod vivent dans le `README.md` racine de sa branche.
-* **Deux règles d'or :** (1) **non-régression native** — un mod ne change jamais le comportement par défaut sauf si son cahier des charges l'exige ; les changements sont livrés DÉSACTIVÉS par défaut ; (2) **bascule Debug ▸ Mods** — tout mod est activable/désactivable à la volée depuis le menu debug en jeu.
+* **Deux règles d'or :** (1) **non-régression native** — un mod ne change jamais le comportement par défaut sauf si son cahier des charges l'exige ; les changements sont livrés DÉSACTIVÉS par défaut ; (2) **bascule Mods en jeu** — tout mod est activable/désactivable à la volée depuis le menu Mods en jeu (L3 + SELECT), qui fonctionne dans un boot normal du launcher.
 * **README dédié par mod :** Chaque branche de mod dispose à sa racine d'un fichier `README.md` décrivant : le guide d'installation, les fonctionnalités du mod, son utilisation et une vidéo démonstrative.
 * **Contributions et retours :** Toute contribution ou suggestion est accueillie avec grand plaisir, tant qu'elle reste constructive et bienveillante.
 
@@ -122,6 +124,27 @@ Le dépôt sépare le code amont officiel et les branches de modding :
 > rapatriés dans les branches de mods avec `task modding-sync-docs`. C'est ce qui
 > évite tout conflit de documentation entre branches de mods développées en
 > parallèle.
+
+---
+
+## 📂 Vue d'ensemble des Répertoires
+
+| Dossier / Fichier | Description |
+| :--- | :--- |
+| [`AGENTS.md`](AGENTS.md) | Directives unifiées pour agents IA et règles de modding (stratégie de branches, règles d'or, workflow REPL, référence des tâches). |
+| [`.agents/skills/`](.agents/skills/) | Compétences modulaires développeurs et agents (GOAL Lisp, moteur interne, assets/acteurs 3D, modding de textures). |
+| [`docs/modding/`](docs/modding/README.md) | Hub de documentation du modding (références Lisp vérifiées, guide d'initiation au moteur, workflows d'ingénierie, outils). |
+| [`docs/modding/jak1_lisp_instructions.md`](docs/modding/jak1_lisp_instructions.md) · [`jak2`](docs/modding/jak2_lisp_instructions.md) · [`jak3`](docs/modding/jak3_lisp_instructions.md) | Référence Lisp OpenGOAL **vérifiée** par jeu — à consulter impérativement avant de coder. |
+| [`docs/modding/engine_generic_concepts.md`](docs/modding/engine_generic_concepts.md) | Guide d'initiation au moteur partagé hors-Lisp (mémoire, heaps, DGOs, streaming de niveaux, cycle de vie des processus). |
+| [`docs/modding/tools/`](docs/modding/tools/) | Guides des outils et pipelines (workflow de build, assets custom, [menu Mods](docs/modding/tools/mods_menu.md)). |
+| [`docs/modding/templates/`](docs/modding/templates/) | Modèles de documentation et de code ([`MOD_README.template.md`](docs/modding/templates/MOD_README.template.md), [`mod_menu.template.gc`](docs/modding/templates/mod_menu.template.gc)). |
+| [`docs/modding/branch_audit.md`](docs/modding/branch_audit.md) | Rapport de conformité généré par branche (`task modding-audit`). |
+| [`scripts/modding/`](scripts/modding/) | Automatisation Python (création de branche, synchronisation branche/doc, atterrissage de doc, audit de branche). |
+| [`goal_src/`](goal_src/) | Code source GOAL décompilé et modifié par jeu (`jak1/`, `jak2/`, `jak3/`). |
+| [`goalc/`](goalc/) | Compilateur OpenGOAL avec ajustements pour le modding. |
+| [`game/`](game/) | Runtime C++ simulant la mémoire de l'Emotion Engine sur PC. |
+| [`decompiler/`](decompiler/) | Outils d'extraction d'assets et de décompilation. |
+| [`custom_assets/`](custom_assets/) | Remplacements de textures et modèles 3D personnalisés. |
 
 ---
 

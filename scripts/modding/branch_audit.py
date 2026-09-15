@@ -10,7 +10,7 @@ refs with `git ls-tree` / `git grep` / `git diff` and produces a report a human
 Checks per branch (vs origin/master-dev):
   1. Obsolete docs/modding/jak[x]_modding_utilities/ tree still present?
   2. Directly edits engine/pc debug menu files (default-menu*.gc)? (now an anti-pattern)
-  3. Registers a Debug > Mods toggle (`mods-menu-register`)?
+  3. Registers an in-game Mods toggle (`mods-menu-register`)?
   4. Which goal_src/** files it changes (native-regression surface).
   5. Root README.md present and customised (not the raw template)?
 
@@ -93,7 +93,7 @@ def audit_branch(branch):
     # a real toggle = a reference to mods-menu-register from a mod file, i.e. any
     # file other than the framework itself (which only defines the function).
     toggle_files = [f for f in grep_ref(ref, "mods-menu-register", "goal_src")
-                    if not f.endswith("pc/debug/mods-menu.gc")]
+                    if not f.endswith("pc/features/mods-menu.gc")]
     has_toggle = bool(toggle_files)
 
     readme = run(f"git show {ref}:README.md")
@@ -109,7 +109,7 @@ def audit_branch(branch):
         todos.append("Move debug toggles off shared menu files "
                      f"({', '.join('`'+m+'`' for m in menu_edits)}) into a `mods-menu-register` submenu.")
     if not has_toggle and game == "jak2":
-        todos.append("Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_debug_menu.md`).")
+        todos.append("Add an in-game Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_menu.md`).")
     if not has_toggle and game in ("jak1", "jak3"):
         todos.append("Add a mod-slug-prefixed debug submenu; port to `mods-menu-register` once the "
                      f"{game} framework lands.")

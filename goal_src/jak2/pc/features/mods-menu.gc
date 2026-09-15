@@ -3,80 +3,111 @@
 
 #|
 
-  mods-menu.gc -- Unified "Mods" tab for the OpenGOAL debug menu (Jak 2 PC port).
+  mods-menu.gc -- Unified "Mods" menu for the Jak 2 PC port.
 
   GOAL / Circuit 1 (logic & skeletons).
 
   ------------------------------------------------------------------------------
   WHY THIS FILE EXISTS
   ------------------------------------------------------------------------------
-  Every mod branch wants to expose a few debug toggles (spawn a variant, switch a
+  Every mod branch wants to expose a few toggles (spawn a variant, switch a
   faction, force a state, ...). If each branch edits `default-menu-pc.gc` or
-  `default-menu.gc` directly, two things go wrong:
+  `progress-static-pc.gc` directly, two things go wrong:
     1. Symbol / menu-node collisions between branches (two mods both add a
        "Mods" submenu, or both name a pick-func `dm-toggle`).
     2. Constant merge conflicts on the shared menu files whenever branches are
        rebased on `master-dev`.
 
-  This file installs ONE root tab -- "Debug > Mods" -- and a tiny runtime
-  registry. A mod never edits this file: it calls
+  This file installs ONE popup menu -- opened in-game with L3 + SELECT -- and a
+  tiny runtime registry. A mod never edits this file: it calls
   `(mods-menu-register "<slug>" builder)` from its own already-compiled `.gc`
   file. The registry rebuilds the live menu, sorted by label, so branch merge
   order never changes what the player sees.
 
-  The public API is deliberately identical across Jak 1 / Jak 2 / Jak 3, so a
-  mod's menu code can be moved between games without being rewritten.
+  ------------------------------------------------------------------------------
+  WHY *NOT* THE DEBUG MENU (this file used to be `pc/debug/mods-menu.gc`)
+  ------------------------------------------------------------------------------
+  The OpenGOAL launcher boots the game with `-boot`, which sets both
+  `MasterDebug` and `DebugSegment` to 0 (see `game/kernel/jak2/kmachine.cpp`).
+  That has three consequences, each one fatal on its own:
+    * Any file marked `(declare-file (debug))` is NOT linked at all --
+      `klink.cpp` skips the DEBUG segment entirely.
+    * `kdebugheap` is set to NULL, so the whole `debug-menu` framework (which
+      allocates its nodes with `(new 'debug ...)`) has no heap to live on.
+    * `main.gc` gates the L3+SELECT debug-menu gesture behind `*debug-segment*`,
+      so the menu could never be opened even if it were linked.
+  In other words a player launching a mod normally could never reach a toggle
+  that lived in `Debug > Mods`. This file therefore builds on `popup-menu`
+  (`pc/util/popup-menu.gc`), which is plain non-debug code that ships in
+  `GAME.CGO` and is already used by speedrunner mode.
 
   ------------------------------------------------------------------------------
   RESULTING HIERARCHY
   ------------------------------------------------------------------------------
-    Debug > Mods > [mod-slug] > [variant / sub-module] > [options & toggles]
+    [L3 + SELECT] > Mods > [mod-slug] > [variant / sub-module] > [options]
 
   Example (branch jak2/features/crimson-blueguard):
-    Debug > Mods > crimson-blueguard > city-peaceful > [Enable / Disable]
+    Mods > crimson-blueguard > city-peaceful > [Enable / Disable]
 
   ------------------------------------------------------------------------------
   PUBLIC API (call these from your mod file, nothing else)
   ------------------------------------------------------------------------------
-    (mods-menu-register (name string)
-                        (builder (function debug-menu-context debug-menu-node)))
-        Register (or, on hot-reload, replace) one mod's submenu. `builder` is
-        called with the debug-menu-context and must return a `debug-menu-node`
-        (normally a `debug-menu-item-submenu` built with
-        `debug-menu-make-from-template`). Returning `#f` hides the mod.
+    (mods-menu-register (name string) (builder (function popup-menu-entry)))
+        Register (or, on hot-reload, replace) one mod's submenu. `builder` takes
+        no argument and must return a `popup-menu-entry` -- normally a
+        `popup-menu-submenu` holding your own entries. Returning `#f` hides the
+        mod (useful for a toggle that does not apply to the current level).
 
     (mods-menu-rebuild)
         Force a rebuild of the live menu from the registry. Rarely needed by
-        hand -- `mods-menu-register` already calls it.
+        hand -- `mods-menu-register` already calls it, and so does every open.
 
-  See the copy-paste template + traffic-manager example in
-  docs/modding/templates/mod_debug_menu.template.gc and the full write-up in
-  docs/modding/tools/mods_debug_menu.md
+  See the copy-paste template in
+  docs/modding/templates/mod_menu.template.gc and the full write-up in
+  docs/modding/tools/mods_menu.md
+
+  ------------------------------------------------------------------------------
+  CONTROLS (handled by popup-menu.gc, listed here for convenience)
+  ------------------------------------------------------------------------------
+    L3 + SELECT  open / close          UP / DOWN    move by 1
+    X            confirm / enter       LEFT / RIGHT move by 5
+    CIRCLE       back (exit at root)   SELECT       close from anywhere
 
 |#
 
-;; debug-only file: stripped from release builds just like the rest of the menu code.
-(declare-file (debug))
+;; NOTE: deliberately NO `(declare-file (debug))`. This file must survive a
+;; retail boot -- that is the entire point of it. Do not add one.
+
+;; `*pc-dead-pool*` lives in pckernel.gc, which links AFTER this file. It is
+;; only referenced at runtime, so a forward declaration is enough (same trick
+;; as pc/features/speedruns.gc).
+(define-extern *pc-dead-pool* dead-pool)
+
+;; How many mods can show up in the root menu at once. Bumping this only costs
+;; 4 bytes per slot, but popup-menu paginates at 15 rows so keep it sane.
+(defconstant MODS_MENU_MAX_ENTRIES 32)
 
 ;; ============================================================================
 ;; Registry type
 ;; ============================================================================
 
 (deftype mod-menu-entry (basic)
-  ((name     string)                                            ;; label shown under "Mods" (use the mod slug)
-   (builder  (function debug-menu-context debug-menu-node))     ;; returns this mod's submenu node
+  ((name     string)                            ;; label shown in "Mods" (use the mod slug)
+   (builder  (function popup-menu-entry))       ;; returns this mod's submenu entry
    )
   (:methods
-    (new (symbol type string (function debug-menu-context debug-menu-node)) _type_)
+    (new (symbol type string (function popup-menu-entry)) _type_)
     )
   )
 
 (defmethod new mod-menu-entry ((allocation symbol)
                                (type-to-make type)
                                (name string)
-                               (builder (function debug-menu-context debug-menu-node))
+                               (builder (function popup-menu-entry))
                                )
-  "Allocate a registry entry. `allocation` should be 'debug (menu data lives on the debug heap)."
+  "Allocate a registry entry. `allocation` should be 'global -- unlike the old
+   debug-menu version we can NOT use the debug heap, it does not exist in a
+   retail boot."
   (let ((obj (object-new allocation type-to-make (the-as int (-> type-to-make size)))))
     (set! (-> obj name) name)
     (set! (-> obj builder) builder)
@@ -85,11 +116,8 @@
   )
 
 ;; ============================================================================
-;; Registry state
+;; State
 ;; ============================================================================
-
-;; The live inner menu that sits under the "Mods" submenu item, or #f before install.
-(define *mods-menu* (the-as debug-menu #f))
 
 ;; All registered mod entries: a plain list whose cars are `mod-menu-entry`,
 ;; kept sorted by name on every rebuild.
@@ -98,14 +126,45 @@
 ;; Reloading a mod file on its own is always safe.
 (define *mods-menu-entries* (the-as pair '()))
 
+;; The live root entry array handed to the popup menu. Allocated ONCE, then
+;; refilled in place on every rebuild, so opening the menu never allocates.
+(define *mods-menu-items* (new 'global 'boxed-array popup-menu-entry MODS_MENU_MAX_ENTRIES))
+
+;; Shown when no mod registered anything, so the root menu is never empty
+;; (popup-menu's move-up!/move-down! would index a zero-length array).
+(define *mods-menu-empty-entry*
+  (new 'static 'popup-menu-button
+       :label "(no mod registered)"
+       :on-confirm (lambda () (none))
+       )
+  )
+
+;; The popup-menu process, spawned lazily the first time the menu is opened.
+(define *mods-popup-menu* (the-as (pointer popup-menu) #f))
+
+;; Buttons that open/close the menu, as a `pad-buttons` bitfield.
+;; L3+SELECT mirrors the original debug-menu gesture and is inert in a retail
+;; boot (main.gc gates that gesture behind *debug-segment*), so it cannot
+;; collide with anything the player does normally. It is also distinct from
+;; speedrunner mode's L1+R1+SELECT / L1+R1+START.
+;; A mod may override this at load time, e.g.
+;;   (set! *mods-menu-bind* (pad-buttons l1 r1 triangle))
+(define *mods-menu-bind* (pad-buttons l3 select))
+
+;; #t while WE own the popup menu (as opposed to the speedrunner menu).
+(define *mods-menu-open?* #f)
+
+;; Edge detection for the keybind: set while the combo is still held down, so
+;; holding it does not toggle the menu once per frame.
+(define *mods-menu-bind-consumed?* #f)
+
 ;; ============================================================================
-;; Permanent help item -- also guarantees the submenu is never empty
-;; (the framework refuses to open a submenu with zero items).
+;; Rebuild
 ;; ============================================================================
 
 (defun mods-menu-count ()
   "How many mods are currently registered. Walks the registry list; only ever
-   called from the console 'About' row, never per-frame."
+   called from the console, never per-frame."
   (let ((n 0)
         (iter *mods-menu-entries*)
         )
@@ -117,112 +176,56 @@
     )
   )
 
-(defun mods-menu-about ((arg0 object))
-  "Activate-func for the permanent 'About' entry. Prints usage to the console."
-  (format #t "~%=== Debug > Mods ===~%")
-  (format #t "Unified modding tab. Each mod registers its own submenu at load with:~%")
-  (format #t "  (mods-menu-register \"<mod-slug>\" <builder-fn>)~%")
-  (format #t "Registered mods: ~D~%" (mods-menu-count))
-  (let ((iter *mods-menu-entries*))
+(defun mods-menu-rebuild ()
+  "Refill the live root entry array from the registry, sorted by label.
+   Allocation-free: only the (already allocated) array's contents and length
+   change. Runs on register and on every open, never per-frame."
+  ;; stable, merge-proof ordering: sort registered mods alphabetically by slug
+  (when (pair? *mods-menu-entries*)
+    (set! *mods-menu-entries*
+          (the-as pair
+                  (sort *mods-menu-entries*
+                        (lambda ((a mod-menu-entry) (b mod-menu-entry))
+                          (string<=? (-> a name) (-> b name))
+                          )
+                        )
+                  )
+          )
+    )
+  (let ((n 0)
+        (iter *mods-menu-entries*)
+        )
     (while (not (null? iter))
-      (format #t "  - ~A~%" (-> (the-as mod-menu-entry (car iter)) name))
+      (when (< n MODS_MENU_MAX_ENTRIES)
+        ;; a builder may return #f to opt out of showing up right now
+        (let ((node ((-> (the-as mod-menu-entry (car iter)) builder))))
+          (when node
+            (set! (-> *mods-menu-items* n) node)
+            (+! n 1)
+            )
+          )
+        )
       (set! iter (cdr iter))
       )
-    )
-  (format #t "Template: docs/modding/templates/mod_debug_menu.template.gc~%")
-  ;; return #f: the menu framework only uses this to flash the row red/green.
-  #f
-  )
-
-;; ============================================================================
-;; Rebuild
-;; ============================================================================
-
-(defun mods-menu-rebuild ()
-  "Clear the live 'Mods' submenu and repopulate it from the registry, sorted by
-   label. Cheap and allocation-light: only runs on register / hot-reload, never
-   per-frame and never on level transitions."
-  (when *mods-menu*
-    (debug-menu-remove-all-items *mods-menu*)
-    ;; permanent first row (keeps the submenu non-empty + self-documents)
-    (debug-menu-append-item
-      *mods-menu*
-      (new 'debug 'debug-menu-item-function "About / how to register" #f mods-menu-about)
+    (when (zero? n)
+      (set! (-> *mods-menu-items* 0) *mods-menu-empty-entry*)
+      (set! n 1)
       )
-    ;; stable, merge-proof ordering: sort registered mods alphabetically by slug
-    (when (pair? *mods-menu-entries*)
-      (set! *mods-menu-entries*
-            (the-as pair
-                    (sort *mods-menu-entries*
-                          (lambda ((a mod-menu-entry) (b mod-menu-entry))
-                            (string<=? (-> a name) (-> b name))
-                            )
-                          )
-                    )
-            )
-      (let ((iter *mods-menu-entries*))
-        (while (not (null? iter))
-          (let* ((entry (the-as mod-menu-entry (car iter)))
-                 (node ((-> entry builder) *debug-menu-context*))
-                 )
-            ;; a builder may return #f to opt out of showing up
-            (when node
-              (debug-menu-append-item *mods-menu* node)
-              )
-            )
-          (set! iter (cdr iter))
-          )
-        )
-      )
+    (set! (-> *mods-menu-items* length) n)
     )
   (none)
-  )
-
-;; ============================================================================
-;; Install -- create/find the "Mods" root tab, then rebuild
-;; ============================================================================
-
-(defun mods-menu-install! ()
-  "Attach the 'Mods' submenu to the debug root menu. Idempotent: on a hot-reload
-   of this file it finds the existing tab and reuses it rather than adding a
-   second one.
-
-   Returns the live submenu, or #f while the root menu does not exist yet (this
-   file linked before `default-menu.gc` ran its top-level
-   `debug-menu-context-make-default-menus`). That is not an error:
-   `mods-menu-register` retries the install, so a mod whose .o links early still
-   gets its tab as soon as the menu exists."
-  (when (and (not *mods-menu*) (-> *debug-menu-context* root-menu))
-    (let ((existing (debug-menu-find-from-template *debug-menu-context* '("Mods"))))
-      (cond
-        (existing
-          ;; reuse the tab that a previous load already attached
-          (set! *mods-menu* existing)
-          )
-        (else
-          (set! *mods-menu* (new 'debug 'debug-menu *debug-menu-context* "Mods menu"))
-          (debug-menu-append-item
-            (-> *debug-menu-context* root-menu)
-            (new 'debug 'debug-menu-item-submenu "Mods" *mods-menu*)
-            )
-          )
-        )
-      )
-    (mods-menu-rebuild)
-    )
-  *mods-menu*
   )
 
 ;; ============================================================================
 ;; Register (public)
 ;; ============================================================================
 
-(defun mods-menu-register ((name string) (builder (function debug-menu-context debug-menu-node)))
-  "Register a mod's submenu builder under Debug > Mods.
+(defun mods-menu-register ((name string) (builder (function popup-menu-entry)))
+  "Register a mod's submenu builder under the in-game Mods menu.
      name    : menu label -- use your branch mod slug (e.g. \"crimson-blueguard\").
-     builder : (function debug-menu-context debug-menu-node). Called now and on
-               every rebuild; must be idempotent and allocation-light. Return a
-               submenu node (see `debug-menu-make-from-template`) or #f to hide.
+     builder : (function popup-menu-entry). Called on every rebuild; must be
+               idempotent and allocation-light. Return a submenu entry (normally
+               a static `popup-menu-submenu`) or #f to hide the mod for now.
    Hot-reload safe: calling again with the same `name` replaces the builder in
    place instead of adding a duplicate row."
   (let ((found #f)
@@ -236,20 +239,138 @@
       (set! iter (cdr iter))
       )
     (when (not found)
-      ;; dcons = cons on the debug heap (menu data must not touch the global heap)
+      ;; global heap: this must outlive everything, and the debug heap may be NULL
       (set! *mods-menu-entries*
-            (the-as pair (dcons (new 'debug 'mod-menu-entry name builder) *mods-menu-entries*))
+            (the-as pair (cons (new 'global 'mod-menu-entry name builder) *mods-menu-entries*))
             )
       )
     )
-  ;; Bring the tab up if it isn't yet (mod linked before the root menu existed),
-  ;; otherwise just reflect the change immediately.
-  (if *mods-menu*
-      (mods-menu-rebuild)
-      (mods-menu-install!)
-      )
+  (mods-menu-rebuild)
   (none)
   )
 
-;; run at file load. Guarded internally, so it is safe at boot and on (mi).
-(mods-menu-install!)
+;; ============================================================================
+;; Spawn / open / close
+;; ============================================================================
+
+(defun mods-menu-spawn! ()
+  "Create the popup-menu process. Called from `mods-menu-update`, never from
+   `mods-menu-open!`.
+
+   THIS SEPARATION IS LOAD-BEARING. `process-spawn` does not run the init
+   behaviour immediately: the process has no state installed until the kernel
+   dispatches it, which happens on the NEXT frame. `send-event-function` on a
+   stateless process silently does nothing, so spawning and opening in the same
+   frame loses the 'open-menu event and the menu never appears."
+  (when (not *mods-popup-menu*)
+    (mods-menu-rebuild)
+    (set! *mods-popup-menu*
+          (the-as (pointer popup-menu)
+                  (process-spawn popup-menu
+                                 :init popup-menu-init "Mods" *mods-menu-items*
+                                 :from *pc-dead-pool*
+                                 :to *pc-pool*
+                                 )
+                  )
+          )
+    )
+  (none)
+  )
+
+(defun mods-menu-close! ()
+  "Close the menu and hand control back to the game."
+  (false! *mods-menu-open?*)
+  (when *mods-popup-menu*
+    (send-event (ppointer->process *mods-popup-menu*) 'close-menu)
+    )
+  ;; jak2's popup-menu event handler does not touch the master mode (jak3's
+  ;; does), so we are the ones responsible for unfreezing the game.
+  (set-master-mode 'game)
+  (none)
+  )
+
+(defun mods-menu-open! ()
+  "Refresh the menu contents and open it. Assumes the process already exists."
+  ;; only one popup menu can be on screen at a time (`*popup-menu-open*` is a
+  ;; single global shared with speedrunner mode) -- never steal it.
+  (when (and *mods-popup-menu* (not *popup-menu-open*))
+    (mods-menu-rebuild)
+    ;; always reopen at the root: the entry array may have been rebuilt under
+    ;; a stale nested menu-state, which would then index the wrong nodes.
+    (let ((menu (the-as popup-menu (ppointer->process *mods-popup-menu*))))
+      (set! (-> menu curr-state-index) 0)
+      (set! (-> menu menu-states 0 title) "Mods")
+      (set! (-> menu menu-states 0 entries) *mods-menu-items*)
+      (set! (-> menu menu-states 0 entry-index) 0)
+      (false! (-> menu menu-states 0 dynamic-menu?))
+      )
+    (true! *mods-menu-open?*)
+    (set-master-mode 'menu)
+    (send-event (ppointer->process *mods-popup-menu*) 'open-menu)
+    )
+  (none)
+  )
+
+;; ============================================================================
+;; Per-frame update -- installed into *mods-menu-hook*, called from main.gc
+;; ============================================================================
+
+(defun mods-menu-update ()
+  "Poll the keybind, keep the master mode in sync and tick the popup menu.
+   Called once per frame from `main.gc`'s menu-hook block, which is the only
+   place where drawing into the frame's DMA buffer is legal AND which still
+   runs while the game is frozen in 'menu master mode."
+  ;; --- keybind edge detection -----------------------------------------------
+  (cond
+    ;; combo not fully held: re-arm
+    ((!= (logand (cpad-hold 0) *mods-menu-bind*) *mods-menu-bind*)
+     (false! *mods-menu-bind-consumed?*)
+     )
+    ;; combo held and not yet consumed: toggle.
+    ;; Opening during a blackout is known to misbehave (same guard as
+    ;; speedrunner mode), so just swallow the press. `*mods-popup-menu*` is
+    ;; guaranteed to have been spawned on an earlier frame (see below).
+    ((and (not *mods-menu-bind-consumed?*)
+          *mods-popup-menu*
+          (< (-> *game-info* blackout-time) (current-time))
+          )
+     (true! *mods-menu-bind-consumed?*)
+     (if *mods-menu-open?*
+       (mods-menu-close!)
+       (mods-menu-open!)
+       )
+     ;; don't let the rest of the frame see the combo (SELECT would reach the
+     ;; pause code, L3 the speedrun practice-reset code, ...)
+     (logclear! (cpad-hold 0) *mods-menu-bind*)
+     (logclear! (cpad-pressed 0) *mods-menu-bind*)
+     )
+    )
+  ;; --- the popup can close itself (SELECT, or CIRCLE at the root) -----------
+  ;; nobody restores the master mode in that case, so the game would stay frozen.
+  (when (and *mods-menu-open?* (not *popup-menu-open*))
+    (false! *mods-menu-open?*)
+    (set-master-mode 'game)
+    )
+  ;; --- tick -----------------------------------------------------------------
+  ;; jak2's popup-menu states are inert loops: input handling and drawing only
+  ;; happen when somebody calls update-menu! from the main loop. No-op while
+  ;; the menu is closed.
+  (when *mods-popup-menu*
+    (update-menu! (the-as popup-menu (ppointer->process *mods-popup-menu*)))
+    )
+  ;; --- lazy spawn, deliberately LAST ---------------------------------------
+  ;; Doing it here guarantees a spawn and an open never happen on the same
+  ;; frame (see `mods-menu-spawn!`), and costs nothing until the game is
+  ;; actually running.
+  (when (and (not *mods-popup-menu*)
+             (< (-> *game-info* blackout-time) (current-time))
+             )
+    (mods-menu-spawn!)
+    )
+  (none)
+  )
+
+;; Install the per-frame hook. `*mods-menu-hook*` is declared in main-h.gc and
+;; called from main.gc; going through a symbol keeps main.gc's diff to a single
+;; line that never has to change again.
+(set! *mods-menu-hook* mods-menu-update)

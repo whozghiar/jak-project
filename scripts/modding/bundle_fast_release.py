@@ -11,42 +11,129 @@ import json
 import os
 from pathlib import Path
 import shutil
+import subprocess
+import sys
 import tarfile
+import urllib.error
 import urllib.request
 import zipfile
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def get_latest_official_release(repo="open-goal/jak-project"):
-  url = f"https://api.github.com/repos/{repo}/releases/latest"
+def resolve_upstream_version(base_version: str = None) -> tuple[str, str]:
+  """
+  Resolves the upstream version tag to use for downloading official binaries.
+  Priority order:
+    1. Explicit CLI argument (--base-version)
+    2. Environment variable OPENGOAL_BASE_VERSION / UPSTREAM_VERSION
+    3. .upstream-version file at repository root
+    4. Git ancestry: closest v0.* tag from HEAD
+    5. Fallback: None (triggers 'latest' release lookup)
+  Returns (version_tag, source_reason).
+  """
+  if base_version and base_version.strip():
+    return base_version.strip(), "CLI argument (--base-version)"
+
+  env_ver = os.environ.get("OPENGOAL_BASE_VERSION") or os.environ.get("UPSTREAM_VERSION")
+  if env_ver and env_ver.strip():
+    return env_ver.strip(), "environment variable (OPENGOAL_BASE_VERSION)"
+
+  ver_file = REPO_ROOT / ".upstream-version"
+  if ver_file.exists():
+    try:
+      content = ver_file.read_text(encoding="utf-8").strip()
+      if content:
+        return content, ".upstream-version file"
+    except Exception:
+      pass
+
+  # Auto-resolve from Git ancestry: closest v0.* tag from HEAD
+  try:
+    res = subprocess.run(
+        ["git", "describe", "--tags", "--match=v0.*", "--abbrev=0", "HEAD"],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=False,
+    )
+    if res.returncode == 0 and res.stdout.strip():
+      return res.stdout.strip(), "git ancestry (closest v0.* tag)"
+  except Exception:
+    pass
+
+  # Fallback to general closest tag
+  try:
+    res = subprocess.run(
+        ["git", "describe", "--tags", "--abbrev=0", "HEAD"],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=False,
+    )
+    if res.returncode == 0 and res.stdout.strip():
+      tag = res.stdout.strip()
+      if tag.startswith("v0."):
+        return tag, "git ancestry"
+  except Exception:
+    pass
+
+  return None, "fallback to latest official release"
+
+
+def get_official_release(repo="open-goal/jak-project", tag=None):
+  """
+  Queries GitHub Releases API for the specified tag (or latest if tag is None).
+  Falls back to latest if the specified tag release is not found.
+  """
   headers = {"User-Agent": "OpenGOAL-Packager"}
-  token = os.environ.get("GITHUB_TOKEN")
+  token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
   if token:
     headers["Authorization"] = f"Bearer {token}"
-  req = urllib.request.Request(url, headers=headers)
-  with urllib.request.urlopen(req) as resp:
-    data = json.loads(resp.read().decode("utf-8"))
-    tag = data["tag_name"]
-    win_asset = next(
-        (
-            a["browser_download_url"]
-            for a in data["assets"]
-            if a["name"].startswith("opengoal-windows")
-            and a["name"].endswith(".zip")
-        ),
-        None,
-    )
-    lin_asset = next(
-        (
-            a["browser_download_url"]
-            for a in data["assets"]
-            if a["name"].startswith("opengoal-linux")
-            and (a["name"].endswith(".tar.gz") or a["name"].endswith(".zip"))
-        ),
-        None,
-    )
-    return tag, win_asset, lin_asset
+
+  url = (
+      f"https://api.github.com/repos/{repo}/releases/tags/{tag}"
+      if tag
+      else f"https://api.github.com/repos/{repo}/releases/latest"
+  )
+
+  try:
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req) as resp:
+      data = json.loads(resp.read().decode("utf-8"))
+  except urllib.error.HTTPError as e:
+    if tag:
+      print(
+          f"Warning: Upstream release for tag '{tag}' not found (HTTP {e.code}). Falling back to 'latest' release...",
+          file=sys.stderr,
+      )
+      url = f"https://api.github.com/repos/{repo}/releases/latest"
+      req = urllib.request.Request(url, headers=headers)
+      with urllib.request.urlopen(req) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    else:
+      raise
+
+  resolved_tag = data.get("tag_name", tag)
+  win_asset = next(
+      (
+          a["browser_download_url"]
+          for a in data.get("assets", [])
+          if a["name"].startswith("opengoal-windows")
+          and a["name"].endswith(".zip")
+      ),
+      None,
+  )
+  lin_asset = next(
+      (
+          a["browser_download_url"]
+          for a in data.get("assets", [])
+          if a["name"].startswith("opengoal-linux")
+          and (a["name"].endswith(".tar.gz") or a["name"].endswith(".zip"))
+      ),
+      None,
+  )
+  return resolved_tag, win_asset, lin_asset
 
 
 def inject_mod_data(dest_dir: Path):
@@ -103,6 +190,11 @@ def main():
       default="open-goal/jak-project",
       help="Upstream repo for pre-compiled binaries",
   )
+  parser.add_argument(
+      "--base-version",
+      default=None,
+      help="Specific upstream release tag to use (e.g. v0.3.6). If omitted, automatically detected from git ancestry, .upstream-version or latest.",
+  )
   args = parser.parse_args()
 
   out_path = Path(args.out_dir)
@@ -110,14 +202,20 @@ def main():
     out_path = REPO_ROOT / out_path
   out_path.mkdir(parents=True, exist_ok=True)
 
-  print(f"[1/4] Fetching latest pre-compiled binaries from {args.base_repo}...")
-  base_tag, win_url, lin_url = get_latest_official_release(args.base_repo)
+  target_ver, ver_source = resolve_upstream_version(args.base_version)
+  print(f"[1/4] Fetching pre-compiled binaries from {args.base_repo}...")
+  if target_ver:
+    print(f"      Target upstream version: {target_ver} (source: {ver_source})")
+  else:
+    print(f"      Target upstream version: latest (source: {ver_source})")
+
+  base_tag, win_url, lin_url = get_official_release(args.base_repo, tag=target_ver)
   if not win_url or not lin_url:
     raise RuntimeError(
         f"Could not find release assets in {args.base_repo} {base_tag}"
     )
 
-  print(f"      Base version: {base_tag}")
+  print(f"      Matched upstream release: {base_tag}")
   print(f"      Windows asset: {win_url}")
   print(f"      Linux asset  : {lin_url}")
 
@@ -154,13 +252,19 @@ def main():
   # Linux Packaging
   # -------------------------------------------------------------
   print("\n[3/4] Downloading and bundling Linux package...")
-  lin_archive = temp_root / "upstream_linux.tar.gz"
+  is_zip = lin_url.endswith(".zip")
+  lin_archive_name = "upstream_linux.zip" if is_zip else "upstream_linux.tar.gz"
+  lin_archive = temp_root / lin_archive_name
   urllib.request.urlretrieve(lin_url, lin_archive)
 
   lin_dest = temp_root / "dist_linux"
   lin_dest.mkdir(parents=True)
-  with tarfile.open(lin_archive, "r:gz") as tf:
-    tf.extractall(lin_dest)
+  if is_zip:
+    with zipfile.ZipFile(lin_archive, "r") as zf:
+      zf.extractall(lin_dest)
+  else:
+    with tarfile.open(lin_archive, "r:gz") as tf:
+      tf.extractall(lin_dest)
   lin_archive.unlink()
 
   inject_mod_data(lin_dest)

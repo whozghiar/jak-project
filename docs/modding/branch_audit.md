@@ -38,15 +38,15 @@
 
 ### `jak2/chore/debug_mods`
 
-- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_debug_menu.md`).
+- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_menu.md`).
 
 ### `jak2/chore/reskin_deploy_fix`
 
-- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_debug_menu.md`).
+- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_menu.md`).
 
 ### `jak2/config/custom_animation_and_sound`
 
-- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_debug_menu.md`).
+- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_menu.md`).
 - [ ] Confirm native non-regression: 3 `goal_src/**` file(s) changed — each behaviour change must be OFF by default, behind the mod toggle.
 
 <details><summary>changed <code>goal_src</code> files</summary>
@@ -74,11 +74,11 @@
 
 ### `jak2/config/memory_increase`
 
-- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_debug_menu.md`).
+- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_menu.md`).
 
 ### `jak2/config/start_menu_wheel`
 
-- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_debug_menu.md`).
+- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_menu.md`).
 - [ ] Confirm native non-regression: 4 `goal_src/**` file(s) changed — each behaviour change must be OFF by default, behind the mod toggle.
 
 <details><summary>changed <code>goal_src</code> files</summary>
@@ -115,7 +115,7 @@
 ### `jak2/features/crimson-blueguard/crimson-redguard-behavior`
 
 - [ ] Move debug toggles off shared menu files (`goal_src/jak2/pc/debug/default-menu-pc.gc`) into a `mods-menu-register` submenu.
-- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_debug_menu.md`).
+- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_menu.md`).
 - [ ] Confirm native non-regression: 25 `goal_src/**` file(s) changed — each behaviour change must be OFF by default, behind the mod toggle.
 
 <details><summary>changed <code>goal_src</code> files</summary>
@@ -198,7 +198,7 @@
 
 ### `jak2/features/merc-fr3-injection-poc`
 
-- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_debug_menu.md`).
+- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_menu.md`).
 - [ ] Confirm native non-regression: 4 `goal_src/**` file(s) changed — each behaviour change must be OFF by default, behind the mod toggle.
 
 <details><summary>changed <code>goal_src</code> files</summary>
@@ -212,7 +212,7 @@
 
 ### `jak2/features/multiplayer`
 
-- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_debug_menu.md`).
+- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_menu.md`).
 - [ ] Confirm native non-regression: 6 `goal_src/**` file(s) changed — each behaviour change must be OFF by default, behind the mod toggle.
 
 <details><summary>changed <code>goal_src</code> files</summary>
@@ -288,12 +288,12 @@
 
 ### `jak2/features/transport_alert`
 
-- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_debug_menu.md`).
+- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_menu.md`).
 - [ ] Root README.md is missing — fill in from `docs/modding/templates/MOD_README.template.md`.
 
 ### `jak2/features/transport_traffic`
 
-- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_debug_menu.md`).
+- [ ] Add a Debug ▸ Mods toggle via `mods-menu-register` (see `docs/modding/tools/mods_menu.md`).
 - [ ] Root README.md is missing — fill in from `docs/modding/templates/MOD_README.template.md`.
 
 ### `jak2/features/yakow_killable`

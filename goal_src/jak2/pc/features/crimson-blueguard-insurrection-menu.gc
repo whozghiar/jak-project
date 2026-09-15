@@ -1,0 +1,230 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+#|
+  ============================================================================
+  crimson-blueguard-insurrection-menu.gc
+    -> Mods > crimson-blueguard-insurrection
+  ============================================================================
+
+  Registers the Crimson Blue Guard (City Insurrection) mod with the unified
+  "Mods" menu (goal_src/jak2/pc/features/mods-menu.gc), openable in-game with
+  L3 + SELECT in retail and debug boots.
+
+    [L3 + SELECT] > Mods > crimson-blueguard-insurrection >
+      Enable                       -- master on/off (*mod-city-insurrection?*)
+      War zones > <district flags> -- *mod-city-conflict-mask* bitmask
+      War music > <track flags>    -- *mod-city-war-music*
+
+  The flags/helpers live in mod-city-insurrection.gc + mod-city-hooks.gc (both
+  resident in the CWI DGO, non-debug), so the gated engine code links in release
+  builds.
+
+  With *mod-city-insurrection?* #f the city is byte-for-byte stock Jak 2: no blue
+  guards spawn, `mod-city-insurrection-update-traffic` no-ops, want-counts are
+  retail, every *mod-city-*-hook* resolves to its stock branch, and the guard.gc
+  war-zone combat tweaks are all gated off.
+
+  Wiring: "crimson-blueguard-insurrection-menu.o" is listed in
+  goal_src/jak2/dgos/game.gd immediately after "mods-menu.o".
+|#
+
+;; --- symbols owned by mod-city-insurrection.gc / mod-city-hooks.gc (CWI DGO) ---
+(define-extern *mod-city-insurrection?* symbol)
+(define-extern *mod-city-conflict-mask* int)
+(define-extern *mod-city-war-music* symbol)
+(define-extern city-district->mask (function symbol int))
+(define-extern city-get-current-zone (function symbol))
+(define-extern mod-city-flush-conflict-traffic (function none))
+(define-extern mod-city-war-music-stop (function none))
+
+;; ============================================================================
+;; Toggle side effect: re-roll / purge the city traffic under the new rules.
+;; ============================================================================
+
+(defun mod-crimson-blueguard-insurrection-rebuild-guards ()
+  "Destroy and rebuild the whole ambient traffic, so switching the mod on or off is
+   visible within a second or two instead of only after reloading a save."
+  (when *traffic-manager*
+    (send-event *traffic-manager* 'kill-all)
+    (send-event *traffic-manager* 'spawn-all)
+    (when (= (city-get-current-zone) 'conflict)
+      (mod-city-flush-conflict-traffic)
+      )
+    )
+  (none)
+  )
+
+(defun mod-crimson-blueguard-insurrection-flush-guards ()
+  "Light flush, used when only the war-zone selection changed: the pooled processes
+   already have the right GOAL types, they just need to be parked so the traffic
+   engine re-places them under the new district rules."
+  (cond
+    ((and *traffic-manager* (= (city-get-current-zone) 'conflict))
+     (mod-city-flush-conflict-traffic)
+     )
+    (*traffic-manager*
+     (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-0))
+     (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-1))
+     (send-event *traffic-manager* 'deactivate-by-type (traffic-type crimson-guard-2))
+     (send-event *traffic-manager* 'deactivate-by-type (traffic-type guard-bike))
+     (send-event *traffic-manager* 'deactivate-by-type (traffic-type hellcat))
+     )
+    )
+  (none)
+  )
+
+(defun mod-crimson-blueguard-insurrection-toggle-enable ()
+  "Toggle master enable switch and trigger traffic rebuild."
+  (set! *mod-city-insurrection?* (not *mod-city-insurrection?*))
+  (when (not *mod-city-insurrection?*)
+    (mod-city-war-music-stop)
+    )
+  (mod-crimson-blueguard-insurrection-rebuild-guards)
+  (none)
+  )
+
+(defun mod-crimson-blueguard-insurrection-toggle-district ((sym symbol))
+  "Toggle one district in/out of *mod-city-conflict-mask*."
+  (let ((mask (city-district->mask sym)))
+    (cond
+      ((= sym 'all)
+       (set! *mod-city-conflict-mask* (if (= *mod-city-conflict-mask* 511) 0 511))
+       )
+      (else
+        (logxor! *mod-city-conflict-mask* mask)
+        )
+      )
+    (mod-crimson-blueguard-insurrection-flush-guards)
+    )
+  (none)
+  )
+
+(defun mod-crimson-blueguard-insurrection-select-music ((sym symbol))
+  "Pick which battle track plays in armed-conflict zones."
+  (set! *mod-city-war-music* sym)
+  (none)
+  )
+
+;; ============================================================================
+;; Menu definition (static, costs no heap)
+;; ============================================================================
+
+(define *mod-crimson-blueguard-insurrection-menu*
+  (new 'static 'popup-menu-submenu :label "crimson-blueguard-insurrection"
+    :entries (new 'static 'boxed-array :type popup-menu-entry
+      (new 'static 'popup-menu-flag :label "Enable (blue vs red faction war)"
+           :is-toggled? (lambda () *mod-city-insurrection?*)
+           :on-confirm (lambda () (mod-crimson-blueguard-insurrection-toggle-enable) (none))
+           )
+      (new 'static 'popup-menu-submenu :label "War zones"
+        :entries (new 'static 'boxed-array :type popup-menu-entry
+          (new 'static 'popup-menu-flag :label "All City (Full War)"
+               :is-toggled? (lambda () (= *mod-city-conflict-mask* 511))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-toggle-district 'all) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "Slums"
+               :is-toggled? (lambda () (logtest? *mod-city-conflict-mask* (city-district->mask 'slums)))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-toggle-district 'slums) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "Water Slums"
+               :is-toggled? (lambda () (logtest? *mod-city-conflict-mask* (city-district->mask 'water-slums)))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-toggle-district 'water-slums) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "Industrial (default)"
+               :is-toggled? (lambda () (logtest? *mod-city-conflict-mask* (city-district->mask 'industrial)))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-toggle-district 'industrial) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "Port"
+               :is-toggled? (lambda () (logtest? *mod-city-conflict-mask* (city-district->mask 'port)))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-toggle-district 'port) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "Bazaars (Est & Ouest)"
+               :is-toggled? (lambda () (logtest? *mod-city-conflict-mask* (city-district->mask 'bazaars)))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-toggle-district 'bazaars) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "Gardens (Nord & Sud)"
+               :is-toggled? (lambda () (logtest? *mod-city-conflict-mask* (city-district->mask 'gardens)))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-toggle-district 'gardens) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "Main Town (residential)"
+               :is-toggled? (lambda () (logtest? *mod-city-conflict-mask* (city-district->mask 'main-town)))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-toggle-district 'main-town) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "Stadium"
+               :is-toggled? (lambda () (logtest? *mod-city-conflict-mask* (city-district->mask 'stadium)))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-toggle-district 'stadium) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "Palace"
+               :is-toggled? (lambda () (logtest? *mod-city-conflict-mask* (city-district->mask 'palace)))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-toggle-district 'palace) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          )
+        )
+      (new 'static 'popup-menu-submenu :label "War music"
+        :entries (new 'static 'boxed-array :type popup-menu-entry
+          (new 'static 'popup-menu-flag :label "Danger 9 (City Combat - default)"
+               :is-toggled? (lambda () (= *mod-city-war-music* 'danger9))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-select-music 'danger9) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "Danger 1 (Canyon Battle)"
+               :is-toggled? (lambda () (= *mod-city-war-music* 'danger1))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-select-music 'danger1) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "Battle"
+               :is-toggled? (lambda () (= *mod-city-war-music* 'battle))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-select-music 'battle) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "Danger 10 (Drill Mech)"
+               :is-toggled? (lambda () (= *mod-city-war-music* 'danger10))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-select-music 'danger10) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "Danger 11 (Fortress Dump)"
+               :is-toggled? (lambda () (= *mod-city-war-music* 'danger11))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-select-music 'danger11) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "Danger 3 (Onin Minigame)"
+               :is-toggled? (lambda () (= *mod-city-war-music* 'danger3))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-select-music 'danger3) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          (new 'static 'popup-menu-flag :label "None / Disabled"
+               :is-toggled? (lambda () (= *mod-city-war-music* 'none))
+               :on-confirm (lambda () (mod-crimson-blueguard-insurrection-select-music 'none) (none))
+               :entry-disabled? (lambda () (not *mod-city-insurrection?*))
+               )
+          )
+        )
+      )
+    )
+  )
+
+;; ============================================================================
+;; Menu builder -- pure: returns the static submenu entry.
+;; ============================================================================
+
+(defun mod-crimson-blueguard-insurrection-build-menu ()
+  "Return the 'crimson-blueguard-insurrection' submenu entry."
+  (the-as popup-menu-entry *mod-crimson-blueguard-insurrection-menu*)
+  )
+
+;; ============================================================================
+;; Register with the unified Mods menu (top-level, runs at file load).
+;; ============================================================================
+
+(mods-menu-register "crimson-blueguard-insurrection" mod-crimson-blueguard-insurrection-build-menu)

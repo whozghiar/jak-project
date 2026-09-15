@@ -46,7 +46,7 @@ Adds the **Blue Crimson Guard** as its own standalone entity (`crimson-blue-guar
 
 ### ⚔️ City Insurrection Mode
 
-**The mod ships OFF.** It is enabled from `Debug ▸ Mods ▸ crimson-blueguard-insurrection ▸ Enable`.
+**The mod ships OFF.** It is enabled in-game with **L3 + SELECT** under `Mods ▸ crimson-blueguard-insurrection ▸ Enable` (works in retail boot, no debug mode required).
 With it **off, Haven City is byte-for-byte stock Jak 2** — no blue guards, retail guard density,
 retail alerts and guard combat. The `War zones` submenu (district bitmask, default Industrial) and
 `War music` picker sit in the same submenu. Toggling the mod re-rolls / purges the city traffic on
@@ -155,7 +155,7 @@ Ce mod introduit le **Garde Crimson Bleu** en tant qu'entité autonome (`crimson
 
 ### ⚔️ Mode City Insurrection (Guerre Civile)
 
-**Le mod est livré DÉSACTIVÉ.** Il s'active depuis `Debug ▸ Mods ▸ crimson-blueguard-insurrection ▸ Enable`.
+**Le mod est livré DÉSACTIVÉ.** Il s'active en jeu avec **L3 + SELECT** dans `Mods ▸ crimson-blueguard-insurrection ▸ Enable` (fonctionne en boot normal, sans mode debug).
 Désactivé, **Abriville est identique au Jak 2 d'origine** — aucun garde bleu, densité et alertes
 d'origine, combats de gardes d'origine. Les sous-menus `War zones` (masque de quartiers, Industriel
 par défaut) et `War music` sont dans le même sous-menu. La bascule re-tire / purge le trafic

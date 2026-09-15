@@ -385,33 +385,52 @@
 - 🇫🇷 Presets : `death-default` (violet, mort générique), `death-seed` (orange, scène
   life-seed), `death-warp-in`/`out` (bleu-violet, warp gate — pas une mort).
 
-### B11 — Register a Debug ▸ Mods toggle / Enregistrer une bascule Debug ▸ Mods
+### B11 — Register an in-game Mods toggle / Enregistrer une bascule Mods en jeu
 
-> 🇬🇧 Every mod must expose an on/off switch under **Debug ▸ Mods**. You never edit
-> `default-menu*.gc` — you call `mods-menu-register` from one of your mod's own
-> compiled `.gc` files. See the full guide and copy-paste template:
-> [`docs/modding/tools/mods_debug_menu.md`](tools/mods_debug_menu.md) and
-> [`docs/modding/templates/mod_debug_menu.template.gc`](templates/mod_debug_menu.template.gc).
+> 🇬🇧 Every mod must expose an on/off switch in the in-game **Mods** menu, opened
+> with **L3 + SELECT**. That menu is *not* the debug menu: it works in a retail
+> boot, which is how the launcher starts the game. You never edit
+> `default-menu*.gc`, and your menu file must **never** carry
+> `(declare-file (debug))` — a DEBUG segment is not linked in a retail boot, so the
+> registration would silently never run. You call `mods-menu-register` from one of
+> your mod's own compiled `.gc` files. See the full guide and copy-paste template:
+> [`docs/modding/tools/mods_menu.md`](tools/mods_menu.md) and
+> [`docs/modding/templates/mod_menu.template.gc`](templates/mod_menu.template.gc).
 >
-> 🇫🇷 Chaque mod doit exposer un interrupteur on/off sous **Debug ▸ Mods**. On
-> n'édite jamais `default-menu*.gc` — on appelle `mods-menu-register` depuis un des
-> fichiers `.gc` compilés du mod. Voir le guide complet et le template à copier :
-> [`docs/modding/tools/mods_debug_menu.md`](tools/mods_debug_menu.md) et
-> [`docs/modding/templates/mod_debug_menu.template.gc`](templates/mod_debug_menu.template.gc).
+> 🇫🇷 Chaque mod doit exposer un interrupteur on/off dans le menu **Mods** en jeu,
+> ouvert avec **L3 + SELECT**. Ce menu n'est *pas* le menu debug : il fonctionne en
+> boot retail, c'est-à-dire tel que le launcher démarre le jeu. On n'édite jamais
+> `default-menu*.gc`, et le fichier du menu ne doit **jamais** porter
+> `(declare-file (debug))` — un segment DEBUG n'est pas linké en boot retail, donc
+> l'enregistrement ne s'exécuterait jamais, silencieusement. On appelle
+> `mods-menu-register` depuis un des fichiers `.gc` compilés du mod. Voir le guide
+> complet et le template à copier :
+> [`docs/modding/tools/mods_menu.md`](tools/mods_menu.md) et
+> [`docs/modding/templates/mod_menu.template.gc`](templates/mod_menu.template.gc).
 
 ```lisp
-(declare-file (debug))
+;; EN: NO (declare-file (debug)) here -- it would strip the file in a retail boot
+;; FR: PAS de (declare-file (debug)) ici -- le fichier serait retiré en boot retail
 
-;; EN: one prefixed symbol per option; its `value` slot holds the boolean
-;; FR: un symbole préfixé par option ; son slot `value` porte le booléen
+;; EN: one prefixed symbol per option / FR: un symbole préfixé par option
 (define *mod-my-slug-enable* #f)
 
-;; EN: builder — pure, returns this mod's submenu node
-;; FR: builder — pur, renvoie le nœud sous-menu du mod
-(defun mod-my-slug-build-menu ((ctx debug-menu-context))
-  (debug-menu-make-from-template ctx
-    '(menu "my-slug"
-       (flag "Enable" *mod-my-slug-enable* dm-boolean-toggle-pick-func))))
+;; EN: the menu, fully static. Nested :entries and the lambdas MUST be inline.
+;; FR: le menu, entièrement statique. Les :entries imbriqués et les lambdas
+;;     DOIVENT être écrits inline.
+(define *mod-my-slug-menu*
+  (new 'static 'popup-menu-submenu :label "my-slug"
+    :entries (new 'static 'boxed-array :type popup-menu-entry
+      (new 'static 'popup-menu-flag :label "Enable"
+           :is-toggled? (lambda () *mod-my-slug-enable*)
+           :on-confirm (lambda ()
+                         (set! *mod-my-slug-enable* (not *mod-my-slug-enable*))
+                         (none))))))
+
+;; EN: builder — pure, no argument, returns this mod's entry
+;; FR: builder — pur, sans argument, renvoie l'entrée du mod
+(defun mod-my-slug-build-menu ()
+  (the-as popup-menu-entry *mod-my-slug-menu*))
 
 ;; EN: register at file load (top-level) / FR: enregistrer au chargement du fichier (top-level)
 (mods-menu-register "my-slug" mod-my-slug-build-menu)
@@ -576,11 +595,11 @@
 ### D4 — Native non-regression / Non-régression native
 
 - 🇬🇧 A mod must not change default game behaviour unless its spec explicitly
-  requires it. Ship changes **off by default**, gated behind the mod's Debug ▸ Mods
-  toggle ([B11](#b11--register-a-debug--mods-toggle--enregistrer-une-bascule-debug--mods)).
+  requires it. Ship changes **off by default**, gated behind the mod's in-game Mods
+  toggle ([B11](#b11--register-an-in-game-mods-toggle--enregistrer-une-bascule-mods-en-jeu)).
 - 🇫🇷 Un mod ne doit pas changer le comportement par défaut du jeu sauf si son
   cahier des charges l'exige explicitement. Livrez les changements **désactivés par
-  défaut**, derrière la bascule Debug ▸ Mods du mod ([B11](#b11--register-a-debug--mods-toggle--enregistrer-une-bascule-debug--mods)).
+  défaut**, derrière la bascule Mods en jeu du mod ([B11](#b11--register-an-in-game-mods-toggle--enregistrer-une-bascule-mods-en-jeu)).
 
 ---
 

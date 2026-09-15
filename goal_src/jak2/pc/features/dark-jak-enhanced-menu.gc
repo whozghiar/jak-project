@@ -1,0 +1,59 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+#|
+  ============================================================================
+  dark-jak-enhanced-menu.gc -- Mods > dark-jak-enhanced
+  ============================================================================
+
+  Registers the Dark Jak Enhanced mod's on/off switch with the unified "Mods"
+  menu (goal_src/jak2/pc/features/mods-menu.gc), openable in-game with
+  L3 + SELECT in retail and debug boots.
+
+  The flag itself, *mod-dark-jak-enhanced-enable*, is defined in target-h.gc,
+  so all the target/*.gc code that reads it compiles in every build.
+
+  Every behaviour the mod adds is a single cohesive package (the 3-tier
+  evolution, R2 cancel, full eco drain, instant Dark Bomb, collision-resilient
+  Dark Blast, Level-1 rolling, titan camera/footsteps), so one master toggle is
+  all that is exposed. With it OFF the player is stock Jak 2 Dark Jak.
+
+  Wiring: "dark-jak-enhanced-menu.o" is listed in goal_src/jak2/dgos/game.gd
+  immediately after "mods-menu.o".
+|#
+
+;; the flag lives in target-h.gc; declare its type for this file.
+(define-extern *mod-dark-jak-enhanced-enable* symbol)
+
+;; ============================================================================
+;; Menu definition (static, costs no heap)
+;; ============================================================================
+
+(define *mod-dark-jak-enhanced-menu*
+  (new 'static 'popup-menu-submenu :label "dark-jak-enhanced"
+    :entries (new 'static 'boxed-array :type popup-menu-entry
+      (new 'static 'popup-menu-flag :label "Enable"
+           :is-toggled? (lambda () *mod-dark-jak-enhanced-enable*)
+           :on-confirm (lambda ()
+                         (set! *mod-dark-jak-enhanced-enable*
+                               (not *mod-dark-jak-enhanced-enable*))
+                         (none))
+           )
+      )
+    )
+  )
+
+;; ============================================================================
+;; Menu builder -- pure: returns the static submenu entry.
+;; ============================================================================
+
+(defun mod-dark-jak-enhanced-build-menu ()
+  "Return the 'dark-jak-enhanced' submenu entry."
+  (the-as popup-menu-entry *mod-dark-jak-enhanced-menu*)
+  )
+
+;; ============================================================================
+;; Register with the unified Mods menu (top-level, runs at file load).
+;; ============================================================================
+
+(mods-menu-register "dark-jak-enhanced" mod-dark-jak-enhanced-build-menu)

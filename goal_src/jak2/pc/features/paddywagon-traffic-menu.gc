@@ -1,0 +1,47 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: paddywagon-traffic-menu.gc
+;; name in dgo: paddywagon-traffic-menu
+;; dgos: GAME
+;;
+;; MOD "Paddywagon Traffic" -- Mods > paddywagon-traffic
+;; ================================================================================================
+;; Registers with the shared `mods-menu.gc` registry, openable in-game with L3 + SELECT in retail.
+;;
+;;   [L3 + SELECT] > Mods > paddywagon-traffic
+;;     Enable (applies on next city load) -- weave Krimzon Guard paddy wagons into Haven traffic
+;;
+;; NOTE: the want-count is read in `traffic-manager` `init-params`, which runs when the city
+;; (re)loads -- toggling this flag takes effect on the next city load / level reload.
+;; ================================================================================================
+
+(define-extern *mod-paddywagon-traffic-enable* symbol)
+
+;; ============================================================================
+;; Menu definition (static, costs no heap)
+;; ============================================================================
+
+(define *mod-paddywagon-traffic-menu*
+  (new 'static 'popup-menu-submenu :label "paddywagon-traffic"
+    :entries (new 'static 'boxed-array :type popup-menu-entry
+      (new 'static 'popup-menu-flag :label "Enable (applies on next city load)"
+           :is-toggled? (lambda () *mod-paddywagon-traffic-enable*)
+           :on-confirm (lambda ()
+                         (set! *mod-paddywagon-traffic-enable* (not *mod-paddywagon-traffic-enable*))
+                         (none))
+           )
+      )
+    )
+  )
+
+;; ============================================================================
+;; Menu builder -- pure: returns the static submenu entry.
+;; ============================================================================
+
+(defun mod-paddywagon-traffic-build-menu ()
+  "Return this mod's submenu entry."
+  (the-as popup-menu-entry *mod-paddywagon-traffic-menu*)
+  )
+
+(mods-menu-register "paddywagon-traffic" mod-paddywagon-traffic-build-menu)

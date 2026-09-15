@@ -70,7 +70,7 @@ Everything else — throttle, steering, brake, boost — is the standard city
 vehicle control set.
 - **Unarmed.** The `paddy-wagon` skeleton has no gun joint, so the wagon rams
   and pursues but never shoots.
-- **OFF by default,** switchable from `Debug ▸ Mods ▸ paddywagon-traffic`.
+- **OFF by default,** switchable from the in-game Mods menu (**L3 + SELECT** in retail boot) `Mods ▸ paddywagon-traffic`.
 
 ## 🚀 Step-by-Step Guide to Run the Mod
 
@@ -107,12 +107,11 @@ task boot-game
 
 ### 5. Enable the Mod
 The mod ships **OFF**. In game:
-`Debug ▸ Mods ▸ paddywagon-traffic ▸ Enable`, then **reload the city** (walk
+Open the Mods menu with **L3 + SELECT** (retail and debug boot) `Mods ▸ paddywagon-traffic ▸ Enable`, then **reload the city** (walk
 into an interior and back out, or warp) so the traffic manager re-reads its
 want-counts. Drive around Haven City and watch for a boxy armoured van in the
 car lanes with a figure standing in the back.
 
-<<<<<<< HEAD
 ## 🎥 Demonstration Video
 
 [![Demonstration Video](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
@@ -124,7 +123,7 @@ car lanes with a figure standing in the back.
 
 ## ✅ Compliance Checklist
 - [x] **Native non-regression:** with the mod compiled but its toggle OFF, the traffic want-count for slot 20 is 0, so no `paddywagon-v` is ever constructed and no code in `paddywagon-v.gc` runs. The retail `paddywagon` type and the *Escort Brutter* mission are untouched.
-- [x] **Debug ▸ Mods toggle:** registered via `(mods-menu-register "paddywagon-traffic" ...)` in [`goal_src/jak2/pc/debug/paddywagon-traffic-menu.gc`](goal_src/jak2/pc/debug/paddywagon-traffic-menu.gc). See [`docs/modding/tools/mods_debug_menu.md`](docs/modding/tools/mods_debug_menu.md).
+- [x] **Mods menu toggle:** registered via `(mods-menu-register "paddywagon-traffic" ...)` in [`goal_src/jak2/pc/features/paddywagon-traffic-menu.gc`](goal_src/jak2/pc/features/paddywagon-traffic-menu.gc). Accessible via **L3 + SELECT** in retail boot. See [`docs/modding/tools/mods_menu.md`](docs/modding/tools/mods_menu.md).
 - [x] **No direct `default-menu*.gc` edits.**
 - [x] **Symbols prefixed** with the mod slug (`*mod-paddywagon-traffic-enable*`, `mod-paddywagon-traffic-build-menu`, `paddywagon-v*`, `paddywagon-prisoner*`).
 - [ ] **Verified Lisp instructions** used by this mod are present in `docs/modding/jak2_lisp_instructions.md` (landed on `master-dev` via `task modding-land-doc`).
@@ -133,22 +132,6 @@ car lanes with a figure standing in the back.
 ## 📖 Technical Documentation
 For the complete technical breakdown, architecture, and developer notes, refer to:
 - 📄 [`docs/modding/current_mod/paddywagon_traffic_readme.md`](docs/modding/current_mod/paddywagon_traffic_readme.md)
-=======
-| [`AGENTS.md`](AGENTS.md) | Unified AI agent directives and modding rules (branching, golden rules, REPL workflow, task reference). |
-| [`.agents/skills/`](.agents/skills/) | Modularized developer and agent skills (GOAL Lisp, engine internals, 3D assets/actors, texture modding). |
-| [`docs/modding/`](docs/modding/README.md) | Modding documentation hub (verified Lisp references, engine primer, engineering workflows, tools). |
-| [`docs/modding/jak1_lisp_instructions.md`](docs/modding/jak1_lisp_instructions.md) · [`jak2`](docs/modding/jak2_lisp_instructions.md) · [`jak3`](docs/modding/jak3_lisp_instructions.md) | **Verified** OpenGOAL Lisp reference per game — consult before coding. |
-| [`docs/modding/engine_generic_concepts.md`](docs/modding/engine_generic_concepts.md) | Shared non-Lisp engine primer (memory, heaps, DGOs, level streaming, process life cycle). |
-| [`docs/modding/tools/`](docs/modding/tools/) | Tool & pipeline guides (build workflow, custom assets, [Debug ▸ Mods menu](docs/modding/tools/mods_debug_menu.md)). |
-| [`docs/modding/templates/`](docs/modding/templates/) | [`MOD_README.template.md`](docs/modding/templates/MOD_README.template.md), [`mod_debug_menu.template.gc`](docs/modding/templates/mod_debug_menu.template.gc). |
-| [`docs/modding/branch_audit.md`](docs/modding/branch_audit.md) | Generated per-branch compliance report (`task modding-audit`). |
-| [`scripts/modding/`](scripts/modding/) | Python automation (branch creation, branch/doc sync, doc landing, branch audit). |
-| [`goal_src/`](goal_src/) | Decompiled and modified GOAL source code by game (`jak1/`, `jak2/`, `jak3/`). |
-| [`goalc/`](goalc/) | OpenGOAL compiler with modding adjustments. |
-| [`game/`](game/) | C++ runtime simulating the Emotion Engine memory on PC. |
-| [`decompiler/`](decompiler/) | Asset extraction and decompiler tools. |
-| [`custom_assets/`](custom_assets/) | Custom texture replacements and models. |
->>>>>>> origin/master-dev
 
 ---
 
@@ -211,7 +194,7 @@ Tout le reste — accélérateur, direction, frein, boost — correspond aux com
 standard des véhicules urbains.
 - **Non armé.** Le squelette `paddy-wagon` ne possède aucun joint d'arme : le
   fourgon percute et poursuit, mais ne tire jamais.
-- **Désactivé par défaut,** activable depuis `Debug ▸ Mods ▸ paddywagon-traffic`.
+- **Désactivé par défaut,** activable depuis le menu Mods en jeu (**L3 + SELECT** en boot retail) `Mods ▸ paddywagon-traffic`.
 
 ## 🚀 Guide Pas à Pas pour Lancer le Mod
 
@@ -229,7 +212,6 @@ task set-game-jak2
   (`extra_art_groups_by_dgo`), que le décompilateur existant sait déjà lire. Si
   votre `out/build` est vide, compilez une fois avec `task build-release`.
 
-<<<<<<< HEAD
 ### 3. Extraction des Données (Assets)
 - **Statut :** **Requise — `task extract`.**
 - **Détails :** La géométrie merc du fourgon n'a jamais existé que dans
@@ -246,35 +228,11 @@ task extract
 task boot-game
 ```
 *(Ou lancez via le REPL OpenGOAL avec `task repl`, puis compilez et lancez avec `(mi)` et `(r)`).*
-=======
-<!-- BRANCH_STATUS_START -->
-> **Dernière mise à jour :** `2026-09-11 13:48:24 UTC`  
-> **Branche source :** `master-dev` (`cdbb2096b`)  
-> **Statut global :** 15/15 synchronisées (0 conflits)
-
-| Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |
-| :--- | :---: | :--- | :--- | :--- |
-| `jak2/config/enhanced_spawnrates` | ✅ À jour | `90728a041 - chore: sync jak2/config/enhanced_spawnrates with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/config/start_menu_wheel` | ✅ À jour | `08233c0e6 - chore: sync jak2/config/start_menu_wheel with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/crimson-blueguard/city-insurrection` | ✅ À jour | `bb3d007b3 - chore: sync jak2/features/crimson-blueguard/city-insurrection with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/crimson-blueguard/peaceful` | ✅ À jour | `a91eee9c0 - chore: sync jak2/features/crimson-blueguard/peaceful with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/dark_jak_enhanced` | ✅ À jour | `427f19cd8 - chore: sync jak2/features/dark_jak_enhanced with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/jak3-jetBoard` | ✅ À jour | `62debc00c - chore: sync jak2/features/jak3-jetBoard with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/paddywagon/traffic` | ✅ À jour | `a55f28582 - chore: sync jak2/features/paddywagon/traffic with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/transport-ag/alert` | ✅ À jour | `1e2d84f6b - chore: sync jak2/features/transport-ag/alert with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/transport-ag/traffic` | ✅ À jour | `b60c12f8f - chore: sync jak2/features/transport-ag/traffic with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/yakow_killable` | ✅ À jour | `480399e6f - chore: sync jak2/features/yakow_killable with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak3/config/memory_increase` | ✅ À jour | `d1b90c9b4 - chore: sync jak3/config/memory_increase with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/city-behavior` | ✅ À jour | `d7a1955af - chore: sync jak3/features/city-behavior with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/jak2_skin_secret` | ✅ À jour | `8123108e9 - chore: sync jak3/features/jak2_skin_secret with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/mega_dark_jak` | ✅ À jour | `b04b08338 - chore: sync jak3/features/mega_dark_jak with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/redguard-entity` | ✅ À jour | `67a4892cf - chore: sync jak3/features/redguard-entity with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-<!-- BRANCH_STATUS_END -->
->>>>>>> origin/master-dev
 
 ### 5. Activer le Mod
 Le mod est livré **désactivé**. En jeu :
-`Debug ▸ Mods ▸ paddywagon-traffic ▸ Enable`, puis **rechargez la ville**
+Ouvrez le menu Mods avec **L3 + SELECT** (accessible en boot retail et debug) :
+`Mods ▸ paddywagon-traffic ▸ Enable`, puis **rechargez la ville**
 (entrez dans un intérieur et ressortez, ou téléportez-vous) pour que le
 gestionnaire de trafic relise ses quotas. Roulez dans Abriville et guettez un
 van blindé anguleux dans les voies de circulation, avec une silhouette debout à
@@ -291,7 +249,7 @@ l'arrière.
 
 ## ✅ Checklist de Conformité
 - [x] **Non-régression native :** mod compilé mais toggle OFF, le quota de trafic du slot 20 vaut 0 : aucun `paddywagon-v` n'est jamais construit et aucun code de `paddywagon-v.gc` ne s'exécute. Le type `paddywagon` d'origine et la mission *Escorter Brutter* sont intacts.
-- [x] **Toggle Debug ▸ Mods :** enregistré via `(mods-menu-register "paddywagon-traffic" ...)` dans [`goal_src/jak2/pc/debug/paddywagon-traffic-menu.gc`](goal_src/jak2/pc/debug/paddywagon-traffic-menu.gc). Voir [`docs/modding/tools/mods_debug_menu.md`](docs/modding/tools/mods_debug_menu.md).
+- [x] **Toggle menu Mods :** enregistré via `(mods-menu-register "paddywagon-traffic" ...)` dans [`goal_src/jak2/pc/features/paddywagon-traffic-menu.gc`](goal_src/jak2/pc/features/paddywagon-traffic-menu.gc). Accessible via **L3 + SELECT** en boot retail. Voir [`docs/modding/tools/mods_menu.md`](docs/modding/tools/mods_menu.md).
 - [x] **Aucune édition directe de `default-menu*.gc`.**
 - [x] **Symboles préfixés** par le slug du mod (`*mod-paddywagon-traffic-enable*`, `mod-paddywagon-traffic-build-menu`, `paddywagon-v*`, `paddywagon-prisoner*`).
 - [ ] **Instructions Lisp vérifiées** utilisées par ce mod présentes dans `docs/modding/jak2_lisp_instructions.md` (déposées sur `master-dev` via `task modding-land-doc`).

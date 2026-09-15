@@ -52,7 +52,7 @@ Jak is a bystander. Nothing you do raises the alarm, and no guard will come afte
 - **The Krimzon Guard fight back harder:** red and yellow guards get 1.5× health, and their
   gunships break off patrol to hunt Metal Heads.
 - **A truce with Jak:** guards cannot see Jak at all. Nothing alerts them, nothing pursues him.
-- **Off by default:** everything lives behind `Debug ▸ Mods ▸ haven-city-chaos`, with sub-toggles
+- **Off by default:** everything lives behind `[L3 + SELECT] ▸ Mods ▸ haven-city-chaos` (works in retail boot, no debug mode required), with sub-toggles
   so you can dial any piece back on its own.
 
 ## 🚀 Step-by-Step Guide to Run the Mod
@@ -158,7 +158,7 @@ poursuit.
   garde qui rompent leur patrouille pour traquer les têtes de métal.
 - **Une trêve avec Jak :** les gardes ne peuvent tout simplement plus le voir. Rien ne les alerte,
   rien ne le poursuit.
-- **Désactivé par défaut :** tout se trouve dans `Debug ▸ Mods ▸ haven-city-chaos`, avec des
+- **Désactivé par défaut :** tout se trouve dans `[L3 + SELECT] ▸ Mods ▸ haven-city-chaos` (fonctionne en boot normal, sans mode debug), avec des
   sous-bascules pour ajuster chaque élément séparément.
 
 ## 🚀 Guide Pas à Pas pour Lancer le Mod

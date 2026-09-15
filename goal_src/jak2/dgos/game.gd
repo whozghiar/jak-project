@@ -331,6 +331,7 @@
   "menu.o"
   "popup-menu.o" ;; added
   "speedruns.o" ;; added
+  "mods-menu.o" ;; added -- unified in-game "Mods" menu (see pc/features/mods-menu.gc)
   "drawable.o"
   "drawable-group.o"
   "drawable-inline-array.o"
@@ -396,8 +397,7 @@
   "anim-tester-x.o" ;; added
   "vag-player.o" ;; added
   "haven-city-chaos-h.o" ;; added (MOD) -- Haven City : Chaos toggles + hook defaults
-  "mods-menu.o" ;; added -- unified "Debug > Mods" tab (see pc/debug/mods-menu.gc)
-  "haven-city-chaos-menu.o" ;; added (MOD) -- Debug > Mods > haven-city-chaos (after mods-menu.o)
+  "haven-city-chaos-menu.o" ;; added (MOD) -- Mods > haven-city-chaos (see pc/features/haven-city-chaos-menu.gc)
   "default-menu-pc.o" ;; added
   "dir-tpages.go"
   "tpage-11.go"

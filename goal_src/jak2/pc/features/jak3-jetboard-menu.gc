@@ -1,0 +1,89 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+#|
+  ============================================================================
+  jak3-jetboard-menu.gc -- Mods > jak3-jetboard
+  ============================================================================
+
+  Registers this mod's on/off switch with the unified "Mods" menu
+  (goal_src/jak2/pc/features/mods-menu.gc), openable in-game with
+  L3 + SELECT in retail and debug boots.
+
+  The flags are defined in goal_src/jak2/engine/target/board/board-h.gc.
+  Menu layout:
+    [L3 + SELECT] > Mods > jak3-jetboard
+      - Enable (master)        *jak3-jetboard-enable*        -- gates the whole mod
+      - Loaded Jump (L1 + X)   *jak3-jetboard-loaded-jump*   -- charged high jump
+      - Zap Attack (Circle)    *jak3-jetboard-zap*           -- radial electric attack
+      - Turn-Around (Triangle) *jak3-jetboard-turn-around*   -- 180 quick turn + boost
+
+  Wiring: "jak3-jetboard-menu.o" is listed in goal_src/jak2/dgos/game.gd
+  immediately after "mods-menu.o".
+|#
+
+(define-extern *jak3-jetboard-enable* symbol)
+(define-extern *jak3-jetboard-loaded-jump* symbol)
+(define-extern *jak3-jetboard-zap* symbol)
+(define-extern *jak3-jetboard-turn-around* symbol)
+
+;; ============================================================================
+;; Toggle helper
+;; ============================================================================
+
+(defun mod-jak3-jetboard-enable-toggle ()
+  "Master on/off for the jak3-jetboard port. Flip *jak3-jetboard-enable* and
+   mirror the state onto all three per-mechanic flags."
+  (let ((on (not *jak3-jetboard-enable*)))
+    (set! *jak3-jetboard-enable* on)
+    (set! *jak3-jetboard-loaded-jump* on)
+    (set! *jak3-jetboard-zap* on)
+    (set! *jak3-jetboard-turn-around* on)
+    )
+  (none)
+  )
+
+;; ============================================================================
+;; Menu definition (static, costs no heap)
+;; ============================================================================
+
+(define *mod-jak3-jetboard-menu*
+  (new 'static 'popup-menu-submenu :label "jak3-jetboard"
+    :entries (new 'static 'boxed-array :type popup-menu-entry
+      (new 'static 'popup-menu-flag :label "Enable (master)"
+           :is-toggled? (lambda () *jak3-jetboard-enable*)
+           :on-confirm (lambda () (mod-jak3-jetboard-enable-toggle) (none))
+           )
+      (new 'static 'popup-menu-flag :label "Loaded Jump (L1 + X)"
+           :is-toggled? (lambda () *jak3-jetboard-loaded-jump*)
+           :on-confirm (lambda () (set! *jak3-jetboard-loaded-jump* (not *jak3-jetboard-loaded-jump*)) (none))
+           :entry-disabled? (lambda () (not *jak3-jetboard-enable*))
+           )
+      (new 'static 'popup-menu-flag :label "Zap Attack (Circle)"
+           :is-toggled? (lambda () *jak3-jetboard-zap*)
+           :on-confirm (lambda () (set! *jak3-jetboard-zap* (not *jak3-jetboard-zap*)) (none))
+           :entry-disabled? (lambda () (not *jak3-jetboard-enable*))
+           )
+      (new 'static 'popup-menu-flag :label "Turn-Around (Triangle)"
+           :is-toggled? (lambda () *jak3-jetboard-turn-around*)
+           :on-confirm (lambda () (set! *jak3-jetboard-turn-around* (not *jak3-jetboard-turn-around*)) (none))
+           :entry-disabled? (lambda () (not *jak3-jetboard-enable*))
+           )
+      )
+    )
+  )
+
+;; ============================================================================
+;; Menu builder -- pure: returns the static submenu entry.
+;; ============================================================================
+
+(defun mod-jak3-jetboard-build-menu ()
+  "Return this mod's submenu entry."
+  (the-as popup-menu-entry *mod-jak3-jetboard-menu*)
+  )
+
+;; ============================================================================
+;; Register with the unified Mods menu (top-level, runs at file load).
+;; ============================================================================
+
+(mods-menu-register "jak3-jetboard" mod-jak3-jetboard-build-menu)

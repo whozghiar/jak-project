@@ -10,13 +10,36 @@
 ;; Registers with the shared `mods-menu.gc` registry, openable in-game with L3 + SELECT in retail.
 ;;
 ;;   [L3 + SELECT] > Mods > paddywagon-traffic
-;;     Enable (applies on next city load) -- weave Krimzon Guard paddy wagons into Haven traffic
+;;     Enable -- weave Krimzon Guard paddy wagons into Haven traffic
 ;;
-;; NOTE: the want-count is read in `traffic-manager` `init-params`, which runs when the city
-;; (re)loads -- toggling this flag takes effect on the next city load / level reload.
+;; Toggling the mod recycles city traffic pools immediately ('kill-all + 'spawn-all),
+;; dynamically regenerating traffic so paddywagon-v appears without reloading the city.
 ;; ================================================================================================
 
 (define-extern *mod-paddywagon-traffic-enable* symbol)
+
+;; ============================================================================
+;; Toggle side effect: recycle ambient traffic under the new mode.
+;; ============================================================================
+
+(defun mod-paddywagon-traffic-flush-traffic ()
+  "Recycle the ambient city traffic so the new mode is visible immediately,
+   without having to reload the city level.
+   'kill-all + 'spawn-all forces the traffic engine to rebuild pooled processes
+   so paddywagon-v spawns or despawns immediately."
+  (when *traffic-manager*
+    (send-event *traffic-manager* 'kill-all)
+    (send-event *traffic-manager* 'spawn-all)
+    )
+  (none)
+  )
+
+(defun mod-paddywagon-traffic-enable-toggle ()
+  "Toggle master enable flag and recycle traffic pools immediately so change is visible."
+  (set! *mod-paddywagon-traffic-enable* (not *mod-paddywagon-traffic-enable*))
+  (mod-paddywagon-traffic-flush-traffic)
+  (none)
+  )
 
 ;; ============================================================================
 ;; Menu definition (static, costs no heap)
@@ -25,10 +48,10 @@
 (define *mod-paddywagon-traffic-menu*
   (new 'static 'popup-menu-submenu :label "paddywagon-traffic"
     :entries (new 'static 'boxed-array :type popup-menu-entry
-      (new 'static 'popup-menu-flag :label "Enable (applies on next city load)"
+      (new 'static 'popup-menu-flag :label "Enable"
            :is-toggled? (lambda () *mod-paddywagon-traffic-enable*)
            :on-confirm (lambda ()
-                         (set! *mod-paddywagon-traffic-enable* (not *mod-paddywagon-traffic-enable*))
+                         (mod-paddywagon-traffic-enable-toggle)
                          (none))
            )
       )

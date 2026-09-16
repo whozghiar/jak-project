@@ -47,8 +47,10 @@ no `paddywagon-prisoner` is ever spawned. The rest of the wiring is **inert
 rather than gated**, because none of it is reachable without a slot-20 object:
 the renamed enum entries, the extra `case` arms in `traffic-object-spawn` /
 `type-from-vehicle-type`, and `guard.gc`'s object-type-20 knock-off animation
-entry. The want-count is read by `traffic-manager::init-params` on city load, so
-**the toggle applies on the next city (re)load**, not instantly.
+entry. Toggling the mod via the in-game Mods menu immediately triggers a traffic
+recycle pass (`'kill-all` + `'spawn-all`), dynamically updating `want-count`
+and regenerating city traffic pools so **the toggle applies immediately**,
+without requiring a city reload.
 
 The retail `paddywagon` type in `meet-brutter.gc` is **not touched at all**, so
 the *Escort Brutter* mission is bit-for-bit stock whether the mod is on or off.
@@ -390,9 +392,9 @@ See [`docs/modding/tools/model_and_entity_level_injection_guide.md`](../tools/mo
 2. **Rebuild:** `task repl` then `(mi)` (new deftypes + a new `.o` in `cwi.gd` —
    restart the REPL if `(mi)` complains).
 3. **Launch:** `task boot-game`, enter Haven City free-roam.
-4. **Enable:** `Debug ▸ Mods ▸ paddywagon-traffic ▸ Enable` (OFF by default),
-   then reload the city (re-enter from an interior / warp) so `init-params`
-   re-reads the want-count.
+4. **Enable:** `Mods ▸ paddywagon-traffic ▸ Enable` (OFF by default).
+   The traffic pool is immediately recycled in real-time, spawning paddy wagons
+   without needing to reload the city.
 5. **Ambient:** drive around — a boxy armoured van in the car lanes, a Crimson
    Guard at the wheel, a civilian standing arms-crossed in the open rear cage,
    red dot on the minimap.
@@ -537,9 +539,10 @@ ne s'exécute et aucun `paddywagon-prisoner` n'est jamais créé. Le reste du
 câblage est **inerte plutôt que gardé**, car rien n'est atteignable sans un
 objet de slot 20 : les renommages d'enums, les `case` supplémentaires dans
 `traffic-object-spawn` / `type-from-vehicle-type`, et l'entrée d'animation de
-chute pour l'object-type 20 dans `guard.gc`. Le quota est lu par
-`traffic-manager::init-params` au chargement de la ville : **le toggle s'applique
-au prochain (re)chargement de la ville**, pas instantanément.
+chute pour l'object-type 20 dans `guard.gc`. Basculer le mod via le menu Mods en jeu
+déclenche immédiatement un recyclage du trafic (`'kill-all` + `'spawn-all`), mettant
+à jour dynamiquement le `want-count` et régénérant les pools de trafic d'Abriville :
+**le toggle s'applique donc immédiatement**, sans nécessiter de rechargement de la ville.
 
 Le type `paddywagon` d'origine dans `meet-brutter.gc` n'est **absolument pas
 touché** : la mission *Escorter Brutter* est identique au jeu d'origine, mod
@@ -891,9 +894,9 @@ sont ajoutés aux trois `lwide*.gd`. Voir
 2. **Recompiler :** `task repl` puis `(mi)` (nouveaux deftypes + nouveau `.o`
    dans `cwi.gd` — redémarrez le REPL si `(mi)` proteste).
 3. **Lancer :** `task boot-game`, entrez dans Abriville en monde ouvert.
-4. **Activer :** `Debug ▸ Mods ▸ paddywagon-traffic ▸ Enable` (OFF par défaut),
-   puis rechargez la ville (ressortez d'un intérieur / téléportez-vous) pour que
-   `init-params` relise le quota.
+4. **Activer :** `Mods ▸ paddywagon-traffic ▸ Enable` (OFF par défaut).
+   Le pool de trafic est immédiatement recyclé en temps réel, faisant apparaître
+   les fourgons sans devoir recharger la ville.
 5. **Ambiant :** roulez — un van blindé anguleux dans les voies de circulation,
    un Garde Grenat au volant, un civil debout bras croisés dans la cage arrière
    ouverte, point rouge sur la carte.

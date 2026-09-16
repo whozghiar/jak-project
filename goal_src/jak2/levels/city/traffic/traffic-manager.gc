@@ -87,6 +87,9 @@
 
 (defmethod update ((this traffic-manager))
   (update-traffic (-> this traffic-engine))
+  ;; MOD (jak2/features/paddywagon/traffic): keep slot 20 want-count synced with runtime mod toggle
+  (set! (-> this traffic-engine object-type-info-array 20 want-count)
+        (if *mod-paddywagon-traffic-enable* 2 0))
   (kill-excess-once this)
   (spawn-all this)
   (if *debug-segment*
@@ -147,9 +150,16 @@
                                        )
                       )
                 )
-            (if a0-6
-                (deactivate a0-6)
-                )
+            (when (and a0-6
+                       (not (and *target*
+                                 (focus-test? *target* pilot)
+                                 (nonzero? (-> *target* pilot))
+                                 (= a0-6 (handle->process (-> *target* pilot vehicle)))
+                                 )
+                            )
+                       )
+              (deactivate a0-6)
+              )
             )
           )
         )
@@ -787,11 +797,21 @@
        )
       (('kill-all)
        (format #t "traffic-manager::kill-all~%")
+       ;; MOD (paddywagon/traffic): sync slot 20 want-count & target-count with runtime mod toggle
+       (set! (-> self traffic-engine object-type-info-array 20 want-count)
+             (if *mod-paddywagon-traffic-enable* 2 0))
+       (set! (-> self traffic-engine object-type-info-array 20 target-count)
+             (if *mod-paddywagon-traffic-enable* 1 0))
        (deactivate-all (-> self traffic-engine))
        (kill-all-inactive self)
        )
       (('spawn-all)
        (format #t "traffic-manager::spawn-all~%")
+       ;; MOD (paddywagon/traffic): sync slot 20 want-count & target-count with runtime mod toggle
+       (set! (-> self traffic-engine object-type-info-array 20 want-count)
+             (if *mod-paddywagon-traffic-enable* 2 0))
+       (set! (-> self traffic-engine object-type-info-array 20 target-count)
+             (if *mod-paddywagon-traffic-enable* 1 0))
        (set! (-> self fast-spawn) #t)
        (spawn-all self)
        )

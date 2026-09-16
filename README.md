@@ -107,19 +107,18 @@ task boot-game
 
 ### 5. Enable the Mod
 The mod ships **OFF**. In game:
-Open the Mods menu with **L3 + SELECT** (retail and debug boot) `Mods ▸ paddywagon-traffic ▸ Enable`, then **reload the city** (walk
-into an interior and back out, or warp) so the traffic manager re-reads its
-want-counts. Drive around Haven City and watch for a boxy armoured van in the
-car lanes with a figure standing in the back.
+Open the Mods menu with **L3 + SELECT** (retail and debug boot) `Mods ▸ paddywagon-traffic ▸ Enable`.
+The choice persists across level reloads and **takes effect immediately**
+(ambient traffic pools are recycled in real-time via `'kill-all` and `'spawn-all`,
+so paddy wagons appear without having to reload the city). Turn it off to
+restore vanilla traffic immediately. Drive around Haven City and watch for a
+boxy armoured van in the car lanes with a figure standing in the back.
 
 ## 🎥 Demonstration Video
 
-[![Demonstration Video](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
+[![Demonstration Video](https://img.youtube.com/vi/x6uEJcHKudg/maxresdefault.jpg)](https://youtu.be/x6uEJcHKudg)
 
-▶️ **[Watch the demonstration video on YouTube](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)**
-
-> [!NOTE]
-> *Demonstration videos must be hosted externally on YouTube to prevent repository bloating. Replace `YOUR_VIDEO_ID` with the YouTube video ID (e.g. `MnqnybexhSA`) and `https://www.youtube.com/watch?v=YOUR_VIDEO_ID` with the video URL (e.g. `https://youtu.be/MnqnybexhSA`).*
+▶️ **[Watch the demonstration video on YouTube](https://youtu.be/x6uEJcHKudg)**
 
 ## ✅ Compliance Checklist
 - [x] **Native non-regression:** with the mod compiled but its toggle OFF, the traffic want-count for slot 20 is 0, so no `paddywagon-v` is ever constructed and no code in `paddywagon-v.gc` runs. The retail `paddywagon` type and the *Escort Brutter* mission are untouched.
@@ -232,20 +231,19 @@ task boot-game
 ### 5. Activer le Mod
 Le mod est livré **désactivé**. En jeu :
 Ouvrez le menu Mods avec **L3 + SELECT** (accessible en boot retail et debug) :
-`Mods ▸ paddywagon-traffic ▸ Enable`, puis **rechargez la ville**
-(entrez dans un intérieur et ressortez, ou téléportez-vous) pour que le
-gestionnaire de trafic relise ses quotas. Roulez dans Abriville et guettez un
-van blindé anguleux dans les voies de circulation, avec une silhouette debout à
-l'arrière.
+`Mods ▸ paddywagon-traffic ▸ Enable`.
+Le choix persiste au rechargement des niveaux et **prend effet immédiatement**
+(les pools de trafic ambiant sont recyclés en temps réel via `'kill-all` et
+`'spawn-all`, faisant apparaître les fourgons sans recharger la ville).
+Désactivez-le pour rétablir immédiatement le trafic d'origine. Roulez dans
+Abriville et guettez un van blindé anguleux dans les voies de circulation, avec
+une silhouette debout à l'arrière.
 
 ## 🎥 Vidéo Démonstrative
 
-[![Vidéo Démonstrative](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
+[![Vidéo Démonstrative](https://img.youtube.com/vi/x6uEJcHKudg/maxresdefault.jpg)](https://youtu.be/x6uEJcHKudg)
 
-▶️ **[Voir la vidéo de démonstration sur YouTube](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)**
-
-> [!NOTE]
-> *Les vidéos de démonstration doivent être hébergées sur YouTube afin d'éviter d'alourdir le dépôt. Remplacez `YOUR_VIDEO_ID` par l'identifiant de la vidéo YouTube (ex. `MnqnybexhSA`) et `https://www.youtube.com/watch?v=YOUR_VIDEO_ID` par l'URL (ex. `https://youtu.be/MnqnybexhSA`).*
+▶️ **[Voir la vidéo de démonstration sur YouTube](https://youtu.be/x6uEJcHKudg)**
 
 ## ✅ Checklist de Conformité
 - [x] **Non-régression native :** mod compilé mais toggle OFF, le quota de trafic du slot 20 vaut 0 : aucun `paddywagon-v` n'est jamais construit et aucun code de `paddywagon-v.gc` ne s'exécute. Le type `paddywagon` d'origine et la mission *Escorter Brutter* sont intacts.

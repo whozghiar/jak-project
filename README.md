@@ -23,16 +23,11 @@ Significantly intensifies the ambient atmosphere, military presence, and combat 
 
 **The mod ships OFF.** A fresh compiled-but-disabled install plays byte-for-byte
 like stock Jak 2 — stock traffic density, stock alert waves, stock nav-mesh
-limits, no console spam. Turn it on at `Debug ▸ Mods ▸ enhanced-spawnrates ▸
-Enable`.
-
-> ⚠️ **Reload Haven City after toggling `Enable`.** The ambient want-counts are
-> read once when the city loads (`traffic-manager/init-params`) and the nav-mesh
-> user quota is sized once per district on load (`nav-mesh/init-from-entity`), so
-> the denser traffic only appears **after you reload the city** — warp, step
-> through an interior, or reboot. The alert focus-count and cell-activation-range
-> parts of the mod are read live and apply on the next frame. The toggle choice
-> persists across level reloads.
+limits, no console spam. Turn it on at `[L3 + SELECT] ▸ Mods ▸ enhanced-spawnrates ▸ Enable`.
+The choice persists across level reloads and **takes effect immediately**
+(ambient traffic pools are recycled in real-time via `'kill-all` and `'spawn-all`,
+so enhanced density and patrols appear without having to reload the city).
+Turn it off to restore vanilla traffic immediately.
 
 ## ✨ Key Features
 - **Peacetime Crimson Guard Patrols:** Quadrupled Crimson Guard rifle patrols (from 9 to 22), introduced 10 tazer guards during peace, and increased patrol guards (from 1 to 6).
@@ -46,8 +41,10 @@ Enable`.
 ## 🎮 Usage & Controls
 1. Boot the game normally (no debug mode required!). Press **L3 + SELECT** to open the unified in-game **Mods** menu and select **`enhanced-spawnrates`**.
 2. Toggle **`Enable`**.
-3. **Reload Haven City** (warp, or enter and leave any interior) so `init-params` re-reads the want-counts and the nav-mesh is re-sized — otherwise you keep stock traffic density.
-4. To turn the mod off again: toggle `Enable` off and reload the city once more.
+   The choice persists across level reloads and **takes effect immediately**
+   (ambient traffic pools are recycled in real-time via `'kill-all` and `'spawn-all`,
+   so enhanced density and patrols appear without having to reload the city).
+   Turn it off to restore vanilla traffic immediately.
 
 There are no in-world keybindings; the mod is entirely data/spawn tuning.
 
@@ -102,16 +99,11 @@ Intensifie considérablement la vie ambiante, la présence militaire et le dange
 **Le mod est livré DÉSACTIVÉ.** Une installation neuve compilée-mais-désactivée
 joue un Jak 2 identique à l'original — densité de trafic, vagues d'alerte et
 limites nav-mesh d'origine, aucun message console. Activez-le dans
-`Debug ▸ Mods ▸ enhanced-spawnrates ▸ Enable`.
-
-> ⚠️ **Rechargez Abriville après avoir activé `Enable`.** Les want-counts ambiants
-> sont lus une seule fois au chargement de la ville (`traffic-manager/init-params`)
-> et le quota d'utilisateurs du nav-mesh est dimensionné une fois par quartier au
-> chargement (`nav-mesh/init-from-entity`) : le trafic plus dense n'apparaît donc
-> **qu'après rechargement de la ville** — warp, passage par un intérieur, ou
-> redémarrage. Les parties « nombre de cibles en alerte » et « portée d'activation
-> des cellules » sont lues en direct et s'appliquent à la frame suivante. Le choix
-> de la bascule persiste au rechargement des niveaux.
+`[L3 + SELECT] ▸ Mods ▸ enhanced-spawnrates ▸ Enable`.
+Le choix de la bascule persiste au rechargement des niveaux et **prend effet
+immédiatement** (les pools de trafic ambiant sont recyclés en temps réel via
+`'kill-all` et `'spawn-all`, faisant apparaître la densité accrue sans recharger
+la ville). Désactivez-le pour rétablir immédiatement le trafic d'origine.
 
 ## ✨ Fonctionnalités Clés
 - **Patrouilles de Gardes Grenat Hors-Alerte :** Gardes à fusil plus que doublés (de 9 à 22), ajout de 10 gardes tazer en temps de paix et augmentation des patrouilleurs (de 1 à 6).
@@ -125,8 +117,10 @@ limites nav-mesh d'origine, aucun message console. Activez-le dans
 ## 🎮 Utilisation & Commandes
 1. Lancez le jeu normalement (aucun mode debug requis !). Appuyez sur **L3 + SELECT** pour ouvrir le menu unifié **Mods** et sélectionnez **`enhanced-spawnrates`**.
 2. Basculez **`Enable`**.
-3. **Rechargez Abriville** (warp, ou entrez puis sortez d'un intérieur) pour que `init-params` relise les want-counts et que le nav-mesh soit redimensionné — sinon la densité de trafic reste celle d'origine.
-4. Pour désactiver le mod : rebasculez `Enable` et rechargez la ville une nouvelle fois.
+   Le choix persiste au rechargement des niveaux et **prend effet immédiatement**
+   (les pools de trafic ambiant sont recyclés en temps réel via `'kill-all` et
+   `'spawn-all`, faisant apparaître la densité accrue sans devoir recharger la
+   ville). Désactivez-le pour rétablir immédiatement le trafic d'origine.
 
 Aucune touche de jeu dédiée ; le mod n'est que du réglage de données / de spawn.
 
@@ -169,109 +163,4 @@ Pour l'audit technique approfondi, l'architecture et les détails d'implémentat
 - 📄 [`docs/modding/current_mod/enhanced_spawnrates_readme.md`](docs/modding/current_mod/enhanced_spawnrates_readme.md)
 
 ---
-<<<<<<< HEAD
-=======
-
-## 🌿 Architecture Git & Workflows
-
-Le dépôt sépare le code amont officiel et les branches de modding :
-- **`master`** : Miroir direct d'OpenGOAL amont. Aucun commit custom n'y est fait directement.
-- **`master-dev`** : Branche de base pour le modding, l'outillage et la documentation consolidée.
-- **Branches de mods (`jak[N]/[type]/[nom]`)** : Dérivées de `master-dev`.
-
-### Workflow Principal :
-- [`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml) : Rapatrie chaque jour les nouveautés officielles sur `master`, met à jour `master-dev`, teste et fusionne les branches de mods prêtes, et actualise le tableau ci-dessous.
-
-> L'ancien workflow d'agrégation `sync-modding-docs.yaml` a été **supprimé**. Les
-> deux documents de référence (`docs/modding/jak[x]_lisp_instructions.md`,
-> `engine_generic_concepts.md`) ont une seule source de vérité — `master-dev` — et
-> sont mis à jour là directement via `task modding-land-doc` (en ajout seul), puis
-> rapatriés dans les branches de mods avec `task modding-sync-docs`. C'est ce qui
-> évite tout conflit de documentation entre branches de mods développées en
-> parallèle.
-
----
-
-## 📊 Tableau de Bord de Synchronisation des Branches / Branch Sync Dashboard
-
-*L'historique complet des fusions et résolutions est consultable dans [`docs/modding/branch_sync_history.log`](docs/modding/branch_sync_history.log).*
-
-<!-- BRANCH_STATUS_START -->
-> **Dernière mise à jour :** `2026-09-11 13:48:24 UTC`  
-> **Branche source :** `master-dev` (`cdbb2096b`)  
-> **Statut global :** 15/15 synchronisées (0 conflits)
-
-| Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |
-| :--- | :---: | :--- | :--- | :--- |
-| `jak2/config/enhanced_spawnrates` | ✅ À jour | `90728a041 - chore: sync jak2/config/enhanced_spawnrates with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/config/start_menu_wheel` | ✅ À jour | `08233c0e6 - chore: sync jak2/config/start_menu_wheel with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/crimson-blueguard/city-insurrection` | ✅ À jour | `bb3d007b3 - chore: sync jak2/features/crimson-blueguard/city-insurrection with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/crimson-blueguard/peaceful` | ✅ À jour | `a91eee9c0 - chore: sync jak2/features/crimson-blueguard/peaceful with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/dark_jak_enhanced` | ✅ À jour | `427f19cd8 - chore: sync jak2/features/dark_jak_enhanced with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/jak3-jetBoard` | ✅ À jour | `62debc00c - chore: sync jak2/features/jak3-jetBoard with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/paddywagon/traffic` | ✅ À jour | `a55f28582 - chore: sync jak2/features/paddywagon/traffic with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/transport-ag/alert` | ✅ À jour | `1e2d84f6b - chore: sync jak2/features/transport-ag/alert with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/transport-ag/traffic` | ✅ À jour | `b60c12f8f - chore: sync jak2/features/transport-ag/traffic with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/yakow_killable` | ✅ À jour | `480399e6f - chore: sync jak2/features/yakow_killable with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak3/config/memory_increase` | ✅ À jour | `d1b90c9b4 - chore: sync jak3/config/memory_increase with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/city-behavior` | ✅ À jour | `d7a1955af - chore: sync jak3/features/city-behavior with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/jak2_skin_secret` | ✅ À jour | `8123108e9 - chore: sync jak3/features/jak2_skin_secret with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/mega_dark_jak` | ✅ À jour | `b04b08338 - chore: sync jak3/features/mega_dark_jak with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-| `jak3/features/redguard-entity` | ✅ À jour | `67a4892cf - chore: sync jak3/features/redguard-entity with latest origin/master-dev (AI-assisted)` | Déjà à jour | — |
-<!-- BRANCH_STATUS_END -->
-
----
-
-## 🛠️ Référence des commandes `task` / `task` Command Reference
-
-> Builds & runtime use [Taskfile](https://taskfile.dev/). Pass script arguments after `--`.
-> Les builds et l'exécution utilisent [Taskfile](https://taskfile.dev/). Passez les arguments après `--`.
-
-### Jeu actif / Active game
-| Commande | 🇬🇧 | 🇫🇷 |
-| :--- | :--- | :--- |
-| `task set-game-jak1` · `-jak2` · `-jak3` | Persist the target game | Fixe le jeu ciblé |
-
-### Build & CMake
-| Commande | 🇬🇧 | 🇫🇷 |
-| :--- | :--- | :--- |
-| `task gen-cmake-release` | Configure the build (Ninja + clang); auto-wires `sccache` if installed | Configure le build ; câble `sccache` s'il est installé |
-| `task build-release` | Build **all** ~20 binaries (slow — first build / full check) | Build **complet** des ~20 binaires (lent) |
-| `task build-release-game` | Build only `gk` + `goalc` — fast, for engine/compiler C++ iteration | Build `gk` + `goalc` uniquement — rapide, pour le C++ moteur/compilateur |
-| `task build-release-decomp` | Build only the decompiler — after `decompiler/**` changes, then re-`extract` | Build le décompilateur seul — après modif `decompiler/**`, puis re-`extract` |
-| `task build-debug` / `-debug-game` / `-debug-decomp` | Debug equivalents | Équivalents debug |
-| `task clean-cmake` | Remove CMake artifacts | Supprime les artefacts CMake |
-
-### Extraction & décompilation / Extraction & decompile
-| Commande | 🇬🇧 | 🇫🇷 |
-| :--- | :--- | :--- |
-| `task extract` | Extract assets + run the decompiler (re-run after any `decompiler/config` change) | Extrait les assets + lance le décompilateur |
-| `task decomp` / `decomp-file FILE=…` | Decompile all / one object | Décompile tout / un objet |
-| `task rip-textures` / `rip-levels` / `rip-collision` / `rip-audio` | Rip specific asset kinds | Extrait un type d'asset précis |
-
-### REPL & exécution / REPL & run
-| Commande | 🇬🇧 | 🇫🇷 |
-| :--- | :--- | :--- |
-| `task repl` → `(mi)` | Open the compiler REPL; `(mi)` = incremental compile + hot reload (**no C++ build for `.gc` edits**) | Ouvre le REPL ; `(mi)` = compilation incrémentale + hot reload |
-| `task boot-game` / `boot-game-retail` | Boot the game (debug / retail) without the REPL | Démarre le jeu (debug / retail) sans REPL |
-| `task run-game` | Start the runtime, drive it from the REPL | Lance le runtime, piloté depuis le REPL |
-| `task format` / `format-gsrc FILE=…` | Format C++ / one GOAL file | Formate le C++ / un fichier GOAL |
-
-### Workflow de modding / Modding workflow
-| Commande | 🇬🇧 | 🇫🇷 |
-| :--- | :--- | :--- |
-| `task modding-new-branch -- jak2/features/x` | New mod branch from `master-dev` + initial README | Nouvelle branche de mod depuis `master-dev` + README initial |
-| `task modding-sync-branch` | Safe `git merge` of `master-dev` into the current branch (`-- --rebase` / `-- --push`) | `git merge` sûr de `master-dev` dans la branche courante |
-| `task modding-sync-docs` | Pull `docs/modding` + `AGENTS.md` + `CLAUDE.md` from `master-dev` (prunes deleted files) | Rapatrie la doc depuis `master-dev` (purge les fichiers supprimés) |
-| `task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "…" --push` | Land a doc addition on `master-dev` conflict-free, then re-sync your branch | Intègre un ajout de doc sur `master-dev` sans conflit, puis resync |
-| `task modding-branch-status` | Test every mod branch's mergeability + refresh the dashboard (`-- --push` auto-merges) | Teste la fusionnabilité de chaque branche + actualise le tableau |
-| `task modding-audit` | Regenerate `docs/modding/branch_audit.md` | Régénère `docs/modding/branch_audit.md` |
-
-### Tests
-| Commande | 🇬🇧 | 🇫🇷 |
-| :--- | :--- | :--- |
-| `task offline-tests` / `offline-tests-fast` | Decompiler reference tests | Tests de référence du décompilateur |
-| `task unit-tests` / `tests-filtered FILTER=…` | `goalc` unit tests | Tests unitaires `goalc` |
-
->>>>>>> origin/master-dev
 *(AI-assisted)*

@@ -39,8 +39,9 @@ Per CLAUDE.md's golden rules, every behaviour change ships **OFF** behind one fl
 
 | Read timing | Parts | Applies |
 | :--- | :--- | :--- |
-| Once at city load | `traffic-manager/init-params` want-counts; `nav-mesh/init-from-entity` `nav-max-users` | **reload the city** |
-| Live, per frame | `traffic-engine/update-alert-state` focus counts; `restore-default-settings` `inv-density-factor`; `per-frame-cell-update` cull ranges | next frame |
+| Dynamic traffic recycle (`'kill-all` + `'spawn-all`) | `traffic-manager` want-counts; `traffic-engine` `inv-density-factor` | **immediately on toggle** |
+| Live, per frame | `traffic-engine/update-alert-state` focus counts; `per-frame-cell-update` cull ranges | next frame |
+| Once at district load | `nav-mesh/init-from-entity` `nav-max-users` | district streaming / city reload |
 
 ### 2.2 Touched files
 - **`traffic-h.gc`:** defines the flag (see above).
@@ -69,12 +70,12 @@ Per CLAUDE.md's golden rules, every behaviour change ships **OFF** behind one fl
    ```powershell
    task boot-game
    ```
-4. Open `Debug ▸ Mods ▸ enhanced-spawnrates` and toggle **`Enable`**.
-5. **Reload Haven City** (warp or interior round-trip) so `init-params` re-reads
-   the want-counts and the nav-mesh is re-sized.
+4. Open the in-game Mods menu (**L3 + SELECT**) and toggle **`Enable`**.
+5. Traffic pools are immediately recycled in real-time (`'kill-all` + `'spawn-all`),
+   spawning enhanced patrols and dense traffic without having to reload the city.
 6. Roam Haven City to observe dense guard patrols, or shoot at guards / cause
-   chaos to trigger escalating alert levels. Toggle `Enable` off + reload to
-   confirm the return to stock density.
+   chaos to trigger escalating alert levels. Toggle `Enable` off to return to
+   stock density immediately.
 
 ## 4. Current Status & Investigations
 - **Status:** Fully functional and stable across all 11 Haven City districts (`ctywide`, `ctyport`, `ctypal`, `ctyfarmb`, `ctyinda`, `ctysluma`, `hiphog`, `gungame`, `stadium`, etc.).
@@ -125,8 +126,9 @@ livré **DÉSACTIVÉ** derrière une unique variable :
 
 | Moment de lecture | Éléments | Prise d'effet |
 | :--- | :--- | :--- |
-| Une fois au chargement de la ville | want-counts `traffic-manager/init-params` ; `nav-max-users` `nav-mesh/init-from-entity` | **rechargement de la ville** |
-| En direct, chaque frame | nombre de cibles `traffic-engine/update-alert-state` ; `inv-density-factor` (`restore-default-settings`) ; portées de cull `per-frame-cell-update` | frame suivante |
+| Recyclage dynamique du trafic (`'kill-all` + `'spawn-all`) | want-counts `traffic-manager` ; `inv-density-factor` `traffic-engine` | **immédiatement au toggle** |
+| En direct, chaque frame | nombre de cibles `traffic-engine/update-alert-state` ; portées de cull `per-frame-cell-update` | frame suivante |
+| Au chargement d'un quartier | `nav-max-users` `nav-mesh/init-from-entity` | streaming de quartier / rechargement ville |
 
 ### 2.2 Fichiers touchés
 - **`traffic-h.gc` :** définit la variable (voir ci-dessus).
@@ -156,12 +158,12 @@ livré **DÉSACTIVÉ** derrière une unique variable :
    ```powershell
    task boot-game
    ```
-4. Ouvrir `Debug ▸ Mods ▸ enhanced-spawnrates` et basculer **`Enable`**.
-5. **Recharger Abriville** (warp ou aller-retour par un intérieur) pour que
-   `init-params` relise les want-counts et que le nav-mesh soit redimensionné.
+4. Ouvrir le menu Mods en jeu (**L3 + SELECT**) et basculer **`Enable`**.
+5. Les pools de trafic sont immédiatement recyclés en temps réel (`'kill-all` + `'spawn-all`),
+   faisant apparaître les patrouilles accrues sans avoir à recharger la ville.
 6. Se promener dans Abriville pour constater la densité militaire, ou attaquer
-   des gardes pour déclencher les vagues de renforts. Rebasculer `Enable` +
-   recharger pour vérifier le retour à la densité d'origine.
+   des gardes pour déclencher les vagues de renforts. Rebasculer `Enable` pour
+   revenir immédiatement à la densité d'origine.
 
 ## 4. Statut Actuel & Investigations
 - **Statut :** Pleinement fonctionnel et stable sur l'ensemble des 11 quartiers de la ville (`ctywide`, `ctyport`, `ctypal`, `ctyfarmb`, `ctyinda`, `ctysluma`, `hiphog`, `gungame`, `stadium`, etc.).

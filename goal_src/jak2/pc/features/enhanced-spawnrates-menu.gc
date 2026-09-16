@@ -34,17 +34,39 @@
 (define-extern *mod-enhanced-spawnrates-enable* symbol)
 
 ;; ============================================================================
+;; Toggle side effect: recycle ambient traffic under the new mode.
+;; ============================================================================
+
+(defun mod-enhanced-spawnrates-flush-traffic ()
+  "Recycle the ambient city traffic so the new density mode is visible immediately,
+   without having to reload the city level.
+   'kill-all + 'spawn-all forces the traffic engine to rebuild pooled processes
+   according to the new want-counts and density factor."
+  (when *traffic-manager*
+    (send-event *traffic-manager* 'kill-all)
+    (send-event *traffic-manager* 'spawn-all)
+    )
+  (none)
+  )
+
+(defun mod-enhanced-spawnrates-enable-toggle ()
+  "Toggle master enable flag and recycle traffic pools immediately so change is visible."
+  (set! *mod-enhanced-spawnrates-enable* (not *mod-enhanced-spawnrates-enable*))
+  (mod-enhanced-spawnrates-flush-traffic)
+  (none)
+  )
+
+;; ============================================================================
 ;; Menu definition (static, costs no heap)
 ;; ============================================================================
 
 (define *mod-enhanced-spawnrates-menu*
   (new 'static 'popup-menu-submenu :label "enhanced-spawnrates"
     :entries (new 'static 'boxed-array :type popup-menu-entry
-      (new 'static 'popup-menu-flag :label "Enable (denser traffic - reload city to apply)"
+      (new 'static 'popup-menu-flag :label "Enable"
            :is-toggled? (lambda () *mod-enhanced-spawnrates-enable*)
            :on-confirm (lambda ()
-                         (set! *mod-enhanced-spawnrates-enable*
-                               (not *mod-enhanced-spawnrates-enable*))
+                         (mod-enhanced-spawnrates-enable-toggle)
                          (none))
            )
       )

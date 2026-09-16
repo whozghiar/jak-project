@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "crimson-blueguard/crimson-redguard-behavior Source",
-  "lastUpdated": "2026-09-16T14:44:49Z",
+  "lastUpdated": "2026-09-16T22:56:40Z",
   "mods": {
     "crimson-blueguard-crimson-redguard-behavior": {
       "displayName": "crimson-blueguard/crimson-redguard-behavior",
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-16T14:44:49Z",
+          "publishedDate": "2026-09-16T22:56:40Z",
           "supportedGames": [
             "jak2"
           ],

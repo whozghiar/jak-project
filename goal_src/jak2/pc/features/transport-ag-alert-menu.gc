@@ -13,9 +13,39 @@
 ;;     Enable   -- dispatch scripted Crimson Guard troop transport during city alerts
 ;;
 ;; With it OFF the city plays exactly like stock Jak 2.
+;;
+;; Toggling applies IMMEDIATELY: the scheduler is read every frame from
+;; `traffic-manager`'s `active` :post, and the drop-ship's `ctywide-entity-hack` gate is read
+;; at spawn time, so flipping the symbol is all it takes. No save reload, no traffic reset.
 ;; ================================================================================================
 
 (define-extern *mod-transport-ag-alert-enable* symbol)
+
+;; ============================================================================
+;; Toggle side effect: apply the new state to the live city.
+;; ============================================================================
+;; Everything here goes through `*traffic-manager*` + `send-event`, both resident in ENGINE/GAME.
+;; This file ships in GAME.CGO and stays linked outside Haven City, where traffic-manager.o (CWI)
+;; is not loaded -- so it must never call into that file directly, only message it.
+
+(defun mod-transport-ag-alert-enable-toggle ()
+  "Flip the master switch and re-arm the drop-ship scheduler.
+
+   Deliberately does NOT recycle the ambient city traffic. An earlier version sent
+   'kill-all + 'spawn-all here: that returns ~150 traffic processes to
+   `*default-dead-pool*` and immediately asks for them all back, in a single frame, while
+   the game is frozen in 'menu master mode. Traffic objects and the drop-ship both come out
+   of that same pool with a #x4000 stack, so the churn starves the pool exactly when
+   `update-alert-transport` wants to spawn -- `process-spawn` returns #f and you get a
+   console line with no transport under it. The toggle never needed it anyway: both sites
+   that read `*mod-transport-ag-alert-enable*` read it live."
+  (set! *mod-transport-ag-alert-enable* (not *mod-transport-ag-alert-enable*))
+  ;; send a drop-ship that is still in the air home, and clear the stale handle
+  (when *traffic-manager*
+    (send-event *traffic-manager* 'mod-alert-transport-reset #t)
+    )
+  (none)
+  )
 
 ;; ============================================================================
 ;; Menu definition (static, costs no heap)
@@ -26,9 +56,7 @@
     :entries (new 'static 'boxed-array :type popup-menu-entry
       (new 'static 'popup-menu-flag :label "Enable"
            :is-toggled? (lambda () *mod-transport-ag-alert-enable*)
-           :on-confirm (lambda ()
-                         (set! *mod-transport-ag-alert-enable* (not *mod-transport-ag-alert-enable*))
-                         (none))
+           :on-confirm (lambda () (mod-transport-ag-alert-enable-toggle) (none))
            )
       )
     )

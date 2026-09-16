@@ -27,6 +27,11 @@
 ;; mods-menu.o) only `define-extern`s it and flips it.
 (define-perm *mod-transport-ag-alert-enable* symbol #f)
 
+;; `lwide-activate` lives at the bottom of this file and is re-run from
+;; `init-params` (see the FIX block there); levels only ever reach it through the
+;; 'lwide-activate symbol in level-info.gc, so it has no extern anywhere yet.
+(define-extern lwide-activate (function level symbol none))
+
 (deftype traffic-manager (process)
   ((traffic-engine              traffic-engine)
    (fast-spawn                  symbol)
@@ -296,6 +301,89 @@
   (none)
   )
 
+;; ============================================================================
+;; MOD transport-ag/alert -- art-group resolution for a RUNTIME-spawned transport
+;; ============================================================================
+;; `skeleton-group->draw-control` resolves an actor's art-group inside the level
+;; the PROCESS belongs to:
+;;     (load-to-heap-by-name (-> (-> pp level) art-group) "transport" #f global ...)
+;; and when the name is not registered in that level it falls back to
+;; `art-group-load-check`, which is wrapped in `(when *debug-segment* ...)`.
+;; So in a RETAIL boot the fallback returns #f, `initialize-skeleton` does
+;; `(go process-drawable-art-error "art-group")` -- silently, the art-error state
+;; only draws debug text -- and the drop-ship ends up as a live process with no
+;; draw-control, no skeleton and no chin turret. Nothing appears.
+;;
+;; The mod bakes `transport-ag.go` + `tpage-2869.go` into LWIDE{A,B,C}.DGO, so the
+;; hull and its texture page are registered in the *lwide* level, while the retail
+;; `vehicle-turret-ag.go` ships in CWI and is registered in *ctywide*. A process
+;; can only have one level, so bind the drop-ship to the lwide level (that is where
+;; its own geometry and textures live) and publish ctywide's `vehicle-turret`
+;; art-group in the lwide dir so the turret child still resolves.
+;;
+;; Direction matters: lwide{a,b,c} BORROW ctywide's heap, so ctywide always outlives
+;; them. A pointer from the lwide dir into ctywide's art stays valid for the lwide
+;; level's whole life, and dies with it. The reverse would dangle.
+
+(defun mod-alert-art-group-in-level ((lev level) (name string))
+  "Return the art-group registered as `name` in `lev`'s art-group dir, or #f.
+   Pure lookup: unlike `load-to-heap-by-name` it never tries to load from disk."
+  (let ((dir (-> lev art-group)))
+    (when dir
+      (dotimes (i (-> dir string-array length))
+        (if (string= name (-> dir string-array i))
+            (return (-> dir art-group-array i))
+            )
+        )
+      )
+    )
+  (the-as art-group #f)
+  )
+
+(defun mod-alert-transport-art-hack ()
+  "Bind the calling process to the active lwide level so its `transport` art-group
+   and `tpage-2869` resolve in a retail boot, and make sure `vehicle-turret` (which
+   ships in CWI) is reachable from there too. Falls back to `ctywide-entity-hack`
+   when no lwide level is up -- same behaviour as before, never worse."
+  (with-pp
+    (let ((lw (the-as level #f)))
+      (dotimes (i (-> *level* length))
+        (let ((lev (-> *level* level i)))
+          (when (and (not lw)
+                     (= (-> lev status) 'active)
+                     (or (= (-> lev name) 'lwidea)
+                         (= (-> lev name) 'lwideb)
+                         (= (-> lev name) 'lwidec)
+                         )
+                     )
+            (set! lw lev)
+            )
+          )
+        )
+      (cond
+        ((and lw *lwide-entity*)
+         (process-entity-set! pp *lwide-entity*)
+         (let ((cw (level-get *level* 'ctywide)))
+           (when (and cw (not (mod-alert-art-group-in-level lw "vehicle-turret")))
+             (let ((ag (mod-alert-art-group-in-level cw "vehicle-turret")))
+               (when ag
+                 (set-loaded-art (-> lw art-group) ag)
+                 (format 0 "AT: published ctywide's vehicle-turret art-group into ~S~%" (-> lw name))
+                 )
+               )
+             )
+           )
+         )
+        (else
+          (ctywide-entity-hack)
+          )
+        )
+      )
+    0
+    (none)
+    )
+  )
+
 ;; Alert drop-ship integration (V2: native .fr3-baked transport hull).
 ;; While the city alert level is >= 1, spawn a scripted Crimson Guard Troop
 ;; Transport (`transport`, retail `transport.gc`) around the player: it comes
@@ -345,12 +433,33 @@
              (set! (-> this alert-transport-next-check) (+ (current-time) (seconds 3)))
              )
             (else
+              ;; `process-spawn` hands back #f when `*default-dead-pool*` cannot
+              ;; give out another #x4000 process -- which is exactly what happens
+              ;; when the city is full of traffic again. Say so instead of
+              ;; printing a success line for a drop-ship that never existed.
               (let ((proc (process-spawn transport params :to this)))
-                (set! (-> this alert-transport) (ppointer->handle proc))
-                ;; one drop per minute — cooldown measured from this spawn
-                (set! (-> this alert-transport-next-check) (+ (current-time) (seconds 60)))
-                (format 0 "AT: transport drop spawned (alert ~D, ~Mm from player): ~A~%"
-                        (-> this traffic-engine alert-state level) dist (ppointer->process proc))
+                (cond
+                  (proc
+                    (set! (-> this alert-transport) (ppointer->handle proc))
+                    ;; one drop per minute — cooldown measured from this spawn
+                    (set! (-> this alert-transport-next-check) (+ (current-time) (seconds 60)))
+                    ;; `next-state` is the truth: `come-down` means the drop-ship is
+                    ;; really on its way, `process-drawable-art-error` means its
+                    ;; art-group did not resolve and nothing will ever be drawn.
+                    (let ((p (the-as process (ppointer->process proc))))
+                      (format 0 "AT: transport drop spawned (alert ~D, ~Mm from player, at ~`vector`P, state ~S): ~A~%"
+                              (-> this traffic-engine alert-state level) dist landing-pos
+                              (if (-> p next-state) (-> p next-state name) 'none)
+                              p
+                              )
+                      )
+                    )
+                  (else
+                    (set! (-> this alert-transport) (the-as handle #f))
+                    (set! (-> this alert-transport-next-check) (+ (current-time) (seconds 5)))
+                    (format 0 "AT: transport drop FAILED -- no process left in *default-dead-pool*~%")
+                    )
+                  )
                 )
               )
             )
@@ -591,6 +700,51 @@
                                        )
         )
   (restore-default-settings (-> this traffic-engine))
+  ;; ==========================================================================
+  ;; FIX -- Haven City comes back EMPTY after a death / checkpoint restart, and
+  ;;        the guards stop reacting to Jak's crimes.
+  ;; ==========================================================================
+  ;; `reset-and-init` above (-> `traffic-engine::reset-and-init-from-manager`)
+  ;; wipes two things that ONLY `lwide-activate` ever installs:
+  ;;
+  ;;   * `object-type-info-array[0..19].level` -> back to #f (only slot 20 gets
+  ;;     its 'ctywide back).  `spawn-all` refuses to spawn a type whose level is
+  ;;     not 'active:
+  ;;         (if (= (level-status *level* (-> s4-0 level)) 'active)
+  ;;             (logior! (-> s4-0 flags) (traffic-type-flags trtflags-3)))
+  ;;     so every car, bike, citizen and guard is dead in the water => empty city.
+  ;;
+  ;;   * `alert-state` -> `reset` clears its flags, dropping `target-jak` (lwidea:
+  ;;     "guards react to Jak's crimes") and, on lwideb, the forced war-zone alert
+  ;;     (set-alert-level 3 + guard-multi-focus + 6048000s duration).
+  ;;
+  ;; `reset-actors` (death, checkpoint restart, (mi) reload) calls every active
+  ;; level's activate-func IN `*level*` SLOT ORDER, and that order is whatever
+  ;; `level-get-most-disposable` happened to hand out earlier -- nothing
+  ;; guarantees ctywide sits in a lower slot than lwidea.  When it does not:
+  ;;     lwide-activate    -> installs the bindings + the alert flags
+  ;;     ctywide-activate  -> traffic-start -> init-params -> reset-and-init
+  ;;                       -> wipes them, and nobody puts them back
+  ;; until the next full city load.
+  ;;
+  ;; So re-run `lwide-activate` on whichever lwide level is currently active.
+  ;; It is the single source of truth for that configuration and it is
+  ;; idempotent, so this is a plain no-op in the already-correct order (no lwide
+  ;; level is active yet when ctywide activates first) -- and it has to happen
+  ;; HERE, after `restore-default-settings`, which would otherwise overwrite
+  ;; lwideb's alert duration and max level again.
+  (dotimes (i (-> *level* length))
+    (let ((lev (-> *level* level i)))
+      (when (and (= (-> lev status) 'active)
+                 (or (= (-> lev name) 'lwidea)
+                     (= (-> lev name) 'lwideb)
+                     (= (-> lev name) 'lwidec)
+                     )
+                 )
+        (lwide-activate lev 'life)
+        )
+      )
+    )
   (set! *traffic-manager* this)
   0
   (none)
@@ -791,6 +945,23 @@
        (format #t "traffic-manager::spawn-all~%")
        (set! (-> self fast-spawn) #t)
        (spawn-all self)
+       )
+      ;; MOD transport-ag/alert: let the Mods menu apply an on/off flip immediately
+      ;; instead of only on the next city load. Sent by
+      ;; goal_src/jak2/pc/features/transport-ag-alert-menu.gc, which lives in GAME
+      ;; and can therefore only reach this file through an event.
+      ;;   param 0 #t  -> also send a drop-ship that is still in the air home
+      ;; Unknown to stock Jak 2, so nothing else can ever raise it.
+      (('mod-alert-transport-reset)
+       (when (and (> (-> arg3 num-params) 0) (-> arg3 param 0))
+         (let ((proc (handle->process (-> self alert-transport))))
+           (if proc
+               (send-event proc 'leave)
+               )
+           )
+         )
+       (set! (-> self alert-transport) (the-as handle #f))
+       (set! (-> self alert-transport-next-check) (+ (current-time) (seconds 5)))
        )
       (('set-density-factor)
        (let ((f0-3 (the-as float (-> arg3 param 0))))

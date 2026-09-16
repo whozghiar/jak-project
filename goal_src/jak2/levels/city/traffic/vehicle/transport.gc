@@ -7,6 +7,10 @@
 
 (define-extern ctywide-entity-hack (function none))
 
+;; MOD transport-ag/alert: defined in traffic-manager.gc, which links AFTER this file
+;; in CWI.DGO -- same forward-declaration trick as `ctywide-entity-hack` above.
+(define-extern mod-alert-transport-art-hack (function none))
+
 ;; MOD transport-ag/alert: switch defined (define-perm) in traffic-manager.gc,
 ;; also resident in the CWI DGO. Declared here for the gate just below.
 (define-extern *mod-transport-ag-alert-enable* symbol)
@@ -501,11 +505,16 @@
   (set! (-> self count-guard) (the-as uint 0))
   (set! (-> self nav-mesh) (-> arg0 nav-mesh))
   (set! (-> self max-time) 0.0)
-  ;; MOD transport-ag/alert: the .fr3-baked transport-ag hull only needs this
-  ;; city-wide entity hack for the mod's alert drop-ship. Retail story transports
-  ;; ran fine without it, so keep it gated behind the mod toggle (OFF by default).
+  ;; MOD transport-ag/alert: a runtime-spawned drop-ship has no entity, so it
+  ;; inherits its parent's level and its art-group lookup goes to whatever level
+  ;; that is. `mod-alert-transport-art-hack` puts it on the lwide level, where the
+  ;; mod baked `transport-ag` + `tpage-2869`; without it the lookup falls through to
+  ;; `art-group-load-check`, which is `(when *debug-segment* ...)` and therefore a
+  ;; no-op in a retail boot -> silent `process-drawable-art-error`, nothing drawn.
+  ;; Retail story transports spawn from an entity in a level that already carries
+  ;; `transport-ag`, so they never needed any of this: keep it behind the toggle.
   (when *mod-transport-ag-alert-enable*
-    (ctywide-entity-hack)
+    (mod-alert-transport-art-hack)
     )
   (initialize-skeleton
     self

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "crimson-blueguard/peaceful Source",
-  "lastUpdated": "2026-09-16T14:44:51Z",
+  "lastUpdated": "2026-09-16T22:56:42Z",
   "mods": {
     "crimson-blueguard-peaceful": {
       "displayName": "crimson-blueguard/peaceful",
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-16T14:44:51Z",
+          "publishedDate": "2026-09-16T22:56:42Z",
           "supportedGames": [
             "jak2"
           ],

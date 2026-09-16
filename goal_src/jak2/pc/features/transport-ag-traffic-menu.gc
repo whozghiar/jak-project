@@ -10,13 +10,36 @@
 ;; Registers with the shared `mods-menu.gc` registry, openable in-game with L3 + SELECT in retail.
 ;;
 ;;   [L3 + SELECT] > Mods > transport-ag-traffic
-;;     Enable (applies on next city load) -- weave Crimson Guard troop transports into city traffic
+;;     Enable -- weave Crimson Guard troop transports into city traffic
 ;;
-;; NOTE: the want-count is read in `traffic-manager` `init-params`, which runs when the city
-;; (re)loads -- toggling this flag takes effect on the next city load / level reload.
+;; Toggling the mod recycles city traffic pools immediately ('kill-all + 'spawn-all),
+;; dynamically regenerating traffic so transport-v appears without reloading the city.
 ;; ================================================================================================
 
 (define-extern *mod-transport-ag-traffic-enable* symbol)
+
+;; ============================================================================
+;; Toggle side effect: recycle ambient traffic under the new mode.
+;; ============================================================================
+
+(defun mod-transport-ag-traffic-flush-traffic ()
+  "Recycle the ambient city traffic so the new mode is visible immediately,
+   without having to reload the city level.
+   'kill-all + 'spawn-all forces the traffic engine to rebuild pooled processes
+   so transport-v spawns or despawns immediately."
+  (when *traffic-manager*
+    (send-event *traffic-manager* 'kill-all)
+    (send-event *traffic-manager* 'spawn-all)
+    )
+  (none)
+  )
+
+(defun mod-transport-ag-traffic-enable-toggle ()
+  "Toggle master enable flag and recycle traffic pools immediately so change is visible."
+  (set! *mod-transport-ag-traffic-enable* (not *mod-transport-ag-traffic-enable*))
+  (mod-transport-ag-traffic-flush-traffic)
+  (none)
+  )
 
 ;; ============================================================================
 ;; Menu definition (static, costs no heap)
@@ -25,10 +48,10 @@
 (define *mod-transport-ag-traffic-menu*
   (new 'static 'popup-menu-submenu :label "transport-ag-traffic"
     :entries (new 'static 'boxed-array :type popup-menu-entry
-      (new 'static 'popup-menu-flag :label "Enable (applies on next city load)"
+      (new 'static 'popup-menu-flag :label "Enable"
            :is-toggled? (lambda () *mod-transport-ag-traffic-enable*)
            :on-confirm (lambda ()
-                         (set! *mod-transport-ag-traffic-enable* (not *mod-transport-ag-traffic-enable*))
+                         (mod-transport-ag-traffic-enable-toggle)
                          (none))
            )
       )
@@ -45,3 +68,4 @@
   )
 
 (mods-menu-register "transport-ag-traffic" mod-transport-ag-traffic-build-menu)
+

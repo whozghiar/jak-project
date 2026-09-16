@@ -66,9 +66,10 @@ Mods menu with **L3 + SELECT** (works in retail boot, no debug mode required):
 Mods ▸ transport-ag-traffic ▸ Enable
 ```
 
-The choice persists across level reloads and **takes effect on the next city
-load** (the traffic want-count is read when the city loads). Turn it off and
-reload the city to restore vanilla traffic.
+The choice persists across level reloads and **takes effect immediately**
+(ambient traffic pools are recycled in real-time via `'kill-all` and `'spawn-all`,
+so troop transports appear without having to reload the city). Turn it off to
+restore vanilla traffic immediately.
 
 ## 🎥 Demonstration Video
 [![Demonstration Video](https://img.youtube.com/vi/MnqnybexhSA/maxresdefault.jpg)](https://youtu.be/MnqnybexhSA)
@@ -135,9 +136,10 @@ boot retail, aucun mode debug requis) :
 Mods ▸ transport-ag-traffic ▸ Enable
 ```
 
-Le choix persiste au rechargement des niveaux et **prend effet au prochain
-chargement de la ville** (le want-count du trafic est lu au chargement de la
-ville). Désactivez-le et rechargez la ville pour rétablir le trafic d'origine.
+Le choix persiste au rechargement des niveaux et **prend effet immédiatement**
+(les pools de trafic ambiant sont recyclés en temps réel via `'kill-all` et
+`'spawn-all`, faisant apparaître les vaisseaux sans recharger la ville).
+Désactivez-le pour rétablir immédiatement le trafic d'origine.
 
 ## 🎥 Encart Vidéo Démonstrative
 [![Vidéo de Démonstration](https://img.youtube.com/vi/MnqnybexhSA/maxresdefault.jpg)](https://youtu.be/MnqnybexhSA)

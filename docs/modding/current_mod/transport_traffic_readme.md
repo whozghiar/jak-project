@@ -36,8 +36,10 @@ The renamed enum entries (`traffic-type-20` → `transport-v`, `vehicle-type 11`
 the extra `case` arms in `traffic-object-spawn` / `type-from-vehicle-type`, and
 `guard.gc`'s object-type-20 knock-off anim entry are all **inert when the
 want-count is 0** (no `transport-v` is ever constructed) and are left unguarded.
-The want-count is read on city load, so **the toggle applies on the next city
-(re)load**, not instantly.
+Toggling the mod via the in-game Mods menu immediately triggers a traffic
+recycle pass (`'kill-all` + `'spawn-all`), dynamically updating `want-count`
+and regenerating city traffic pools so **the toggle applies immediately**,
+without requiring a city reload.
 
 ### 2. Why `vehicle-guard` / `hellcat` is the base
 

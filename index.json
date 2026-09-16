@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "jak3-jetBoard Source",
-  "lastUpdated": "2026-09-16T14:44:57Z",
+  "lastUpdated": "2026-09-16T22:56:48Z",
   "mods": {
     "jak3-jetBoard": {
       "displayName": "jak3-jetBoard",
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-16T14:44:57Z",
+          "publishedDate": "2026-09-16T22:56:48Z",
           "supportedGames": [
             "jak2"
           ],

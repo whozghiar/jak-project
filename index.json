@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.0.0",
-  "sourceName": "crimson-blueguard/peaceful Source",
-  "lastUpdated": "2026-09-16T22:56:42Z",
+  "sourceName": "Peaceful Haven City (Freedom Fighters) Source",
+  "lastUpdated": "2026-09-16T23:58:21Z",
   "mods": {
     "crimson-blueguard-peaceful": {
-      "displayName": "crimson-blueguard/peaceful",
-      "description": "Adds a blue-recolored Crimson Guard as its own, standalone entity — a new GOAL type (`crimson-blue-guard`) that reuses 100% of the stock `crimson-guard`'s behavior, animations and sounds, only with a re-textured mesh. It appears in Haven City mixed into the normal ambient guard traffic, alongside the regular red guards.",
+      "displayName": "Peaceful Haven City (Freedom Fighters)",
+      "description": "Ce mod pour Jak II remplace les gardes rouges par une faction autonome de Gardes Krimzon bleus patrouillant dans Haven City à la manière de Jak 3. Organisés en escouades coordonnées de deux à trois membres, à pied comme aux commandes des hellcat de la ville, ces gardes adoptent un comportement neutre qui n'alerte pas toute la ville en cas d'incident et ignore même les agressions contre les civils. Double de vie, ils ripostent uniquement en cas d'attaque directe",
       "authors": [
         "whozghiar"
       ],
@@ -19,18 +19,18 @@
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/crimson-blueguard/peaceful",
       "versions": [
         {
-          "version": "1.0.0",
-          "publishedDate": "2026-09-16T22:56:42Z",
+          "version": "crimson-blueguard-peaceful-vpeaceful-haven-city-v1.0",
+          "publishedDate": "2026-09-16T23:58:21Z",
           "supportedGames": [
             "jak2"
           ],
           "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/crimson-blueguard-peaceful-v1.0.0/windows-crimson-blueguard-peaceful-v1.0.0.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/crimson-blueguard-peaceful-v1.0.0/linux-crimson-blueguard-peaceful-v1.0.0.zip"
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/crimson-blueguard-peaceful-vpeaceful-haven-city-v1.0/windows-crimson-blueguard-peaceful-vpeaceful-haven-city-v1.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/crimson-blueguard-peaceful-vpeaceful-haven-city-v1.0/linux-crimson-blueguard-peaceful-vpeaceful-haven-city-v1.0.zip"
           },
           "checksums": {
-            "windows": "",
-            "linux": ""
+            "windows": "47cb414ccabf5f7d341c3c9cf82253d90ad373bf87a00b6ce9ff2d87f104d3ce",
+            "linux": "20679efe842a7f6453b0569bbb72c91cf124b9e0200e1d9e024da66e3ac20e78"
           }
         }
       ],

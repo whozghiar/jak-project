@@ -5,11 +5,11 @@ mod branch.
 
 Why this exists
 ---------------
-`docs/modding/*_lisp_instructions.md` and `docs/modding/engine_generic_concepts.md`
-have exactly one source of truth: **master-dev**. Editing them on a mod branch and
-merging later is what produced constant conflicts. Instead, a discovery made while
-modding is "landed" straight onto master-dev as a tiny dedicated commit, then
-pulled back into the mod branch with `sync_docs_from_master.py`.
+`docs/modding/*_lisp_instructions.md`, `docs/modding/engine_generic_concepts.md`
+and `.agents/skills/*/discoveries.md` have exactly one source of truth: **master-dev**.
+Editing them on a mod branch and merging later is what produced constant conflicts.
+Instead, a discovery made while modding is "landed" straight onto master-dev as a tiny
+dedicated commit, then pulled back into the mod branch with `sync_docs_from_master.py`.
 
 This script does that round-trip for you:
 
@@ -18,16 +18,20 @@ This script does that round-trip for you:
 
 Usage
 -----
-    # 1. On your mod branch, edit the doc file(s) — append your verified block
-    #    below the "APPEND NEW VERIFIED ENTRIES" marker.
+    # 1. On your mod branch, edit the doc/memory file(s) — append your verified block.
     # 2. Run:
     python scripts/modding/land_doc_on_master_dev.py \
         --file docs/modding/jak2_lisp_instructions.md \
         --message "jak2: send-event stack message block" --push
 
+    # Or for agent memory discoveries:
+    python scripts/modding/land_doc_on_master_dev.py \
+        --file .agents/skills/engine-internals/discoveries.md \
+        --message "engine: haven city traffic discoveries" --push
+
 Rules enforced
 --------------
-- Every --file must live under docs/modding/.
+- Every --file must live under docs/modding/ or .agents/.
 - Your working tree must be clean apart from the --file(s) (commit/stash the rest).
 - Your branch's version of each --file must be master-dev's version PLUS a clean
   addition (that is what "append-only" buys you). If the diff does not apply onto
@@ -63,7 +67,7 @@ def current_branch():
 def main():
     ap = argparse.ArgumentParser(description="Land a modding-doc change on master-dev conflict-free.")
     ap.add_argument("--file", action="append", required=True, metavar="PATH",
-                    help="Doc file under docs/modding/ to carry over (repeatable).")
+                    help="Doc or memory file under docs/modding/ or .agents/ to carry over (repeatable).")
     ap.add_argument("--message", required=True, help="Short summary for the commit subject.")
     ap.add_argument("--push", action="store_true", help="Push master-dev after committing.")
     ap.add_argument("--source", default="master-dev", help="Canonical branch (default: master-dev).")
@@ -71,8 +75,8 @@ def main():
 
     files = [f.replace("\\", "/").strip() for f in args.file]
     for f in files:
-        if not f.startswith("docs/modding/"):
-            sys.exit(f"Refusing: {f} is not under docs/modding/.")
+        if not (f.startswith("docs/modding/") or f.startswith(".agents/")):
+            sys.exit(f"Refusing: {f} is not under docs/modding/ or .agents/.")
         if not os.path.isfile(os.path.join(REPO_ROOT, f)):
             sys.exit(f"Refusing: {f} does not exist.")
 

@@ -92,8 +92,9 @@ def main():
         run_cmd(f"git checkout {source_ref} -- " + " ".join(f'"{f}"' for f in master_modding_files))
 
     # 3. Prune: anything under docs/modding/ that master-dev no longer tracks
+    # (Do not prune docs/modding/current_mod/ which contains branch-specific Tier 2 mod readmes)
     here = tracked_files("HEAD", "docs/modding")
-    stale = sorted(here - master_modding_files)
+    stale = sorted(f for f in (here - master_modding_files) if not f.startswith("docs/modding/current_mod/"))
     if stale:
         print(f"Pruning {len(stale)} obsolete file(s) removed on {source_ref}:")
         for f in stale:

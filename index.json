@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.0.0",
-  "sourceName": "dark_jak_enhanced Source",
-  "lastUpdated": "2026-09-16T22:56:44Z",
+  "sourceName": "Dark Jak Enhanced Source",
+  "lastUpdated": "2026-09-16T23:22:18Z",
   "mods": {
     "dark-jak-enhanced": {
-      "displayName": "dark_jak_enhanced",
-      "description": "The **Dark Jak Enhanced** mod adds a full 3rd evolutionary stage to Dark Jak in Jak 2: the **Mega-Mega Dark Jak (Titan / Colossus)**, alongside critical quality-of-life improvements, restored acrobatics for Level 1 Dark Jak, instantaneous Dark Bomb activation, and enhanced collision resilience.",
+      "displayName": "Dark Jak Enhanced",
+      "description": "Cette mise à jour enrichit l'expérience de Dark Jak avec un système d'évolution sur trois paliers de taille (jusqu'à x3,5 via L2), + retour à la forme normale d'une en appuyant sur R2. Possibilité de roulades et sauts agiles au niveau 1, au déclenchement immédiat de la Dark Bomb en plein saut et à la suppression des interruptions du Dark Blast dans les espaces confinés.",
       "authors": [
         "whozghiar"
       ],
@@ -19,18 +19,18 @@
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/dark_jak_enhanced",
       "versions": [
         {
-          "version": "1.0.0",
-          "publishedDate": "2026-09-16T22:56:44Z",
+          "version": "dark_jak_enhanced-vdark-jak-enhanced-v1.0",
+          "publishedDate": "2026-09-16T23:22:18Z",
           "supportedGames": [
             "jak2"
           ],
           "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/dark_jak_enhanced-v1.0.0/windows-dark_jak_enhanced-v1.0.0.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/dark_jak_enhanced-v1.0.0/linux-dark_jak_enhanced-v1.0.0.zip"
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/dark_jak_enhanced-vdark-jak-enhanced-v1.0/windows-dark_jak_enhanced-vdark-jak-enhanced-v1.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/dark_jak_enhanced-vdark-jak-enhanced-v1.0/linux-dark_jak_enhanced-vdark-jak-enhanced-v1.0.zip"
           },
           "checksums": {
-            "windows": "",
-            "linux": ""
+            "windows": "b68d201be37ee8e16cbcbc7aeeb8d9dc58104339b8e75e979122fb4b45dc9306",
+            "linux": "3a64295c9c501b962dab0b07665a9fb09594ee083e3ce78c991ad6f6a0de008a"
           }
         }
       ],

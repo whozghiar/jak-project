@@ -181,3 +181,11 @@ Ce document consigne l'historique complet des tentatives de fusions automatiques
 | `2026-09-13 20:50:26` | 🔄 Auto-fusion | `jak3/features/jak2_skin_secret` | Fusion automatique réussie avec origin/master-dev (`960e9a035 - chore(sync): align jak3/features/jak2_skin_secret with latest origin/master-dev`) |
 | `2026-09-13 20:50:30` | 🔄 Auto-fusion | `jak3/features/mega_dark_jak` | Fusion automatique réussie avec origin/master-dev (`6e469f919 - chore(sync): align jak3/features/mega_dark_jak with latest origin/master-dev`) |
 | `2026-09-13 20:50:35` | 🔄 Auto-fusion | `jak3/features/redguard-entity` | Fusion automatique réussie avec origin/master-dev (`2eabc1f3c - chore(sync): align jak3/features/redguard-entity with latest origin/master-dev`) |
+| `2026-09-15 14:45:32` | ⚠️ Conflit | `jak2/config/enhanced_spawnrates` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `goal_src/jak2/dgos/game.gd` |
+| `2026-09-15 14:45:36` | 🔄 Auto-fusion | `jak2/config/start_menu_wheel` | Fusion automatique réussie avec origin/master-dev (`3230e1703 - chore(sync): align jak2/config/start_menu_wheel with latest origin/master-dev`) |
+| `2026-09-15 14:45:36` | ⚠️ Conflit | `jak2/features/paddywagon/traffic` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `goal_src/jak2/dgos/game.gd` |
+| `2026-09-15 14:45:36` | ⚠️ Conflit | `jak2/features/transport-ag/alert` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `goal_src/jak2/dgos/game.gd` |
+| `2026-09-15 14:45:36` | ⚠️ Conflit | `jak2/features/transport-ag/traffic` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `goal_src/jak2/dgos/game.gd` |
+| `2026-09-15 14:45:46` | 🔄 Auto-fusion | `jak3/features/city-behavior` | Fusion automatique réussie avec origin/master-dev (`2dafe1b36 - chore(sync): align jak3/features/city-behavior with latest origin/master-dev`) |
+| `2026-09-15 14:45:52` | 🔄 Auto-fusion | `jak3/features/jak2_skin_secret` | Fusion automatique réussie avec origin/master-dev (`8becf0413 - chore(sync): align jak3/features/jak2_skin_secret with latest origin/master-dev`) |
+| `2026-09-15 14:45:55` | 🔄 Auto-fusion | `jak3/features/mega_dark_jak` | Fusion automatique réussie avec origin/master-dev (`592177b0a - chore(sync): align jak3/features/mega_dark_jak with latest origin/master-dev`) |

@@ -11,6 +11,11 @@
 
 (define *traffic-fast-spawn* #f)
 
+;; `lwide-activate` lives at the bottom of this file and is re-run from
+;; `init-params` (see the FIX block there); levels only ever reach it through the
+;; 'lwide-activate symbol in level-info.gc, so it has no extern anywhere yet.
+(define-extern lwide-activate (function level symbol none))
+
 ;; ============================================================================
 ;; MOD: paddywagon / traffic -- runtime on/off switch (Debug > Mods)
 ;; ============================================================================
@@ -544,6 +549,51 @@
                                        )
         )
   (restore-default-settings (-> this traffic-engine))
+  ;; ==========================================================================
+  ;; FIX -- Haven City comes back EMPTY after a death / checkpoint restart, and
+  ;;        the guards stop reacting to Jak's crimes.
+  ;; ==========================================================================
+  ;; `reset-and-init` above (-> `traffic-engine::reset-and-init-from-manager`)
+  ;; wipes two things that ONLY `lwide-activate` ever installs:
+  ;;
+  ;;   * `object-type-info-array[0..19].level` -> back to #f (only slot 20 gets
+  ;;     its 'ctywide back).  `spawn-all` refuses to spawn a type whose level is
+  ;;     not 'active:
+  ;;         (if (= (level-status *level* (-> s4-0 level)) 'active)
+  ;;             (logior! (-> s4-0 flags) (traffic-type-flags trtflags-3)))
+  ;;     so every car, bike, citizen and guard is dead in the water => empty city.
+  ;;
+  ;;   * `alert-state` -> `reset` clears its flags, dropping `target-jak` (lwidea:
+  ;;     "guards react to Jak's crimes") and, on lwideb, the forced war-zone alert
+  ;;     (set-alert-level 3 + guard-multi-focus + 6048000s duration).
+  ;;
+  ;; `reset-actors` (death, checkpoint restart, (mi) reload) calls every active
+  ;; level's activate-func IN `*level*` SLOT ORDER, and that order is whatever
+  ;; `level-get-most-disposable` happened to hand out earlier -- nothing
+  ;; guarantees ctywide sits in a lower slot than lwidea.  When it does not:
+  ;;     lwide-activate    -> installs the bindings + the alert flags
+  ;;     ctywide-activate  -> traffic-start -> init-params -> reset-and-init
+  ;;                       -> wipes them, and nobody puts them back
+  ;; until the next full city load.
+  ;;
+  ;; So re-run `lwide-activate` on whichever lwide level is currently active.
+  ;; It is the single source of truth for that configuration and it is
+  ;; idempotent, so this is a plain no-op in the already-correct order (no lwide
+  ;; level is active yet when ctywide activates first) -- and it has to happen
+  ;; HERE, after `restore-default-settings`, which would otherwise overwrite
+  ;; lwideb's alert duration and max level again.
+  (dotimes (i (-> *level* length))
+    (let ((lev (-> *level* level i)))
+      (when (and (= (-> lev status) 'active)
+                 (or (= (-> lev name) 'lwidea)
+                     (= (-> lev name) 'lwideb)
+                     (= (-> lev name) 'lwidec)
+                     )
+                 )
+        (lwide-activate lev 'life)
+        )
+      )
+    )
   (set! *traffic-manager* this)
   0
   (none)

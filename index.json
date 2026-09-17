@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "city-behavior Source",
-  "lastUpdated": "2026-09-16T22:56:53Z",
+  "lastUpdated": "2026-09-17T00:55:19Z",
   "mods": {
     "city-behavior": {
       "displayName": "city-behavior",
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-16T22:56:53Z",
+          "publishedDate": "2026-09-17T00:55:19Z",
           "supportedGames": [
             "jak3"
           ],

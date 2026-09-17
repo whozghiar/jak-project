@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0.0",
+  "sourceName": "Peaceful Haven City (Freedom Fighters) Source",
+  "lastUpdated": "2026-09-17T21:58:03Z",
+  "mods": {
+    "peaceful-haven-city": {
+      "displayName": "Peaceful Haven City (Freedom Fighters)",
+      "description": "This Jak 2 mod introduces the standalone blue Krimzon Guard as a replacement for red guards, deploying them across Haven City as neutral, coordinated tactical patrol squads and vehicle pilots that retaliate only when provoked without triggering city alarm raising wanted level.",
+      "authors": [
+        "whozghiar"
+      ],
+      "tags": [
+        "gameplay",
+        "custom-engine"
+      ],
+      "supportedGames": [
+        "jak2"
+      ],
+      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/peaceful-haven-city",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "publishedDate": "2026-09-17T21:58:03Z",
+          "supportedGames": [
+            "jak2"
+          ],
+          "assets": {
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/peaceful-haven-city-v1.0.0/windows-peaceful-haven-city-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/peaceful-haven-city-v1.0.0/linux-peaceful-haven-city-v1.0.0.zip"
+          },
+          "checksums": {
+            "windows": "44cbdde139c18974464b782e88dab400853d1b44ba1a0b1d0523686090a24348",
+            "linux": "61d7cb5c78b9e01e81db0de95442ed5de66c880b5a326e8aaf07fca12c050612"
+          }
+        }
+      ],
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/peaceful-haven-city/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/peaceful-haven-city/docs/img/mod/mod_cover.png"
+    }
+  },
+  "texturePacks": {}
+}

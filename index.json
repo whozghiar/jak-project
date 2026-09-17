@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "transport-ag/alert Source",
-  "lastUpdated": "2026-09-17T00:55:15Z",
+  "lastUpdated": "2026-09-17T14:48:00Z",
   "mods": {
     "transport-ag-alert": {
       "displayName": "transport-ag/alert",
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-17T00:55:15Z",
+          "publishedDate": "2026-09-17T14:48:00Z",
           "supportedGames": [
             "jak2"
           ],

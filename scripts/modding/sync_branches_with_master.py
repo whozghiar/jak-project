@@ -194,8 +194,10 @@ def merge_and_push_branch(branch, source_ref):
         # very push is what makes that badge go green — GitHub renders it live from the
         # workflow run it triggers, nothing here needs to touch the README to update it.
 
-        # Generate or update index.json for the branch
-        run_cmd(f'python "{os.path.join(REPO_ROOT, "scripts", "modding", "update_mod_catalog.py")}" --branch "{branch}"')
+        # Refresh index.json's display metadata only — a routine sync is not a release,
+        # so it must never fabricate a draft versions[] entry (see update_mod_catalog.py's
+        # refresh_metadata_only: that used to happen here every single day).
+        run_cmd(f'python "{os.path.join(REPO_ROOT, "scripts", "modding", "update_mod_catalog.py")}" --branch "{branch}" --metadata-only')
         run_cmd('git add index.json')
 
         commit_msg = (

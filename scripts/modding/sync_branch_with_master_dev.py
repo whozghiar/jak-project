@@ -175,8 +175,10 @@ def main():
         # into the README at branch creation. The --push below is what makes it go
         # green — GitHub renders it live from that workflow's run history.
 
-        # Generate or update index.json for the branch
-        run_cmd(f'python "{os.path.join(REPO_ROOT, "scripts", "modding", "update_mod_catalog.py")}" --branch "{target_branch}"', check=False)
+        # Refresh index.json's display metadata only — a routine sync is not a release,
+        # so it must never fabricate a draft versions[] entry (see update_mod_catalog.py's
+        # refresh_metadata_only: that used to happen here every single time you synced).
+        run_cmd(f'python "{os.path.join(REPO_ROOT, "scripts", "modding", "update_mod_catalog.py")}" --branch "{target_branch}" --metadata-only', check=False)
         run_cmd('git add index.json', check=False)
 
         # Verify if real source code conflicts remain

@@ -222,6 +222,57 @@ def get_next_version(index_path: Path, mod_slug: str = "") -> str:
   return candidate_tag
 
 
+def refresh_metadata_only(index_path, mod_id, display_name, description, supported_games, cover_url):
+  """
+  Update only a mod's display metadata (name, description, supported games, cover) in
+  an EXISTING index.json entry — never touches `versions[]`, never invents a tag.
+
+  A routine branch sync is not a release: it must never fabricate a draft version with
+  an empty checksum and a download URL pointing at a GitHub Release nothing built. Only
+  a real `--tag ... --win-sha ... --lin-sha ...` call (release.yml) may touch versions[].
+  For the same reason, this never CREATES a mod's first catalog entry either — that
+  first entry is what marks a mod as actually released; a mod with zero real releases
+  should not show up in the public launcher catalog at all.
+  """
+  if not index_path.exists():
+    print(f"No {index_path} yet — nothing to refresh (a real release creates it).")
+    return
+
+  try:
+    with open(index_path, "r", encoding="utf-8") as f:
+      catalog = json.load(f)
+  except Exception as err:
+    print(f"Warning: could not read {index_path}, skipping metadata refresh: {err}")
+    return
+
+  mod_entry = catalog.get("mods", {}).get(mod_id)
+  if mod_entry is None:
+    print(f"'{mod_id}' has no entry in {index_path} yet — nothing to refresh (a real release creates it).")
+    return
+
+  before = json.dumps(mod_entry, sort_keys=True)
+
+  mod_entry["displayName"] = display_name
+  mod_entry["description"] = description
+  mod_entry["supportedGames"] = supported_games
+  if cover_url:
+    mod_entry["coverArtUrl"] = cover_url
+    mod_entry["thumbnailArtUrl"] = cover_url
+
+  if json.dumps(mod_entry, sort_keys=True) == before:
+    print(f"[OK] '{mod_id}' metadata unchanged — {index_path} left as-is.")
+    return
+
+  catalog["sourceName"] = f"{display_name} Source"
+  catalog["lastUpdated"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+  with open(index_path, "w", encoding="utf-8") as f:
+    json.dump(catalog, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+
+  print(f"[OK] Refreshed '{mod_id}' metadata (name/description/games/cover) in {index_path} — versions[] untouched.")
+
+
 def main():
   parser = argparse.ArgumentParser(
       description="Update or create an OpenGOAL mod-source index.json catalog."
@@ -294,6 +345,14 @@ def main():
       help="Target branch name (e.g. jak2/features/jak3-jetBoard)",
   )
   parser.add_argument(
+      "--metadata-only",
+      action="store_true",
+      help="Refresh displayName/description/supportedGames/cover only. Never touches "
+           "versions[], never guesses a tag/version. Used by the branch-sync scripts, "
+           "since a routine sync is not a release and must not fabricate a draft "
+           "version with empty checksums and a download URL nothing ever built.",
+  )
+  parser.add_argument(
       "--next-version",
       action="store_true",
       help="Print calculated next version tag and exit",
@@ -356,6 +415,20 @@ def main():
   resolved_cover_url = args.cover_url
   if not resolved_cover_url and (cover_path.is_file() or branch.startswith(("jak1/", "jak2/", "jak3/"))):
     resolved_cover_url = f"https://raw.githubusercontent.com/{args.repo}/{branch}/docs/img/mod/mod_cover.png"
+
+  if args.metadata_only:
+    refresh_metadata_only(
+        index_path=index_path,
+        mod_id=args.mod_id or detected_slug,
+        display_name=display_name,
+        description=description,
+        supported_games=(
+            [g.strip() for g in args.supported_games.split(",") if g.strip()]
+            if args.supported_games else [detected_game]
+        ),
+        cover_url=resolved_cover_url,
+    )
+    return
 
   # Determine tag formatted as [nom-du-mod]-[version]
   tag_slug = variable_part.replace("/", "-")

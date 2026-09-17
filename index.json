@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.0.0",
-  "sourceName": "mega_dark_jak Source",
-  "lastUpdated": "2026-09-16T22:56:56Z",
+  "sourceName": "Dark Jak Enhanced Source",
+  "lastUpdated": "2026-09-17T00:07:55Z",
   "mods": {
     "mega-dark-jak": {
-      "displayName": "mega_dark_jak",
-      "description": "Overhauls Jak 3's Dark Jak into a devastating powerhouse, featuring increased melee reach, permanent empowered dark strikes, boosted mobility, and enhanced aura effects.",
+      "displayName": "Dark Jak Enhanced",
+      "description": "Cette mise à jour enrichit l'expérience de Dark Jak avec un système d'évolution sur trois paliers de taille (jusqu'à x3,5 via L2), + retour à la forme normale d'une en appuyant sur R2. Possibilité de roulades et sauts agiles au niveau 1, au déclenchement immédiat de la Dark Bomb en plein saut et à la suppression des interruptions du Dark Blast dans les espaces confinés.",
       "authors": [
         "whozghiar"
       ],
@@ -19,18 +19,18 @@
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak3/features/mega_dark_jak",
       "versions": [
         {
-          "version": "1.0.0",
-          "publishedDate": "2026-09-16T22:56:56Z",
+          "version": "mega_dark_jak-vdark-jak-enhanced-v1.00",
+          "publishedDate": "2026-09-17T00:07:55Z",
           "supportedGames": [
             "jak3"
           ],
           "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/mega_dark_jak-v1.0.0/windows-mega_dark_jak-v1.0.0.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/mega_dark_jak-v1.0.0/linux-mega_dark_jak-v1.0.0.zip"
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/mega_dark_jak-vdark-jak-enhanced-v1.00/windows-mega_dark_jak-vdark-jak-enhanced-v1.00.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/mega_dark_jak-vdark-jak-enhanced-v1.00/linux-mega_dark_jak-vdark-jak-enhanced-v1.00.zip"
           },
           "checksums": {
-            "windows": "",
-            "linux": ""
+            "windows": "10a3dba15d38fc4c82f0b50b0e92097f9ebe649595b6e3e3e50c14868bebc903",
+            "linux": "519dbc3c79178da88c52542641ab0a291c6827e4a7c763f8727e4f1fd4315541"
           }
         }
       ],

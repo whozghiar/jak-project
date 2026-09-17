@@ -56,7 +56,7 @@ The goal of this repository is to explore the use of AI to create mods for the J
 ```
 
 ### Main Workflow:
-- [`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml): Pulls daily updates from official OpenGOAL, fast-forwards `master`, updates `master-dev`, tests and auto-merges clean mod branches, and updates the status table.
+- [`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml): Pulls daily updates from official OpenGOAL, fast-forwards `master`, updates `master-dev`, tests and auto-merges clean mod branches, and refreshes the sync badges (see below).
 
 > The old `sync-modding-docs.yaml` aggregation workflow has been **removed**. The two
 > reference docs (`docs/modding/jak[x]_lisp_instructions.md`,
@@ -115,7 +115,7 @@ Le dépôt sépare le code amont officiel et les branches de modding :
 - **Branches de mods (`jak[N]/[type]/[nom]`)** : Dérivées de `master-dev`.
 
 ### Workflow Principal :
-- [`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml) : Rapatrie chaque jour les nouveautés officielles sur `master`, met à jour `master-dev`, teste et fusionne les branches de mods prêtes, et actualise le tableau ci-dessous.
+- [`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml) : Rapatrie chaque jour les nouveautés officielles sur `master`, met à jour `master-dev`, teste et fusionne les branches de mods prêtes, et actualise les badges de synchro (voir plus bas).
 
 > L'ancien workflow d'agrégation `sync-modding-docs.yaml` a été **supprimé**. Les
 > deux documents de référence (`docs/modding/jak[x]_lisp_instructions.md`,
@@ -148,33 +148,28 @@ Le dépôt sépare le code amont officiel et les branches de modding :
 
 ---
 
-## 📊 Tableau de Bord de Synchronisation des Branches / Branch Sync Dashboard
+## 📊 Synchronisation des Branches de Mods / Mod Branch Sync
 
-*L'historique complet des fusions et résolutions est consultable dans [`docs/modding/branch_sync_history.log`](docs/modding/branch_sync_history.log).*
+[![Sync Upstream](https://github.com/whozghiar/jak-project/actions/workflows/sync-upstream.yaml/badge.svg)](https://github.com/whozghiar/jak-project/actions/workflows/sync-upstream.yaml)
 
-<!-- BRANCH_STATUS_START -->
-> **Dernière mise à jour :** `2026-09-16 22:56:36 UTC`  
-> **Branche source :** `master-dev` (`f32bbcc08`)  
-> **Statut global :** 15/15 synchronisées (0 conflits)
+🇫🇷 Badge d'état natif GitHub Actions du workflow `sync-upstream.yaml` — vert si la dernière
+synchronisation quotidienne (amont → `master` → `master-dev` → branches de mods) s'est bien
+déroulée. Le détail branche par branche (avec commande de résolution) vit dans
+[`docs/modding/tools/branch_sync_status.md`](docs/modding/tools/branch_sync_status.md), un fichier
+**volontairement réservé à `master-dev`** — il n'est jamais copié sur une branche de mod. Chaque
+branche de mod porte à la place son propre badge GitHub Actions « synchronisée avec master-dev »
+dans son `README.md` ([`branch-sync-check.yaml`](.github/workflows/branch-sync-check.yaml)).
+Historique complet des fusions :
+[`docs/modding/tools/branch_sync_history.md`](docs/modding/tools/branch_sync_history.md).
 
-| Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |
-| :--- | :---: | :--- | :--- | :--- |
-| `jak2/config/enhanced_spawnrates` | ✅ À jour | `aed4ab5a3 - feat(traffic): instant traffic recycle on mod toggle / régénération immédiate du trafic au toggle (AI-assisted)` | Déjà à jour | — |
-| `jak2/config/start_menu_wheel` | 🔄 Synchronisée | `9f91ed43c - chore(sync): align jak2/config/start_menu_wheel with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/crimson-blueguard/city-insurrection` | 🔄 Synchronisée | `899e5270c - chore(sync): align jak2/features/crimson-blueguard/city-insurrection with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/crimson-blueguard/crimson-redguard-behavior` | 🔄 Synchronisée | `902854fea - chore(sync): align jak2/features/crimson-blueguard/crimson-redguard-behavior with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/crimson-blueguard/peaceful` | 🔄 Synchronisée | `fe15e2450 - chore(sync): align jak2/features/crimson-blueguard/peaceful with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/dark_jak_enhanced` | 🔄 Synchronisée | `19789d67d - chore(sync): align jak2/features/dark_jak_enhanced with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/haven-city-chaos` | 🔄 Synchronisée | `58d534aeb - chore(sync): align jak2/features/haven-city-chaos with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/jak3-jetBoard` | 🔄 Synchronisée | `78be53884 - chore(sync): align jak2/features/jak3-jetBoard with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/paddywagon/traffic` | ✅ À jour | `1a6bb3bec - feat(traffic): instant traffic recycle on mod toggle & demo video / régénération immédiate du trafic au toggle et vidéo de démo (AI-assisted)` | Déjà à jour | — |
-| `jak2/features/transport-ag/alert` | 🔄 Synchronisée | `ee895daf2 - chore(sync): align jak2/features/transport-ag/alert with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/transport-ag/traffic` | ✅ À jour | `dd82b2ab2 - chore(sync): align jak2/features/transport-ag/traffic with latest master-dev` | Déjà à jour | — |
-| `jak2/features/yakow_killable` | 🔄 Synchronisée | `8894494f8 - chore(sync): align jak2/features/yakow_killable with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak3/features/city-behavior` | 🔄 Synchronisée | `3a7bf9018 - chore(sync): align jak3/features/city-behavior with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak3/features/jak2_skin_secret` | 🔄 Synchronisée | `84e8fe24e - chore(sync): align jak3/features/jak2_skin_secret with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak3/features/mega_dark_jak` | 🔄 Synchronisée | `29ee91124 - chore(sync): align jak3/features/mega_dark_jak with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-<!-- BRANCH_STATUS_END -->
+🇬🇧 Native GitHub Actions status badge for the `sync-upstream.yaml` workflow — green if the
+latest daily sync (upstream → `master` → `master-dev` → mod branches) ran cleanly. The
+per-branch detail (with a ready-to-run resolution command) lives in
+[`docs/modding/tools/branch_sync_status.md`](docs/modding/tools/branch_sync_status.md), a file that is
+**intentionally master-dev-only** — it is never copied onto a mod branch. Each mod branch instead
+carries its own GitHub Actions "synced with master-dev" badge in its `README.md`
+([`branch-sync-check.yaml`](.github/workflows/branch-sync-check.yaml)). Full merge history:
+[`docs/modding/tools/branch_sync_history.md`](docs/modding/tools/branch_sync_history.md).
 
 ---
 

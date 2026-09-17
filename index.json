@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.0.0",
-  "sourceName": "Haven City Rebellion Source",
-  "lastUpdated": "2026-09-17T22:02:42Z",
+  "sourceName": "haven-city-rebellion Source",
+  "lastUpdated": "2026-09-17T22:32:33Z",
   "mods": {
     "haven-city-rebellion": {
-      "displayName": "Haven City Rebellion",
-      "description": "This Jak 2 mod introduces the Blue Krimzon Guard as a standalone custom entity and implements a dynamic city insurrection mode, dividing Haven City into faction-controlled sectors—from Slum insurgent sanctuaries to frontline war zones—where up to 30 autonomous blue and red/yellow combatants actively wage territorial war without triggering pursuit against Jak. | Ce mod pour Jak 2 introduit la garde bleue en tant qu'entité autonome et intègre un mode d'insurrection urbaine, divisant Abriville en secteurs territoriaux dynamiques, des zones insurgés dans les Bas-fonds aux lignes de front actives où jusqu'à 30 combattants bleus et rouges/jaunes s'affrontent sans déclencher l'alarme contre Jak.",
+      "displayName": "haven-city-rebellion",
+      "description": "Adds the **Blue Crimson Guard** as its own standalone entity (`crimson-blue-guard`) with high-fidelity combat AI and custom textures, alongside the **City Insurrection** mode: a full-scale territorial civil war across Haven City between Baron Praxis's loyalist forces and the rebel blue guard insurgent faction.",
       "authors": [
         "whozghiar"
       ],

@@ -44,24 +44,31 @@ These curated, verified documents are the **single source of truth** hosted on `
 | 🎨 [`tools/model_and_entity_level_injection_guide.md`](tools/model_and_entity_level_injection_guide.md) | No-borrow Merc `.fr3` injection pipeline (`extra_art_groups_by_dgo`) to inject models into any level. |
 | 🎛️ [`tools/mods_menu.md`](tools/mods_menu.md) | How to register mods into the in-game Mods menu (L3 + SELECT, works in a retail boot) via `(mods-menu-register "<slug>" builder)`. |
 | 📦 [`tools/mod_distribution_guide.md`](tools/mod_distribution_guide.md) | Full guide on packaging, CI/CD automated releases, launcher catalog (`index.json`), and custom cover thumbnails (`docs/img/mod/mod_cover.png`). |
+| 🎮 [`how_to_install_mod.md`](how_to_install_mod.md) | Player-facing, screenshot-illustrated tutorial: add a mod's `index.json` catalog URL in the Launcher, install it, and activate it in-game (L3 + SELECT). |
 
 > [!IMPORTANT]
-> ### 🎛️ Règle Impérative : Enregistrement Obligatoire au Menu « Mods » (`mods-menu-register`)
-> Tout nouveau mod créé sur le dépôt — **en particulier les branches de type fonctionnalités (`jak[x]/features/*`)** — doit **obligatoirement être activable en jeu** via le registre unifié :
+> ### 🎛️ Mandatory Rule: Registration in the "Mods" Menu (`mods-menu-register`)
+> Every new mod created in this repository — **especially `features/*`-type branches (`jak[x]/features/*`)** — **must be toggleable in-game** via the unified registry:
 > ```lisp
-> (mods-menu-register "<slug-du-mod>" <fonction-builder>)
+> (mods-menu-register "<mod-slug>" <builder-function>)
 > ```
-> - **Compatibilité Retail Boot :** L'OpenGOAL Launcher lance le jeu en mode retail (`-boot -fakeiso`), désactivant le menu debug et le tas debug. Le menu Mods s'ouvre avec **L3 + SELECT** aussi bien en retail qu'en debug (Jak 2 et Jak 3).
-> - **Non-Régression Native :** Toutes les fonctionnalités doivent démarrer **désactivées par défaut (`#f`)** et être activables à la demande du joueur depuis ce menu.
-> - **Ressources :** Consultez le guide complet [`tools/mods_menu.md`](tools/mods_menu.md) et le fichier modèle [`templates/mod_menu.template.gc`](templates/mod_menu.template.gc).
+> - **Retail Boot Compatibility:** The OpenGOAL Launcher boots the game in retail mode (`-boot -fakeiso`), disabling the debug menu and debug heap. The Mods menu opens with **L3 + SELECT** in both retail and debug boots (Jak 2 and Jak 3).
+> - **Native Non-Regression:** Every feature must start **disabled by default (`#f`)** and be toggleable on player demand from this menu.
+> - **Resources:** See the full guide [`tools/mods_menu.md`](tools/mods_menu.md) and the template file [`templates/mod_menu.template.gc`](templates/mod_menu.template.gc).
 
 ---
 
 ## 🌿 4. Branch Dashboards & Compliance
 
-- 📊 [`tools/branch_sync_status.md`](tools/branch_sync_status.md): Live mergeability dashboard across all mod branches (`task modding-branch-status`).
+- 📊 [`tools/branch_sync_status.md`](tools/branch_sync_status.md): Live mergeability dashboard across all mod branches (`task modding-branch-status`). **`master-dev`-only** — `sync_common.MASTER_DEV_ONLY_PATHS` keeps it from ever landing on a mod branch; the root `README.md` on `master-dev` shows only a small summary badge linking here.
 - 📜 [`tools/branch_sync_history.md`](tools/branch_sync_history.md): Historical log of automated branch merges and conflict resolutions.
 - 📋 [`branch_audit.md`](branch_audit.md): Compliance report tracking active mod branches against project standards (`task modding-audit`).
+
+> Every mod branch also carries its own native **GitHub Actions status badge** in its
+> own `README.md` (see the template below), for [`branch-sync-check.yaml`](../../.github/workflows/branch-sync-check.yaml)
+> scoped to that branch. GitHub renders it live from that workflow's run history — no
+> script writes or refreshes the image — so it is not a substitute for the dashboard
+> above, which is the only place with a true live view of every branch at once.
 
 ---
 

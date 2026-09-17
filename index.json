@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "enhanced_spawnrates Source",
-  "lastUpdated": "2026-09-17T00:54:56Z",
+  "lastUpdated": "2026-09-17T14:47:40Z",
   "mods": {
     "enhanced-spawnrates": {
       "displayName": "enhanced_spawnrates",
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-17T00:54:56Z",
+          "publishedDate": "2026-09-17T14:47:40Z",
           "supportedGames": [
             "jak2"
           ],

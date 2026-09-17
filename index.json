@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.0.0",
-  "sourceName": "Dark Jak Enhanced Source",
-  "lastUpdated": "2026-09-17T00:07:55Z",
+  "sourceName": "mega_dark_jak Source",
+  "lastUpdated": "2026-09-17T00:55:23Z",
   "mods": {
     "mega-dark-jak": {
-      "displayName": "Dark Jak Enhanced",
-      "description": "Cette mise à jour enrichit l'expérience de Dark Jak avec un système d'évolution sur trois paliers de taille (jusqu'à x3,5 via L2), + retour à la forme normale d'une en appuyant sur R2. Possibilité de roulades et sauts agiles au niveau 1, au déclenchement immédiat de la Dark Bomb en plein saut et à la suppression des interruptions du Dark Blast dans les espaces confinés.",
+      "displayName": "mega_dark_jak",
+      "description": "Overhauls Jak 3's Dark Jak into a devastating powerhouse, featuring increased melee reach, permanent empowered dark strikes, boosted mobility, and enhanced aura effects.",
       "authors": [
         "whozghiar"
       ],
@@ -18,6 +18,21 @@
       ],
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak3/features/mega_dark_jak",
       "versions": [
+        {
+          "version": "1.0.0",
+          "publishedDate": "2026-09-17T00:55:23Z",
+          "supportedGames": [
+            "jak3"
+          ],
+          "assets": {
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/mega_dark_jak-v1.0.0/windows-mega_dark_jak-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/mega_dark_jak-v1.0.0/linux-mega_dark_jak-v1.0.0.zip"
+          },
+          "checksums": {
+            "windows": "",
+            "linux": ""
+          }
+        },
         {
           "version": "mega_dark_jak-vdark-jak-enhanced-v1.00",
           "publishedDate": "2026-09-17T00:07:55Z",

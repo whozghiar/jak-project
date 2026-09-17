@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "blue-krimzon-guard Source",
-  "lastUpdated": "2026-09-17T00:54:59Z",
+  "lastUpdated": "2026-09-17T14:47:44Z",
   "mods": {
     "crimson-blueguard-crimson-redguard-behavior": {
       "displayName": "Blue Krimzon Guard (Freedom Fighters)",
@@ -54,7 +54,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-17T00:54:59Z",
+          "publishedDate": "2026-09-17T14:47:44Z",
           "supportedGames": [
             "jak2"
           ],

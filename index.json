@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
-  "sourceName": "crimson-blueguard/city-insurrection Source",
-  "lastUpdated": "2026-09-16T22:56:38Z",
+  "sourceName": "haven-city-rebellion Source",
+  "lastUpdated": "2026-09-17T00:55:05Z",
   "mods": {
     "crimson-blueguard-city-insurrection": {
       "displayName": "crimson-blueguard/city-insurrection",
@@ -36,6 +36,40 @@
       ],
       "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/crimson-blueguard/city-insurrection/docs/img/mod/mod_cover.png",
       "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/crimson-blueguard/city-insurrection/docs/img/mod/mod_cover.png"
+    },
+    "haven-city-rebellion": {
+      "displayName": "haven-city-rebellion",
+      "description": "Adds the **Blue Crimson Guard** as its own standalone entity (`crimson-blue-guard`) with high-fidelity combat AI and custom textures, alongside the **City Insurrection** mode: a full-scale territorial civil war across Haven City between Baron Praxis's loyalist forces and the rebel blue guard insurgent faction.",
+      "authors": [
+        "whozghiar"
+      ],
+      "tags": [
+        "gameplay",
+        "custom-engine"
+      ],
+      "supportedGames": [
+        "jak2"
+      ],
+      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/haven-city-rebellion",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "publishedDate": "2026-09-17T00:55:05Z",
+          "supportedGames": [
+            "jak2"
+          ],
+          "assets": {
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.0/windows-haven-city-rebellion-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.0/linux-haven-city-rebellion-v1.0.0.zip"
+          },
+          "checksums": {
+            "windows": "",
+            "linux": ""
+          }
+        }
+      ],
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/haven-city-rebellion/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/haven-city-rebellion/docs/img/mod/mod_cover.png"
     }
   },
   "texturePacks": {}

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "Haven City Rebellion Source",
-  "lastUpdated": "2026-09-17T22:00:30Z",
+  "lastUpdated": "2026-09-17T22:02:42Z",
   "mods": {
     "haven-city-rebellion": {
       "displayName": "Haven City Rebellion",
@@ -17,38 +17,7 @@
         "jak2"
       ],
       "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/haven-city-rebellion",
-      "versions": [
-        {
-          "version": "1.0.1",
-          "publishedDate": "2026-09-17T03:17:38Z",
-          "supportedGames": [
-            "jak2"
-          ],
-          "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.1/windows-haven-city-rebellion-v1.0.1.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.1/linux-haven-city-rebellion-v1.0.1.zip"
-          },
-          "checksums": {
-            "windows": "62e948828a718b577c02218ec127a2804e6dc157272bcba2939265ef058a4fe5",
-            "linux": "add0901fdc36e33b89d1be5f78e96de9f6e864fccd45131670f1eeceb14c810e"
-          }
-        },
-        {
-          "version": "1.0.0",
-          "publishedDate": "2026-09-17T02:48:52Z",
-          "supportedGames": [
-            "jak2"
-          ],
-          "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.0/windows-haven-city-rebellion-v1.0.0.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.0/linux-haven-city-rebellion-v1.0.0.zip"
-          },
-          "checksums": {
-            "windows": "b5e2985971c192ecdc5e1f4d519d55d7e488fbbeaef96a6dd9978a6b1dd82308",
-            "linux": "d451fe39a83b742bbb95cde6f664eea2a522219272e2430500b46dbf71e27159"
-          }
-        }
-      ],
+      "versions": [],
       "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/haven-city-rebellion/docs/img/mod/mod_cover.png",
       "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/haven-city-rebellion/docs/img/mod/mod_cover.png"
     }

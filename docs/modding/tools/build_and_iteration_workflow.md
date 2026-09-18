@@ -5,9 +5,16 @@
 >
 > - **Applies to / Concerne :** Jak 1 / Jak 2 / Jak 3 (OpenGOAL PC Port) — all mod branches
 > - **Origin / Provenance :** `master-dev`
-> - **Last Updated / Dernière modification :** `master-dev`
-> - [🇬🇧 English Version](#-english-version)
-> - [🇫🇷 Version Française](#-version-française)
+> - **Related Guides / Guides Associés :** [`github_workflows.md`](github_workflows.md) · [`task_scripts_reference.md`](task_scripts_reference.md)
+
+<p align="center">
+  <a href="#-english-version"><b>🇬🇧 English Version</b></a> &nbsp;•&nbsp; <a href="#-version-française"><b>🇫🇷 Version Française</b></a>
+</p>
+
+> ### 📑 Summary / Sommaire
+>
+> - 🇬🇧 **English:** [1. Why This Exists](#1-why-this-exists) · [2. Mental Model (3 Layers)](#2-the-mental-model--three-independent-layers) · [3. Day-to-Day Workflow](#3-the-day-to-day-workflow) · [4. First-Time Setup](#4-first-time-setup) · [5. Decompiler Modding](#5-modding-that-touches-the-decompiler) · [6. Troubleshooting](#6-troubleshooting)
+> - 🇫🇷 **Français :** [1. Pourquoi ce Guide](#1-pourquoi-ce-document-existe) · [2. Modèle Mental (3 Couches)](#2-le-modèle-mental--trois-couches-indépendantes) · [3. Workflow au Quotidien](#3-le-workflow-au-quotidien) · [4. Première Installation](#4-première-installation) · [5. Modding Décompilateur](#5-modding-qui-touche-au-décompilateur) · [6. Dépannage](#6-dépannage)
 
 ---
 

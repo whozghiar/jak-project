@@ -8,6 +8,36 @@
 </p>
 
 <p align="center">
+
+{SYNC_BADGE}
+
+</p>
+
+> [!NOTE]
+> 🇬🇧 The badge above is a native **GitHub Actions status badge** for
+> [`branch-sync-check.yaml`](https://github.com/{REPO_PATH}/actions/workflows/branch-sync-check.yaml),
+> scoped to this branch — GitHub renders it live from that workflow's own run history,
+> nothing generates or rewrites this image by hand. It goes green the moment this branch
+> next merges `master-dev` cleanly (usually via the daily automated sync), and can turn
+> red if someone pushes commits here without syncing first. It cannot turn red purely
+> because `master-dev` moved on without a new push landing here — for that live,
+> all-branches view, see `master-dev`'s own
+> [`docs/modding/tools/branch_sync_status.md`](https://github.com/{REPO_PATH}/blob/master-dev/docs/modding/tools/branch_sync_status.md)
+> (intentionally master-dev-only, never carried onto a mod branch).
+>
+> 🇫🇷 Le badge ci-dessus est un **badge d'état natif GitHub Actions** pour
+> [`branch-sync-check.yaml`](https://github.com/{REPO_PATH}/actions/workflows/branch-sync-check.yaml),
+> propre à cette branche — GitHub le génère en direct depuis l'historique d'exécution de
+> ce workflow, rien ne produit ou ne réécrit cette image à la main. Il passe au vert dès
+> que cette branche fusionne `master-dev` proprement (généralement via la synchronisation
+> quotidienne automatique), et peut passer au rouge si des commits sont poussés ici sans
+> synchronisation préalable. Il ne peut pas passer au rouge simplement parce que
+> `master-dev` a avancé sans qu'aucun push n'arrive ici — pour cette vue live toutes-
+> branches, voir le fichier propre à `master-dev`
+> [`docs/modding/tools/branch_sync_status.md`](https://github.com/{REPO_PATH}/blob/master-dev/docs/modding/tools/branch_sync_status.md)
+> (volontairement réservé à `master-dev`, jamais présent sur une branche de mod).
+
+<p align="center">
   <a href="#-english-version"><b>🇬🇧 English Version</b></a> &nbsp;•&nbsp; <a href="#-version-française"><b>🇫🇷 Version Française</b></a>
 </p>
 

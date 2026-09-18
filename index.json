@@ -1,10 +1,10 @@
 {
   "schemaVersion": "1.0.0",
-  "sourceName": "transport-ag/alert Source",
-  "lastUpdated": "2026-09-17T14:48:00Z",
+  "sourceName": "KG-Transporter Alert Source",
+  "lastUpdated": "2026-09-18T13:54:51Z",
   "mods": {
     "transport-ag-alert": {
-      "displayName": "transport-ag/alert",
+      "displayName": "KG-Transporter Alert",
       "description": "While Haven City is on **alert (level ≥ 1)**, a **Crimson Guard Troop Transport** (`transport-ag`, the retail drop-ship) descends near the player roughly **once per minute**, deploys a squad of Crimson Guards, and departs. It is a scripted reinforcement actor tied to the city alert system.",
       "authors": [
         "whozghiar"

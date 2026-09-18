@@ -45,6 +45,7 @@ These curated, verified documents are the **single source of truth** hosted on `
 | 🎛️ [`tools/mods_menu.md`](tools/mods_menu.md) | How to register mods into the in-game Mods menu (L3 + SELECT, works in a retail boot) via `(mods-menu-register "<slug>" builder)`. |
 | 📦 [`tools/mod_distribution_guide.md`](tools/mod_distribution_guide.md) | Full guide on packaging, CI/CD automated releases, launcher catalog (`index.json`), and custom cover thumbnails (`docs/img/mod/mod_cover.png`). |
 | 🎮 [`how_to_install_mod.md`](how_to_install_mod.md) | Player-facing, screenshot-illustrated tutorial: add a mod's `index.json` catalog URL in the Launcher, install it, and activate it in-game (L3 + SELECT). |
+| 🐛 [`tools/mod_bug_tracking.md`](tools/mod_bug_tracking.md) | Player-facing "Mod Bug Report" issue form (its mod dropdown is auto-synced from actually-published GitHub Releases), automatic `jak[x]`/`mod:<slug>` labeling, and the fix-commit → release loop (`Fixes #123`). |
 
 > [!IMPORTANT]
 > ### 🎛️ Mandatory Rule: Registration in the "Mods" Menu (`mods-menu-register`)

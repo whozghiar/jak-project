@@ -50,6 +50,31 @@ def get_current_branch() -> str:
   return branch if branch else "master-dev"
 
 
+def sanitize_source_name(name: str) -> str:
+  """Sanitize a catalog sourceName for safe use as a directory name on Windows and Linux.
+
+  OpenGOAL Launcher uses sourceName directly as a filesystem directory name when installing mods
+  (.../features/<game>/mods/<sourceName>/<modName>/). On Windows, characters like ':', '/', '\\',
+  '*', '?', '"', '<', '>', '|' are illegal and trigger 'os error 123' (ERROR_INVALID_NAME).
+  """
+  if not name:
+    return "OpenGOAL Mod Source"
+
+  # Replace colons and slashes with hyphens, strip other filesystem-illegal characters
+  cleaned = re.sub(r"\s*[:/\\]+\s*", " - ", name)
+  cleaned = re.sub(r'[*?"<>|]', "", cleaned)
+  # Collapse multi-hyphens and multi-spaces
+  cleaned = re.sub(r"\s+-\s+-\s+", " - ", cleaned)
+  cleaned = re.sub(r"\s+", " ", cleaned).strip(" .-")
+
+  if not cleaned:
+    return "OpenGOAL Mod Source"
+
+  if cleaned.lower().endswith(" source"):
+    return cleaned
+  return f"{cleaned} Source"
+
+
 def extract_metadata_from_readme(readme_path: Path):
   """Extract overview description from mod's root README.md without AI mentions."""
   description = None
@@ -263,7 +288,7 @@ def refresh_metadata_only(index_path, mod_id, display_name, description, support
     print(f"[OK] '{mod_id}' metadata unchanged — {index_path} left as-is.")
     return
 
-  catalog["sourceName"] = f"{display_name} Source"
+  catalog["sourceName"] = sanitize_source_name(display_name)
   catalog["lastUpdated"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
   with open(index_path, "w", encoding="utf-8") as f:
@@ -512,7 +537,7 @@ def main():
 
   catalog = {
       "schemaVersion": "1.0.0",
-      "sourceName": f"{display_name} Source",
+      "sourceName": sanitize_source_name(display_name),
       "lastUpdated": now_iso,
       "mods": {},
       "texturePacks": {},
@@ -531,7 +556,7 @@ def main():
           f"Warning: Could not read existing index.json, creating a fresh one: {err}"
       )
 
-  catalog["sourceName"] = f"{display_name} Source"
+  catalog["sourceName"] = sanitize_source_name(display_name)
   catalog["lastUpdated"] = now_iso
 
   # Base download URLs from GitHub Releases

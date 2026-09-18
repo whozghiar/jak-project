@@ -13,6 +13,11 @@
   <a href="#-english-version"><b>🇬🇧 English Version</b></a> &nbsp;•&nbsp; <a href="#-version-française"><b>🇫🇷 Version Française</b></a>
 </p>
 
+> ### 📑 Summary / Sommaire
+>
+> - 🇬🇧 **English:** [Purpose & Approach](#-purpose-and-approach) · [Git Architecture & Workflows](#-git-architecture--workflows) · [Directory Overview](#-directory-overview)
+> - 🇫🇷 **Français :** [Démarche & Objectif](#-démarche--objectif-du-projet) · [Architecture Git & Workflows](#-architecture-git--workflows) · [Vue d'ensemble des Répertoires](#-vue-densemble-des-répertoires)
+
 ---
 
 # 🇬🇧 English Version

@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.0.0",
-  "sourceName": "jak3-jetBoard Source",
-  "lastUpdated": "2026-09-17T14:47:53Z",
+  "sourceName": "Jak 3 Jetboard Source",
+  "lastUpdated": "2026-09-18T02:05:43Z",
   "mods": {
     "jak3-jetBoard": {
-      "displayName": "jak3-jetBoard",
-      "description": "Ports three signature Jetboard mechanics from Jak 3 directly into Jak 2: the Charge / Loaded Jump (`L1` + release `X`), the Circular Zap Attack (`Circle`), and the 180° Quick Turn-Around (`Triangle`) with an exit speed boost, complete with ported animations, particle VFX, and dedicated audio cues.",
+      "displayName": "Jak 3 Jetboard",
+      "description": "This Jak 2 mod backports three signature Jetboard abilities directly from Jak 3 into Jak 2, integrating ported animations, particle VFX, and dedicated audio cues to enable kinetic loaded jumps (L1 + release X), radial zap attacks (Circle), and instant 180° quick-turns with forward speed boosts (Triangle).",
       "authors": [
         "whozghiar"
       ],
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-17T14:47:53Z",
+          "publishedDate": "2026-09-18T02:05:43Z",
           "supportedGames": [
             "jak2"
           ],
@@ -29,8 +29,8 @@
             "linux": "https://github.com/whozghiar/jak-project/releases/download/jak3-jetBoard-v1.0.0/linux-jak3-jetBoard-v1.0.0.zip"
           },
           "checksums": {
-            "windows": "",
-            "linux": ""
+            "windows": "5b7a57bbfd3f7b099a2f10025830ef21399e0d610ca4e3d455ff37375acebeff",
+            "linux": "29f1b1ba07744613fb7651141a66eaccad7b06d16a26a2082e89c4e6b028a8ae"
           }
         },
         {

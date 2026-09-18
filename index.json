@@ -1,10 +1,10 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "Whozghiar OpenGOAL Mods Hub",
-  "lastUpdated": "2026-09-18T22:19:43Z",
+  "lastUpdated": "2026-09-18T22:41:12Z",
   "mods": {
     "blue-krimzon-guard": {
-      "displayName": "blue-krimzon-guard",
+      "displayName": "Blue Krimzon Guard",
       "description": "Turns Haven City's Crimson Guard blue. The mod adds a blue-recolored Crimson Guard as its own standalone entity — a new GOAL type, `crimson-blue-guard`, that is a subtype of the stock `crimson-guard`. While the mod is enabled it guard bikes and hellcats. Turn it off and the city goes back to 100% red. The blue guards are **not** a new faction and **not** a new AI. They behave exactly like the red ones — they react to your crimes, raise the wanted level, chase you, shoot, try to arrest you and change weapons as the alert escalates — because they inherit every one of those code paths untouched. The only gameplay addition is that some of them carry a grenade launcher.",
       "authors": [
         "whozghiar"
@@ -31,21 +31,6 @@
           "checksums": {
             "windows": "",
             "linux": ""
-          }
-        },
-        {
-          "version": "crimson-blueguard-crimson-redguard-behavior-vblue-kg-guard-v1.00",
-          "publishedDate": "2026-09-17T00:10:05Z",
-          "supportedGames": [
-            "jak2"
-          ],
-          "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/crimson-blueguard-crimson-redguard-behavior-vblue-kg-guard-v1.00/windows-crimson-blueguard-crimson-redguard-behavior-vblue-kg-guard-v1.00.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/crimson-blueguard-crimson-redguard-behavior-vblue-kg-guard-v1.00/linux-crimson-blueguard-crimson-redguard-behavior-vblue-kg-guard-v1.00.zip"
-          },
-          "checksums": {
-            "windows": "b238e58b7ea71822d62fe9fd9e6cba47f81ac5b2ec13de413f47c80d3214d0ad",
-            "linux": "45e402b07114d349051750bfe178df27845678ce9a8c58bf979de0f7b13b0cc5"
           }
         }
       ],

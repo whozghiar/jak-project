@@ -4,25 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       mod_name:
-        description: 'Nom d''affichage du mod (ex: Jak 3 JetBoard - laisser vide pour détection auto)'
-        required: false
-        default: ''
+        description: 'Nom d''affichage du mod (obligatoire, ex: Jak 3 JetBoard)'
+        required: true
       mod_description:
-        description: 'Descriptif court du mod (inclus dans index.json — laisser vide pour détection auto)'
-        required: false
-        default: ''
-      build_binaries:
-        description: 'Recompiler C++ (auto: recompile seulement si C++ modifié)'
-        type: choice
-        options:
-          - auto
-          - 'false'
-          - 'true'
-        default: auto
+        description: 'Descriptif court du mod, obligatoire (inclus tel quel dans index.json)'
+        required: true
       tag_name:
-        description: 'Tag de version du mod (laisser "auto" pour [nom-du-mod]-[version] automatique)'
-        required: false
-        default: 'auto'
+        description: 'Tag de version du mod, obligatoire (ex: v1.0.0)'
+        required: true
       prerelease:
         description: 'Marquer comme pré-release'
         type: boolean
@@ -33,13 +22,21 @@ permissions:
 
 jobs:
   # =========================================================================
-  # 0. DÉTECTION DU TYPE DE MOD & RÉSOLUTION DE VERSION / MÉTADONNÉES
+  # 0. RÉSOLUTION DE VERSION / MÉTADONNÉES
+  #
+  # Ce workflow ne propose plus de choix "recompiler ou pas" : une release
+  # reconstruit systématiquement Windows + Linux depuis les sources. C'est un
+  # choix assumé — un mod livré sans jamais être passé par une compilation
+  # complète est exactement le genre de release qu'on ne veut pas distribuer
+  # aux joueurs. Le nom du mod, sa description et son tag de version sont
+  # `required: true` côté `workflow_dispatch` (voir plus haut) : il n'y a donc
+  # plus de détection/valeur "auto" à résoudre ici, seulement les métadonnées
+  # explicitement fournies par la personne qui déclenche la release.
   # =========================================================================
   check_mode:
-    name: "🔍 Analyse des Changements & Version"
+    name: "🔍 Résolution de la Version & des Métadonnées"
     runs-on: ubuntu-latest
     outputs:
-      build_binaries: ${{ steps.detect.outputs.build_binaries }}
       release_tag: ${{ steps.meta.outputs.release_tag }}
       display_name: ${{ steps.meta.outputs.display_name }}
       description: ${{ steps.meta.outputs.description }}
@@ -73,87 +70,19 @@ jobs:
           fi
           echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
 
-          INPUT_TAG="${{ github.event.inputs.tag_name }}"
-          if [ -z "$INPUT_TAG" ] || [ "$INPUT_TAG" = "auto" ]; then
-            if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-              INPUT_TAG="${{ github.ref_name }}"
-            fi
-          fi
-
           python ./scripts/modding/update_mod_catalog.py \
             --branch "$TARGET_BRANCH" \
-            --tag "$INPUT_TAG" \
+            --tag "${{ github.event.inputs.tag_name }}" \
             --display-name "$INPUT_MOD_NAME" \
             --description "$INPUT_MOD_DESC" \
             --export-github-output
 
-      - name: Détection automatique des modifications C++
-        id: detect
-        run: |
-          USER_CHOICE="${{ github.event.inputs.build_binaries }}"
-          if [ "$USER_CHOICE" = "true" ]; then
-            echo "Choix utilisateur explicite: Forcer la compilation C++"
-            echo "build_binaries=true" >> $GITHUB_OUTPUT
-          elif [ "$USER_CHOICE" = "false" ]; then
-            echo "Choix utilisateur explicite: Fast Packaging (Pas de compilation C++)"
-            echo "build_binaries=false" >> $GITHUB_OUTPUT
-          else
-            git fetch origin master-dev
-            CPP_DIFF=$(git diff origin/master-dev...HEAD -- common/ decompiler/ game/ goalc/ CMakeLists.txt)
-            if [ -z "$CPP_DIFF" ]; then
-              echo "✅ Aucun fichier C++ modifié par rapport à master-dev."
-              echo "⚡ Mode Fast Packaging activé (~45s)."
-              echo "build_binaries=false" >> $GITHUB_OUTPUT
-            else
-              echo "⚠️ Fichiers C++ modifiés détectés :"
-              git diff origin/master-dev...HEAD --name-only -- common/ decompiler/ game/ goalc/ CMakeLists.txt
-              echo "🔨 Mode Compilation C++ requis."
-              echo "build_binaries=true" >> $GITHUB_OUTPUT
-            fi
-          fi
-
   # =========================================================================
-  # 1. FAST PACKAGING (~45s pour les mods GOAL-only)
-  # =========================================================================
-  fast-bundle:
-    name: "⚡ Fast Mod Packaging (No C++ Build)"
-    needs: check_mode
-    if: needs.check_mode.outputs.build_binaries == 'false'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          submodules: false
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Bundle Windows & Linux Packages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
-        run: |
-          python ./scripts/modding/bundle_fast_release.py \
-            --tag "${RELEASE_TAG}" \
-            --out-dir "final-artifacts"
-
-      - name: Upload Fast Bundles
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-fast-bundle
-          path: final-artifacts/*.zip
-          if-no-files-found: error
-
-  # =========================================================================
-  # 2. BUILD WINDOWS (Actif UNIQUEMENT si le C++ a été modifié)
+  # 1. BUILD WINDOWS (systématique — voir la note sur le rebuild complet ci-dessus)
   # =========================================================================
   build-windows:
     name: "🖥️ Windows (Clang-CL Static)"
     needs: check_mode
-    if: needs.check_mode.outputs.build_binaries == 'true'
     runs-on: windows-2022
     timeout-minutes: 60
     steps:
@@ -231,12 +160,11 @@ jobs:
           if-no-files-found: error
 
   # =========================================================================
-  # 3. BUILD LINUX (Actif UNIQUEMENT si le C++ a été modifié)
+  # 2. BUILD LINUX (systématique — voir la note sur le rebuild complet en tête de fichier)
   # =========================================================================
   build-linux:
     name: "🐧 Linux (Clang Static)"
     needs: check_mode
-    if: needs.check_mode.outputs.build_binaries == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -317,11 +245,11 @@ jobs:
           if-no-files-found: error
 
   # =========================================================================
-  # 4. PUBLICATION DE LA RELEASE & CATALOGUE MOD (index.json)
+  # 3. PUBLICATION DE LA RELEASE & CATALOGUE MOD (index.json)
   # =========================================================================
   publish:
     name: "📦 Publish Release & Catalog"
-    needs: [check_mode, fast-bundle, build-windows, build-linux]
+    needs: [check_mode, build-windows, build-linux]
     if: always() && !cancelled() && needs.check_mode.result == 'success' && !contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     steps:

@@ -1,4 +1,4 @@
-name: Sync Upstream Mirror & Dev
+name: 🔄 Sync Upstream Mirror & Mod Branches
 
 on:
   schedule:

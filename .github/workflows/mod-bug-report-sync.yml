@@ -1,4 +1,4 @@
-name: Sync Mod Bug Report Options
+name: 🏷️ Sync Mod Bug Report Options
 
 # Keeps the "Mod Concerned" dropdown in mod-bug-report.yml limited to mods that actually
 # have a published GitHub Release — never to whatever a branch's committed index.json

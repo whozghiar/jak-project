@@ -42,9 +42,14 @@ jobs:
 
       - name: Verify Ancestry
         run: |
-          if git merge-base --is-ancestor origin/master-dev HEAD; then
-            echo "✅ This branch includes the latest master-dev."
+          # Find the latest commit on origin/master-dev that changed actual project files,
+          # ignoring dashboard/history files which are strictly master-dev-only.
+          TARGET_REF=$(git rev-list -n 1 origin/master-dev -- . ':!docs/modding/tools/branch_sync_status.md' ':!docs/modding/tools/branch_sync_history.md')
+          TARGET_REF=${TARGET_REF:-origin/master-dev}
+
+          if git merge-base --is-ancestor "$TARGET_REF" HEAD; then
+            echo "✅ This branch includes the latest master-dev ($TARGET_REF)."
           else
-            echo "::error::This branch has not merged the latest origin/master-dev yet. Run 'task modding-sync-branch', or wait for the next automated sync."
+            echo "::error::This branch has not merged the latest origin/master-dev yet ($TARGET_REF). Run 'task modding-sync-branch', or wait for the next automated sync."
             exit 1
           fi

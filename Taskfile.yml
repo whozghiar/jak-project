@@ -185,11 +185,15 @@ tasks:
   modding-sync-bug-report-options:
     desc: "Refresh the mod-bug-report.yml 'Mod Concerned' dropdown from actually-published GitHub Releases (scripts/modding/sync_bug_report_options.py). Add -- --dry-run to preview"
     cmds:
-      - "{{.PYTHON}} ./scripts/modding/sync_bug_report_options.py {{.CLI_ARGS}}"
+  modding-sync-catalog:
+    desc: "Regenerate master-dev root index.json global catalog from published GitHub Releases (scripts/modding/sync_global_catalog.py). Add -- --offline or --dry-run"
+    cmds:
+      - "{{.PYTHON}} ./scripts/modding/sync_global_catalog.py {{.CLI_ARGS}}"
   modding-package-texture-pack:
     desc: "Package custom_assets/<game>/texture_replacements into a launcher-compliant texture pack .zip and optionally update index.json (scripts/modding/package_texture_pack.py). Add -- --help for options"
     cmds:
       - "{{.PYTHON}} ./scripts/modding/package_texture_pack.py {{.CLI_ARGS}}"
+
 
   # DECOMPILING
   disasm:

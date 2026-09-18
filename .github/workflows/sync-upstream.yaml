@@ -102,10 +102,8 @@ jobs:
       - name: Sync Mod Branches & Update Conflict Dashboard
         run: |
           echo "Synchronizing clean mod branches with master, logging history, and updating dashboard..."
+          # --push both merges/pushes every clean mod branch AND commits+pushes the
+          # updated dashboard/history files to master-dev itself when they changed
+          # (see sync_branches_with_master.py's commit_and_push_dashboard()) — this
+          # step no longer duplicates that commit logic here.
           python scripts/modding/sync_branches_with_master.py --push
-
-          if [ -n "$(git status --porcelain docs/modding/tools/branch_sync_status.md docs/modding/tools/branch_sync_history.md README.md)" ]; then
-            git add docs/modding/tools/branch_sync_status.md docs/modding/tools/branch_sync_history.md README.md
-            git commit -m "docs: update mod branches sync dashboard and history log (AI-assisted)"
-            git push origin master-dev
-          fi

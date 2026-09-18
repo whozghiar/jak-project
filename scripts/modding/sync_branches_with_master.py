@@ -420,5 +420,38 @@ def main():
     flush_event_logs()
     print("Dashboard and history log generated successfully.")
 
+    if args.push:
+        commit_and_push_dashboard()
+
+def commit_and_push_dashboard():
+    """Commit + push branch_sync_status.md / branch_sync_history.md to master-dev if
+    they changed. Without this, `--push` would fully merge and push every mod branch
+    but leave the dashboard files it just wrote sitting uncommitted on disk — the
+    fleet-wide merge would be real, but the dashboard describing it wouldn't be, until
+    someone remembered to commit it by hand (previously only the sync-upstream.yaml
+    cron did this, so a local `task modding-branch-status -- --push` run never did)."""
+    tracked = [
+        p for p in (DASHBOARD_FILE, HISTORY_LOG_FILE)
+        if run_cmd(f'git status --porcelain -- "{p}"').stdout.strip()
+    ]
+    if not tracked:
+        print("\nDashboard/history unchanged — nothing to commit.")
+        return
+
+    print(f"\nCommitting updated dashboard file(s): {', '.join(os.path.basename(p) for p in tracked)}")
+    for p in tracked:
+        run_cmd(f'git add "{p}"')
+    commit_res = run_cmd(
+        'git commit -m "docs: update mod branches sync dashboard and history log (AI-assisted)"'
+    )
+    if commit_res.returncode != 0:
+        print(f"⚠️ Dashboard commit failed: {(commit_res.stderr or commit_res.stdout).strip()}", file=sys.stderr)
+        return
+    push_res = run_cmd("git push origin master-dev")
+    if push_res.returncode != 0:
+        print(f"⚠️ Dashboard push failed: {(push_res.stderr or push_res.stdout).strip()}", file=sys.stderr)
+        return
+    print("[OK] Dashboard + history pushed to origin/master-dev.")
+
 if __name__ == "__main__":
     main()

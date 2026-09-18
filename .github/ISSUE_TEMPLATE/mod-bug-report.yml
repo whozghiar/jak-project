@@ -30,9 +30,11 @@ body:
         be unreleased.
       options:
         # BEGIN GENERATED — scripts/modding/sync_bug_report_options.py (do not edit by hand)
+        - "[Jak 2] Blue Krimzon Guard (Freedom Fighters)"
         - "[Jak 2] Dark Jak Enhanced"
         - "[Jak 2] Haven City Rebellion"
         - "[Jak 2] Jak 3 Jetboard"
+        - "[Jak 2] KG-Transporter Alert"
         - "[Jak 2] KG-Transporter Traffic"
         - "[Jak 2] Killable Yakow"
         - "[Jak 2] Paddy Wagon"

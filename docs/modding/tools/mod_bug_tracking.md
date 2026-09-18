@@ -5,8 +5,16 @@
 >
 > - **Applies to / Concerne :** Jak 1 / Jak 2 / Jak 3 — all mod branches
 > - **Origin / Provenance :** `master-dev`
-> - [🇬🇧 English Version](#-english-version)
-> - [🇫🇷 Version Française](#-version-française)
+> - **Related Guide / Guide Associé :** [`github_workflows.md`](github_workflows.md)
+
+<p align="center">
+  <a href="#-english-version"><b>🇬🇧 English Version</b></a> &nbsp;•&nbsp; <a href="#-version-française"><b>🇫🇷 Version Française</b></a>
+</p>
+
+> ### 📑 Summary / Sommaire
+>
+> - 🇬🇧 **English:** [1. The Form](#1-the-form) · [2. Auto-Labeling](#2-automatic-labeling) · [3. Fix Loop](#3-closing-the-loop-fix--commit--release) · [4. Auto-Sync](#4-automated-syncing-from-releases-the-backend) · [5. Manual Overrides](#5-manual-overrides--debugging)
+> - 🇫🇷 **Français :** [1. Le Formulaire](#1-le-formulaire) · [2. Labellisation](#2-labellisation-automatique) · [3. Boucle de Résolution](#3-boucler-la-boucle--fix--commit--release) · [4. Synchro Automatique](#4-synchronisation-automatique-depuis-les-releases-le-moteur) · [5. Forçages](#5-forçages-manuels--débogage)
 
 ---
 

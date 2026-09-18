@@ -4,27 +4,27 @@
 > branches de mods (voir `sync_common.MASTER_DEV_ONLY_PATHS`) : chaque branche
 > porte seulement son propre badge de synchro dans son `README.md`.
 
-> **Dernière mise à jour :** `2026-09-18 14:14:47 UTC`  
-> **Branche source :** `master-dev` (`c74614f58`)  
-> **Statut global :** 15/15 synchronisées (0 conflits)
+> **Dernière mise à jour :** `2026-09-18 15:06:49 UTC`  
+> **Branche source :** `master-dev` (`7ea67e903`)  
+> **Statut global :** 10/15 synchronisées (5 conflits)
 
 | Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |
 | :--- | :---: | :--- | :--- | :--- |
-| `jak2/config/enhanced_spawnrates` | 🔄 Synchronisée | `9da94f2ca - chore(sync): align jak2/config/enhanced_spawnrates with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/config/start_menu_wheel` | 🔄 Synchronisée | `d80ef355d - chore(sync): align jak2/config/start_menu_wheel with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/blue-krimzon-guard` | 🔄 Synchronisée | `2c5b1054a - chore(sync): align jak2/features/blue-krimzon-guard with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/dark_jak_enhanced` | 🔄 Synchronisée | `d8896b356 - chore(sync): align jak2/features/dark_jak_enhanced with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/haven-city-chaos` | 🔄 Synchronisée | `8a4d8408e - chore(sync): align jak2/features/haven-city-chaos with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/haven-city-rebellion` | 🔄 Synchronisée | `1280fe572 - chore(sync): align jak2/features/haven-city-rebellion with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/jak3-jetBoard` | 🔄 Synchronisée | `6535fa3ec - chore(sync): align jak2/features/jak3-jetBoard with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/killable_yakow` | 🔄 Synchronisée | `a1407d677 - chore(sync): align jak2/features/killable_yakow with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/paddywagon/traffic` | 🔄 Synchronisée | `867c904ed - chore(sync): align jak2/features/paddywagon/traffic with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/peaceful-haven-city` | 🔄 Synchronisée | `3fb86c7e5 - chore(sync): align jak2/features/peaceful-haven-city with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/transport-ag/alert` | 🔄 Synchronisée | `a1ffeaaa0 - chore(sync): align jak2/features/transport-ag/alert with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/transport-ag/traffic` | 🔄 Synchronisée | `e06d958f2 - chore(sync): align jak2/features/transport-ag/traffic with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak3/features/city-behavior` | 🔄 Synchronisée | `2cd55ffe9 - chore(sync): align jak3/features/city-behavior with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak3/features/jak2_skin_secret` | 🔄 Synchronisée | `3f8cffc0c - chore(sync): align jak3/features/jak2_skin_secret with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak3/features/mega_dark_jak` | 🔄 Synchronisée | `a13962be1 - chore(sync): align jak3/features/mega_dark_jak with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/config/enhanced_spawnrates` | 🟢 Prête à fusionner | `9da94f2ca - chore(sync): align jak2/config/enhanced_spawnrates with latest origin/master-dev` | Aucun conflit de code détecté | — |
+| `jak2/config/start_menu_wheel` | 🟢 Prête à fusionner | `d80ef355d - chore(sync): align jak2/config/start_menu_wheel with latest origin/master-dev` | Aucun conflit de code détecté | — |
+| `jak2/features/blue-krimzon-guard` | 🟢 Prête à fusionner | `2c5b1054a - chore(sync): align jak2/features/blue-krimzon-guard with latest origin/master-dev` | Aucun conflit de code détecté | — |
+| `jak2/features/dark_jak_enhanced` | 🟢 Prête à fusionner | `d8896b356 - chore(sync): align jak2/features/dark_jak_enhanced with latest origin/master-dev` | Aucun conflit de code détecté | — |
+| `jak2/features/haven-city-chaos` | 🟢 Prête à fusionner | `8a4d8408e - chore(sync): align jak2/features/haven-city-chaos with latest origin/master-dev` | Aucun conflit de code détecté | — |
+| `jak2/features/haven-city-rebellion` | ⚠️ Conflit | `1280fe572 - chore(sync): align jak2/features/haven-city-rebellion with latest origin/master-dev` | • `decompiler/config/jak2/jak2_config.jsonc` | `git checkout jak2/features/haven-city-rebellion && git merge origin/master-dev` |
+| `jak2/features/jak3-jetBoard` | ⚠️ Conflit | `6535fa3ec - chore(sync): align jak2/features/jak3-jetBoard with latest origin/master-dev` | • `decompiler/config/jak3/jak3_config.jsonc` | `git checkout jak2/features/jak3-jetBoard && git merge origin/master-dev` |
+| `jak2/features/killable_yakow` | 🟢 Prête à fusionner | `a1407d677 - chore(sync): align jak2/features/killable_yakow with latest origin/master-dev` | Aucun conflit de code détecté | — |
+| `jak2/features/paddywagon/traffic` | 🟢 Prête à fusionner | `867c904ed - chore(sync): align jak2/features/paddywagon/traffic with latest origin/master-dev` | Aucun conflit de code détecté | — |
+| `jak2/features/peaceful-haven-city` | ⚠️ Conflit | `3fb86c7e5 - chore(sync): align jak2/features/peaceful-haven-city with latest origin/master-dev` | • `decompiler/config/jak2/jak2_config.jsonc` | `git checkout jak2/features/peaceful-haven-city && git merge origin/master-dev` |
+| `jak2/features/transport-ag/alert` | ⚠️ Conflit | `a1ffeaaa0 - chore(sync): align jak2/features/transport-ag/alert with latest origin/master-dev` | • `decompiler/config/jak2/jak2_config.jsonc` | `git checkout jak2/features/transport-ag/alert && git merge origin/master-dev` |
+| `jak2/features/transport-ag/traffic` | ⚠️ Conflit | `e06d958f2 - chore(sync): align jak2/features/transport-ag/traffic with latest origin/master-dev` | • `decompiler/config/jak2/jak2_config.jsonc` | `git checkout jak2/features/transport-ag/traffic && git merge origin/master-dev` |
+| `jak3/features/city-behavior` | 🟢 Prête à fusionner | `2cd55ffe9 - chore(sync): align jak3/features/city-behavior with latest origin/master-dev` | Aucun conflit de code détecté | — |
+| `jak3/features/jak2_skin_secret` | 🟢 Prête à fusionner | `3f8cffc0c - chore(sync): align jak3/features/jak2_skin_secret with latest origin/master-dev` | Aucun conflit de code détecté | — |
+| `jak3/features/mega_dark_jak` | 🟢 Prête à fusionner | `a13962be1 - chore(sync): align jak3/features/mega_dark_jak with latest origin/master-dev` | Aucun conflit de code détecté | — |
 
 ---
 ### Guide de Résolution des Conflits

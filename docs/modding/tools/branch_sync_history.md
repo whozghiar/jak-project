@@ -294,3 +294,8 @@ Ce document consigne l'historique complet des tentatives de fusions automatiques
 | `2026-09-18 14:15:14` | 🔄 Auto-fusion | `jak3/features/city-behavior` | Fusion automatique réussie avec origin/master-dev (`2cd55ffe9 - chore(sync): align jak3/features/city-behavior with latest origin/master-dev`) |
 | `2026-09-18 14:15:16` | 🔄 Auto-fusion | `jak3/features/jak2_skin_secret` | Fusion automatique réussie avec origin/master-dev (`3f8cffc0c - chore(sync): align jak3/features/jak2_skin_secret with latest origin/master-dev`) |
 | `2026-09-18 14:15:18` | 🔄 Auto-fusion | `jak3/features/mega_dark_jak` | Fusion automatique réussie avec origin/master-dev (`a13962be1 - chore(sync): align jak3/features/mega_dark_jak with latest origin/master-dev`) |
+| `2026-09-18 15:06:52` | ⚠️ Conflit | `jak2/features/haven-city-rebellion` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `decompiler/config/jak2/jak2_config.jsonc` |
+| `2026-09-18 15:06:53` | ⚠️ Conflit | `jak2/features/jak3-jetBoard` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `decompiler/config/jak3/jak3_config.jsonc` |
+| `2026-09-18 15:06:55` | ⚠️ Conflit | `jak2/features/peaceful-haven-city` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `decompiler/config/jak2/jak2_config.jsonc` |
+| `2026-09-18 15:06:56` | ⚠️ Conflit | `jak2/features/transport-ag/alert` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `decompiler/config/jak2/jak2_config.jsonc` |
+| `2026-09-18 15:06:56` | ⚠️ Conflit | `jak2/features/transport-ag/traffic` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `decompiler/config/jak2/jak2_config.jsonc` |

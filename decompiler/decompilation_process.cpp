@@ -315,11 +315,20 @@ int run_decompilation_process(decompiler::Config config,
     extract_sbk_files(in_folder / "SBK", sfx_out);
   }
 
-  if (config.rip_streamed_audio) {
+  if (config.rip_streamed_audio || config.rip_music) {
     auto streaming_audio_out = out_folder / "audio";
     file_util::create_dir_if_needed(streaming_audio_out);
-    process_streamed_audio(config, streaming_audio_out, in_folder,
-                           config.streamed_audio_file_names);
+
+    if (config.rip_streamed_audio) {
+      process_streamed_audio(config, streaming_audio_out / "voice_lines", in_folder,
+                             config.streamed_audio_file_names);
+      process_sfx(streaming_audio_out / "sfx", in_folder);
+    }
+    // Rip music for jak 1 or jak 2
+    if (config.rip_music &&
+        (config.game_version == GameVersion::Jak1 || config.game_version == GameVersion::Jak2)) {
+      process_music(streaming_audio_out / "music", in_folder);
+    }
   }
 
   lg::info("Decompiler has finished successfully in {:.2f} seconds.", decomp_timer.getSeconds());

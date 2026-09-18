@@ -5,8 +5,15 @@
 >
 > - **Applies to / Concerne :** Jak 2 / Jak 3 (OpenGOAL PC Port)
 > - **Architecture :** Offline Merc Geometry Baking (`extra_art_groups_by_dgo`) + GOAL Heap Art-Group Link
-> - [🇬🇧 English Version](#-english-version)
-> - [🇫🇷 Version Française](#-version-française)
+
+<p align="center">
+  <a href="#-english-version"><b>🇬🇧 English Version</b></a> &nbsp;•&nbsp; <a href="#-version-française"><b>🇫🇷 Version Française</b></a>
+</p>
+
+> ### 📑 Summary / Sommaire
+>
+> - 🇬🇧 **English:** [1. Overview & Philosophy](#1-overview--core-philosophy) · [2. 2-Circuit Architecture](#2-the-2-circuit-architecture) · [3. Step-by-Step Pipeline](#3-step-by-step-injection-pipeline) · [4. Case Study: Transport](#4-case-study-spawning-transport-in-haven-city) · [5. Troubleshooting](#5-troubleshooting--diagnostics)
+> - 🇫🇷 **Français :** [1. Vue d'Ensemble](#1-vue-densemble--philosophie-centrale) · [2. Architecture à 2 Circuits](#2-larchitecture-à-deux-circuits) · [3. Pipeline d'Injection](#3-pipeline-dinjection-étape-par-étape) · [4. Cas d'Étude : Transport](#4-cas-détude--faire-apparaître-le-transport-dans-havre-cité) · [5. Dépannage & Diagnostic](#5-dépannage--diagnostic)
 
 ---
 

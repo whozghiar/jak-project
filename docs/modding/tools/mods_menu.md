@@ -31,9 +31,16 @@
 > - 🇬🇧 **Every new mod created (strictly required without exception for `jak[x]/features/*`) MUST register into this menu via `(mods-menu-register "<slug>" builder)`.** Mod features must ship OFF by default and be toggleable by players at runtime in retail boots via **L3 + SELECT**.
 > - 🇫🇷 **Tout nouveau mod créé (strictement obligatoire sans exception pour les branches `jak[x]/features/*`) DOIT s'enregistrer dans ce menu via `(mods-menu-register "<slug>" builder)`.** Les fonctionnalités doivent être désactivées par défaut et activables à chaud par le joueur en boot retail via **L3 + SELECT**.
 
----
+<p align="center">
+  <a href="#-english-version"><b>🇬🇧 English Version</b></a> &nbsp;•&nbsp; <a href="#-version-française"><b>🇫🇷 Version Française</b></a>
+</p>
 
-<a name="-english-version"></a>
+> ### 📑 Summary / Sommaire
+>
+> - 🇬🇧 **English:** [1. Why Debug Menu Fails](#1-why-the-debug-menu-could-never-work-for-a-shipped-mod) · [2. Dedicated Mods Menu](#2-the-solution-a-dedicated-standalone-mods-menu) · [3. 4-Line Registration](#3-how-to-register-a-mod-in-4-lines-of-goal) · [4. Internal Mechanics](#4-how-the-mods-menu-builds-itself) · [5. Best Practices](#5-best-practices-for-mod-submenus) · [6. Testing (Retail Boot)](#6-testing-your-menu) · [7. Jak 1](#7-jak-1)
+> - 🇫🇷 **Français :** [1. Pourquoi le Menu Debug Échoue](#1-pourquoi-le-menu-debug-ne-pouvait-pas-convenir-aux-mods-publiés) · [2. Menu « Mods » Dédié](#2-la-solution--un-menu-mods-dédié-et-autonome) · [3. Enregistrement en 4 Lignes](#3-comment-enregistrer-un-mod-en-4-lignes-de-goal) · [4. Fonctionnement Interne](#4-comment-le-menu-mods-se-construit) · [5. Bonnes Pratiques](#5-bonnes-pratiques-pour-les-sous-menus-de-mods) · [6. Tests (Boot Retail)](#6-tester-votre-menu) · [7. Statut Jak 1](#7-statut-pour-jak-1)
+
+---
 
 # 🇬🇧 English Version
 

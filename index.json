@@ -32,21 +32,6 @@
             "windows": "5b7a57bbfd3f7b099a2f10025830ef21399e0d610ca4e3d455ff37375acebeff",
             "linux": "29f1b1ba07744613fb7651141a66eaccad7b06d16a26a2082e89c4e6b028a8ae"
           }
-        },
-        {
-          "version": "jak3-jetBoard-vjak3-jetboard-v1.02",
-          "publishedDate": "2026-09-16T23:56:08Z",
-          "supportedGames": [
-            "jak2"
-          ],
-          "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/jak3-jetBoard-vjak3-jetboard-v1.02/windows-jak3-jetBoard-vjak3-jetboard-v1.02.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/jak3-jetBoard-vjak3-jetboard-v1.02/linux-jak3-jetBoard-vjak3-jetboard-v1.02.zip"
-          },
-          "checksums": {
-            "windows": "98bd5bed2523a194b9521c0c3306ade843e88704ce93a37181eba674fbf7e3b7",
-            "linux": "a30309dfb758190dbb3e1fa87315d72e9d80087b533576638e8f2af16b8062b6"
-          }
         }
       ],
       "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/jak3-jetBoard/docs/img/mod/mod_cover.png",

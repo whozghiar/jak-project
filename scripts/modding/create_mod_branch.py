@@ -15,6 +15,8 @@ import subprocess
 import sys
 import urllib.parse
 
+import sync_common
+
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 TEMPLATE_PATH = os.path.join(REPO_ROOT, "docs", "modding", "templates", "MOD_README.template.md")
 README_PATH = os.path.join(REPO_ROOT, "README.md")
@@ -130,6 +132,15 @@ def main():
         if repo_match:
             repo_path = repo_match.group(1)
     custom_readme = custom_readme.replace("{REPO_PATH}", repo_path)
+
+    # This branch's "synced with master-dev?" badge is GitHub's own native Actions
+    # status badge for branch-sync-check.yaml, scoped to this branch with ?branch=.
+    # Written once, here — GitHub renders the live SVG from then on, so nothing ever
+    # needs to come back and rewrite this line again.
+    sync_badge_md = sync_common.github_actions_badge_markdown(
+        repo_path, "branch-sync-check.yaml", branch=branch, alt="Branch Sync Check"
+    )
+    custom_readme = custom_readme.replace("{SYNC_BADGE}", sync_badge_md)
 
     # Write to root README.md
     print(f"Writing customized mod README to {README_PATH}...")

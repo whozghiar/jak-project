@@ -5,8 +5,16 @@
 >
 > - **Applies to / Concerne :** Jak 1 / Jak 2 / Jak 3 (OpenGOAL PC Port) — all mod branches
 > - **Origin / Provenance :** `master-dev`
-> - [🇬🇧 English Version](#-english-version)
-> - [🇫🇷 Version Française](#-version-française)
+> - **Related Guide / Guide Associé :** [`github_workflows.md`](github_workflows.md)
+
+<p align="center">
+  <a href="#-english-version"><b>🇬🇧 English Version</b></a> &nbsp;•&nbsp; <a href="#-version-française"><b>🇫🇷 Version Française</b></a>
+</p>
+
+> ### 📑 Summary / Sommaire
+>
+> - 🇬🇧 **English:** [1. C++ Pipeline Support](#1-why-this-pipeline-handles-c-changes-goalc-extractor-gk) · [2. Archive Layout](#2-mandatory-mod-archive-layout) · [3. CI/CD Release (`release.yml`)](#3-automated-github-actions-release-workflow-releaseyml) · [4. Launcher Catalog (`index.json`)](#4-updating-the-opengoal-launcher-catalog-indexjson) · [5. Cover Thumbnail](#5-mod-cover-thumbnail-docsimgmodmod_coverpng) · [6. Release Checklist](#6-end-to-end-checklist-for-releasing-a-mod)
+> - 🇫🇷 **Français :** [1. Gestion du C++](#1-pourquoi-ce-pipeline-gère-les-modifications-c-goalc-extractor-gk) · [2. Structure de l'Archive](#2-structure-obligatoire-de-larchive-du-mod) · [3. Workflow de Release (`release.yml`)](#3-workflow-de-release-automatisé-github-actions-releaseyml) · [4. Catalogue Launcher (`index.json`)](#4-mise-à-jour-du-catalogue-de-lopengoal-launcher-indexjson) · [5. Miniature de Couverture](#5-miniature-de-couverture-docsimgmodmod_coverpng) · [6. Checklist de Release](#6-checklist-complète-pour-publier-un-mod)
 
 ---
 

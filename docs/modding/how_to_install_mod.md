@@ -5,8 +5,15 @@
 >
 > - **Audience / Public :** Players / Joueurs
 > - **Applies to / Concerne :** Any mod branch of this repository exposing an `index.json` catalog (see [`tools/mod_distribution_guide.md`](tools/mod_distribution_guide.md))
-> - [🇬🇧 English Version](#-english-version)
-> - [🇫🇷 Version Française](#-version-française)
+
+<p align="center">
+  <a href="#-english-version"><b>🇬🇧 English Version</b></a> &nbsp;•&nbsp; <a href="#-version-française"><b>🇫🇷 Version Française</b></a>
+</p>
+
+> ### 📑 Summary / Sommaire
+>
+> - 🇬🇧 **English:** [1. Add Source](#1-add-the-mod-source) · [2. Open Page](#2-open-the-mod-page) · [3. Choose Version & Install](#3-choose-a-version-and-install) · [4. Installation Progress](#4-wait-for-the-installation) · [5. Launch Game](#5-launch-the-game)
+> - 🇫🇷 **Français :** [1. Ajouter la Source](#1-ajouter-la-source-du-mod) · [2. Ouvrir la Page](#2-ouvrir-la-page-du-mod) · [3. Choisir la Version](#3-choisir-une-version-et-installer) · [4. Déroulement](#4-attendre-la-fin-de-linstallation) · [5. Lancer le Jeu](#5-lancer-le-jeu)
 
 ---
 

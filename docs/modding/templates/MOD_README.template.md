@@ -41,6 +41,11 @@
   <a href="#-english-version"><b>🇬🇧 English Version</b></a> &nbsp;•&nbsp; <a href="#-version-française"><b>🇫🇷 Version Française</b></a>
 </p>
 
+> ### 📑 Summary / Sommaire
+>
+> - 🇬🇧 **English:** [Overview](#-overview) · [Key Features](#-key-features) · [Download & Play](#-download--play-via-opengoal-launcher-players) · [Developer Setup](#-developer-setup--local-compilation) · [Demo Video](#-demonstration-video) · [Checklist](#-compliance-checklist) · [Technical Docs](#-technical-documentation)
+> - 🇫🇷 **Français :** [Présentation](#-présentation-du-mod) · [Fonctionnalités Clés](#-fonctionnalités-clés) · [Téléchargement & Installation](#-téléchargement--installation-via-opengoal-launcher-joueurs) · [Guide Développeur](#-guide-développeur--compilation-locale) · [Vidéo Démo](#-encart-vidéo-démonstrative) · [Checklist](#-checklist-de-conformité) · [Docs Techniques](#-documentation-technique)
+
 ---
 
 # 🇬🇧 English Version

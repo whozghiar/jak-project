@@ -1,4 +1,4 @@
-name: Branch Sync Check
+name: 🔗 Branch Sync Health Check
 
 # Answers exactly one question, as cheaply as possible: is THIS branch's
 # current HEAD caught up with master-dev? Its GitHub-generated status badge

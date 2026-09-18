@@ -71,10 +71,20 @@ jobs:
             echo "Conflicts detected in: $conflicts"
 
             # Discard any upstream workflow changes for deleted workflows
+            allowed_workflows=(".github/workflows/sync-upstream.yaml" ".github/workflows/release.yml" ".github/workflows/branch-sync-check.yaml" ".github/workflows/sync-global-catalog.yml" ".github/workflows/mod-bug-report-sync.yml" ".github/workflows/mod-bug-triage.yml")
             for file in $conflicts; do
-              if [[ "$file" == .github/workflows/* && "$file" != ".github/workflows/sync-upstream.yaml" && "$file" != ".github/workflows/release.yml" && "$file" != ".github/workflows/branch-sync-check.yaml" ]]; then
-                echo "Ignoring upstream changes and removing unwanted workflow: $file"
-                git rm -f "$file"
+              if [[ "$file" == .github/workflows/* ]]; then
+                is_allowed=false
+                for allowed in "${allowed_workflows[@]}"; do
+                  if [ "$file" == "$allowed" ]; then
+                    is_allowed=true
+                    break
+                  fi
+                done
+                if [ "$is_allowed" = false ]; then
+                  echo "Ignoring upstream changes and removing unwanted workflow: $file"
+                  git rm -f "$file"
+                fi
               fi
             done
 
@@ -89,7 +99,14 @@ jobs:
 
           # Safety cleanup: ensure master-dev strictly keeps only its own workflows
           for f in .github/workflows/*; do
-            if [ "$f" != ".github/workflows/sync-upstream.yaml" ] && [ "$f" != ".github/workflows/release.yml" ] && [ "$f" != ".github/workflows/branch-sync-check.yaml" ]; then
+            is_allowed=false
+            for allowed in "${allowed_workflows[@]}"; do
+              if [ "$f" == "$allowed" ]; then
+                is_allowed=true
+                break
+              fi
+            done
+            if [ "$is_allowed" = false ]; then
               echo "Pruning unwanted workflow: $f"
               git rm -rf "$f" 2>/dev/null || rm -rf "$f"
             fi

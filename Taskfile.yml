@@ -186,6 +186,10 @@ tasks:
     desc: "Refresh the mod-bug-report.yml 'Mod Concerned' dropdown from actually-published GitHub Releases (scripts/modding/sync_bug_report_options.py). Add -- --dry-run to preview"
     cmds:
       - "{{.PYTHON}} ./scripts/modding/sync_bug_report_options.py {{.CLI_ARGS}}"
+  modding-sync-catalog:
+    desc: "Regenerate master-dev root index.json global catalog from published GitHub Releases (scripts/modding/sync_global_catalog.py). Add -- --offline or --dry-run"
+    cmds:
+      - "{{.PYTHON}} ./scripts/modding/sync_global_catalog.py {{.CLI_ARGS}}"
   # DECOMPILING
   disasm:
     cmds:

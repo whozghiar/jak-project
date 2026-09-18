@@ -127,9 +127,14 @@ These tasks wrap specialized Python automation scripts located in `scripts/moddi
 - **When?** Automatically on release events, or manually with `--dry-run`.
 - **Why?** Keeps the bug report form dropdown restricted to mods with real published releases.
 
-### 8. Catalog Tools: `update_mod_catalog.py` & `apply_catalog_to_all_branches.py`
-- **When?** During release creation or catalog restructuring.
-- **Why?** Generates and maintains the OpenGOAL Launcher `index.json` schema.
+### 8. `task modding-sync-catalog`
+- **Script:** [`sync_global_catalog.py`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/scripts/modding/sync_global_catalog.py)
+- **When?** On `master-dev` to refresh and rebuild the unified root `index.json` catalog containing all published mods and versions.
+- **Why?** Queries GitHub Releases across the repository, parses attached mod assets and metadata, dedupes versions, normalizes branch slugs, and updates the consolidated Launcher v1 schema file.
+
+### 9. Per-Branch Catalog Tools: `update_mod_catalog.py` & `apply_catalog_to_all_branches.py`
+- **When?** During release creation or per-branch catalog restructuring.
+- **Why?** Generates and maintains individual mod `index.json` catalogs.
 
 ---
 
@@ -259,9 +264,14 @@ Ces tâches enveloppent les scripts Python du dossier `scripts/modding/`. Vous p
 - **Quand ?** Automatiquement lors des releases, ou manuellement avec `--dry-run`.
 - **Pourquoi ?** Restreint la liste des mods du formulaire de bugs aux seuls mods ayant une release officielle.
 
-### 8. Outils de Catalogue : `update_mod_catalog.py` & `apply_catalog_to_all_branches.py`
-- **Quand ?** Lors de la création d'une release ou réorganisation du catalogue.
-- **Pourquoi ?** Génère et maintient le fichier `index.json` consommé par l'OpenGOAL Launcher.
+### 8. `task modding-sync-catalog`
+- **Script :** [`sync_global_catalog.py`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/scripts/modding/sync_global_catalog.py)
+- **Quand ?** Sur `master-dev` pour actualiser et reconstruire le catalogue unifié `index.json` racine avec l'ensemble des mods et versions publiés.
+- **Pourquoi ?** Interroge les releases GitHub du dépôt, analyse les archives et métadonnées associées, déduplique les versions, normalise les slugs et met à jour le fichier au schéma Launcher v1.
+
+### 9. Outils de Catalogue par Branche : `update_mod_catalog.py` & `apply_catalog_to_all_branches.py`
+- **Quand ?** Lors de la création d'une release ou réorganisation du catalogue propre à une branche.
+- **Pourquoi ?** Génère et maintient le fichier `index.json` individuel consommé par l'OpenGOAL Launcher.
 
 ---
 

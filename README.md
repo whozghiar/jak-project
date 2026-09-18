@@ -61,13 +61,14 @@ The goal of this repository is to explore the use of AI to create mods for the J
 ```
 
 ### GitHub Actions Workflows Pipeline
-Our repository relies on 5 specialized CI/CD workflows. For complete architectural documentation and detailed triggers, see the **[GitHub Actions Workflows Guide](docs/modding/tools/github_workflows.md)**:
+Our repository relies on 6 specialized CI/CD workflows. For complete architectural documentation and detailed triggers, see the **[GitHub Actions Workflows Guide](docs/modding/tools/github_workflows.md)**:
 
 1. **[`sync-upstream.yaml`](.github/workflows/sync-upstream.yaml)** *(Daily Cron at 10:00 UTC / Dispatch)*: Fast-forwards `master` from official OpenGOAL, updates `master-dev`, auto-merges clean mod branches via [`scripts/modding/sync_branches_with_master.py`](scripts/modding/sync_branches_with_master.py), and generates the live conflict dashboard ([`branch_sync_status.md`](docs/modding/tools/branch_sync_status.md)).
 2. **[`branch-sync-check.yaml`](.github/workflows/branch-sync-check.yaml)** *(On push to `jak[1-3]/**` / Dispatch)*: Lightweight ancestry check verifying that a mod branch is strictly up-to-date with `master-dev`. Powers each mod branch's live status badge in its `README.md`.
 3. **[`release.yml`](.github/workflows/release.yml)** *(Manual `workflow_dispatch`)*: Builds fully static Windows and Linux binaries from clean source, packages assets, publishes GitHub Releases, computes SHA256 hashes, and updates the `index.json` catalog for the OpenGOAL Launcher (see **[Mod Distribution Guide](docs/modding/tools/mod_distribution_guide.md)**).
-4. **[`mod-bug-report-sync.yml`](.github/workflows/mod-bug-report-sync.yml)** *(On Release)*: Syncs released mods to the GitHub issue bug report dropdown form.
-5. **[`mod-bug-triage.yml`](.github/workflows/mod-bug-triage.yml)** *(On Issue open/edit)*: Parses player bug reports and auto-applies game and mod labels (see **[Mod Bug Tracking Guide](docs/modding/tools/mod_bug_tracking.md)**).
+4. **[`sync-global-catalog.yml`](.github/workflows/sync-global-catalog.yml)** *(On Release / Workflow Call / Dispatch)*: Consolidates all published mod releases into the unified root `index.json` catalog for the OpenGOAL Launcher.
+5. **[`mod-bug-report-sync.yml`](.github/workflows/mod-bug-report-sync.yml)** *(On Release)*: Syncs released mods to the GitHub issue bug report dropdown form.
+6. **[`mod-bug-triage.yml`](.github/workflows/mod-bug-triage.yml)** *(On Issue open/edit)*: Parses player bug reports and auto-applies game and mod labels (see **[Mod Bug Tracking Guide](docs/modding/tools/mod_bug_tracking.md)**).
 
 > [!NOTE]
 > **Conflict-Free Documentation Strategy:**
@@ -97,9 +98,11 @@ Each individual mod branch also carries its own live status badge in its root `R
 | :--- | :--- |
 | [`AGENTS.md`](AGENTS.md) | Unified AI agent directives and modding rules (branching, golden rules, REPL workflow, task reference). |
 | [`.agents/skills/`](.agents/skills/) | Modularized developer and agent skills (GOAL Lisp, engine internals, 3D assets/actors, texture modding). |
+| [`index.json`](index.json) | **Consolidated OpenGOAL Launcher mod catalog** (all published mods and releases across Jak 1-3). |
 | [`docs/modding/`](docs/modding/README.md) | Modding documentation hub (verified Lisp references, engine primer, engineering workflows, tools). |
-| [`docs/modding/tools/github_workflows.md`](docs/modding/tools/github_workflows.md) | **Comprehensive guide to all 5 GitHub Actions CI/CD workflows**, triggers, and branch synchronization. |
+| [`docs/modding/tools/github_workflows.md`](docs/modding/tools/github_workflows.md) | **Comprehensive guide to all 6 GitHub Actions CI/CD workflows**, triggers, and branch synchronization. |
 | [`docs/modding/tools/task_scripts_reference.md`](docs/modding/tools/task_scripts_reference.md) | **Pedagogical reference for all `task` commands** and modding automation scripts. |
+| [`docs/modding/tools/mod_distribution_guide.md`](docs/modding/tools/mod_distribution_guide.md) | Multi-platform binary release pipeline and launcher catalog architecture (`index.json`). |
 | [`docs/modding/tools/mod_bug_tracking.md`](docs/modding/tools/mod_bug_tracking.md) | Bug reporting automation, release synchronization, and issue triage. |
 | [`docs/modding/tools/branch_sync_status.md`](docs/modding/tools/branch_sync_status.md) | Live mergeability dashboard across all mod branches (`task modding-branch-status`). |
 | [`docs/modding/tools/mods_menu.md`](docs/modding/tools/mods_menu.md) | Unified in-game Mods menu architecture (`mods-menu-register`, L3 + SELECT). |
@@ -109,7 +112,7 @@ Each individual mod branch also carries its own live status badge in its root `R
 | [`docs/modding/engine_generic_concepts.md`](docs/modding/engine_generic_concepts.md) | Shared non-Lisp engine primer (memory, heaps, DGOs, level streaming, process life cycle). |
 | [`docs/modding/templates/`](docs/modding/templates/) | [`MOD_README.template.md`](docs/modding/templates/MOD_README.template.md), [`mod_menu.template.gc`](docs/modding/templates/mod_menu.template.gc). |
 | [`docs/modding/branch_audit.md`](docs/modding/branch_audit.md) | Generated per-branch compliance report (`task modding-audit`). |
-| [`scripts/modding/`](scripts/modding/) | Python automation (branch creation, branch/doc sync, doc landing, branch audit). |
+| [`scripts/modding/`](scripts/modding/) | Python automation (branch creation, branch/doc sync, doc landing, branch audit, global catalog sync). |
 | [`goal_src/`](goal_src/) | Decompiled and modified GOAL source code by game (`jak1/`, `jak2/`, `jak3/`). |
 | [`goalc/`](goalc/) | OpenGOAL compiler with modding adjustments. |
 | [`game/`](game/) | C++ runtime simulating the Emotion Engine memory on PC. |
@@ -161,6 +164,7 @@ Each individual mod branch also carries its own live status badge in its root `R
 | `task modding-sync-branch` | Safely merge `master-dev` into your current mod branch (`-- --rebase` / `-- --push`) |
 | `task modding-sync-docs` | Pull latest `docs/modding`, `AGENTS.md`, and `CLAUDE.md` from `master-dev` |
 | `task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "…" --push` | Land verified Lisp discoveries on `master-dev` conflict-free, then re-sync |
+| `task modding-sync-catalog` | Refresh and regenerate the root `index.json` catalog from published GitHub releases |
 | `task modding-branch-status` | Refresh mergeability of all mod branches against `master-dev` (`branch_sync_status.md`) |
 | `task modding-audit` | Regenerate repo-wide compliance audit report (`docs/modding/branch_audit.md`) |
 
@@ -213,13 +217,14 @@ L'objectif de ce projet est d'utiliser l'IA pour créer des mods pour la trilogi
 ```
 
 ### Pipeline des Workflows GitHub Actions
-Notre dépôt repose sur 5 workflows CI/CD spécialisés. Pour une documentation architecturale complète et le détail des déclencheurs, consultez le **[Guide des Workflows GitHub Actions](docs/modding/tools/github_workflows.md)** :
+Notre dépôt repose sur 6 workflows CI/CD spécialisés. Pour une documentation architecturale complète et le détail des déclencheurs, consultez le **[Guide des Workflows GitHub Actions](docs/modding/tools/github_workflows.md)** :
 
 1. **[`sync-upstream.yaml`](.github/workflows/sync-upstream.yaml)** *(Cron quotidien à 10:00 UTC / Dispatch)* : Rapatrie les nouveautés d'OpenGOAL amont sur `master`, met à jour `master-dev`, fusionne automatiquement les branches de mods prêtes via [`scripts/modding/sync_branches_with_master.py`](scripts/modding/sync_branches_with_master.py), et actualise le tableau de bord des conflits ([`branch_sync_status.md`](docs/modding/tools/branch_sync_status.md)).
 2. **[`branch-sync-check.yaml`](.github/workflows/branch-sync-check.yaml)** *(Au push sur `jak[1-3]/**` / Dispatch)* : Vérification ultra-rapide d'ascendance garantissant qu'une branche de mod est à jour avec `master-dev`. Alimente le badge d'état GitHub Actions dans le `README.md` de chaque mod.
 3. **[`release.yml`](.github/workflows/release.yml)** *(Déclenchement manuel `workflow_dispatch`)* : Compile des binaires Windows et Linux entièrement statiques depuis les sources propres, empaquette les assets, publie les releases GitHub, calcule les empreintes SHA256 et met à jour le catalogue `index.json` du Launcher OpenGOAL (voir le **[Guide de Distribution des Mods](docs/modding/tools/mod_distribution_guide.md)**).
-4. **[`mod-bug-report-sync.yml`](.github/workflows/mod-bug-report-sync.yml)** *(À chaque Release)* : Synchronise la liste des mods publiés dans le formulaire de rapport de bug GitHub.
-5. **[`mod-bug-triage.yml`](.github/workflows/mod-bug-triage.yml)** *(À l'ouverture/édition d'un ticket)* : Analyse les rapports de bugs des joueurs et applique automatiquement les labels de jeu et de mod (voir le **[Guide de Suivi des Bugs de Mods](docs/modding/tools/mod_bug_tracking.md)**).
+4. **[`sync-global-catalog.yml`](.github/workflows/sync-global-catalog.yml)** *(À chaque Release / Workflow Call / Dispatch)* : Consolide l'ensemble des releases de mods publiées dans le catalogue unifié `index.json` à la racine pour le Launcher OpenGOAL.
+5. **[`mod-bug-report-sync.yml`](.github/workflows/mod-bug-report-sync.yml)** *(À chaque Release)* : Synchronise la liste des mods publiés dans le formulaire de rapport de bug GitHub.
+6. **[`mod-bug-triage.yml`](.github/workflows/mod-bug-triage.yml)** *(À l'ouverture/édition d'un ticket)* : Analyse les rapports de bugs des joueurs et applique automatiquement les labels de jeu et de mod (voir le **[Guide de Suivi des Bugs de Mods](docs/modding/tools/mod_bug_tracking.md)**).
 
 > [!NOTE]
 > **Stratégie de Documentation Sans Conflit :**
@@ -249,9 +254,11 @@ Chaque branche de mod dispose également de son propre badge d'état en direct d
 | :--- | :--- |
 | [`AGENTS.md`](AGENTS.md) | Directives unifiées pour agents IA et règles de modding (stratégie de branches, règles d'or, workflow REPL, référence des tâches). |
 | [`.agents/skills/`](.agents/skills/) | Compétences modulaires développeurs et agents (GOAL Lisp, moteur interne, assets/acteurs 3D, modding de textures). |
+| [`index.json`](index.json) | **Catalogue consolidé pour le Launcher OpenGOAL** (tous les mods et releases publiés pour Jak 1-3). |
 | [`docs/modding/`](docs/modding/README.md) | Hub de documentation du modding (références Lisp vérifiées, guide d'initiation au moteur, workflows d'ingénierie, outils). |
-| [`docs/modding/tools/github_workflows.md`](docs/modding/tools/github_workflows.md) | **Guide exhaustif des 5 workflows CI/CD GitHub Actions**, déclencheurs et synchronisation des branches. |
+| [`docs/modding/tools/github_workflows.md`](docs/modding/tools/github_workflows.md) | **Guide exhaustif des 6 workflows CI/CD GitHub Actions**, déclencheurs et synchronisation des branches. |
 | [`docs/modding/tools/task_scripts_reference.md`](docs/modding/tools/task_scripts_reference.md) | **Référence pédagogique de toutes les commandes `task`** et des scripts Python d'automatisation. |
+| [`docs/modding/tools/mod_distribution_guide.md`](docs/modding/tools/mod_distribution_guide.md) | Pipeline de release multiplateforme et architecture du catalogue Launcher (`index.json`). |
 | [`docs/modding/tools/mod_bug_tracking.md`](docs/modding/tools/mod_bug_tracking.md) | Automatisation des rapports de bugs, synchronisation des releases et triage automatique des tickets. |
 | [`docs/modding/tools/branch_sync_status.md`](docs/modding/tools/branch_sync_status.md) | Tableau de bord de fusionnabilité en direct de toutes les branches de mods (`task modding-branch-status`). |
 | [`docs/modding/tools/mods_menu.md`](docs/modding/tools/mods_menu.md) | Architecture unifiée du menu Mods en jeu (`mods-menu-register`, L3 + SELECT). |
@@ -261,7 +268,7 @@ Chaque branche de mod dispose également de son propre badge d'état en direct d
 | [`docs/modding/engine_generic_concepts.md`](docs/modding/engine_generic_concepts.md) | Guide d'initiation au moteur partagé hors-Lisp (mémoire, heaps, DGOs, streaming de niveaux, cycle de vie des processus). |
 | [`docs/modding/templates/`](docs/modding/templates/) | Modèles de documentation et de code ([`MOD_README.template.md`](docs/modding/templates/MOD_README.template.md), [`mod_menu.template.gc`](docs/modding/templates/mod_menu.template.gc)). |
 | [`docs/modding/branch_audit.md`](docs/modding/branch_audit.md) | Rapport de conformité généré par branche (`task modding-audit`). |
-| [`scripts/modding/`](scripts/modding/) | Automatisation Python (création de branche, synchronisation branche/doc, atterrissage de doc, audit de branche). |
+| [`scripts/modding/`](scripts/modding/) | Automatisation Python (création de branche, synchronisation branche/doc, atterrissage de doc, audit, catalogue global). |
 | [`goal_src/`](goal_src/) | Code source GOAL décompilé et modifié par jeu (`jak1/`, `jak2/`, `jak3/`). |
 | [`goalc/`](goalc/) | Compilateur OpenGOAL avec ajustements pour le modding. |
 | [`game/`](game/) | Runtime C++ simulant la mémoire de l'Emotion Engine sur PC. |
@@ -313,6 +320,7 @@ Chaque branche de mod dispose également de son propre badge d'état en direct d
 | `task modding-sync-branch` | Fusionne de manière sécurisée `master-dev` dans votre branche courante |
 | `task modding-sync-docs` | Rapatrie `docs/modding`, `AGENTS.md` et `CLAUDE.md` depuis `master-dev` |
 | `task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "…" --push` | Intègre des découvertes Lisp sur `master-dev` sans conflit, puis resynchronise |
+| `task modding-sync-catalog` | Actualise et régénère le catalogue `index.json` racine à partir des releases GitHub publiées |
 | `task modding-branch-status` | Actualise l'état de fusion de chaque branche de mod (`branch_sync_status.md`) |
 | `task modding-audit` | Régénère le rapport d'audit de conformité (`docs/modding/branch_audit.md`) |
 

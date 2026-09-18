@@ -21,6 +21,7 @@ SVG live from a workflow's real run history, so the sync scripts only ever
 need to write this markdown ONCE, at branch-creation time.
 """
 
+import os
 from urllib.parse import quote
 
 # Files that make sense only on master-dev. A plain `git merge master-dev`
@@ -32,6 +33,36 @@ from urllib.parse import quote
 MASTER_DEV_ONLY_PATHS = [
     "docs/modding/tools/branch_sync_status.md",
 ]
+
+# The only two workflow files a mod branch is meant to carry (see
+# classify_conflict_path's "drop" rule below and AGENTS.md for why this fork
+# does not mirror upstream's own CI workflows onto every branch).
+ALLOWED_MOD_BRANCH_WORKFLOWS = {
+    "release.yml",
+    "branch-sync-check.yaml",
+}
+
+
+def stray_workflow_files(repo_root):
+    """.github/workflows/* files on disk that don't belong on a mod branch.
+
+    classify_conflict_path's "drop" rule only ever runs on paths git reports as
+    CONFLICTED. A workflow that master-dev merely *adds* (not yet present on the
+    mod branch, so nothing to conflict with) sails through a clean merge untouched
+    — silently violating the same policy. Call this after every merge, conflict or
+    not, exactly like MASTER_DEV_ONLY_PATHS, so a brand-new master-dev-only
+    workflow can never linger on a mod branch just because it happened not to
+    collide with anything.
+    """
+    workflows_dir = os.path.join(repo_root, ".github", "workflows")
+    if not os.path.isdir(workflows_dir):
+        return []
+    return [
+        f".github/workflows/{name}"
+        for name in sorted(os.listdir(workflows_dir))
+        if name not in ALLOWED_MOD_BRANCH_WORKFLOWS
+        and os.path.isfile(os.path.join(workflows_dir, name))
+    ]
 
 
 def classify_conflict_path(filepath):
@@ -55,15 +86,13 @@ def classify_conflict_path(filepath):
         # each script explicitly `git rm`-ing MASTER_DEV_ONLY_PATHS after
         # every merge, conflict or not.
         return "drop"
+    if filepath.startswith(".github/workflows/"):
+        return "theirs" if filepath[len(".github/workflows/"):] in ALLOWED_MOD_BRANCH_WORKFLOWS else "drop"
     if (filepath == "docs/modding/branch_audit.md"
             or filepath == "AGENTS.md"
             or filepath.startswith(".agents/")
-            or filepath.startswith("docs/modding/tools/")
-            or filepath == ".github/workflows/release.yml"
-            or filepath == ".github/workflows/branch-sync-check.yaml"):
+            or filepath.startswith("docs/modding/tools/")):
         return "theirs"
-    if filepath.startswith(".github/workflows/"):
-        return "drop"
     return None
 
 

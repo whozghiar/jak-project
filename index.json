@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.0.0",
-  "sourceName": "Peaceful Haven City (Freedom Fighters) Source",
-  "lastUpdated": "2026-09-17T21:58:03Z",
+  "sourceName": "peaceful-haven-city Source",
+  "lastUpdated": "2026-09-18T00:15:31Z",
   "mods": {
     "peaceful-haven-city": {
-      "displayName": "Peaceful Haven City (Freedom Fighters)",
-      "description": "This Jak 2 mod introduces the standalone blue Krimzon Guard as a replacement for red guards, deploying them across Haven City as neutral, coordinated tactical patrol squads and vehicle pilots that retaliate only when provoked without triggering city alarm raising wanted level.",
+      "displayName": "peaceful-haven-city",
+      "description": "Adds a blue-recolored Crimson Guard as its own, standalone entity — a new GOAL type (`crimson-blue-guard`) that reuses 100% of the stock `crimson-guard`'s behavior, animations and sounds, only with a re-textured mesh. It appears in Haven City mixed into the normal ambient guard traffic, alongside the regular red guards.",
       "authors": [
         "whozghiar"
       ],

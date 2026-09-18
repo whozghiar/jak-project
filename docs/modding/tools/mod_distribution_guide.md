@@ -156,6 +156,8 @@ In the OpenGOAL Launcher:
    ```
 3. The mod immediately appears in the **Mods** tab with a 1-click install button!
 
+> For a full screenshot-by-screenshot walkthrough (including in-game activation), see [`how_to_install_mod.md`](../how_to_install_mod.md).
+
 ---
 
 # 🇫🇷 Version Française
@@ -304,3 +306,5 @@ Dans l'OpenGOAL Launcher :
    https://raw.githubusercontent.com/<utilisateur>/<dépôt>/<branche>/index.json
    ```
 3. Le mod apparaît immédiatement dans l'onglet **Mods** avec bouton d'installation 1-clic !
+
+> Pour un tutoriel complet illustré par captures d'écran (incluant l'activation en jeu), voir [`how_to_install_mod.md`](../how_to_install_mod.md).

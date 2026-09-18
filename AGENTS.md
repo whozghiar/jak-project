@@ -83,15 +83,20 @@ task fix-translations       # Validate translation files
 
 # Modding workflow wrappers (scripts/modding/*.py — pass args after `--`)
 task modding-new-branch -- jak2/features/my-mod   # Create new mod branch from master-dev + README template
-task modding-sync-branch                          # Safe git merge of master-dev into current branch
+task modding-sync-branch                          # YOUR branch only: safe git merge of master-dev into it (sync_branch_with_master_dev.py)
 task modding-sync-docs                            # Pull docs/modding + AGENTS.md + CLAUDE.md from master-dev
 task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "..." --push
-task modding-branch-status                        # Refresh branch sync dashboard
+task modding-branch-status                        # EVERY mod branch: test/refresh sync status, the CI fan-out (sync_branches_with_master.py)
 task modding-audit                                # Regenerate docs/modding/branch_audit.md
 
 # Mod Distribution & Packaging (OpenGOAL Launcher & Releases)
 # Reference: docs/modding/tools/mod_distribution_guide.md
-git tag v1.0.0 && git push origin v1.0.0          # Trigger automated multi-OS CI/CD build & release
+# release.yml is workflow_dispatch-ONLY (pushing a tag does not trigger it) and always
+# rebuilds Windows + Linux from source — there is no "fast/GOAL-only" shortcut anymore.
+# mod_name, mod_description and tag_name are all `required: true`: trigger it from the
+# Actions tab, or with the gh CLI:
+gh workflow run release.yml --ref <your-mod-branch> \
+  -f mod_name="Jak 3 JetBoard" -f mod_description="..." -f tag_name="v1.0.0"
 python scripts/modding/update_mod_catalog.py     # Generate/update OpenGOAL Mod Source catalog (index.json)
 ```
 
@@ -160,6 +165,7 @@ All mod development must adhere to the conventions documented in this guide, the
 ## 7. Git Branching Strategy & Collaboration
 
 - `master`: Clean mirror of `open-goal/jak-project:master`. **Never commit directly to `master`.**
+  - `master`'s own CI/build/lint workflows are **intentionally not mirrored** onto `master-dev` or any mod branch (`.github/workflows/sync-upstream.yaml` prunes every workflow file except `release.yml` and itself on every sync). This is a deliberate call, not an oversight — do not "fix" it by reintroducing them.
 - `master-dev`: Integration and modding base branch. All new mod branches MUST branch from `master-dev`.
 - **Branch Naming Convention:**
   ```text
@@ -173,6 +179,9 @@ All mod development must adhere to the conventions documented in this guide, the
   2. **Tier 2 — `docs/modding/current_mod/<slug>_readme.md` (Technical & Pedagogical Deep-Dive):**
      - Dedicated in-depth engineering documentation for developers, agents, and future maintainers.
      - Uses a pedagogical approach with concrete GOAL Lisp code examples, type layouts (`deftype`), state machine transitions (`defstate`), engine hooks, audio bank/asset injection pipelines, and architectural explanations.
+- **Sync Status Badges (native GitHub Actions badges, not hand-rendered):**
+  - `master-dev`'s own root `README.md` shows [GitHub's own status badge](https://docs.github.com/actions/how-tos/monitor-workflows/add-a-status-badge) for the `sync-upstream.yaml` workflow — green iff the latest daily sync ran cleanly. The branch-by-branch detail (with a ready-to-run resolution command) lives in [`docs/modding/tools/branch_sync_status.md`](docs/modding/tools/branch_sync_status.md) — a file that is **intentionally master-dev-only** (`scripts/modding/sync_common.py::MASTER_DEV_ONLY_PATHS`) and gets stripped back out if a merge ever carries it onto a mod branch.
+  - Each mod branch instead carries its own native GitHub Actions status badge for [`.github/workflows/branch-sync-check.yaml`](.github/workflows/branch-sync-check.yaml), scoped to it via `?branch=`, written once into its `README.md` at creation time by `create_mod_branch.py` (`sync_common.github_actions_badge_markdown`). Neither sync script ever rewrites it — GitHub renders the badge live from that workflow's real run history, which `push`es to the branch (syncs and otherwise) trigger directly. It cannot turn red purely because `master-dev` moved on without a new push landing on the branch (GitHub Actions `schedule:` triggers only ever fire on the repo's default branch, so a true per-branch cron isn't possible) — for the live, authoritative status of every branch, check master-dev's dashboard.
 - **Recording Verified Discoveries Conflict-Free:**
   - The reference documents (`jak[x]_lisp_instructions.md`, `engine_generic_concepts.md`) have **one source of truth: `master-dev`**. NEVER edit them directly on a mod branch.
   - Land discoveries using:

@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.0.0",
-  "sourceName": "transport-ag/traffic Source",
-  "lastUpdated": "2026-09-17T14:48:03Z",
+  "sourceName": "KG-Transporter Traffic Source",
+  "lastUpdated": "2026-09-18T02:06:06Z",
   "mods": {
     "transport-ag-traffic": {
-      "displayName": "transport-ag/traffic",
-      "description": "Integrates transport-v, an authentic Crimson Guard troop transport gunship into Haven City's ambient high-altitude traffic lanes, pilotable by Jak with a functional turret, chasing during alerts, and hovering to drop squads.",
+      "displayName": "KG-Transporter Traffic",
+      "description": "This Jak 2 mod introduces the Krimzon Guard KG-Transport carrier into Haven City's ambient high-altitude air traffic, allowing Jak to hijack the craft, trigger Level 2 alerts, and fire mounted turrets (R1) while enemy transports actively track the player and drop squads of guards to street level.",
       "authors": [
         "whozghiar"
       ],
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-17T14:48:03Z",
+          "publishedDate": "2026-09-18T02:06:06Z",
           "supportedGames": [
             "jak2"
           ],
@@ -29,8 +29,8 @@
             "linux": "https://github.com/whozghiar/jak-project/releases/download/transport-ag-traffic-v1.0.0/linux-transport-ag-traffic-v1.0.0.zip"
           },
           "checksums": {
-            "windows": "",
-            "linux": ""
+            "windows": "bc8b3317fa1615bba96cce50eccb758e24df57aa1b5d4b0c27b0d90f30d82e70",
+            "linux": "b7e6c6be897529738235ffbf60f51059b87ece2551fb45274af080bdced20f36"
           }
         }
       ],

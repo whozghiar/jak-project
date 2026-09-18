@@ -18,6 +18,8 @@ import os
 import subprocess
 import sys
 
+import sync_common
+
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 def run_cmd(cmd, check=True, capture=True):
@@ -141,30 +143,49 @@ def main():
 
         merge_res = run_cmd(f'git merge {source_ref} --no-commit', check=False)
 
-        # Auto-resolve deterministic documentation and workflow rules
+        # Auto-resolve deterministic documentation and workflow rules (same rule
+        # table the CI fan-out uses — see sync_common.classify_conflict_path)
         unmerged_res = run_cmd("git diff --name-only --diff-filter=U", check=False)
         unmerged = [l.strip() for l in unmerged_res.stdout.splitlines() if l.strip()]
         if unmerged:
             for f in unmerged:
-                if f == "README.md" or f.startswith("docs/modding/current_mod/"):
-                    # Preserve mod's own README and technical documentation
+                action = sync_common.classify_conflict_path(f)
+                if action == "ours":
                     run_cmd(f'git checkout HEAD -- "{f}" 2>/dev/null || true', check=False)
                     run_cmd(f'git add "{f}"', check=False)
-                elif f == ".github/workflows/release.yml" or f == "docs/modding/branch_audit.md" or f.startswith("docs/modding/tools/") or f == "AGENTS.md" or f.startswith(".agents/"):
-                    # Take release workflow, base branch global audit/status, instructions and skills
+                elif action == "theirs":
                     run_cmd(f'git checkout MERGE_HEAD -- "{f}" 2>/dev/null || true', check=False)
                     run_cmd(f'git add "{f}"', check=False)
-                elif f.startswith(".github/workflows/"):
-                    # Drop other unwanted workflows
+                elif action == "drop":
                     run_cmd(f'git rm -rf "{f}" 2>/dev/null || rm -rf "{f}"', check=False)
 
         # CRITICAL: Always ensure mod's root README.md is strictly preserved from HEAD
         # (prevents Git 3-way merge from silently splicing master-dev's dashboard/hub into mod's README)
         run_cmd('git checkout HEAD -- README.md 2>/dev/null || true', check=False)
+
+        # master-dev-only files (e.g. the all-branches sync dashboard) ride along on a
+        # clean, no-conflict merge too — strip them back out (see sync_common).
+        for mdo_path in sync_common.MASTER_DEV_ONLY_PATHS:
+            if os.path.isfile(os.path.join(REPO_ROOT, mdo_path)):
+                run_cmd(f'git rm -f -q "{mdo_path}"', check=False)
+
+        # Same deal for any workflow master-dev added that isn't release.yml or
+        # branch-sync-check.yaml: a clean merge carries it in with no conflict to
+        # catch, so it has to be swept out explicitly too (see stray_workflow_files).
+        for wf_path in sync_common.stray_workflow_files(REPO_ROOT):
+            run_cmd(f'git rm -f -q "{wf_path}"', check=False)
+
         run_cmd('git add README.md', check=False)
 
-        # Generate or update index.json for the branch
-        run_cmd(f'python "{os.path.join(REPO_ROOT, "scripts", "modding", "update_mod_catalog.py")}" --branch "{target_branch}"', check=False)
+        # No README badge to stamp here: this branch's "synced with master-dev?" badge
+        # is a native GitHub Actions status badge (branch-sync-check.yaml), written once
+        # into the README at branch creation. The --push below is what makes it go
+        # green — GitHub renders it live from that workflow's run history.
+
+        # Refresh index.json's display metadata only — a routine sync is not a release,
+        # so it must never fabricate a draft versions[] entry (see update_mod_catalog.py's
+        # refresh_metadata_only: that used to happen here every single time you synced).
+        run_cmd(f'python "{os.path.join(REPO_ROOT, "scripts", "modding", "update_mod_catalog.py")}" --branch "{target_branch}" --metadata-only', check=False)
         run_cmd('git add index.json', check=False)
 
         # Verify if real source code conflicts remain

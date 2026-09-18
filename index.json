@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "Whozghiar OpenGOAL Mods Hub",
-  "lastUpdated": "2026-09-18T16:16:52Z",
+  "lastUpdated": "2026-09-18T22:19:43Z",
   "mods": {
     "blue-krimzon-guard": {
-      "displayName": "Blue Krimzon Guard (Freedom Fighters)",
-      "description": "This Jak 2 mod introduces the blue Krimzon Guard as a standalone entity that completely substitutes standard red guards across Haven City's foot patrols and vehicle traffic, retaining full retail combat behaviors, alerts, and animations while adding grenade launcher weapon",
+      "displayName": "blue-krimzon-guard",
+      "description": "Turns Haven City's Crimson Guard blue. The mod adds a blue-recolored Crimson Guard as its own standalone entity — a new GOAL type, `crimson-blue-guard`, that is a subtype of the stock `crimson-guard`. While the mod is enabled it guard bikes and hellcats. Turn it off and the city goes back to 100% red. The blue guards are **not** a new faction and **not** a new AI. They behave exactly like the red ones — they react to your crimes, raise the wanted level, chase you, shoot, try to arrest you and change weapons as the alert escalates — because they inherit every one of those code paths untouched. The only gameplay addition is that some of them carry a grenade launcher.",
       "authors": [
         "whozghiar"
       ],
@@ -20,7 +20,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-18T02:12:49Z",
+          "publishedDate": "2026-09-17T14:47:44Z",
           "supportedGames": [
             "jak2"
           ],
@@ -29,8 +29,8 @@
             "linux": "https://github.com/whozghiar/jak-project/releases/download/blue-krimzon-guard-v1.0.0/linux-blue-krimzon-guard-v1.0.0.zip"
           },
           "checksums": {
-            "windows": "148e574d3077d09b42ffab80afc2f1164c4f88cd45bb64e9b9c9380a1d26f72e",
-            "linux": "9faeead3ce724fda58304b8078fb45a75f9cce4ffee67e32da0bc6139bbd3ba6"
+            "windows": "",
+            "linux": ""
           }
         },
         {

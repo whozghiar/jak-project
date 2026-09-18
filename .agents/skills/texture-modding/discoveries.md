@@ -8,3 +8,5 @@ This file records verified insights, texture dimensions quirks, and extraction g
 | Date | Branch | Author/Agent | Discovery / Fix | Code Sample |
 |---|---|---|---|---|
 | 2026-09-11 | master-dev | Agent | Use `_all/` inside `texture_replacements/` to replace a shared texture across every level tpage without duplicating files. | `custom_assets/jak2/texture_replacements/_all/my_tex.png` |
+| 2026-09-19 | jak2/features/blue-krimzon-guard | Agent | Launcher texture pack `.zip` requires root `metadata.json` (with `author`/`authors`, `releaseDate`/`publishedDate`), optional `cover.png`, and `custom_assets/<game>/texture_replacements/`. | `{"schemaVersion": "1.0.0", "version": "1.0.0", "name": "...", "author": "..."}` |
+

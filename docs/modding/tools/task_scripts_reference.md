@@ -136,6 +136,12 @@ These tasks wrap specialized Python automation scripts located in `scripts/moddi
 - **When?** During release creation or per-branch catalog restructuring.
 - **Why?** Generates and maintains individual mod `index.json` catalogs.
 
+### 10. `task modding-package-texture-pack`
+- **Script:** [`package_texture_pack.py`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/scripts/modding/package_texture_pack.py)
+- **When?** When creating or updating a standalone texture pack from `custom_assets/<game>/texture_replacements/`.
+- **Why?** Packages modified textures into an OpenGOAL Launcher-compliant `.zip` archive with `metadata.json` and `cover.png`, computes the SHA256 checksum, and optionally registers/updates the texture pack in `index.json` (`--update-index`).
+
+
 ---
 
 ## 7. Common Developer Workflows
@@ -272,6 +278,12 @@ Ces tâches enveloppent les scripts Python du dossier `scripts/modding/`. Vous p
 ### 9. Outils de Catalogue par Branche : `update_mod_catalog.py` & `apply_catalog_to_all_branches.py`
 - **Quand ?** Lors de la création d'une release ou réorganisation du catalogue propre à une branche.
 - **Pourquoi ?** Génère et maintient le fichier `index.json` individuel consommé par l'OpenGOAL Launcher.
+
+### 10. `task modding-package-texture-pack`
+- **Script :** [`package_texture_pack.py`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/scripts/modding/package_texture_pack.py)
+- **Quand ?** Lors de la création ou mise à jour d'un pack de textures autonome depuis `custom_assets/<game>/texture_replacements/`.
+- **Pourquoi ?** Empaquette les textures modifiées dans une archive `.zip` strictement conforme au Launcher OpenGOAL (avec `metadata.json` et `cover.png`), calcule l'empreinte SHA256, et enregistre ou met à jour le pack dans le catalogue `index.json` (`--update-index`).
+
 
 ---
 

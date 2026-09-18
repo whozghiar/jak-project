@@ -149,6 +149,7 @@ task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message
 task modding-branch-status                        # EVERY mod branch: test/refresh sync status (sync_branches_with_master.py)
 task modding-audit                                # Regenerate docs/modding/branch_audit.md
 task modding-sync-catalog                          # Regenerate master-dev root index.json from published releases
+task modding-package-texture-pack -- --update-index  # Package texture_replacements/ into launcher zip & update index.json
 ```
 
 > [!IMPORTANT]
@@ -364,6 +365,7 @@ task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message
 task modding-branch-status                         # Toutes les branches : audite et synchronise (sync_branches_with_master.py)
 task modding-audit                                 # Régénère docs/modding/branch_audit.md
 task modding-sync-catalog                          # Régénère le catalogue global index.json racine depuis les Releases
+task modding-package-texture-pack -- --update-index  # Empaquette texture_replacements/ en zip Launcher et met à jour index.json
 ```
 
 > [!IMPORTANT]

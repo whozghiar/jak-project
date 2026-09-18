@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
-  "sourceName": "killable_yakow Source",
-  "lastUpdated": "2026-09-17T14:47:54Z",
+  "sourceName": "Killable Yakow Source",
+  "lastUpdated": "2026-09-18T02:05:20Z",
   "mods": {
     "yakow-killable": {
       "displayName": "Killable Yakow",
@@ -68,8 +68,8 @@
       "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/yakow_killable/docs/img/mod/mod_cover.png"
     },
     "killable-yakow": {
-      "displayName": "killable_yakow",
-      "description": "Makes the peaceful Yakow farm animals killable and protected by Krimzon law. Striking a Yakow immediately triggers a Krimzon Guard alert (\"Hands off the cow!\"), while defeating it drops dark eco pills with authentic death VFX.",
+      "displayName": "Killable Yakow",
+      "description": "This Jak 2 mod makes the peaceful Yakow livestock damageable and places them under Krimzon law, turning harmless farm animals into active combat triggers that immediately summon Alert Level 1 Krimzon Guards upon impact while releasing 6 Dark Eco pills upon defeat accompanied by purple dissolution death effects",
       "authors": [
         "whozghiar"
       ],
@@ -84,7 +84,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-17T14:47:54Z",
+          "publishedDate": "2026-09-18T02:05:20Z",
           "supportedGames": [
             "jak2"
           ],
@@ -93,8 +93,8 @@
             "linux": "https://github.com/whozghiar/jak-project/releases/download/killable_yakow-v1.0.0/linux-killable_yakow-v1.0.0.zip"
           },
           "checksums": {
-            "windows": "",
-            "linux": ""
+            "windows": "53e4bc15c781b622592a794a709732e68193b656bd9cf318e8ff9f277c94348d",
+            "linux": "90ffa30539accb96dd7ccbd3ae4ed303916c6c52a57dd2ed3653abc6f1bcdb6b"
           }
         }
       ],

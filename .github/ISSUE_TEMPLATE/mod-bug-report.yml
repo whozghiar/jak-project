@@ -6,24 +6,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for testing one of our custom mods! This form is **only** for bugs in a
-        custom mod branch (`jak[1-3]/features/*`, `jak[1-3]/config/*`, ...).
-        For a bug in the vanilla/base game, please use the "Jak 1/2/3 Bug Report" template instead.
-
-        The fields below let us route your report to the right mod branch, reproduce it with
-        the exact same version you played, and link the eventual fix commit directly back to
-        this issue (so it auto-closes and shows up in the next release's changelog).
-
-  - type: checkboxes
-    attributes:
-      label: Acknowledgements
-      description: Take a couple minutes to help our maintainers work faster.
-      options:
-        - label: I have [searched](https://github.com/open-goal/jak-project/issues?q=is%3Aissue+label%3Amod-bug+sort%3Aupdated-desc+) for duplicate or closed mod bug reports
-          required: true
-        - label: I understand that I am supposed to provide my own legitimately obtained copy of the game
-          required: true
-
+        Thanks for testing one of my custom mods! This form is **only** for bugs in a
+        mod.
+        For a bug in the vanilla/base game, please refer to https://github.com/open-goal/jak-project/issues
   - type: dropdown
     attributes:
       label: Game
@@ -42,23 +27,19 @@ body:
         Only mods with at least one published GitHub Release are listed, by the exact
         display name from that release (kept in sync automatically — see
         docs/modding/tools/mod_bug_tracking.md). If your mod isn't listed — it may still
-        be unreleased, or in beta — pick "Other" and name it precisely in the field below.
+        be unreleased.
       options:
         # BEGIN GENERATED — scripts/modding/sync_bug_report_options.py (do not edit by hand)
-        - "[Jak 2] Haven City : Rebellion"
+        - "[Jak 2] Dark Jak Enhanced"
+        - "[Jak 2] Haven City Rebellion"
+        - "[Jak 2] Jak 3 Jetboard"
+        - "[Jak 2] KG-Transporter Traffic"
+        - "[Jak 2] Killable Yakow"
+        - "[Jak 2] Paddy Wagon"
         - "[Jak 2] Peaceful Haven City (Freedom Fighters)"
         # END GENERATED
-        - "Other / not listed above (specify in the field below)"
     validations:
       required: true
-
-  - type: input
-    attributes:
-      label: Exact Mod Name (if you selected "Other" above)
-      description: The mod's display name as shown in the Launcher's Mods tab, or its project/branch name if it's an unreleased/dev build.
-      placeholder: My Mod's Display Name
-    validations:
-      required: false
 
   - type: input
     attributes:

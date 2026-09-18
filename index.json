@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.0.0",
-  "sourceName": "Dark Jak Enhanced Source",
-  "lastUpdated": "2026-09-18T02:10:16Z",
+  "sourceName": "dark_jak_enhanced Source",
+  "lastUpdated": "2026-09-18T02:11:59Z",
   "mods": {
     "dark-jak-enhanced": {
-      "displayName": "Dark Jak Enhanced",
-      "description": "This Jak 2 mod expands Dark Jak with a third evolutionary stage : Mega-Mega Dark Jak, featuring progressive 3-tier scaling up to a colossal size (x3.5) with L2, instant manual de-transformation with R2, an automatic camera pull-back, restored Dark Jak Level 1 rolls and flips, instant aerial Dark Bomb dives, and collision-resilient Dark Blasts.",
+      "displayName": "dark_jak_enhanced",
+      "description": "The **Dark Jak Enhanced** mod adds a full 3rd evolutionary stage to Dark Jak in Jak 2: the **Mega-Mega Dark Jak (Titan / Colossus)**, alongside critical quality-of-life improvements, restored acrobatics for Level 1 Dark Jak, instantaneous Dark Bomb activation, and enhanced collision resilience.",
       "authors": [
         "whozghiar"
       ],

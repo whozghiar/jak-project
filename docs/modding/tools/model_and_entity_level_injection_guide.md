@@ -276,7 +276,7 @@ Ouvrez [`decompiler/config/jak2/jak2_config.jsonc`](file:///d:/Developpement/Ope
 
 > [!TIP]
 > **Syntaxe :** `"<nom-art-group>:<HOME.DGO>"`
-> L'ajout de `:<HOME.DGO>` permet au décompilateur d'extraire la table de remappage de textures propre au niveau d'origine du modèle. Sans cela, le modèle s'afficherait sans textures.
+> Préciser `:<HOME.DGO>` indique à l'extracteur de résoudre les références de texture via la table de remappage de `<HOME.DGO>`. Si omis, le décompilateur choisit le premier niveau contenant l'art-group, qui peut ne pas avoir le bon `tpage`.
 
 Lancez l'extraction :
 ```bash
@@ -314,12 +314,12 @@ Dans la fonction `init-by-other` de votre entité, liez le process avant d'appel
 
 #### À Haven City :
 ```lisp
-(defbehavior mon-entite-init-by-other mon-entite ((arg0 mon-entite-params))
+(defbehavior custom-actor-init-by-other custom-actor ((arg0 custom-actor-params))
   ;; Raccroche le process à l'entité résidente de Haven City
   (ctywide-entity-hack)
   (initialize-skeleton
     self
-    (the-as skeleton-group (art-group-get-by-name *level* "skel-mon-entite" (the-as (pointer uint32) #f)))
+    (the-as skeleton-group (art-group-get-by-name *level* "skel-custom-actor" (the-as (pointer uint32) #f)))
     (the-as pair 0)
     )
   ;; Suite de l'initialisation...
@@ -336,7 +336,7 @@ Dans la fonction `init-by-other` de votre entité, liez le process avant d'appel
       (set! (-> pp level) lvl)
       )
     )
-  (initialize-skeleton self (the-as skeleton-group (art-group-get-by-name *level* "skel-mon-entite" (the-as (pointer uint32) #f))) (the-as pair 0))
+  (initialize-skeleton self (the-as skeleton-group (art-group-get-by-name *level* "skel-custom-actor" (the-as (pointer uint32) #f))) (the-as pair 0))
   )
 ```
 

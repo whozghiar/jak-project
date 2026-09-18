@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.0.0",
-  "sourceName": "paddywagon - traffic Source",
+  "sourceName": "Paddy-wagon Traffic Source",
   "lastUpdated": "2026-09-18T02:12:25Z",
   "mods": {
     "paddywagon-traffic": {
-      "displayName": "paddywagon/traffic",
-      "description": "The Krimzon Guard **paddy wagon** — the armoured prisoner van you chase during Guard at the controls**. It is a real guard vehicle: red dot on the minimap, joins the hunt during an alert, and **can be boarded and driven** — stealing it raises the city alarm exactly like stealing a hellcat or a guard bike.",
+      "displayName": "Paddy-Wagon Traffic",
+      "description": "This Jak 2 mod integrates the retail Krimzon Guard paddy wagon into Haven City's ambient traffic, complete with authentic handling physics, active guard drivers, caged civilian prisoners, and full player hijacking support that raises city alert. Lane switching (R2) and onboard weapon fire (R1).",
       "authors": [
         "whozghiar"
       ],

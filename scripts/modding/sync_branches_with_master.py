@@ -4,6 +4,18 @@ Automated synchronization script for Jak modding branches.
 Tests mergeability against a source branch (default: origin/master) using in-memory `git merge-tree`,
 optionally merges clean branches, and generates a live markdown dashboard of branch sync statuses.
 
+Where the sync status actually lives (two different granularities, on purpose):
+    - The full, all-branches dashboard (docs/modding/tools/branch_sync_status.md) is
+      master-dev-only (see sync_common.MASTER_DEV_ONLY_PATHS): it is never carried onto
+      a mod branch, and master-dev's own root README.md only shows GitHub's native
+      status badge for THIS workflow, linking here for the branch-by-branch detail.
+    - Each mod branch instead carries its own native GitHub Actions status badge for
+      .github/workflows/branch-sync-check.yaml (?branch=<it>), written once into its
+      README.md at creation time (create_mod_branch.py). This script does not touch
+      that badge at all: pushing a successful merge to a branch is exactly what makes
+      branch-sync-check.yaml run and go green — GitHub renders the badge live from
+      that run history, nothing here needs to keep it in sync.
+
 Usage:
     python scripts/modding/sync_branches_with_master.py           # Test and update dashboard without pushing
     python scripts/modding/sync_branches_with_master.py --push    # Merge clean branches, push, and update dashboard
@@ -16,6 +28,8 @@ import os
 import re
 import subprocess
 import sys
+
+import sync_common
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -71,7 +85,9 @@ def get_previous_statuses():
     return prev
 
 def run_cmd(cmd, check=False):
-    res = subprocess.run(cmd, shell=True, text=True, capture_output=True, cwd=REPO_ROOT)
+    res = subprocess.run(
+        cmd, shell=True, text=True, capture_output=True, cwd=REPO_ROOT, encoding="utf-8", errors="replace"
+    )
     return res
 
 def get_remote_branches():
@@ -100,22 +116,6 @@ def is_working_tree_clean():
     res = run_cmd("git status --porcelain")
     return len(res.stdout.strip()) == 0
 
-def is_auto_resolvable(filepath):
-    """Check if a conflicted file has a deterministic modding rule."""
-    if filepath == "README.md":
-        return True  # Always preserve mod's root README
-    if filepath == "docs/modding/branch_audit.md" or filepath == "AGENTS.md" or filepath.startswith(".agents/"):
-        return True  # Take latest audit/guidelines/skills from base branch
-    if filepath.startswith("docs/modding/tools/"):
-        return True  # Take latest modding tools/dashboards
-    if filepath.startswith("docs/modding/current_mod/"):
-        return True  # Preserve mod's technical documentation
-    if filepath == ".github/workflows/release.yml":
-        return True  # Keep release workflow
-    if filepath.startswith(".github/workflows/"):
-        return True  # Drop other unwanted workflows
-    return False
-
 def test_merge_tree(source_ref, branch_ref):
     """
     Test merge in memory with git merge-tree --write-tree.
@@ -142,7 +142,7 @@ def test_merge_tree(source_ref, branch_ref):
                     conflicts.append(line.strip())
                 
     conflicts = list(dict.fromkeys(conflicts))
-    real_conflicts = [f for f in conflicts if not is_auto_resolvable(f)]
+    real_conflicts = [f for f in conflicts if not sync_common.is_auto_resolvable(f)]
     # Clean if there are no real code conflicts
     clean = (len(real_conflicts) == 0)
     return clean, real_conflicts, conflicts, res.stdout
@@ -160,16 +160,14 @@ def merge_and_push_branch(branch, source_ref):
         if merge_res.returncode != 0:
             unmerged = [l.strip() for l in run_cmd("git diff --name-only --diff-filter=U").stdout.splitlines() if l.strip()]
             for f in unmerged:
-                if f == "README.md" or f.startswith("docs/modding/current_mod/"):
-                    # Preserve mod's own README and technical documentation
+                action = sync_common.classify_conflict_path(f)
+                if action == "ours":
                     run_cmd(f'git checkout HEAD -- "{f}"')
                     run_cmd(f'git add "{f}"')
-                elif f == ".github/workflows/release.yml" or f == "docs/modding/branch_audit.md" or f.startswith("docs/modding/tools/") or f == "AGENTS.md" or f.startswith(".agents/"):
-                    # Always take release workflow, guidelines, skills and base modding tools/audits from base branch
+                elif action == "theirs":
                     run_cmd(f'git checkout MERGE_HEAD -- "{f}"')
                     run_cmd(f'git add "{f}"')
-                elif f.startswith(".github/workflows/"):
-                    # Drop other unwanted workflows
+                elif action == "drop":
                     run_cmd(f'git rm -rf "{f}"')
 
             # Verify if any real code conflict remains
@@ -181,10 +179,32 @@ def merge_and_push_branch(branch, source_ref):
         # CRITICAL: Always ensure mod's root README.md is strictly preserved from HEAD
         # (prevents Git 3-way merge from silently splicing master-dev's dashboard/hub into mod's README)
         run_cmd('git checkout HEAD -- README.md')
+
+        # master-dev-only files (e.g. the all-branches sync dashboard) ride along on a
+        # clean, no-conflict merge too since git has no reason to flag them — strip them
+        # back out so they never linger on a mod branch.
+        for mdo_path in sync_common.MASTER_DEV_ONLY_PATHS:
+            if os.path.isfile(os.path.join(REPO_ROOT, mdo_path)):
+                run_cmd(f'git rm -f -q "{mdo_path}"')
+
+        # Same deal for any workflow master-dev added that isn't release.yml or
+        # branch-sync-check.yaml: a clean merge carries it in with no conflict to
+        # catch, so it has to be swept out explicitly too (see stray_workflow_files).
+        for wf_path in sync_common.stray_workflow_files(REPO_ROOT):
+            run_cmd(f'git rm -f -q "{wf_path}"')
+
         run_cmd('git add README.md')
 
-        # Generate or update index.json for the branch
-        run_cmd(f'python "{os.path.join(REPO_ROOT, "scripts", "modding", "update_mod_catalog.py")}" --branch "{branch}"')
+        # No README badge to stamp here: each mod branch's "synced with master-dev?"
+        # badge is a native GitHub Actions status badge (.github/workflows/branch-sync-check.yaml,
+        # written once into the README at branch creation by create_mod_branch.py). This
+        # very push is what makes that badge go green — GitHub renders it live from the
+        # workflow run it triggers, nothing here needs to touch the README to update it.
+
+        # Refresh index.json's display metadata only — a routine sync is not a release,
+        # so it must never fabricate a draft versions[] entry (see update_mod_catalog.py's
+        # refresh_metadata_only: that used to happen here every single day).
+        run_cmd(f'python "{os.path.join(REPO_ROOT, "scripts", "modding", "update_mod_catalog.py")}" --branch "{branch}" --metadata-only')
         run_cmd('git add index.json')
 
         commit_msg = (
@@ -216,11 +236,22 @@ def merge_and_push_branch(branch, source_ref):
 def generate_dashboard(results, source_ref, source_sha, updated_at):
     """Generate Markdown dashboard file."""
     total = len(results)
-    synced_count = sum(1 for r in results if "À jour" in r["status"] or "Synchronisée" in r["status"])
+    # "Prête à fusionner" (dry-run, no --push) is just as "in sync" as "À jour" or
+    # "Synchronisée" (post-push) — only a real, unresolved conflict should count against
+    # the summary badge. Counting just the first two under-reported the true number and
+    # would have made the new summary badge lie about how healthy the fleet of branches is.
+    synced_count = sum(
+        1 for r in results
+        if "À jour" in r["status"] or "Synchronisée" in r["status"] or "Prête à fusionner" in r["status"]
+    )
     conflict_count = sum(1 for r in results if "Conflit" in r["status"])
 
     md = []
     md.append("# 📊 État de Synchronisation des Branches de Mods")
+    md.append("")
+    md.append("> **Fichier réservé à `master-dev`.** Ce dashboard n'est jamais propagé sur les")
+    md.append("> branches de mods (voir `sync_common.MASTER_DEV_ONLY_PATHS`) : chaque branche")
+    md.append("> porte seulement son propre badge de synchro dans son `README.md`.")
     md.append("")
     md.append(f"> **Dernière mise à jour :** `{updated_at}`  ")
     md.append(f"> **Branche source :** `{source_ref}` (`{source_sha}`)  ")
@@ -258,39 +289,31 @@ def generate_dashboard(results, source_ref, source_sha, updated_at):
     md.append("")
     md.append("*(Ce fichier est mis à jour automatiquement par le workflow `sync-upstream.yaml` ou le script `scripts/modding/sync_branches_with_master.py`)*")
     md.append("")
+    new_content = "\n".join(md)
 
-    with open(DASHBOARD_FILE, "w", encoding="utf-8") as f:
-        f.write("\n".join(md))
+    # The "Dernière mise à jour" timestamp changes on literally every run, even when
+    # nothing else did — writing (and thus committing) the file on that basis alone
+    # produces a meaningless commit every single day forever. Compare content with
+    # that one line stripped out first, and skip the write entirely if nothing else
+    # moved, so `git status` (and the cron's commit step) sees no diff to act on.
+    def _without_timestamp(text):
+        return re.sub(r"^> \*\*Dernière mise à jour :\*\*.*$", "", text, flags=re.MULTILINE)
 
-    # Also update the dashboard table directly inside root README.md on master-dev
-    readme_file = os.path.join(REPO_ROOT, "README.md")
-    if os.path.isfile(readme_file):
-        with open(readme_file, "r", encoding="utf-8") as f:
-            readme_content = f.read()
+    previous_content = ""
+    if os.path.isfile(DASHBOARD_FILE):
+        with open(DASHBOARD_FILE, "r", encoding="utf-8") as f:
+            previous_content = f.read()
 
-        table_lines = [
-            f"> **Dernière mise à jour :** `{updated_at}`  ",
-            f"> **Branche source :** `{source_ref}` (`{source_sha}`)  ",
-            f"> **Statut global :** {synced_count}/{total} synchronisées ({conflict_count} conflits)",
-            "",
-            "| Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |",
-            "| :--- | :---: | :--- | :--- | :--- |"
-        ]
-        for r in results:
-            branch_code = f"`{r['branch']}`"
-            status = r["status"]
-            last_commit = f"`{r['last_commit']}`"
-            conflicts_fmt = "<br>".join([f"• `{f}`" for f in r["conflicts"]]) if r["conflicts"] else r.get("details", "Aucun")
-            res_cmd = f"`git checkout {r['branch']} && git merge origin/{source_ref}`" if "Conflit" in status else "—"
-            table_lines.append(f"| {branch_code} | {status} | {last_commit} | {conflicts_fmt} | {res_cmd} |")
+    if _without_timestamp(previous_content) == _without_timestamp(new_content):
+        print(f"Dashboard content unchanged besides the timestamp — leaving {DASHBOARD_FILE} as-is.")
+    else:
+        with open(DASHBOARD_FILE, "w", encoding="utf-8") as f:
+            f.write(new_content)
 
-        table_block = "\n".join(table_lines)
-        pattern = r"<!-- BRANCH_STATUS_START -->.*?<!-- BRANCH_STATUS_END -->"
-        replacement = f"<!-- BRANCH_STATUS_START -->\n{table_block}\n<!-- BRANCH_STATUS_END -->"
-        if re.search(pattern, readme_content, flags=re.DOTALL):
-            new_readme = re.sub(pattern, replacement, readme_content, flags=re.DOTALL)
-            with open(readme_file, "w", encoding="utf-8") as f:
-                f.write(new_readme)
+    # master-dev's own root README no longer embeds the full table (that stayed a
+    # master-dev-only file, see the note above) — just GitHub's own status badge for
+    # THIS workflow (sync-upstream.yaml), hardcoded once in README.md. Nothing to
+    # write here: GitHub renders that badge live from the workflow's run history.
 
 def main():
     parser = argparse.ArgumentParser(description="Synchronize modding branches with master-dev and detect conflicts.")
@@ -306,8 +329,8 @@ def main():
     print(f"Source: {source_ref}")
     print(f"Mode: {'Push Clean Merges' if args.push else 'Inspection / Dry-Run'}")
 
-    # Prevent accidental data loss if the working tree has uncommitted modifications
-    if not is_working_tree_clean():
+    # Prevent accidental data loss if pushing while working tree has uncommitted modifications
+    if args.push and not is_working_tree_clean():
         print("\n❌ Erreur : L'arbre de travail contient des modifications non commitées.", file=sys.stderr)
         print("Pour éviter toute perte accidentelle de vos modifications locales,", file=sys.stderr)
         print("veuillez commiter ou remiser (stash) vos changements avant de lancer la synchronisation :", file=sys.stderr)

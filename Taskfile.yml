@@ -182,6 +182,10 @@ tasks:
     desc: "Regenerate docs/modding/branch_audit.md: per-branch compliance with the modding standards (scripts/modding/branch_audit.py)"
     cmds:
       - "{{.PYTHON}} ./scripts/modding/branch_audit.py {{.CLI_ARGS}}"
+  modding-sync-bug-report-options:
+    desc: "Refresh the mod-bug-report.yml 'Mod Concerned' dropdown from actually-published GitHub Releases (scripts/modding/sync_bug_report_options.py). Add -- --dry-run to preview"
+    cmds:
+      - "{{.PYTHON}} ./scripts/modding/sync_bug_report_options.py {{.CLI_ARGS}}"
   # DECOMPILING
   disasm:
     cmds:

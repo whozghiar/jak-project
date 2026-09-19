@@ -282,13 +282,22 @@ def collect_mods_from_releases(repo: str, token: str, offline: bool = False):
     for mod_key, mod_info in source_mod_data.items():
       target_key = canonical_slug or mod_key
       if target_key not in aggregated_mods:
-        aggregated_mods[target_key] = mod_info
+        aggregated_mods[target_key] = json.loads(json.dumps(mod_info))
       else:
         existing_versions = {v.get("version"): v for v in aggregated_mods[target_key].get("versions", [])}
         for v in mod_info.get("versions", []):
           ver_num = v.get("version")
           if ver_num and ver_num not in existing_versions:
             aggregated_mods[target_key].setdefault("versions", []).append(v)
+        for t in mod_info.get("tags", []):
+          if t not in aggregated_mods[target_key].setdefault("tags", []):
+            aggregated_mods[target_key]["tags"].append(t)
+        for g in mod_info.get("supportedGames", []):
+          if g not in aggregated_mods[target_key].setdefault("supportedGames", []):
+            aggregated_mods[target_key]["supportedGames"].append(g)
+        for a in mod_info.get("authors", []):
+          if a not in aggregated_mods[target_key].setdefault("authors", []):
+            aggregated_mods[target_key]["authors"].append(a)
         for attr in ["displayName", "description", "coverArtUrl", "thumbnailArtUrl", "websiteUrl"]:
           if mod_info.get(attr):
             aggregated_mods[target_key][attr] = mod_info[attr]
@@ -325,13 +334,37 @@ def collect_mods_from_releases(repo: str, token: str, offline: bool = False):
           tp_info["websiteUrl"] = f"https://github.com/{repo}/tree/{branch}"
 
       if tp_key not in aggregated_texture_packs:
-        aggregated_texture_packs[tp_key] = tp_info
+        aggregated_texture_packs[tp_key] = json.loads(json.dumps(tp_info))
       else:
-        existing_versions = {v.get("version"): v for v in aggregated_texture_packs[tp_key].get("versions", [])}
+        # Merge tags so all declaring mod affiliations are preserved
+        for t in tp_info.get("tags", []):
+          if t not in aggregated_texture_packs[tp_key].setdefault("tags", []):
+            aggregated_texture_packs[tp_key]["tags"].append(t)
+
+        # Merge supported games
+        for g in tp_info.get("supportedGames", []):
+          if g not in aggregated_texture_packs[tp_key].setdefault("supportedGames", []):
+            aggregated_texture_packs[tp_key]["supportedGames"].append(g)
+
+        # Merge authors
+        for a in tp_info.get("authors", []):
+          if a not in aggregated_texture_packs[tp_key].setdefault("authors", []):
+            aggregated_texture_packs[tp_key]["authors"].append(a)
+
+        # Merge versions by comparing asset URLs to support releases from multiple mods
+        existing_versions = aggregated_texture_packs[tp_key].setdefault("versions", [])
+        existing_asset_urls = {
+            url
+            for ev in existing_versions
+            for url in (ev.get("assets") or {}).values()
+            if url
+        }
         for v in tp_info.get("versions", []):
-          ver_num = v.get("version")
-          if ver_num and ver_num not in existing_versions:
-            aggregated_texture_packs[tp_key].setdefault("versions", []).append(v)
+          v_urls = [u for u in (v.get("assets") or {}).values() if u]
+          if not any(u in existing_asset_urls for u in v_urls):
+            existing_versions.append(v)
+            existing_asset_urls.update(v_urls)
+
         for attr in ["displayName", "description", "coverArtUrl", "thumbnailArtUrl", "websiteUrl"]:
           if tp_info.get(attr):
             aggregated_texture_packs[tp_key][attr] = tp_info[attr]

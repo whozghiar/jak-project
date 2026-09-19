@@ -68,3 +68,31 @@ Textures in OpenGOAL are not loaded as loose `.png` files at runtime; they are b
 
 > [!NOTE]
 > Editing or adding a PNG in `custom_assets/` does **not** update the game immediately. You must run `task extract` to bake the changes.
+
+---
+
+## 4. Standalone Texture Pack Distribution & Packaging
+
+To distribute custom textures as an official, 1-click installable Texture Pack for the OpenGOAL Launcher:
+
+### Archive Structure:
+The resulting `.zip` must have this exact structure:
+```text
+metadata.json                                     # Root metadata (author, version, description)
+cover.png                                         # Optional thumbnail
+custom_assets/jak[x]/texture_replacements/        # Replacement textures
+```
+
+### Packaging Command:
+Run the automated packaging task:
+```bash
+task modding-package-texture-pack -- --update-index
+```
+Options supported:
+- `--game jak1|jak2|jak3`: Auto-detected from active branch if omitted.
+- `--slug <name-textures>`: Auto-derived from branch name if omitted.
+- `--display-name "<Title>"`: Auto-generated from slug if omitted.
+- `--version <semver>`: Default `1.0.0`.
+- `--author "<name>"`: Auto-detected from git if omitted.
+- `--update-index`: Automatically registers or updates the pack in root `index.json` under `"texturePacks"`.
+

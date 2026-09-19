@@ -28,10 +28,11 @@ This guide walks a player through installing and playing any mod from this repos
 1. Open the **OpenGOAL Launcher**.
 2. Go to **Settings** (gear icon, bottom-left corner).
 3. Click the **"Mods"** tab.
-4. Paste the mod's `index.json` raw URL into the input field, for example:
+4. Paste the **Master Mod Catalog** raw URL into the input field (Recommended — gives access to all published mods in one source):
    ```text
-   https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/peaceful-haven-city/index.json
+   https://raw.githubusercontent.com/whozghiar/jak-project/master-dev/index.json
    ```
+   *(Or enter an individual mod branch URL, e.g. `https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/peaceful-haven-city/index.json`)*
 5. Click **Add**.
 
 ![Adding a mod source in the OpenGOAL Launcher settings](../img/add_mod_1.png)
@@ -94,10 +95,11 @@ Ce guide accompagne un joueur pour installer et jouer à n'importe quel mod de c
 1. Ouvrez le **Launcher OpenGOAL**.
 2. Accédez aux **Paramètres** (roue crantée, en bas à gauche).
 3. Cliquez sur l'onglet **« Mods »**.
-4. Insérez l'URL brute du fichier `index.json` du mod dans la zone de saisie, par exemple :
+4. Insérez l'URL brute du **Catalogue Maître des Mods** dans la zone de saisie (Recommandé — donne accès à l'ensemble des mods publiés en une seule source) :
    ```text
-   https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/peaceful-haven-city/index.json
+   https://raw.githubusercontent.com/whozghiar/jak-project/master-dev/index.json
    ```
+   *(Ou l'URL d'une branche de mod spécifique, ex. `https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/peaceful-haven-city/index.json`)*
 5. Cliquez sur **Ajouter**.
 
 ![Ajout d'une source de mod dans les paramètres du Launcher OpenGOAL](../img/add_mod_1.png)

@@ -77,7 +77,7 @@ def classify_conflict_path(filepath):
                    does not mirror upstream's own CI workflows)
         None     - not a path this project auto-resolves; a real conflict.
     """
-    if filepath == "README.md" or filepath.startswith("docs/modding/current_mod/"):
+    if filepath == "README.md" or filepath == "index.json" or filepath.startswith("docs/modding/current_mod/"):
         return "ours"
     if filepath in MASTER_DEV_ONLY_PATHS:
         # Never actually kept on a mod branch: dropping it here handles the
@@ -90,8 +90,9 @@ def classify_conflict_path(filepath):
         return "theirs" if filepath[len(".github/workflows/"):] in ALLOWED_MOD_BRANCH_WORKFLOWS else "drop"
     if (filepath == "docs/modding/branch_audit.md"
             or filepath == "AGENTS.md"
+            or filepath == ".gitmodules"
             or filepath.startswith(".agents/")
-            or filepath.startswith("docs/modding/tools/")):
+            or (filepath.startswith("docs/modding/") and not filepath.startswith("docs/modding/current_mod/"))):
         return "theirs"
     return None
 

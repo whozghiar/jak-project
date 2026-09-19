@@ -158,11 +158,16 @@ For each mod, you can manually drop a cover thumbnail at `docs/img/mod/mod_cover
 ### 🎮 For players:
 In the OpenGOAL Launcher:
 1. Go to **Settings ▸ Mods ▸ Add Custom Mod Source**.
-2. Enter the catalog's raw URL:
+2. Enter the **Consolidated Master Catalog** URL (Recommended — provides access to **all** published mods):
    ```text
-   https://raw.githubusercontent.com/<user>/<repo>/<branch>/index.json
+   https://raw.githubusercontent.com/whozghiar/jak-project/master-dev/index.json
    ```
-3. The mod immediately appears in the **Mods** tab with a 1-click install button!
+   *(Alternatively, enter an individual mod branch catalog URL: `https://raw.githubusercontent.com/<user>/<repo>/<branch>/index.json`)*
+3. The mods immediately appear in the **Mods** tab with a 1-click install button!
+
+> [!NOTE]
+> **Automated Master Catalog Maintenance:**
+> The consolidated root catalog is synchronized automatically on every release via the `sync-global-catalog.yml` workflow and the `scripts/modding/sync_global_catalog.py` script (`task modding-sync-catalog`), ensuring zero manual catalog maintenance.
 
 > For a full screenshot-by-screenshot walkthrough (including in-game activation), see [`how_to_install_mod.md`](../how_to_install_mod.md).
 
@@ -309,10 +314,15 @@ Pour chaque mod, vous pouvez déposer manuellement une miniature de couverture d
 ### 🎮 Pour les joueurs :
 Dans l'OpenGOAL Launcher :
 1. Allez dans **Settings ▸ Mods ▸ Add Custom Mod Source**.
-2. Entrez l'URL brute du catalogue :
+2. Entrez l'URL du **Catalogue Maître Consolidé** (Recommandé — donne accès à **l'ensemble** des mods publiés) :
    ```text
-   https://raw.githubusercontent.com/<utilisateur>/<dépôt>/<branche>/index.json
+   https://raw.githubusercontent.com/whozghiar/jak-project/master-dev/index.json
    ```
-3. Le mod apparaît immédiatement dans l'onglet **Mods** avec bouton d'installation 1-clic !
+   *(Alternativement, entrez l'URL d'une branche de mod spécifique : `https://raw.githubusercontent.com/<utilisateur>/<dépôt>/<branche>/index.json`)*
+3. Les mods apparaissent immédiatement dans l'onglet **Mods** avec bouton d'installation 1-clic !
+
+> [!NOTE]
+> **Maintenance Automatisée du Catalogue Maître :**
+> Le catalogue consolidé à la racine est synchronisé automatiquement à chaque release via le workflow `sync-global-catalog.yml` et le script `scripts/modding/sync_global_catalog.py` (`task modding-sync-catalog`), garantissant une mise à jour instantanée sans intervention manuelle.
 
 > Pour un tutoriel complet illustré par captures d'écran (incluant l'activation en jeu), voir [`how_to_install_mod.md`](../how_to_install_mod.md).

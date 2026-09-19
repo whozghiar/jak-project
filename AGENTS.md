@@ -148,11 +148,9 @@ task modding-sync-docs                            # Pull docs/modding + AGENTS.m
 task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "..." --push
 task modding-branch-status                        # EVERY mod branch: test/refresh sync status (sync_branches_with_master.py)
 task modding-audit                                # Regenerate docs/modding/branch_audit.md
-<<<<<<< HEAD
-=======
 task modding-sync-catalog                          # Regenerate master-dev root index.json from published releases
->>>>>>> origin/master-dev
-task modding-package-texture-pack -- --update-index  # Package texture_replacements/ into launcher zip & update index.json
+task modding-package-texture-pack                  # Register GUI texture pack .zip from docs/modding/current_mod/texture_packs/ into index.json
+task modding-register-texture-pack                 # Alias for modding-package-texture-pack
 task modding-texture-gui                           # Launch OpenGOAL Texture Pack Generator GUI desktop app
 ```
 
@@ -369,11 +367,9 @@ task modding-sync-docs                             # Rapatrie docs/modding + AGE
 task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "..." --push
 task modding-branch-status                         # Toutes les branches : audite et synchronise (sync_branches_with_master.py)
 task modding-audit                                 # Régénère docs/modding/branch_audit.md
-<<<<<<< HEAD
-=======
 task modding-sync-catalog                          # Régénère le catalogue global index.json racine depuis les Releases
->>>>>>> origin/master-dev
-task modding-package-texture-pack -- --update-index  # Empaquette texture_replacements/ en zip Launcher et met à jour index.json
+task modding-package-texture-pack                  # Enregistre les packs .zip de docs/modding/current_mod/texture_packs/ dans index.json
+task modding-register-texture-pack                 # Alias : enregistre le .zip généré par le GUI dans index.json
 task modding-texture-gui                           # Lance l'application de bureau OpenGOAL Texture Pack Generator (GUI)
 ```
 

@@ -72,35 +72,40 @@ Textures in OpenGOAL are not loaded as loose `.png` files at runtime; they are b
 ---
 
 ## 4. Standalone Texture Pack Distribution & Packaging
-
+ 
 To distribute custom textures as an official, 1-click installable Texture Pack for the OpenGOAL Launcher:
 
+### Recommended Workflow (GUI + Registration):
+1. **Interactive Texture Packaging:**
+   Launch the desktop GUI tool:
+   ```bash
+   task modding-texture-gui
+   ```
+   Select your texture replacements, fill in display name, author, version, and description, then export the `.zip` archive into:
+   ```text
+   docs/modding/current_mod/texture_packs/<slug>-v<version>.zip
+   ```
+
+2. **Catalog Registration:**
+   Run the registration task to inspect the generated `.zip`, read its internal `metadata.json`, and register it in `index.json`:
+   ```bash
+   task modding-package-texture-pack
+   # Or alias:
+   task modding-register-texture-pack
+   ```
+   *Options:*
+   - `--zip <path>`: Register a specific `.zip` file.
+   - `--from-source`: Force compiling directly from raw `custom_assets/<game>/texture_replacements/` PNGs.
+
 ### Archive Structure:
-The resulting `.zip` must have this exact structure:
+The resulting `.zip` must have this exact structure (guaranteed by the GUI generator):
 ```text
-metadata.json                                     # Root metadata (author, version, description)
+metadata.json                                     # Root metadata (author, version, description, tags)
 cover.png                                         # Optional thumbnail
 custom_assets/jak[x]/texture_replacements/        # Replacement textures
 ```
 
-### Packaging Command:
-Run the automated packaging task:
-```bash
-task modding-package-texture-pack -- --update-index
-```
-Options supported:
-- `--game jak1|jak2|jak3`: Auto-detected from active branch if omitted.
-- `--slug <name-textures>`: Auto-derived from branch name if omitted.
-- `--display-name "<Title>"`: Auto-generated from slug if omitted.
-- `--version <semver>`: Default `1.0.0`.
-- `--author "<name>"`: Auto-detected from git if omitted.
-- `--update-index`: Automatically registers or updates the pack in root `index.json` under `"texturePacks"`.
-
-### Standard Storage & Automatic Release Pipeline:
-Package your texture pack into:
-```text
-docs/modding/current_mod/texture_packs/<slug>-v<version>.zip
-```
-- **Git Tracked & Sync Protected:** Located under `docs/modding/current_mod/`, safely versioned in git without `.gitignore` interference, and immune to upstream branch sync overwrites.
-- **Automated GitHub Release:** During `.github/workflows/release.yml`, CI automatically picks up any `.zip` from this directory, computes checksums, registers it in `index.json`, and attaches it to the GitHub Release assets!
+### Automatic Release Pipeline:
+- **Git Ignored / Release Hosted:** Stored in `docs/modding/current_mod/texture_packs/`. To avoid git repository bloat, large `.zip` files can be added to `.gitignore` and uploaded as GitHub Release assets.
+- **Automated GitHub Release:** During `.github/workflows/release.yml`, CI automatically picks up any `.zip` from this directory, computes SHA256 checksums, registers it in `index.json`, and attaches it to the GitHub Release assets!
 

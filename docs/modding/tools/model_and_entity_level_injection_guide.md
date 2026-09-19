@@ -87,7 +87,7 @@ Before editing configs, locate the exact names for your target model:
 
 ### Step 2: Configure Decompiler Baking (Circuit 2)
 
-Open [`decompiler/config/jak2/jak2_config.jsonc`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/decompiler/config/jak2/jak2_config.jsonc) and declare your injection under `extra_art_groups_by_dgo`:
+Open [`decompiler/config/jak2/jak2_config.jsonc`](../../../decompiler/config/jak2/jak2_config.jsonc) and declare your injection under `extra_art_groups_by_dgo`:
 
 ```jsonc
 "extra_art_groups_by_dgo": {
@@ -265,7 +265,7 @@ Avant toute modification, identifiez les identifiants clés du modèle :
 
 ### Étape 2 : Configurer la Cuisson Décompilateur (Circuit 2)
 
-Ouvrez [`decompiler/config/jak2/jak2_config.jsonc`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/decompiler/config/jak2/jak2_config.jsonc) et ajoutez votre entrée sous `extra_art_groups_by_dgo` :
+Ouvrez [`decompiler/config/jak2/jak2_config.jsonc`](../../../decompiler/config/jak2/jak2_config.jsonc) et ajoutez votre entrée sous `extra_art_groups_by_dgo` :
 
 ```jsonc
 "extra_art_groups_by_dgo": {

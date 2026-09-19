@@ -20,10 +20,8 @@
 > nothing generates or rewrites this image by hand. It goes green the moment this branch
 > next merges `master-dev` cleanly (usually via the daily automated sync), and can turn
 > red if someone pushes commits here without syncing first. It cannot turn red purely
-> because `master-dev` moved on without a new push landing here — for that live,
-> all-branches view, see `master-dev`'s own
-> [`docs/modding/tools/branch_sync_status.md`](https://github.com/{REPO_PATH}/blob/master-dev/docs/modding/tools/branch_sync_status.md)
-> (intentionally master-dev-only, never carried onto a mod branch).
+> because `master-dev` moved on without a new push landing here — run `task modding-branch-status`
+> or check GitHub Actions to audit fleet-wide mergeability.
 >
 > 🇫🇷 Le badge ci-dessus est un **badge d'état natif GitHub Actions** pour
 > [`branch-sync-check.yaml`](https://github.com/{REPO_PATH}/actions/workflows/branch-sync-check.yaml),
@@ -32,10 +30,8 @@
 > que cette branche fusionne `master-dev` proprement (généralement via la synchronisation
 > quotidienne automatique), et peut passer au rouge si des commits sont poussés ici sans
 > synchronisation préalable. Il ne peut pas passer au rouge simplement parce que
-> `master-dev` a avancé sans qu'aucun push n'arrive ici — pour cette vue live toutes-
-> branches, voir le fichier propre à `master-dev`
-> [`docs/modding/tools/branch_sync_status.md`](https://github.com/{REPO_PATH}/blob/master-dev/docs/modding/tools/branch_sync_status.md)
-> (volontairement réservé à `master-dev`, jamais présent sur une branche de mod).
+> `master-dev` a avancé sans qu'aucun push n'arrive ici — lancez `task modding-branch-status`
+> ou consultez GitHub Actions pour auditer l'intégrabilité globale.
 
 <p align="center">
   <a href="#-english-version"><b>🇬🇧 English Version</b></a> &nbsp;•&nbsp; <a href="#-version-française"><b>🇫🇷 Version Française</b></a>

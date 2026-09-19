@@ -36,16 +36,22 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
    │           │
    │           ├── Auto-merge clean branches ──► [origin/jak2/features/my-mod]
    │           │                                         │
-   │           │                                         ▼ (on: push: branch-sync-check.yaml)
-   │           │                                   Status Badge: GREEN
-   │           │
-   │           └── Update live dashboard: docs/modding/tools/branch_sync_status.md
+   │           │                                         ├── (on: push: branch-sync-check.yaml)
+   │           │                                         │     Status Badge: GREEN
+   │           │                                         │
+   │           │                                         └── Standalone Texture Packs:
+   │           │                                             docs/modding/current_mod/texture_packs/*.zip
+   │           │                                               │
+   │           └── Update live dashboard: branch_sync_status.md│
+   │                                                           │
+   ▼ (Manual trigger: release.yml) ◄───────────────────────────┘
+[GitHub Releases: windows-v*.zip, linux-v*.zip, texture-pack-v*.zip]
    │
-   ▼ (Manual trigger: release.yml)
-[GitHub Releases: windows-v*.zip, linux-v*.zip]
+   ├── (on: release: mod-bug-report-sync.yml)
+   │     Update Mod Concerned dropdown in mod-bug-report.yml
    │
-   ▼ (on: release: mod-bug-report-sync.yml)
-Update Mod Concerned dropdown in .github/ISSUE_TEMPLATE/mod-bug-report.yml
+   └── (workflow_call: sync-global-catalog.yml)
+         Update root index.json on master-dev (mods + texture packs)
 ```
 
 ---
@@ -99,7 +105,9 @@ Update Mod Concerned dropdown in .github/ISSUE_TEMPLATE/mod-bug-report.yml
   - Eliminates "works on my machine" issues by building both **Windows** (Ninja + Clang) and **Linux** executables from clean source in isolated runners.
   - Bakes static libraries (`Release-windows-clang-static`, `Release-linux-clang-static`) so players do not need Visual C++ redistributables or missing shared libraries.
   - Automatically packages the required runtime structure (`gk`, `goalc`, `extractor`, `data/`).
-  - Computes SHA256 checksums and updates the mod's `index.json` catalog file, committing it directly back to the branch so the OpenGOAL Launcher immediately detects the update.
+  - **Standalone Texture Pack Packaging:** Automatically scans `docs/modding/current_mod/texture_packs/` for any packaged texture pack `.zip` files, computes their checksums, attaches them as release assets, and registers them under `"texturePacks"` in `index.json`.
+  - Computes SHA256 checksums across all assets (`SHA256SUMS.txt`) and updates the mod's `index.json` catalog file, committing it directly back to the branch so the OpenGOAL Launcher immediately detects the update.
+  - **Automated Catalog Synchronization:** Automatically invokes `sync-global-catalog.yml` via `workflow_call` at the conclusion of the job, ensuring the unified catalog on `master-dev` is regenerated immediately.
 
 ---
 
@@ -143,7 +151,7 @@ Update Mod Concerned dropdown in .github/ISSUE_TEMPLATE/mod-bug-report.yml
     1. Fetches all releases published across the repository via the GitHub REST API.
     2. Downloads and parses individual release assets and catalogs.
     3. Normalizes branch slugs and dedupes versions.
-    4. Aggregates all download URLs (Windows and Linux ZIPs), SHA256 checksums, and cover artwork into a single OpenGOAL Launcher v1 compliant schema.
+    4. Aggregates all download URLs (Windows and Linux ZIPs, and standalone texture packs), SHA256 checksums, and cover artwork into a single OpenGOAL Launcher v1 compliant schema.
     5. Commits and pushes the updated `index.json` directly to `master-dev`.
 
 ---
@@ -154,8 +162,8 @@ Update Mod Concerned dropdown in .github/ISSUE_TEMPLATE/mod-bug-report.yml
 | :--- | :--- | :--- | :--- | :--- |
 | `sync-upstream.yaml` | Schedule (daily 10:00 UTC) / dispatch | `contents: write` | `master`, `master-dev`, all clean `jak*/**` | Mirrors upstream, auto-merges clean branches, updates dashboard. |
 | `branch-sync-check.yaml` | Push on `jak[1-3]/**` / dispatch | `contents: read` | Current mod branch | Verifies ancestry with `master-dev`; drives GitHub status badge. |
-| `release.yml` | Manual `workflow_dispatch` | `contents: write` | Triggered mod branch | Builds Win/Linux binaries, creates GitHub Release, updates `index.json`. |
-| `sync-global-catalog.yml` | Release events / workflow call / dispatch | `contents: write` | `master-dev` | Consolidates all released mods into root `index.json` catalog. |
+| `release.yml` | Manual `workflow_dispatch` | `contents: write` | Triggered mod branch | Builds Win/Linux binaries, packages texture packs, creates GitHub Release, updates `index.json`. |
+| `sync-global-catalog.yml` | Release events / workflow call / dispatch | `contents: write` | `master-dev` | Consolidates all released mods and texture packs into root `index.json` catalog. |
 | `mod-bug-report-sync.yml`| Release events / dispatch | `contents: write` | `master-dev` | Refreshes mod dropdown in bug report issue template. |
 | `mod-bug-triage.yml` | Issues (`opened`, `edited`) | `issues: write` | N/A (Repository issues) | Labels issues by game (`jak1|2|3`) and mod (`mod:<slug>`). |
 
@@ -180,16 +188,22 @@ Dans ce dépôt, les workflows GitHub Actions sont conçus pour répondre à deu
    │           │
    │           ├── Auto-fusion des branches propres ──► [origin/jak2/features/mon-mod]
    │           │                                               │
-   │           │                                               ▼ (on: push: branch-sync-check.yaml)
-   │           │                                         Badge d'état : VERT
-   │           │
-   │           └── Mise à jour du tableau de bord : docs/modding/tools/branch_sync_status.md
+   │           │                                               ├── (on: push: branch-sync-check.yaml)
+   │           │                                               │     Badge d'état : VERT
+   │           │                                               │
+   │           │                                               └── Packs de textures autonomes :
+   │           │                                                   docs/modding/current_mod/texture_packs/*.zip
+   │           │                                                     │
+   │           └── Mise à jour du tableau de bord : branch_sync_status│
+   │                                                                 │
+   ▼ (Déclenchement manuel : release.yml) ◄──────────────────────────┘
+[GitHub Releases : windows-v*.zip, linux-v*.zip, texture-pack-v*.zip]
    │
-   ▼ (Déclenchement manuel : release.yml)
-[GitHub Releases : windows-v*.zip, linux-v*.zip]
+   ├── (on: release: mod-bug-report-sync.yml)
+   │     Mise à jour du menu déroulant dans mod-bug-report.yml
    │
-   ▼ (on: release: mod-bug-report-sync.yml)
-Mise à jour du menu déroulant dans .github/ISSUE_TEMPLATE/mod-bug-report.yml
+   └── (workflow_call: sync-global-catalog.yml)
+         Mise à jour d'index.json sur master-dev (mods + packs textures)
 ```
 
 ---
@@ -243,7 +257,9 @@ Mise à jour du menu déroulant dans .github/ISSUE_TEMPLATE/mod-bug-report.yml
   - Évite le problème du « ça marche sur ma machine » en recompilant les binaires **Windows** (Ninja + Clang) et **Linux** sur des runners isolés et propres.
   - Construit des binaires entièrement statiques (`Release-windows-clang-static`, `Release-linux-clang-static`) ne nécessitant aucun runtime Visual C++ ou bibliothèque système manquante chez le joueur.
   - Package automatiquement l'arborescence requise (`gk`, `goalc`, `extractor`, `data/`).
-  - Calcule les empreintes SHA256 et met à jour le fichier catalogue `index.json`, puis le commite sur la branche afin que l'OpenGOAL Launcher détecte immédiatement la mise à jour.
+  - **Packaging Automatisé des Packs de Textures :** Scanne automatiquement `docs/modding/current_mod/texture_packs/` à la recherche d'archives `.zip` de texture, calcule leurs empreintes, les attache comme assets de release et les référence sous `"texturePacks"` dans `index.json`.
+  - Calcule les empreintes SHA256 de tous les assets (`SHA256SUMS.txt`) et met à jour le fichier catalogue `index.json`, puis le commite sur la branche afin que l'OpenGOAL Launcher détecte immédiatement la mise à jour.
+  - **Synchronisation Automatisée du Catalogue :** Déclenche automatiquement `sync-global-catalog.yml` via `workflow_call` dès la fin du packaging, garantissant la régénération immédiate du catalogue unifié sur `master-dev`.
 
 ---
 
@@ -286,7 +302,7 @@ Mise à jour du menu déroulant dans .github/ISSUE_TEMPLATE/mod-bug-report.yml
     1. Interroge l'API REST GitHub pour inventorier toutes les releases publiées du dépôt.
     2. Télécharge et analyse les assets et catalogues individuels.
     3. Normalise les identifiants de branches (slugs) et déduplique les versions.
-    4. Regroupe l'ensemble des liens de téléchargement (archives ZIP Windows et Linux), empreintes SHA256 et jaquettes dans un schéma v1 conforme pour l'OpenGOAL Launcher.
+    4. Regroupe l'ensemble des liens de téléchargement (archives ZIP Windows, Linux et packs de textures), empreintes SHA256 et jaquettes dans un schéma v1 conforme pour l'OpenGOAL Launcher.
     5. Commite et pousse le fichier `index.json` actualisé directement sur `master-dev`.
 
 ---
@@ -297,7 +313,7 @@ Mise à jour du menu déroulant dans .github/ISSUE_TEMPLATE/mod-bug-report.yml
 | :--- | :--- | :--- | :--- | :--- |
 | `sync-upstream.yaml` | Cron (quotidien 10:00 UTC) / dispatch | `contents: write` | `master`, `master-dev`, branches `jak*/**` | Miroir amont, fusion automatique des branches propres, tableau de bord. |
 | `branch-sync-check.yaml` | Push sur `jak[1-3]/**` / dispatch | `contents: read` | Branche courante du mod | Vérifie la filiation avec `master-dev` ; pilote le badge GitHub. |
-| `release.yml` | Manuel `workflow_dispatch` | `contents: write` | Branche du mod ciblée | Compile les binaires Win/Linux, publie la Release GitHub, met à jour `index.json`. |
-| `sync-global-catalog.yml` | Événements Release / workflow call / dispatch | `contents: write` | `master-dev` | Consolide tous les mods publiés dans le catalogue `index.json` racine. |
+| `release.yml` | Manuel `workflow_dispatch` | `contents: write` | Branche du mod ciblée | Compile les binaires Win/Linux, package les packs de textures, publie la Release GitHub, met à jour `index.json`. |
+| `sync-global-catalog.yml` | Événements Release / workflow call / dispatch | `contents: write` | `master-dev` | Consolide tous les mods et packs de textures publiés dans le catalogue `index.json` racine. |
 | `mod-bug-report-sync.yml`| Événements de Release / dispatch | `contents: write` | `master-dev` | Rafraîchit le menu déroulant des mods dans le template d'issue. |
 | `mod-bug-triage.yml` | Issues (`opened`, `edited`) | `issues: write` | N/A (Issues du dépôt) | Applique les labels de jeu (`jak1|2|3`) et de mod (`mod:<slug>`). |

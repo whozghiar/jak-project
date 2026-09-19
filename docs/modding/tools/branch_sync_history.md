@@ -344,3 +344,18 @@ Ce document consigne l'historique complet des tentatives de fusions automatiques
 | `2026-09-18 15:28:36` | 🔄 Auto-fusion | `jak3/features/city-behavior` | Fusion automatique réussie avec origin/master-dev (`acec79f83 - chore(sync): align jak3/features/city-behavior with latest origin/master-dev`) |
 | `2026-09-18 15:28:41` | 🔄 Auto-fusion | `jak3/features/jak2_skin_secret` | Fusion automatique réussie avec origin/master-dev (`7aca13b8d - chore(sync): align jak3/features/jak2_skin_secret with latest origin/master-dev`) |
 | `2026-09-18 15:28:45` | 🔄 Auto-fusion | `jak3/features/mega_dark_jak` | Fusion automatique réussie avec origin/master-dev (`bbc12de24 - chore(sync): align jak3/features/mega_dark_jak with latest origin/master-dev`) |
+| `2026-09-19 00:18:58` | ⚠️ Conflit | `jak2/config/enhanced_spawnrates` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |
+| `2026-09-19 00:18:59` | ⚠️ Conflit | `jak2/config/start_menu_wheel` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |
+| `2026-09-19 00:18:59` | ⚠️ Conflit | `jak2/features/blue-krimzon-guard` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |
+| `2026-09-19 00:18:59` | ⚠️ Conflit | `jak2/features/dark_jak_enhanced` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |
+| `2026-09-19 00:19:00` | ⚠️ Conflit | `jak2/features/haven-city-chaos` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |
+| `2026-09-19 00:19:00` | ⚠️ Conflit | `jak2/features/haven-city-rebellion` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |
+| `2026-09-19 00:19:01` | ⚠️ Conflit | `jak2/features/jak3-jetBoard` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |
+| `2026-09-19 00:19:01` | ⚠️ Conflit | `jak2/features/killable_yakow` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |
+| `2026-09-19 00:19:01` | ⚠️ Conflit | `jak2/features/paddywagon/traffic` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |
+| `2026-09-19 00:19:02` | ⚠️ Conflit | `jak2/features/peaceful-haven-city` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |
+| `2026-09-19 00:19:02` | ⚠️ Conflit | `jak2/features/transport-ag/alert` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |
+| `2026-09-19 00:19:02` | ⚠️ Conflit | `jak2/features/transport-ag/traffic` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |
+| `2026-09-19 00:19:03` | ⚠️ Conflit | `jak3/features/city-behavior` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |
+| `2026-09-19 00:19:03` | ⚠️ Conflit | `jak3/features/jak2_skin_secret` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |
+| `2026-09-19 00:19:03` | ⚠️ Conflit | `jak3/features/mega_dark_jak` | Conflit de code détecté lors de la fusion avec origin/master-dev dans: `index.json` |

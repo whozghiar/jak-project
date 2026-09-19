@@ -11,8 +11,8 @@
 
 > ### 📑 Summary / Sommaire
 >
-> - 🇬🇧 **English:** [1. Purpose & Philosophy](#1-purpose--philosophy) · [2. Naming Convention](#2-naming-convention) · [3. Recommended Structure](#3-recommended-structure-for-mod-technical-readmes)
-> - 🇫🇷 **Français :** [1. Objectif & Philosophie](#1-objectif--philosophie) · [2. Convention de Nommage](#2-convention-de-nommage) · [3. Structure Recommandée](#3-structure-recommandée-des-readmes-techniques)
+> - 🇬🇧 **English:** [1. Purpose & Philosophy](#1-purpose--philosophy) · [2. Naming Convention](#2-naming-convention) · [3. Recommended Structure](#3-recommended-structure-for-mod-technical-readmes) · [4. Texture Packs for Releases](#4-texture-packs-for-releases-texture_packs)
+> - 🇫🇷 **Français :** [1. Objectif & Philosophie](#1-objectif--philosophie) · [2. Convention de Nommage](#2-convention-de-nommage) · [3. Structure Recommandée](#3-structure-recommandée-des-readmes-techniques) · [4. Packs de Textures pour les Releases](#4-packs-de-textures-pour-les-releases-texture_packs-1)
 
 ---
 
@@ -60,6 +60,20 @@ Each technical mod document should adopt a structured, educational approach feat
 
 ---
 
+## 4. Texture Packs for Releases (`texture_packs/`)
+
+Any mod branch that provides a custom texture pack can store its packaged archive(s) inside:
+```text
+docs/modding/current_mod/texture_packs/<slug>-v<version>.zip
+```
+
+### Why this directory?
+- **Git Tracked:** Unlike `custom_assets/jak*/texture_replacements/*`, this directory is **not** ignored by `.gitignore`.
+- **Branch-Sync Protected:** Classified as `"ours"` in `scripts/modding/sync_common.py`, meaning it is never wiped or overwritten when merging `master-dev`.
+- **Automatic Release Asset Upload:** The GitHub Actions release workflow (`.github/workflows/release.yml`) automatically collects all `.zip` archives from this directory, computes their SHA-256 hashes, registers them under `"texturePacks"` in `index.json`, and attaches them to the published GitHub Release assets!
+
+---
+
 # 🇫🇷 Version Française
 
 Ce dossier est l'espace dédié à la **Documentation Technique de Niveau 2** pour les fonctionnalités et sous-systèmes de mods en cours de développement.
@@ -101,3 +115,17 @@ Chaque document technique de mod doit adopter une approche structurée et pédag
    - Traçabilité et prévention des fuites mémoire.
 6. **Guide de Débogage & Résolution des Problèmes :**
    - Pièges fréquents, cas limites connus et procédures de validation au REPL.
+
+---
+
+## 4. Packs de Textures pour les Releases (`texture_packs/`)
+
+Toute branche de mod fournissant un pack de textures dédié peut stocker ses archives `.zip` dans :
+```text
+docs/modding/current_mod/texture_packs/<slug>-v<version>.zip
+```
+
+### Pourquoi cet emplacement ?
+- **Suivi par Git :** Contrairement à `custom_assets/jak*/texture_replacements/*`, ce dossier **n'est pas** ignoré par `.gitignore`.
+- **Protégé lors des fusions :** Classé en `"ours"` dans `scripts/modding/sync_common.py`, il n'est jamais écrasé ni effacé lors des synchronisations avec `master-dev`.
+- **Publication automatique en Release :** Le workflow GitHub Actions (`.github/workflows/release.yml`) collecte automatiquement toutes les archives `.zip` de ce répertoire, calcule leurs empreintes SHA-256, les enregistre sous `"texturePacks"` dans `index.json` et les attache aux assets de la release GitHub !

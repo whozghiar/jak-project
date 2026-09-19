@@ -97,6 +97,7 @@ These curated, verified documents are the **single source of truth** hosted on `
 - 📂 [`current_mod/`](current_mod/): Folder storing mod-specific feature readmes (e.g. [`current_mod/README.md`](current_mod/README.md)).
 - 🎭 [`tools/open-goal-glb-reskin-tool/`](tools/open-goal-glb-reskin-tool/): GUI application for retargeting and reskinning GLB characters.
 - 🗺️ [`tools/open-goal-level-builder/`](tools/open-goal-level-builder/): GUI application for building custom OpenGOAL levels.
+- 🎨 [`tools/open-goal-texture-pack-generator/`](tools/open-goal-texture-pack-generator/): GUI application for composing, previewing, and packaging OpenGOAL texture packs.
 
 ---
 
@@ -181,3 +182,4 @@ Ces documents validés constituent la **source unique de vérité** hébergée s
 - 📂 [`current_mod/`](current_mod/) : Dossier hébergeant les documentations techniques propres à un mod ([`current_mod/README.md`](current_mod/README.md)).
 - 🎭 [`tools/open-goal-glb-reskin-tool/`](tools/open-goal-glb-reskin-tool/) : Application graphique pour retargeting et reskin de personnages GLB.
 - 🗺️ [`tools/open-goal-level-builder/`](tools/open-goal-level-builder/) : Outil graphique pour concevoir des niveaux OpenGOAL sur mesure.
+- 🎨 [`tools/open-goal-texture-pack-generator/`](tools/open-goal-texture-pack-generator/) : Outil graphique pour composer, prévisualiser et packager des packs de textures OpenGOAL.

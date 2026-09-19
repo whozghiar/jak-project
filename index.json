@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "haven-city-rebellion Source",
-  "lastUpdated": "2026-09-18T00:15:11Z",
+  "lastUpdated": "2026-09-19T17:37:20Z",
   "mods": {
     "haven-city-rebellion": {
       "displayName": "haven-city-rebellion",
@@ -38,5 +38,44 @@
       "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/haven-city-rebellion/docs/img/mod/mod_cover.png"
     }
   },
-  "texturePacks": {}
+  "texturePacks": {
+    "blue-kg-vehicles-textures": {
+      "displayName": "Blue KG-Vehicles",
+      "description": "This texture pack re-skins Krimzon Guard vehicles to match the Freedom League / Freedom Fighters faction aesthetics. It is designed to work seamlessly alongside mods such as Blue Krimzon Guard and Haven City Peaceful, giving your vehicles a cohesive look for an overhauled city experience.",
+      "authors": [
+        "whozghiar"
+      ],
+      "tags": [
+        "jak2",
+        "retexture",
+        "hd",
+        "haven-city-rebellion"
+      ],
+      "supportedGames": [
+        "jak2"
+      ],
+      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/haven-city-rebellion",
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/haven-city-rebellion/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/haven-city-rebellion/docs/img/mod/mod_cover.png",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "publishedDate": "2026-09-19T00:00:00Z",
+          "supportedGames": [
+            "jak2"
+          ],
+          "assets": {
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
+            "jak2": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip"
+          },
+          "checksums": {
+            "windows": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c",
+            "linux": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c",
+            "jak2": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c"
+          }
+        }
+      ]
+    }
+  }
 }

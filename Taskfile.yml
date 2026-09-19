@@ -194,6 +194,10 @@ tasks:
     desc: "Package custom_assets/<game>/texture_replacements into a launcher-compliant texture pack .zip and optionally update index.json (scripts/modding/package_texture_pack.py). Add -- --help for options"
     cmds:
       - "{{.PYTHON}} ./scripts/modding/package_texture_pack.py {{.CLI_ARGS}}"
+  modding-texture-gui:
+    desc: "Launch the OpenGOAL Texture Pack Generator GUI tool (Tauri v2 desktop app) to preview and package texture packs"
+    cmds:
+      - "{{.PYTHON}} ./scripts/modding/launch_texture_gui.py {{.CLI_ARGS}}"
 
 
   # DECOMPILING

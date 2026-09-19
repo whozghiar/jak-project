@@ -121,6 +121,7 @@ def collect_mods_from_releases(repo: str, token: str):
   print(f"Found {len(releases)} release(s). Processing catalogs...")
 
   aggregated_mods = {}
+  aggregated_texture_packs = {}
 
   for rel in sorted(releases, key=lambda r: r.get("published_at") or ""):
     if rel.get("draft"):
@@ -140,30 +141,42 @@ def collect_mods_from_releases(repo: str, token: str):
 
     data = load_catalog_from_release_asset(rel, token)
 
-    if data and "mods" in data:
-      for mod_key, mod_info in data["mods"].items():
-        # Use canonical slug from current branch if available to prevent obsolete key divergence
-        target_key = canonical_slug or mod_key
+    if data:
+      if "mods" in data and isinstance(data["mods"], dict):
+        for mod_key, mod_info in data["mods"].items():
+          target_key = canonical_slug or mod_key
 
-        if target_key not in aggregated_mods:
-          aggregated_mods[target_key] = mod_info
-        else:
-          # Merge metadata with newest release, and combine versions
-          existing_versions = {v.get("version"): v for v in aggregated_mods[target_key].get("versions", [])}
-          for v in mod_info.get("versions", []):
-            ver_num = v.get("version")
-            if ver_num and ver_num not in existing_versions:
-              aggregated_mods[target_key].setdefault("versions", []).append(v)
-          # Update metadata if newer
-          for attr in ["displayName", "description", "coverArtUrl", "thumbnailArtUrl", "websiteUrl"]:
-            if mod_info.get(attr):
-              aggregated_mods[target_key][attr] = mod_info[attr]
+          if target_key not in aggregated_mods:
+            aggregated_mods[target_key] = mod_info
+          else:
+            existing_versions = {v.get("version"): v for v in aggregated_mods[target_key].get("versions", [])}
+            for v in mod_info.get("versions", []):
+              ver_num = v.get("version")
+              if ver_num and ver_num not in existing_versions:
+                aggregated_mods[target_key].setdefault("versions", []).append(v)
+            for attr in ["displayName", "description", "coverArtUrl", "thumbnailArtUrl", "websiteUrl"]:
+              if mod_info.get(attr):
+                aggregated_mods[target_key][attr] = mod_info[attr]
+
+      if "texturePacks" in data and isinstance(data["texturePacks"], dict):
+        for tp_key, tp_info in data["texturePacks"].items():
+          if tp_key not in aggregated_texture_packs:
+            aggregated_texture_packs[tp_key] = tp_info
+          else:
+            existing_versions = {v.get("version"): v for v in aggregated_texture_packs[tp_key].get("versions", [])}
+            for v in tp_info.get("versions", []):
+              ver_num = v.get("version")
+              if ver_num and ver_num not in existing_versions:
+                aggregated_texture_packs[tp_key].setdefault("versions", []).append(v)
+            for attr in ["displayName", "description", "coverArtUrl", "thumbnailArtUrl", "websiteUrl"]:
+              if tp_info.get(attr):
+                aggregated_texture_packs[tp_key][attr] = tp_info[attr]
 
       print(f"  ✓ {tag}: loaded via release asset")
     else:
       print(f"  - {tag}: no index.json asset found, skipping")
 
-  return aggregated_mods
+  return aggregated_mods, aggregated_texture_packs
 
 
 def collect_mods_from_branches():
@@ -177,6 +190,7 @@ def collect_mods_from_branches():
   ]
 
   aggregated_mods = {}
+  aggregated_texture_packs = {}
   for b in sorted(branches):
     cat_res = run_cmd(f"git show {b}:index.json")
     if cat_res.strip():
@@ -192,13 +206,24 @@ def collect_mods_from_branches():
                 ver_num = v.get("version")
                 if ver_num and ver_num not in existing_versions:
                   aggregated_mods[mod_key].setdefault("versions", []).append(v)
+
+        for tp_key, tp_info in data.get("texturePacks", {}).items():
+          if tp_info.get("versions"):
+            if tp_key not in aggregated_texture_packs:
+              aggregated_texture_packs[tp_key] = tp_info
+            else:
+              existing_versions = {v.get("version"): v for v in aggregated_texture_packs[tp_key].get("versions", [])}
+              for v in tp_info.get("versions", []):
+                ver_num = v.get("version")
+                if ver_num and ver_num not in existing_versions:
+                  aggregated_texture_packs[tp_key].setdefault("versions", []).append(v)
       except Exception as e:
         print(f"Warning: could not parse index.json on {b}: {e}", file=sys.stderr)
 
-  return aggregated_mods
+  return aggregated_mods, aggregated_texture_packs
 
 
-def generate_global_catalog(mods, source_name: str):
+def generate_global_catalog(mods, texture_packs, source_name: str):
   """Builds the final OpenGOAL Launcher Mod Source Schema v1 document."""
   now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
   
@@ -215,12 +240,24 @@ def generate_global_catalog(mods, source_name: str):
       )
     sorted_mods[k] = mod_info
 
+  # Sort texture packs alphabetically
+  sorted_tps = {}
+  for k in sorted(texture_packs.keys(), key=lambda x: (texture_packs[x].get("displayName") or x).lower()):
+    tp_info = dict(texture_packs[k])
+    if "versions" in tp_info and isinstance(tp_info["versions"], list):
+      tp_info["versions"] = sorted(
+          tp_info["versions"],
+          key=lambda v: v.get("publishedDate") or "",
+          reverse=True
+      )
+    sorted_tps[k] = tp_info
+
   return {
       "schemaVersion": "1.0.0",
       "sourceName": source_name,
       "lastUpdated": now_iso,
       "mods": sorted_mods,
-      "texturePacks": {}
+      "texturePacks": sorted_tps
   }
 
 
@@ -259,16 +296,17 @@ def main():
   token = get_token()
 
   mods = {}
+  texture_packs = {}
   if not args.offline:
     try:
-      mods = collect_mods_from_releases(args.repo, token)
+      mods, texture_packs = collect_mods_from_releases(args.repo, token)
     except Exception as e:
       print(f"Error connecting to GitHub API: {e}. Falling back to branch inspection.", file=sys.stderr)
-      mods = {}
+      mods, texture_packs = {}, {}
 
-  if not mods:
+  if not mods and not texture_packs:
     print("Falling back to scanning git mod branches...")
-    mods = collect_mods_from_branches()
+    mods, texture_packs = collect_mods_from_branches()
 
   print(f"\nTotal distinct published mods found: {len(mods)}")
   for k, v in mods.items():
@@ -277,7 +315,15 @@ def main():
     game = (v.get("supportedGames") or ["?"])[0]
     print(f"  • [{game}] {name} ({k}) — {v_count} version(s)")
 
-  catalog = generate_global_catalog(mods, args.source_name)
+  if texture_packs:
+    print(f"\nTotal distinct published texture packs found: {len(texture_packs)}")
+    for k, v in texture_packs.items():
+      v_count = len(v.get("versions", []))
+      name = v.get("displayName", k)
+      game = (v.get("supportedGames") or ["?"])[0]
+      print(f"  • [{game}] {name} ({k}) — {v_count} version(s)")
+
+  catalog = generate_global_catalog(mods, texture_packs, args.source_name)
   catalog_json = json.dumps(catalog, indent=2, ensure_ascii=False) + "\n"
 
   if args.dry_run:

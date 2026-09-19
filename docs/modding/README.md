@@ -57,7 +57,7 @@ These curated, verified documents are the **single source of truth** hosted on `
 
 | Guide | Description |
 | :--- | :--- |
-| 🤖 [`tools/github_workflows.md`](tools/github_workflows.md) | Comprehensive pedagogical guide for all 5 repository GitHub Actions workflows (upstream sync, branch checks, releases, bug triaging). |
+| 🤖 [`tools/github_workflows.md`](tools/github_workflows.md) | Comprehensive pedagogical guide for all 6 repository GitHub Actions workflows (upstream sync, branch checks, releases, bug triaging, master catalog sync). |
 | 🛠️ [`tools/task_scripts_reference.md`](tools/task_scripts_reference.md) | Detailed pedagogical guide for all Taskfile tasks and modding Python scripts (`scripts/modding/*.py`). |
 | 🚀 [`custom_entity_workflow.md`](custom_entity_workflow.md) | Comprehensive engineering guide on importing custom 3D models, custom animations, and new sound banks (`.SBK`) with `og-j1-board` case study. |
 | ⚡ [`tools/build_and_iteration_workflow.md`](tools/build_and_iteration_workflow.md) | Three-layer build model, `sccache` acceleration, and targeted build tasks (`build-release-game`, `build-release-decomp`). |
@@ -94,7 +94,7 @@ These curated, verified documents are the **single source of truth** hosted on `
 
 - 📝 [`templates/MOD_README.template.md`](templates/MOD_README.template.md): Bilingual presentation template for root `README.md` on mod branches.
 - ⚙️ [`templates/mod_menu.template.gc`](templates/mod_menu.template.gc): Ready-to-use GOAL template for in-game Mods menu registration.
-- 📂 [`current_mod/`](current_mod/): Folder storing mod-specific feature readmes (e.g. [`current_mod/README.md`](current_mod/README.md)).
+- 📂 [`current_mod/`](current_mod/): Folder storing mod-specific feature readmes (e.g. [`current_mod/README.md`](current_mod/README.md)) and standalone texture packs ([`current_mod/texture_packs/`](current_mod/texture_packs/)).
 - 🎭 [`tools/open-goal-glb-reskin-tool/`](tools/open-goal-glb-reskin-tool/): GUI application for retargeting and reskinning GLB characters.
 - 🗺️ [`tools/open-goal-level-builder/`](tools/open-goal-level-builder/): GUI application for building custom OpenGOAL levels.
 - 🎨 [`tools/open-goal-texture-pack-generator/`](tools/open-goal-texture-pack-generator/): GUI application for composing, previewing, and packaging OpenGOAL texture packs.
@@ -142,7 +142,7 @@ Ces documents validés constituent la **source unique de vérité** hébergée s
 
 | Guide | Description |
 | :--- | :--- |
-| 🤖 [`tools/github_workflows.md`](tools/github_workflows.md) | Guide pédagogique complet des 5 workflows GitHub Actions (synchronisation amont, santé des branches, releases, triage automatique). |
+| 🤖 [`tools/github_workflows.md`](tools/github_workflows.md) | Guide pédagogique complet des 6 workflows GitHub Actions (synchronisation amont, santé des branches, releases, triage automatique, catalogue maître). |
 | 🛠️ [`tools/task_scripts_reference.md`](tools/task_scripts_reference.md) | Référence pédagogique de l'ensemble des commandes Taskfile et scripts Python de modding (`scripts/modding/*.py`). |
 | 🚀 [`custom_entity_workflow.md`](custom_entity_workflow.md) | Guide d'ingénierie sur l'importation de modèles 3D, animations personnalisées et banques de sons (`.SBK`) avec étude de cas `og-j1-board`. |
 | ⚡ [`tools/build_and_iteration_workflow.md`](tools/build_and_iteration_workflow.md) | Modèle de compilation en 3 couches, accélération `sccache` et tâches ciblées (`build-release-game`, `build-release-decomp`). |
@@ -179,7 +179,7 @@ Ces documents validés constituent la **source unique de vérité** hébergée s
 
 - 📝 [`templates/MOD_README.template.md`](templates/MOD_README.template.md) : Modèle de présentation bilingue pour le `README.md` racine des branches de mods.
 - ⚙️ [`templates/mod_menu.template.gc`](templates/mod_menu.template.gc) : Modèle GOAL prêt à l'emploi pour l'enregistrement au menu Mods en jeu.
-- 📂 [`current_mod/`](current_mod/) : Dossier hébergeant les documentations techniques propres à un mod ([`current_mod/README.md`](current_mod/README.md)).
+- 📂 [`current_mod/`](current_mod/) : Dossier hébergeant les documentations techniques propres à un mod ([`current_mod/README.md`](current_mod/README.md)) et les packs de textures autonomes ([`current_mod/texture_packs/`](current_mod/texture_packs/)).
 - 🎭 [`tools/open-goal-glb-reskin-tool/`](tools/open-goal-glb-reskin-tool/) : Application graphique pour retargeting et reskin de personnages GLB.
 - 🗺️ [`tools/open-goal-level-builder/`](tools/open-goal-level-builder/) : Outil graphique pour concevoir des niveaux OpenGOAL sur mesure.
 - 🎨 [`tools/open-goal-texture-pack-generator/`](tools/open-goal-texture-pack-generator/) : Outil graphique pour composer, prévisualiser et packager des packs de textures OpenGOAL.

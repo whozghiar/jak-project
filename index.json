@@ -1,10 +1,10 @@
 {
   "schemaVersion": "1.0.0",
-  "sourceName": "Blue Krimzon Guard (Freedom Fighters)Source",
-  "lastUpdated": "2026-09-18T22:12:56Z",
+  "sourceName": "blue-krimzon-guard Source",
+  "lastUpdated": "2026-09-19T00:21:52Z",
   "mods": {
     "blue-krimzon-guard": {
-      "displayName": "Blue Krimzon Guard",
+      "displayName": "blue-krimzon-guard",
       "description": "Turns Haven City's Crimson Guard blue. The mod adds a blue-recolored Crimson Guard as its own standalone entity — a new GOAL type, `crimson-blue-guard`, that is a subtype of the stock `crimson-guard`. While the mod is enabled it guard bikes and hellcats. Turn it off and the city goes back to 100% red. The blue guards are **not** a new faction and **not** a new AI. They behave exactly like the red ones — they react to your crimes, raise the wanted level, chase you, shoot, try to arrest you and change weapons as the alert escalates — because they inherit every one of those code paths untouched. The only gameplay addition is that some of them carry a grenade launcher.",
       "authors": [
         "whozghiar"

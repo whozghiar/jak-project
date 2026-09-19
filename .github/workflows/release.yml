@@ -363,3 +363,11 @@ jobs:
           else
             echo "index.json déjà à jour sur la branche."
           fi
+
+      - name: Trigger Global Catalog Sync on master-dev
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Triggering sync-global-catalog.yml on master-dev..."
+          gh workflow run sync-global-catalog.yml --ref master-dev --repo "${{ github.repository }}" || echo "Note: Global catalog will also be synced via release event."

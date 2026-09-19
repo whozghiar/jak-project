@@ -12,8 +12,8 @@
 
 > ### 📑 Summary / Sommaire
 >
-> - 🇬🇧 **English:** [1. CI/CD Architecture & Mental Model](#1-cicd-architecture--mental-model) · [2. Upstream & Dev Synchronization (`sync-upstream.yaml`)](#2-upstream--dev-synchronization-sync-upstreamyaml) · [3. Per-Branch Health Check (`branch-sync-check.yaml`)](#3-per-branch-health-check-branch-sync-checkyaml) · [4. Automated Release & Packaging (`release.yml`)](#4-automated-release--packaging-releaseyml) · [5. Bug Report Sync (`mod-bug-report-sync.yml`)](#5-bug-report-sync-mod-bug-report-syncyml) · [6. Bug Triage & Auto-Labeling (`mod-bug-triage.yml`)](#6-bug-triage--auto-labeling-mod-bug-triageyml) · [7. Quick Reference Matrix](#7-quick-reference-matrix)
-> - 🇫🇷 **Français :** [1. Modèle Mental & Architecture CI/CD](#1-modèle-mental--architecture-cicd) · [2. Synchronisation Amont & Dev (`sync-upstream.yaml`)](#2-synchronisation-amont--dev-sync-upstreamyaml) · [3. Vérification de Santé par Branche (`branch-sync-check.yaml`)](#3-vérification-de-santé-par-branche-branch-sync-checkyaml) · [4. Construction & Distribution des Releases (`release.yml`)](#4-construction--distribution-des-releases-releaseyml) · [5. Synchronisation des Rapports de Bugs (`mod-bug-report-sync.yml`)](#5-synchronisation-des-rapports-de-bugs-mod-bug-report-syncyml) · [6. Triage Automatique des Bugs (`mod-bug-triage.yml`)](#6-triage-automatique-des-bugs-mod-bug-triageyml) · [7. Matrice Récapitulative](#7-matrice-récapitulative)
+> - 🇬🇧 **English:** [1. CI/CD Architecture & Mental Model](#1-cicd-architecture--mental-model) · [2. Upstream & Dev Synchronization (`sync-upstream.yaml`)](#2-upstream--dev-synchronization-sync-upstreamyaml) · [3. Per-Branch Health Check (`branch-sync-check.yaml`)](#3-per-branch-health-check-branch-sync-checkyaml) · [4. Automated Release & Packaging (`release.yml`)](#4-automated-release--packaging-releaseyml) · [5. Bug Report Sync (`mod-bug-report-sync.yml`)](#5-bug-report-sync-mod-bug-report-syncyml) · [6. Bug Triage & Auto-Labeling (`mod-bug-triage.yml`)](#6-bug-triage--auto-labeling-mod-bug-triageyml) · [7. Master Mod Catalog Sync (`sync-global-catalog.yml`)](#7-master-mod-catalog-sync-sync-global-catalogyml) · [8. Quick Reference Matrix](#8-quick-reference-matrix)
+> - 🇫🇷 **Français :** [1. Modèle Mental & Architecture CI/CD](#1-modèle-mental--architecture-cicd) · [2. Synchronisation Amont & Dev (`sync-upstream.yaml`)](#2-synchronisation-amont--dev-sync-upstreamyaml) · [3. Vérification de Santé par Branche (`branch-sync-check.yaml`)](#3-vérification-de-santé-par-branche-branch-sync-checkyaml) · [4. Construction & Distribution des Releases (`release.yml`)](#4-construction--distribution-des-releases-releaseyml) · [5. Synchronisation des Rapports de Bugs (`mod-bug-report-sync.yml`)](#5-synchronisation-des-rapports-de-bugs-mod-bug-report-syncyml) · [6. Triage Automatique des Bugs (`mod-bug-triage.yml`)](#6-triage-automatique-des-bugs-mod-bug-triageyml) · [7. Synchronisation du Catalogue Global (`sync-global-catalog.yml`)](#7-synchronisation-du-catalogue-global-sync-global-catalogyml) · [8. Matrice Récapitulative](#8-matrice-récapitulative)
 
 ---
 
@@ -130,13 +130,32 @@ Update Mod Concerned dropdown in .github/ISSUE_TEMPLATE/mod-bug-report.yml
 
 ---
 
-## 7. Quick Reference Matrix
+## 7. Master Mod Catalog Sync (`sync-global-catalog.yml`)
+
+- **File:** [`.github/workflows/sync-global-catalog.yml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/sync-global-catalog.yml)
+- **When is it called?**
+  - **On Release:** Triggered automatically whenever a GitHub Release is `published`, `unpublished`, `edited`, or `deleted`.
+  - **Workflow Call:** Called directly at the end of the release pipeline (`release.yml`) to ensure instant catalog updates.
+  - **Manual Trigger:** via `workflow_dispatch` on `master-dev`.
+- **Why does it exist?**
+  - Rather than requiring players to manually find and add 15+ individual mod URLs in their OpenGOAL Launcher, the repository provides a single, consolidated master catalog ([`index.json`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/index.json) at the root of `master-dev`).
+  - This workflow automates catalog maintenance by running `scripts/modding/sync_global_catalog.py`:
+    1. Fetches all releases published across the repository via the GitHub REST API.
+    2. Downloads and parses individual release assets and catalogs.
+    3. Normalizes branch slugs and dedupes versions.
+    4. Aggregates all download URLs (Windows and Linux ZIPs), SHA256 checksums, and cover artwork into a single OpenGOAL Launcher v1 compliant schema.
+    5. Commits and pushes the updated `index.json` directly to `master-dev`.
+
+---
+
+## 8. Quick Reference Matrix
 
 | Workflow | Trigger | Permissions | Target Branch | Primary Outcome |
 | :--- | :--- | :--- | :--- | :--- |
 | `sync-upstream.yaml` | Schedule (daily 10:00 UTC) / dispatch | `contents: write` | `master`, `master-dev`, all clean `jak*/**` | Mirrors upstream, auto-merges clean branches, updates dashboard. |
 | `branch-sync-check.yaml` | Push on `jak[1-3]/**` / dispatch | `contents: read` | Current mod branch | Verifies ancestry with `master-dev`; drives GitHub status badge. |
 | `release.yml` | Manual `workflow_dispatch` | `contents: write` | Triggered mod branch | Builds Win/Linux binaries, creates GitHub Release, updates `index.json`. |
+| `sync-global-catalog.yml` | Release events / workflow call / dispatch | `contents: write` | `master-dev` | Consolidates all released mods into root `index.json` catalog. |
 | `mod-bug-report-sync.yml`| Release events / dispatch | `contents: write` | `master-dev` | Refreshes mod dropdown in bug report issue template. |
 | `mod-bug-triage.yml` | Issues (`opened`, `edited`) | `issues: write` | N/A (Repository issues) | Labels issues by game (`jak1|2|3`) and mod (`mod:<slug>`). |
 
@@ -254,12 +273,31 @@ Mise à jour du menu déroulant dans .github/ISSUE_TEMPLATE/mod-bug-report.yml
 
 ---
 
-## 7. Matrice Récapitulative
+## 7. Synchronisation du Catalogue Global (`sync-global-catalog.yml`)
+
+- **Fichier :** [`.github/workflows/sync-global-catalog.yml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/sync-global-catalog.yml)
+- **Quand est-il appelé ?**
+  - **Lors d'une Release :** Déclenché automatiquement dès qu'une release GitHub est publiée, dépubliée, modifiée ou supprimée.
+  - **Appel de Workflow (`workflow_call`) :** Invoqué directement à la fin du pipeline de release (`release.yml`) pour une prise en compte immédiate.
+  - **Déclenchement Manuel :** via `workflow_dispatch` sur `master-dev`.
+- **Pourquoi existe-t-il ?**
+  - Plutôt que d'obliger les joueurs à chercher et renseigner 15+ URLs individuelles dans l'OpenGOAL Launcher, le dépôt propose un catalogue maître unifié ([`index.json`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/index.json) à la racine de `master-dev`).
+  - Ce workflow automatise la maintenance du catalogue en exécutant `scripts/modding/sync_global_catalog.py` :
+    1. Interroge l'API REST GitHub pour inventorier toutes les releases publiées du dépôt.
+    2. Télécharge et analyse les assets et catalogues individuels.
+    3. Normalise les identifiants de branches (slugs) et déduplique les versions.
+    4. Regroupe l'ensemble des liens de téléchargement (archives ZIP Windows et Linux), empreintes SHA256 et jaquettes dans un schéma v1 conforme pour l'OpenGOAL Launcher.
+    5. Commite et pousse le fichier `index.json` actualisé directement sur `master-dev`.
+
+---
+
+## 8. Matrice Récapitulative
 
 | Workflow | Déclencheur | Permissions | Branche Cible | Résultat Principal |
 | :--- | :--- | :--- | :--- | :--- |
 | `sync-upstream.yaml` | Cron (quotidien 10:00 UTC) / dispatch | `contents: write` | `master`, `master-dev`, branches `jak*/**` | Miroir amont, fusion automatique des branches propres, tableau de bord. |
 | `branch-sync-check.yaml` | Push sur `jak[1-3]/**` / dispatch | `contents: read` | Branche courante du mod | Vérifie la filiation avec `master-dev` ; pilote le badge GitHub. |
 | `release.yml` | Manuel `workflow_dispatch` | `contents: write` | Branche du mod ciblée | Compile les binaires Win/Linux, publie la Release GitHub, met à jour `index.json`. |
+| `sync-global-catalog.yml` | Événements Release / workflow call / dispatch | `contents: write` | `master-dev` | Consolide tous les mods publiés dans le catalogue `index.json` racine. |
 | `mod-bug-report-sync.yml`| Événements de Release / dispatch | `contents: write` | `master-dev` | Rafraîchit le menu déroulant des mods dans le template d'issue. |
 | `mod-bug-triage.yml` | Issues (`opened`, `edited`) | `issues: write` | N/A (Issues du dépôt) | Applique les labels de jeu (`jak1|2|3`) et de mod (`mod:<slug>`). |

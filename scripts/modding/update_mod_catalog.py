@@ -298,6 +298,99 @@ def refresh_metadata_only(index_path, mod_id, display_name, description, support
   print(f"[OK] Refreshed '{mod_id}' metadata (name/description/games/cover) in {index_path} — versions[] untouched.")
 
 
+def scan_and_register_texture_packs(
+    catalog: dict,
+    release_tag: str,
+    repo: str,
+    branch: str,
+    detected_game: str,
+    default_author: str,
+    default_cover_url: str,
+):
+  """Scan docs/modding/current_mod/texture_packs/ and release-files/ for texture pack zips and register in catalog."""
+  import zipfile
+
+  candidate_dirs = [
+      REPO_ROOT / "docs" / "modding" / "current_mod" / "texture_packs",
+      REPO_ROOT / "release-files",
+  ]
+  found_zips = {}
+  for c_dir in candidate_dirs:
+    if c_dir.exists():
+      for zf_path in c_dir.glob("*.zip"):
+        if zf_path.name.startswith("windows-") or zf_path.name.startswith("linux-"):
+          continue
+        found_zips[zf_path.name] = zf_path
+
+  if not found_zips:
+    return
+
+  if "texturePacks" not in catalog or not isinstance(catalog["texturePacks"], dict):
+    catalog["texturePacks"] = {}
+
+  for zip_name, zf_path in sorted(found_zips.items()):
+    meta = {}
+    try:
+      with zipfile.ZipFile(zf_path, "r") as z:
+        if "metadata.json" in z.namelist():
+          meta = json.loads(z.read("metadata.json").decode("utf-8"))
+    except Exception as e:
+      print(f"[-] Could not read metadata.json inside {zip_name}: {e}")
+
+    tp_name = meta.get("name") or zip_name.replace(".zip", "")
+    tp_ver_match = re.search(r"(\d+\.\d+\.\d+)", zip_name)
+    tp_version = meta.get("version") or (tp_ver_match.group(1) if tp_ver_match else "1.0.0")
+    tp_author = meta.get("author") or meta.get("authors") or default_author
+    tp_authors = [tp_author] if isinstance(tp_author, str) else [str(tp_author)]
+    tp_desc = meta.get("description") or f"Texture pack for {tp_name} ({detected_game})."
+    tp_tags = meta.get("tags") or [detected_game, "retexture"]
+    tp_supported = meta.get("supportedGames") or [detected_game]
+
+    # Generate slug from zip name or metadata
+    base_slug = zf_path.stem.lower()
+    base_slug = re.sub(r"-v\d+.*$", "", base_slug)
+    base_slug = re.sub(r"[^a-z0-9_-]+", "-", base_slug).strip("-")
+    if not base_slug.endswith("-textures"):
+      base_slug = f"{base_slug}-textures"
+
+    download_url = f"https://github.com/{repo}/releases/download/{release_tag}/{zip_name}"
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    if base_slug not in catalog["texturePacks"]:
+      catalog["texturePacks"][base_slug] = {
+          "displayName": tp_name,
+          "description": tp_desc,
+          "authors": tp_authors,
+          "tags": tp_tags,
+          "supportedGames": tp_supported,
+          "websiteUrl": f"https://github.com/{repo}/tree/{branch}",
+          "coverArtUrl": default_cover_url or "",
+          "thumbnailArtUrl": default_cover_url or "",
+          "versions": [],
+      }
+
+    entry = catalog["texturePacks"][base_slug]
+    entry["displayName"] = tp_name
+    entry["description"] = tp_desc
+    if default_cover_url:
+      entry["coverArtUrl"] = default_cover_url
+      entry["thumbnailArtUrl"] = default_cover_url
+
+    new_v = {
+        "version": tp_version,
+        "publishedDate": now_iso,
+        "supportedGames": tp_supported,
+        "assets": {
+            "windows": download_url,
+            "linux": download_url,
+            detected_game: download_url,
+        },
+    }
+    entry["versions"] = [v for v in entry.get("versions", []) if v.get("version") != tp_version]
+    entry["versions"].insert(0, new_v)
+    print(f"[+] Registered texture pack '{base_slug}' (v{tp_version}) in catalog index.json")
+
+
 def main():
   parser = argparse.ArgumentParser(
       description="Update or create an OpenGOAL mod-source index.json catalog."
@@ -605,6 +698,17 @@ def main():
       and (v.get("checksums", {}).get("windows") or v.get("checksums", {}).get("linux"))
   ]
   mod_entry["versions"].insert(0, new_version)
+
+  # Automatically detect and register texture packs in current_mod/texture_packs/
+  scan_and_register_texture_packs(
+      catalog=catalog,
+      release_tag=tag,
+      repo=args.repo,
+      branch=branch,
+      detected_game=detected_game,
+      default_author=authors[0] if authors else "whozghiar",
+      default_cover_url=resolved_cover_url,
+  )
 
   index_path.parent.mkdir(parents=True, exist_ok=True)
   with open(index_path, "w", encoding="utf-8") as f:

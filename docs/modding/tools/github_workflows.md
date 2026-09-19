@@ -36,16 +36,22 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
    │           │
    │           ├── Auto-merge clean branches ──► [origin/jak2/features/my-mod]
    │           │                                         │
-   │           │                                         ▼ (on: push: branch-sync-check.yaml)
-   │           │                                   Status Badge: GREEN
-   │           │
-   │           └── Update live dashboard: docs/modding/tools/branch_sync_status.md
+   │           │                                         ├── (on: push: branch-sync-check.yaml)
+   │           │                                         │     Status Badge: GREEN
+   │           │                                         │
+   │           │                                         └── Standalone Texture Packs:
+   │           │                                             docs/modding/current_mod/texture_packs/*.zip
+   │           │                                               │
+   │           └── Update live dashboard: branch_sync_status.md│
+   │                                                           │
+   ▼ (Manual trigger: release.yml) ◄───────────────────────────┘
+[GitHub Releases: windows-v*.zip, linux-v*.zip, texture-pack-v*.zip]
    │
-   ▼ (Manual trigger: release.yml)
-[GitHub Releases: windows-v*.zip, linux-v*.zip]
+   ├── (on: release: mod-bug-report-sync.yml)
+   │     Update Mod Concerned dropdown in mod-bug-report.yml
    │
-   ▼ (on: release: mod-bug-report-sync.yml)
-Update Mod Concerned dropdown in .github/ISSUE_TEMPLATE/mod-bug-report.yml
+   └── (workflow_call: sync-global-catalog.yml)
+         Update root index.json on master-dev (mods + texture packs)
 ```
 
 ---
@@ -101,6 +107,7 @@ Update Mod Concerned dropdown in .github/ISSUE_TEMPLATE/mod-bug-report.yml
   - Automatically packages the required runtime structure (`gk`, `goalc`, `extractor`, `data/`).
   - **Standalone Texture Pack Packaging:** Automatically scans `docs/modding/current_mod/texture_packs/` for any packaged texture pack `.zip` files, computes their checksums, attaches them as release assets, and registers them under `"texturePacks"` in `index.json`.
   - Computes SHA256 checksums across all assets (`SHA256SUMS.txt`) and updates the mod's `index.json` catalog file, committing it directly back to the branch so the OpenGOAL Launcher immediately detects the update.
+  - **Automated Catalog Synchronization:** Automatically invokes `sync-global-catalog.yml` via `workflow_call` at the conclusion of the job, ensuring the unified catalog on `master-dev` is regenerated immediately.
 
 ---
 
@@ -181,16 +188,22 @@ Dans ce dépôt, les workflows GitHub Actions sont conçus pour répondre à deu
    │           │
    │           ├── Auto-fusion des branches propres ──► [origin/jak2/features/mon-mod]
    │           │                                               │
-   │           │                                               ▼ (on: push: branch-sync-check.yaml)
-   │           │                                         Badge d'état : VERT
-   │           │
-   │           └── Mise à jour du tableau de bord : docs/modding/tools/branch_sync_status.md
+   │           │                                               ├── (on: push: branch-sync-check.yaml)
+   │           │                                               │     Badge d'état : VERT
+   │           │                                               │
+   │           │                                               └── Packs de textures autonomes :
+   │           │                                                   docs/modding/current_mod/texture_packs/*.zip
+   │           │                                                     │
+   │           └── Mise à jour du tableau de bord : branch_sync_status│
+   │                                                                 │
+   ▼ (Déclenchement manuel : release.yml) ◄──────────────────────────┘
+[GitHub Releases : windows-v*.zip, linux-v*.zip, texture-pack-v*.zip]
    │
-   ▼ (Déclenchement manuel : release.yml)
-[GitHub Releases : windows-v*.zip, linux-v*.zip]
+   ├── (on: release: mod-bug-report-sync.yml)
+   │     Mise à jour du menu déroulant dans mod-bug-report.yml
    │
-   ▼ (on: release: mod-bug-report-sync.yml)
-Mise à jour du menu déroulant dans .github/ISSUE_TEMPLATE/mod-bug-report.yml
+   └── (workflow_call: sync-global-catalog.yml)
+         Mise à jour d'index.json sur master-dev (mods + packs textures)
 ```
 
 ---
@@ -246,6 +259,7 @@ Mise à jour du menu déroulant dans .github/ISSUE_TEMPLATE/mod-bug-report.yml
   - Package automatiquement l'arborescence requise (`gk`, `goalc`, `extractor`, `data/`).
   - **Packaging Automatisé des Packs de Textures :** Scanne automatiquement `docs/modding/current_mod/texture_packs/` à la recherche d'archives `.zip` de texture, calcule leurs empreintes, les attache comme assets de release et les référence sous `"texturePacks"` dans `index.json`.
   - Calcule les empreintes SHA256 de tous les assets (`SHA256SUMS.txt`) et met à jour le fichier catalogue `index.json`, puis le commite sur la branche afin que l'OpenGOAL Launcher détecte immédiatement la mise à jour.
+  - **Synchronisation Automatisée du Catalogue :** Déclenche automatiquement `sync-global-catalog.yml` via `workflow_call` dès la fin du packaging, garantissant la régénération immédiate du catalogue unifié sur `master-dev`.
 
 ---
 

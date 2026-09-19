@@ -150,6 +150,7 @@ task modding-branch-status                        # EVERY mod branch: test/refre
 task modding-audit                                # Regenerate docs/modding/branch_audit.md
 task modding-sync-catalog                          # Regenerate master-dev root index.json from published releases
 task modding-package-texture-pack -- --update-index  # Package texture_replacements/ into launcher zip & update index.json
+task modding-texture-gui                           # Launch OpenGOAL Texture Pack Generator GUI desktop app
 ```
 
 > [!IMPORTANT]
@@ -366,6 +367,7 @@ task modding-branch-status                         # Toutes les branches : audit
 task modding-audit                                 # Régénère docs/modding/branch_audit.md
 task modding-sync-catalog                          # Régénère le catalogue global index.json racine depuis les Releases
 task modding-package-texture-pack -- --update-index  # Empaquette texture_replacements/ en zip Launcher et met à jour index.json
+task modding-texture-gui                           # Lance l'application de bureau OpenGOAL Texture Pack Generator (GUI)
 ```
 
 > [!IMPORTANT]

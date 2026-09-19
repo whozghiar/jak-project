@@ -138,8 +138,13 @@ These tasks wrap specialized Python automation scripts located in `scripts/moddi
 
 ### 10. `task modding-package-texture-pack`
 - **Script:** [`package_texture_pack.py`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/scripts/modding/package_texture_pack.py)
-- **When?** When creating or updating a standalone texture pack from `custom_assets/<game>/texture_replacements/` (or use the graphical app [`open-goal-texture-pack-generator`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/docs/modding/tools/open-goal-texture-pack-generator)).
+- **When?** When creating or updating a standalone texture pack from `custom_assets/<game>/texture_replacements/` via the command-line interface.
 - **Why?** Packages modified textures into an OpenGOAL Launcher-compliant `.zip` archive with `metadata.json` and `cover.png`, computes the SHA256 checksum, targets `docs/modding/current_mod/texture_packs/` by default so it is automatically packaged during GitHub Releases, and optionally registers/updates the texture pack in `index.json` (`--update-index`).
+
+### 11. `task modding-texture-gui`
+- **Script:** [`launch_texture_gui.py`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/scripts/modding/launch_texture_gui.py)
+- **When?** When creating, previewing, and packaging custom texture replacements via a modern graphical desktop application.
+- **Why?** Launches the dedicated high-performance desktop application ([`open-goal-texture-pack-generator`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/docs/modding/tools/open-goal-texture-pack-generator), powered by Tauri v2, Rust, and Svelte 5). It allows you to select texture files, customize author/version metadata, automatically apply descriptions to all textures in one click, preview image dimensions, and export `.zip` archives directly into `docs/modding/current_mod/texture_packs/`.
 
 ---
 
@@ -156,6 +161,19 @@ These tasks wrap specialized Python automation scripts located in `scripts/moddi
 1. Close REPL and game.
 2. `task boot-game-retail`
 3. Press **L3 + SELECT** on gamepad to ensure menu opens and toggle functions properly.
+
+### Scenario C: Packaging & Distributing a Custom Texture Pack
+1. Place or extract textures in `custom_assets/<game>/texture_replacements/`.
+2. Launch the desktop GUI via `task modding-texture-gui` (or CLI via `task modding-package-texture-pack -- --update-index`).
+3. Fill in name, version, author, and description.
+4. Export the archive to `docs/modding/current_mod/texture_packs/<slug>-v<version>.zip`.
+5. Commit the `.zip` file on your mod branch.
+6. Trigger the `release.yml` workflow: the archive is automatically packaged as a GitHub Release asset, hashed, and registered under `"texturePacks"` in `index.json`!
+
+### Scenario D: Synchronizing Your Mod Branch with Master-Dev
+1. On your mod branch: `task modding-sync-branch`
+2. If conflicts occur, inspect the reported files or run the recommended resolution command.
+3. Test with cold boot: `task boot-game-retail`.
 
 ---
 
@@ -280,8 +298,13 @@ Ces tâches enveloppent les scripts Python du dossier `scripts/modding/`. Vous p
 
 ### 10. `task modding-package-texture-pack`
 - **Script :** [`package_texture_pack.py`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/scripts/modding/package_texture_pack.py)
-- **Quand ?** Lors de la création ou mise à jour d'un pack de textures autonome depuis `custom_assets/<game>/texture_replacements/` (ou utilisez l'application graphique [`open-goal-texture-pack-generator`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/docs/modding/tools/open-goal-texture-pack-generator)).
+- **Quand ?** Lors de la création ou mise à jour d'un pack de textures autonome depuis `custom_assets/<game>/texture_replacements/` via l'interface en ligne de commande.
 - **Pourquoi ?** Empaquette les textures modifiées dans une archive `.zip` strictement conforme au Launcher OpenGOAL (avec `metadata.json` et `cover.png`), calcule l'empreinte SHA256, cible par défaut `docs/modding/current_mod/texture_packs/` pour une publication automatique lors des releases GitHub, et enregistre ou met à jour le pack dans le catalogue `index.json` (`--update-index`).
+
+### 11. `task modding-texture-gui`
+- **Script :** [`launch_texture_gui.py`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/scripts/modding/launch_texture_gui.py)
+- **Quand ?** Lors de la création, prévisualisation et empaquetage de textures modifiées via une interface graphique moderne pour PC.
+- **Pourquoi ?** Lance l'application de bureau dédiée ([`open-goal-texture-pack-generator`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/docs/modding/tools/open-goal-texture-pack-generator), conçue en Tauri v2, Rust et Svelte 5). Elle permet de sélectionner les textures, personnaliser les métadonnées (auteur, version), appliquer automatiquement des descriptions à toutes les textures en un clic, prévisualiser les dimensions d'images et exporter les archives `.zip` directement vers `docs/modding/current_mod/texture_packs/`.
 
 ---
 
@@ -298,3 +321,16 @@ Ces tâches enveloppent les scripts Python du dossier `scripts/modding/`. Vous p
 1. Fermez le REPL et le jeu.
 2. Lancez `task boot-game-retail`.
 3. Appuyez sur **L3 + SELECT** à la manette pour vérifier que le menu s'ouvre bien en conditions réelles joueur.
+
+### Scénario C : Création & Distribution d'un Pack de Textures
+1. Placez ou extrayez vos textures dans `custom_assets/<game>/texture_replacements/`.
+2. Lancez l'interface graphique via `task modding-texture-gui` (ou en CLI via `task modding-package-texture-pack -- --update-index`).
+3. Renseignez le nom, la version, l'auteur et la description.
+4. Exportez l'archive dans `docs/modding/current_mod/texture_packs/<slug>-v<version>.zip`.
+5. Commitez l'archive `.zip` sur votre branche de mod.
+6. Déclenchez le workflow `release.yml` : l'archive est automatiquement publiée en asset de Release GitHub, hachée et inscrite sous `"texturePacks"` dans `index.json` !
+
+### Scénario D : Synchronisation de Votre Branche avec Master-Dev
+1. Sur votre branche de mod : `task modding-sync-branch`
+2. En cas de conflits, vérifiez les fichiers signalés ou appliquez la commande de résolution suggérée.
+3. Validez avec un boot complet : `task boot-game-retail`.

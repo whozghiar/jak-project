@@ -96,3 +96,11 @@ Options supported:
 - `--author "<name>"`: Auto-detected from git if omitted.
 - `--update-index`: Automatically registers or updates the pack in root `index.json` under `"texturePacks"`.
 
+### Standard Storage & Automatic Release Pipeline:
+Package your texture pack into:
+```text
+docs/modding/current_mod/texture_packs/<slug>-v<version>.zip
+```
+- **Git Tracked & Sync Protected:** Located under `docs/modding/current_mod/`, safely versioned in git without `.gitignore` interference, and immune to upstream branch sync overwrites.
+- **Automated GitHub Release:** During `.github/workflows/release.yml`, CI automatically picks up any `.zip` from this directory, computes checksums, registers it in `index.json`, and attaches it to the GitHub Release assets!
+

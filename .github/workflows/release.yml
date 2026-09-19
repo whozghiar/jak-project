@@ -1,0 +1,379 @@
+name: 🚀 Build & Release OpenGOAL Mod Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      mod_name:
+        description: 'Nom d''affichage du mod (obligatoire, ex: Jak 3 JetBoard)'
+        required: true
+      mod_description:
+        description: 'Descriptif court du mod, obligatoire (inclus tel quel dans index.json)'
+        required: true
+      tag_name:
+        description: 'Tag de version du mod, obligatoire (ex: v1.0.0)'
+        required: true
+      prerelease:
+        description: 'Marquer comme pré-release'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  # =========================================================================
+  # 0. RÉSOLUTION DE VERSION / MÉTADONNÉES
+  #
+  # Ce workflow ne propose plus de choix "recompiler ou pas" : une release
+  # reconstruit systématiquement Windows + Linux depuis les sources. C'est un
+  # choix assumé — un mod livré sans jamais être passé par une compilation
+  # complète est exactement le genre de release qu'on ne veut pas distribuer
+  # aux joueurs. Le nom du mod, sa description et son tag de version sont
+  # `required: true` côté `workflow_dispatch` (voir plus haut) : il n'y a donc
+  # plus de détection/valeur "auto" à résoudre ici, seulement les métadonnées
+  # explicitement fournies par la personne qui déclenche la release.
+  # =========================================================================
+  check_mode:
+    name: "🔍 Résolution de la Version & des Métadonnées"
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      display_name: ${{ steps.meta.outputs.display_name }}
+      description: ${{ steps.meta.outputs.description }}
+      target_branch: ${{ steps.meta.outputs.target_branch }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Résolution de la Version et Métadonnées
+        id: meta
+        env:
+          INPUT_MOD_NAME: ${{ github.event.inputs.mod_name }}
+          INPUT_MOD_DESC: ${{ github.event.inputs.mod_description }}
+        run: |
+          TARGET_BRANCH="${{ github.ref_name }}"
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            # Tag détecté : identifier la branche origin/jak* associée
+            RESOLVED=$(git branch -r --contains HEAD | grep -E 'origin/jak[123]/' | head -n 1 | sed 's/^[[:space:]]*origin\///')
+            if [ -n "$RESOLVED" ]; then
+              echo "Tag détecté (${{ github.ref_name }}), branche parente résolue : $RESOLVED"
+              TARGET_BRANCH="$RESOLVED"
+            fi
+          fi
+          echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
+
+          python ./scripts/modding/update_mod_catalog.py \
+            --branch "$TARGET_BRANCH" \
+            --tag "${{ github.event.inputs.tag_name }}" \
+            --display-name "$INPUT_MOD_NAME" \
+            --description "$INPUT_MOD_DESC" \
+            --export-github-output
+
+  # =========================================================================
+  # 1. BUILD WINDOWS (systématique — voir la note sur le rebuild complet ci-dessus)
+  # =========================================================================
+  build-windows:
+    name: "🖥️ Windows (Clang-CL Static)"
+    needs: check_mode
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Install NASM
+        run: choco install nasm
+
+      - name: Setup sccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          variant: sccache
+          key: windows-release-static-${{ github.sha }}
+          restore-keys: windows-release-static-
+
+      - name: Setup MSVC Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Remove Strawberry Perl from PATH
+        run: |
+          $env:PATH = $env:PATH -replace "C:\\Strawberry\\c\\bin;", ""
+          "PATH=$env:PATH" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Configure CMake
+        shell: cmd
+        run: |
+          cmake -B build --preset=Release-windows-clang-static ^
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+      - name: Build Binaries (gk, goalc, extractor uniquement)
+        shell: cmd
+        run: cmake --build build --config Release --target gk --target goalc --target extractor --parallel %NUMBER_OF_PROCESSORS%
+
+      - name: Package Windows Mod Bundle
+        shell: bash
+        run: |
+          TAG_VAL="${{ needs.check_mode.outputs.release_tag }}"
+          PKG_DIR="dist_windows"
+          mkdir -p "$PKG_DIR/data/launcher"
+          mkdir -p "$PKG_DIR/data/decompiler"
+          mkdir -p "$PKG_DIR/data/game/graphics/opengl_renderer"
+
+          cp build/bin/gk.exe "$PKG_DIR/"
+          cp build/bin/goalc.exe "$PKG_DIR/"
+          cp build/bin/extractor.exe "$PKG_DIR/"
+
+          cp -r decompiler/config "$PKG_DIR/data/decompiler/"
+          cp -r goal_src "$PKG_DIR/data/"
+          cp -r game/assets "$PKG_DIR/data/game/"
+          cp -r game/graphics/opengl_renderer/shaders "$PKG_DIR/data/game/graphics/opengl_renderer/"
+
+          if [ -d "custom_assets" ]; then
+            cp -r custom_assets "$PKG_DIR/data/"
+          fi
+
+          if [ -f ".github/scripts/releases/error-code-metadata.json" ]; then
+            cp .github/scripts/releases/error-code-metadata.json "$PKG_DIR/data/launcher/"
+          fi
+
+          mkdir -p final-artifacts
+          cd "$PKG_DIR"
+          7z a -tzip "../final-artifacts/windows-${TAG_VAL}.zip" *
+          cd ..
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: final-artifacts/*.zip
+          if-no-files-found: error
+
+  # =========================================================================
+  # 2. BUILD LINUX (systématique — voir la note sur le rebuild complet en tête de fichier)
+  # =========================================================================
+  build-linux:
+    name: "🐧 Linux (Clang Static)"
+    needs: check_mode
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake clang gcc g++ nasm \
+            libxrandr-dev libxinerama-dev libxcursor-dev libpulse-dev \
+            libxi-dev libgl1-mesa-dev libssl-dev ninja-build zip
+
+      - name: Setup sccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          variant: sccache
+          key: linux-release-static-${{ github.sha }}
+          restore-keys: linux-release-static-
+
+      - name: Configure CMake
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake -B build --preset=Release-linux-clang-static \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+      - name: Build Binaries (gk, goalc, extractor uniquement)
+        run: cmake --build build --config Release --target gk --target goalc --target extractor --parallel $(nproc)
+
+      - name: Strip Binaries
+        run: |
+          strip build/game/gk
+          strip build/goalc/goalc
+          strip build/decompiler/extractor
+
+      - name: Package Linux Mod Bundle
+        run: |
+          TAG_VAL="${{ needs.check_mode.outputs.release_tag }}"
+          PKG_DIR="dist_linux"
+          mkdir -p "$PKG_DIR/data/launcher"
+          mkdir -p "$PKG_DIR/data/decompiler"
+          mkdir -p "$PKG_DIR/data/game/graphics/opengl_renderer"
+
+          cp build/game/gk "$PKG_DIR/"
+          cp build/goalc/goalc "$PKG_DIR/"
+          cp build/decompiler/extractor "$PKG_DIR/"
+          chmod +x "$PKG_DIR/gk" "$PKG_DIR/goalc" "$PKG_DIR/extractor"
+
+          cp -r decompiler/config "$PKG_DIR/data/decompiler/"
+          cp -r goal_src "$PKG_DIR/data/"
+          cp -r game/assets "$PKG_DIR/data/game/"
+          cp -r game/graphics/opengl_renderer/shaders "$PKG_DIR/data/game/graphics/opengl_renderer/"
+
+          if [ -d "custom_assets" ]; then
+            cp -r custom_assets "$PKG_DIR/data/"
+          fi
+
+          if [ -f ".github/scripts/releases/error-code-metadata.json" ]; then
+            cp .github/scripts/releases/error-code-metadata.json "$PKG_DIR/data/launcher/"
+          fi
+
+          mkdir -p final-artifacts
+          cd "$PKG_DIR"
+          zip -r "../final-artifacts/linux-${TAG_VAL}.zip" ./*
+          cd ..
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: final-artifacts/*.zip
+          if-no-files-found: error
+
+  # =========================================================================
+  # 3. PUBLICATION DE LA RELEASE & CATALOGUE MOD (index.json)
+  # =========================================================================
+  publish:
+    name: "📦 Publish Release & Catalog"
+    needs: [check_mode, build-windows, build-linux]
+    if: always() && !cancelled() && needs.check_mode.result == 'success' && !contains(needs.*.result, 'failure')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      - name: Compute Checksums & Prepare Assets
+        id: checksums
+        env:
+          RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
+        run: |
+          mkdir -p release-files
+          find downloaded-artifacts -type f -name "*.zip" -exec mv {} release-files/ \;
+
+          # Include any mod texture packs located in docs/modding/current_mod/texture_packs/
+          if [ -d "docs/modding/current_mod/texture_packs" ]; then
+            echo "Scanning for texture packs in docs/modding/current_mod/texture_packs/..."
+            find docs/modding/current_mod/texture_packs -type f -name "*.zip" -exec cp -v {} release-files/ \;
+          fi
+
+          cd release-files
+          # Compute checksums for all packages (binaries and texture packs)
+          sha256sum *.zip > SHA256SUMS.txt
+          echo "=== SHA-256 CHECKSUMS ==="
+          cat SHA256SUMS.txt
+
+          WIN_HASH=$(sha256sum "windows-${RELEASE_TAG}.zip" | awk '{print $1}')
+          LIN_HASH=$(sha256sum "linux-${RELEASE_TAG}.zip" | awk '{print $1}')
+          echo "win_sha=$WIN_HASH" >> $GITHUB_OUTPUT
+          echo "lin_sha=$LIN_HASH" >> $GITHUB_OUTPUT
+          cd ..
+
+      - name: Generate Mod Catalog (index.json)
+        env:
+          RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
+          TARGET_BRANCH: ${{ needs.check_mode.outputs.target_branch }}
+          DISPLAY_NAME: ${{ needs.check_mode.outputs.display_name }}
+          DESCRIPTION: ${{ needs.check_mode.outputs.description }}
+        run: |
+          python ./scripts/modding/update_mod_catalog.py \
+            --tag "${RELEASE_TAG}" \
+            --repo "${{ github.repository }}" \
+            --branch "${TARGET_BRANCH}" \
+            --display-name "${DISPLAY_NAME}" \
+            --description "${DESCRIPTION}" \
+            --win-sha "${{ steps.checksums.outputs.win_sha }}" \
+            --lin-sha "${{ steps.checksums.outputs.lin_sha }}" \
+            --index-file "./index.json"
+
+          cp index.json release-files/
+
+      - name: Generate Release Notes
+        env:
+          RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
+          TARGET_BRANCH: ${{ needs.check_mode.outputs.target_branch }}
+          DISPLAY_NAME: ${{ needs.check_mode.outputs.display_name }}
+          DESCRIPTION: ${{ needs.check_mode.outputs.description }}
+        run: |
+          python ./scripts/modding/update_mod_catalog.py \
+            --generate-release-notes release_notes.md \
+            --branch "${TARGET_BRANCH}" \
+            --tag "${RELEASE_TAG}" \
+            --repo "${{ github.repository }}" \
+            --display-name "${DISPLAY_NAME}" \
+            --description "${DESCRIPTION}" \
+            --checksums-file release-files/SHA256SUMS.txt
+
+      - name: Create or Update GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
+        run: |
+          PRERELEASE_FLAG=""
+          if [ "${{ github.event.inputs.prerelease }}" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          if gh release view "${RELEASE_TAG}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "La release existe déjà, mise à jour des notes et upload des assets avec --clobber..."
+            gh release edit "${RELEASE_TAG}" --title "${RELEASE_TAG}" --notes-file release_notes.md $PRERELEASE_FLAG --repo "${{ github.repository }}"
+            gh release upload "${RELEASE_TAG}" release-files/* --repo "${{ github.repository }}" --clobber
+          else
+            echo "Création de la release..."
+            gh release create "${RELEASE_TAG}" \
+              release-files/* \
+              --title "${RELEASE_TAG}" \
+              --notes-file release_notes.md \
+              --repo "${{ github.repository }}" \
+              $PRERELEASE_FLAG
+          fi
+
+      - name: Commit & Push Updated index.json to Branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
+          TARGET_BRANCH: ${{ needs.check_mode.outputs.target_branch }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): update index.json for ${RELEASE_TAG}"
+            git push origin "HEAD:${TARGET_BRANCH}" || echo "Warning: Could not push index.json directly to ref ${TARGET_BRANCH}"
+          else
+            echo "index.json déjà à jour sur la branche."
+          fi
+
+      - name: Trigger Global Catalog Sync on master-dev
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Triggering sync-global-catalog.yml on master-dev..."
+          gh workflow run sync-global-catalog.yml --ref master-dev --repo "${{ github.repository }}" || echo "Note: Global catalog will also be synced via release event."

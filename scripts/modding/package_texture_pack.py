@@ -161,7 +161,7 @@ def package_texture_pack(
   print(f"[+] Found {len(png_files)} texture(s) for {game} in {src_texture_dir}")
 
   if output_zip is None:
-    output_dir = REPO_ROOT / "out" / "textures"
+    output_dir = REPO_ROOT / "docs" / "modding" / "current_mod" / "texture_packs"
     output_dir.mkdir(parents=True, exist_ok=True)
     output_zip = output_dir / f"{slug}-v{version}.zip"
   else:

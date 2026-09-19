@@ -179,6 +179,12 @@ def register_texture_pack_zip(
   tp_authors = [tp_author] if isinstance(tp_author, str) else [str(a) for a in tp_author]
   tp_desc = meta.get("description") or f"Texture replacement pack for {tp_name} ({detected_game})."
   tp_tags = meta.get("tags") or [detected_game, "retexture"]
+  if isinstance(tp_tags, list):
+    branch_m = re.match(r"^jak[123]/(?:features|config)/(.+)$", branch)
+    if branch_m:
+      mod_slug = branch_m.group(1).replace("/", "-").replace("_", "-")
+      if mod_slug not in tp_tags:
+        tp_tags.append(mod_slug)
   tp_supported = meta.get("supportedGames") or [detected_game]
 
   now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

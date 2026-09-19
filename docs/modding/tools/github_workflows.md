@@ -42,7 +42,7 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
    │           │                                         └── Standalone Texture Packs:
    │           │                                             docs/modding/current_mod/texture_packs/*.zip
    │           │                                               │
-   │           └── Update live dashboard: branch_sync_status.md│
+   │           └── Summary report in GitHub Actions Step Summary│
    │                                                           │
    ▼ (Manual trigger: release.yml) ◄───────────────────────────┘
 [GitHub Releases: windows-v*.zip, linux-v*.zip, texture-pack-v*.zip]
@@ -58,14 +58,14 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
 
 ## 2. Upstream & Dev Synchronization (`sync-upstream.yaml`)
 
-- **File:** [`.github/workflows/sync-upstream.yaml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/sync-upstream.yaml)
+- **File:** [`.github/workflows/sync-upstream.yaml`](../../../.github/workflows/sync-upstream.yaml)
 - **When is it called?**
   - **Scheduled Cron:** Daily at `10:00 UTC` (`12:00` Paris summer time).
   - **Manual Trigger:** Any maintainer can trigger it via `workflow_dispatch` from the GitHub Actions tab.
 - **Why does it exist?**
   - Prevents our fork from drifting away from upstream bug fixes, compiler enhancements, and engine optimizations.
   - Automates the tedious task of testing and merging `master-dev` into all clean active mod branches (`jak[1-3]/**`).
-  - Generates the authoritative mergeability dashboard ([`branch_sync_status.md`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/docs/modding/tools/branch_sync_status.md)) and logs conflict history ([`branch_sync_history.md`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/docs/modding/tools/branch_sync_history.md)).
+  - Reports the fleet mergeability summary directly to terminal output and GitHub Actions Step Summary.
 
 ### Detailed Execution Trace:
 1. **Upstream Fast-Forward:** Fetches `https://github.com/open-goal/jak-project.git:master` and performs a fast-forward merge into our local `master`.
@@ -74,13 +74,13 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
    - Tests every active mod branch for mergeability against `origin/master-dev`.
    - If clean (no conflicts), automatically merges `master-dev` and pushes the branch.
    - If conflicts exist, leaves the branch untouched, identifies conflicting files, and generates a concrete resolution command.
-   - Updates the live status dashboard and commits it directly to `master-dev`.
+   - Generates the summary report in GitHub Actions without polluting the git tree with markdown churn.
 
 ---
 
 ## 3. Per-Branch Health Check (`branch-sync-check.yaml`)
 
-- **File:** [`.github/workflows/branch-sync-check.yaml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/branch-sync-check.yaml)
+- **File:** [`.github/workflows/branch-sync-check.yaml`](../../../.github/workflows/branch-sync-check.yaml)
 - **When is it called?**
   - **On Push:** Triggered on any push to branches matching `jak[1-3]/**`.
   - **Manual Trigger:** via `workflow_dispatch`.
@@ -94,7 +94,7 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
 
 ## 4. Automated Release & Packaging (`release.yml`)
 
-- **File:** [`.github/workflows/release.yml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/release.yml)
+- **File:** [`.github/workflows/release.yml`](../../../.github/workflows/release.yml)
 - **When is it called?**
   - **Manual Trigger Only (`workflow_dispatch`):** Maintainers trigger it from GitHub Actions with required inputs:
     - `mod_name`: Display name (e.g. `Jak 3 JetBoard in Jak 1`).
@@ -113,7 +113,7 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
 
 ## 5. Bug Report Sync (`mod-bug-report-sync.yml`)
 
-- **File:** [`.github/workflows/mod-bug-report-sync.yml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/mod-bug-report-sync.yml)
+- **File:** [`.github/workflows/mod-bug-report-sync.yml`](../../../.github/workflows/mod-bug-report-sync.yml)
 - **When is it called?**
   - **On Release:** Triggered whenever a GitHub Release is `published`, `unpublished`, `edited`, or `deleted`.
   - **Manual Trigger:** via `workflow_dispatch`.
@@ -126,7 +126,7 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
 
 ## 6. Bug Triage & Auto-Labeling (`mod-bug-triage.yml`)
 
-- **File:** [`.github/workflows/mod-bug-triage.yml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/mod-bug-triage.yml)
+- **File:** [`.github/workflows/mod-bug-triage.yml`](../../../.github/workflows/mod-bug-triage.yml)
 - **When is it called?**
   - **On Issue:** Triggered when an issue is `opened` or `edited` with the `mod-bug` label.
 - **Why does it exist?**
@@ -140,13 +140,13 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
 
 ## 7. Master Mod Catalog Sync (`sync-global-catalog.yml`)
 
-- **File:** [`.github/workflows/sync-global-catalog.yml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/sync-global-catalog.yml)
+- **File:** [`.github/workflows/sync-global-catalog.yml`](../../../.github/workflows/sync-global-catalog.yml)
 - **When is it called?**
   - **On Release:** Triggered automatically whenever a GitHub Release is `published`, `unpublished`, `edited`, or `deleted`.
   - **Workflow Call:** Called directly at the end of the release pipeline (`release.yml`) to ensure instant catalog updates.
   - **Manual Trigger:** via `workflow_dispatch` on `master-dev`.
 - **Why does it exist?**
-  - Rather than requiring players to manually find and add 15+ individual mod URLs in their OpenGOAL Launcher, the repository provides a single, consolidated master catalog ([`index.json`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/index.json) at the root of `master-dev`).
+  - Rather than requiring players to manually find and add 15+ individual mod URLs in their OpenGOAL Launcher, the repository provides a single, consolidated master catalog ([`index.json`](../../../index.json) at the root of `master-dev`).
   - This workflow automates catalog maintenance by running `scripts/modding/sync_global_catalog.py`:
     1. Fetches all releases published across the repository via the GitHub REST API.
     2. Downloads and parses individual release assets and catalogs.
@@ -158,7 +158,7 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
 
 ## 8. Mod Suggestion Auto-Triage (`mod-suggestion-triage.yml`)
 
-- **File:** [`.github/workflows/mod-suggestion-triage.yml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/mod-suggestion-triage.yml)
+- **File:** [`.github/workflows/mod-suggestion-triage.yml`](../../../.github/workflows/mod-suggestion-triage.yml)
 - **When is it called?**
   - **On Issue:** Triggered whenever a community idea or feature suggestion is `opened` or `edited` using the "💡 Mod Suggestion" form (`mod-suggestion.yml`).
 - **Why does it exist?**
@@ -210,7 +210,7 @@ Dans ce dépôt, les workflows GitHub Actions sont conçus pour répondre à deu
    │           │                                               └── Packs de textures autonomes :
    │           │                                                   docs/modding/current_mod/texture_packs/*.zip
    │           │                                                     │
-   │           └── Mise à jour du tableau de bord : branch_sync_status│
+   │           └── Rapport de synthèse dans GitHub Actions Step Summary│
    │                                                                 │
    ▼ (Déclenchement manuel : release.yml) ◄──────────────────────────┘
 [GitHub Releases : windows-v*.zip, linux-v*.zip, texture-pack-v*.zip]
@@ -226,14 +226,14 @@ Dans ce dépôt, les workflows GitHub Actions sont conçus pour répondre à deu
 
 ## 2. Synchronisation Amont & Dev (`sync-upstream.yaml`)
 
-- **Fichier :** [`.github/workflows/sync-upstream.yaml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/sync-upstream.yaml)
+- **Fichier :** [`.github/workflows/sync-upstream.yaml`](../../../.github/workflows/sync-upstream.yaml)
 - **Quand est-il appelé ?**
   - **Planification Cron :** Tous les jours à `10:00 UTC` (`12:00` heure de Paris en été).
   - **Déclenchement Manuel :** Tout mainteneur peut le lancer via `workflow_dispatch` depuis l'onglet Actions.
 - **Pourquoi existe-t-il ?**
   - Évite que notre fork ne dérive par rapport aux correctifs, améliorations du compilateur et optimisations du moteur officiel.
   - Automatise la tâche fastidieuse de tester et fusionner `master-dev` dans toutes les branches de mods actives et saines (`jak[1-3]/**`).
-  - Génère le tableau de bord de fusion faisant autorité ([`branch_sync_status.md`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/docs/modding/tools/branch_sync_status.md)) et consigne l'historique des conflits ([`branch_sync_history.md`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/docs/modding/tools/branch_sync_history.md)).
+  - Publie le rapport de fusionnabilité de toutes les branches directement dans la console et dans le GitHub Actions Step Summary.
 
 ### Déroulement Détaillé Étape par Étape :
 1. **Avance Rapide Amont (Fast-Forward) :** Récupère `https://github.com/open-goal/jak-project.git:master` et avance la branche locale `master` sans créer de commit de merge.
@@ -242,13 +242,13 @@ Dans ce dépôt, les workflows GitHub Actions sont conçus pour répondre à deu
    - Teste l'intégrabilité de chaque branche de mod avec `origin/master-dev`.
    - Si aucun conflit n'est détecté, fusionne automatiquement `master-dev` et pousse la branche.
    - En cas de conflit, laisse la branche intacte, liste les fichiers conflictuels et fournit la commande exacte de résolution.
-   - Met à jour le tableau de bord et commite directement sur `master-dev`.
+   - Génère le rapport de synthèse dans GitHub Actions sans polluer l'arbre Git avec des fichiers d'historique.
 
 ---
 
 ## 3. Vérification de Santé par Branche (`branch-sync-check.yaml`)
 
-- **Fichier :** [`.github/workflows/branch-sync-check.yaml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/branch-sync-check.yaml)
+- **Fichier :** [`.github/workflows/branch-sync-check.yaml`](../../../.github/workflows/branch-sync-check.yaml)
 - **Quand est-il appelé ?**
   - **À chaque Push :** Déclenché lors de tout commit poussé sur une branche `jak[1-3]/**`.
   - **Déclenchement Manuel :** via `workflow_dispatch`.
@@ -262,7 +262,7 @@ Dans ce dépôt, les workflows GitHub Actions sont conçus pour répondre à deu
 
 ## 4. Construction & Distribution des Releases (`release.yml`)
 
-- **Fichier :** [`.github/workflows/release.yml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/release.yml)
+- **Fichier :** [`.github/workflows/release.yml`](../../../.github/workflows/release.yml)
 - **Quand est-il appelé ?**
   - **Exclusivement sur Déclenchement Manuel (`workflow_dispatch`) :** Le mainteneur lance la release avec les paramètres requis :
     - `mod_name` : Nom affiché (ex : `Jak 3 JetBoard in Jak 1`).
@@ -281,7 +281,7 @@ Dans ce dépôt, les workflows GitHub Actions sont conçus pour répondre à deu
 
 ## 5. Synchronisation des Rapports de Bugs (`mod-bug-report-sync.yml`)
 
-- **Fichier :** [`.github/workflows/mod-bug-report-sync.yml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/mod-bug-report-sync.yml)
+- **Fichier :** [`.github/workflows/mod-bug-report-sync.yml`](../../../.github/workflows/mod-bug-report-sync.yml)
 - **Quand est-il appelé ?**
   - **Lors d'une Release :** Déclenché lorsqu'une release GitHub est publiée, dépubliée, modifiée ou supprimée.
   - **Déclenchement Manuel :** via `workflow_dispatch`.
@@ -294,7 +294,7 @@ Dans ce dépôt, les workflows GitHub Actions sont conçus pour répondre à deu
 
 ## 6. Triage Automatique des Bugs (`mod-bug-triage.yml`)
 
-- **Fichier :** [`.github/workflows/mod-bug-triage.yml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/mod-bug-triage.yml)
+- **Fichier :** [`.github/workflows/mod-bug-triage.yml`](../../../.github/workflows/mod-bug-triage.yml)
 - **Quand est-il appelé ?**
   - **Sur Ticket (Issue) :** Déclenché à l'ouverture ou modification d'une issue portant le label `mod-bug`.
 - **Pourquoi existe-t-il ?**
@@ -307,13 +307,13 @@ Dans ce dépôt, les workflows GitHub Actions sont conçus pour répondre à deu
 
 ## 7. Synchronisation du Catalogue Global (`sync-global-catalog.yml`)
 
-- **Fichier :** [`.github/workflows/sync-global-catalog.yml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/sync-global-catalog.yml)
+- **Fichier :** [`.github/workflows/sync-global-catalog.yml`](../../../.github/workflows/sync-global-catalog.yml)
 - **Quand est-il appelé ?**
   - **Lors d'une Release :** Déclenché automatiquement dès qu'une release GitHub est publiée, dépubliée, modifiée ou supprimée.
   - **Appel de Workflow (`workflow_call`) :** Invoqué directement à la fin du pipeline de release (`release.yml`) pour une prise en compte immédiate.
   - **Déclenchement Manuel :** via `workflow_dispatch` sur `master-dev`.
 - **Pourquoi existe-t-il ?**
-  - Plutôt que d'obliger les joueurs à chercher et renseigner 15+ URLs individuelles dans l'OpenGOAL Launcher, le dépôt propose un catalogue maître unifié ([`index.json`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/index.json) à la racine de `master-dev`).
+  - Plutôt que d'obliger les joueurs à chercher et renseigner 15+ URLs individuelles dans l'OpenGOAL Launcher, le dépôt propose un catalogue maître unifié ([`index.json`](../../../index.json) à la racine de `master-dev`).
   - Ce workflow automatise la maintenance du catalogue en exécutant `scripts/modding/sync_global_catalog.py` :
     1. Interroge l'API REST GitHub pour inventorier toutes les releases publiées du dépôt.
     2. Télécharge et analyse les assets et catalogues individuels.
@@ -325,7 +325,7 @@ Dans ce dépôt, les workflows GitHub Actions sont conçus pour répondre à deu
 
 ## 8. Triage Automatique des Suggestions de Mods (`mod-suggestion-triage.yml`)
 
-- **Fichier :** [`.github/workflows/mod-suggestion-triage.yml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/mod-suggestion-triage.yml)
+- **Fichier :** [`.github/workflows/mod-suggestion-triage.yml`](../../../.github/workflows/mod-suggestion-triage.yml)
 - **Quand est-il appelé ?**
   - **Sur Ticket (Issue) :** Déclenché à l'ouverture ou modification d'une issue provenant du formulaire « 💡 Mod Suggestion » (`mod-suggestion.yml`).
 - **Pourquoi existe-t-il ?**

@@ -175,7 +175,7 @@ tasks:
     cmds:
       - "{{.PYTHON}} ./scripts/modding/land_doc_on_master_dev.py {{.CLI_ARGS}}"
   modding-branch-status:
-    desc: "Test every mod branch's mergeability with master-dev and refresh the sync dashboard (scripts/modding/sync_branches_with_master.py). Add -- --push to auto-merge clean branches"
+    desc: "Test every mod branch's mergeability with master-dev (scripts/modding/sync_branches_with_master.py). Add -- --push to auto-merge clean branches"
     cmds:
       - "{{.PYTHON}} ./scripts/modding/sync_branches_with_master.py {{.CLI_ARGS}}"
   modding-audit:

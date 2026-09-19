@@ -163,7 +163,7 @@ task modding-texture-gui                           # Launch OpenGOAL Texture Pac
 
 Our repository relies on 7 specialized GitHub Actions workflows. For a comprehensive pedagogical breakdown, see **[GitHub Actions Workflows Guide](docs/modding/tools/github_workflows.md)**:
 
-1. **`sync-upstream.yaml`** (Daily Cron at 10:00 UTC / Dispatch): Fast-forwards `master` from official OpenGOAL, updates `master-dev`, auto-merges clean mod branches (`scripts/modding/sync_branches_with_master.py`), and updates the conflict dashboard (`branch_sync_status.md`).
+1. **`sync-upstream.yaml`** (Daily Cron at 10:00 UTC / Dispatch): Fast-forwards `master` from official OpenGOAL, updates `master-dev`, auto-merges clean mod branches (`scripts/modding/sync_branches_with_master.py`), and reports mergeability status in the GitHub Actions summary.
 2. **`branch-sync-check.yaml`** (Push on `jak[1-3]/**` / Dispatch): Lightweight ancestry check against `master-dev`. Powers each mod branch's live GitHub Actions status badge in its `README.md`.
 3. **`release.yml`** (Manual `workflow_dispatch` only): Builds complete static binaries (Clang + Ninja) for Windows and Linux from clean source, packages assets and standalone texture packs (`docs/modding/current_mod/texture_packs/`), publishes GitHub Releases, computes SHA256 hashes, and updates `index.json`.
 4. **`mod-bug-report-sync.yml`** (Release events): Queries GitHub Releases to keep the bug report dropdown strictly aligned with released mods.
@@ -382,7 +382,7 @@ task modding-texture-gui                           # Lance l'application de bure
 
 Notre dépôt s'appuie sur 7 workflows GitHub Actions spécialisés. Pour un guide pédagogique complet, consultez le **[Guide des Workflows GitHub Actions](docs/modding/tools/github_workflows.md)** :
 
-1. **`sync-upstream.yaml`** (Cron quotidien à 10:00 UTC / Dispatch) : Avance rapide de `master` depuis l'OpenGOAL officiel, synchronisation de `master-dev`, auto-fusion des branches saines (`scripts/modding/sync_branches_with_master.py`) et mise à jour du tableau de bord (`branch_sync_status.md`).
+1. **`sync-upstream.yaml`** (Cron quotidien à 10:00 UTC / Dispatch) : Avance rapide de `master` depuis l'OpenGOAL officiel, synchronisation de `master-dev`, auto-fusion des branches saines (`scripts/modding/sync_branches_with_master.py`) et publication du rapport de synthèse dans GitHub Actions.
 2. **`branch-sync-check.yaml`** (Push sur `jak[1-3]/**` / Dispatch) : Vérification de filiation légère avec `master-dev`. Pilote le badge d'état GitHub Actions natif dans le `README.md` de chaque mod.
 3. **`release.yml`** (Manuel `workflow_dispatch` uniquement) : Compile les binaires statiques complets (Clang + Ninja) sous Windows et Linux, package les assets et packs de textures (`docs/modding/current_mod/texture_packs/`), publie la Release GitHub, génère les empreintes SHA256 et met à jour `index.json`.
 4. **`mod-bug-report-sync.yml`** (Événements de Release) : Interroge l'API GitHub Releases pour restreindre le formulaire de bug aux mods réellement publiés.

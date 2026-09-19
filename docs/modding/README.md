@@ -57,7 +57,7 @@ These curated, verified documents are the **single source of truth** hosted on `
 
 | Guide | Description |
 | :--- | :--- |
-| 🤖 [`tools/github_workflows.md`](tools/github_workflows.md) | Comprehensive pedagogical guide for all 6 repository GitHub Actions workflows (upstream sync, branch checks, releases, bug triaging, master catalog sync). |
+| 🤖 [`tools/github_workflows.md`](tools/github_workflows.md) | Comprehensive pedagogical guide for all 7 repository GitHub Actions workflows (upstream sync, branch checks, releases, bug triaging, master catalog sync, mod suggestions). |
 | 🛠️ [`tools/task_scripts_reference.md`](tools/task_scripts_reference.md) | Detailed pedagogical guide for all Taskfile tasks and modding Python scripts (`scripts/modding/*.py`). |
 | 🚀 [`custom_entity_workflow.md`](custom_entity_workflow.md) | Comprehensive engineering guide on importing custom 3D models, custom animations, and new sound banks (`.SBK`) with `og-j1-board` case study. |
 | ⚡ [`tools/build_and_iteration_workflow.md`](tools/build_and_iteration_workflow.md) | Three-layer build model, `sccache` acceleration, and targeted build tasks (`build-release-game`, `build-release-decomp`). |
@@ -142,7 +142,7 @@ Ces documents validés constituent la **source unique de vérité** hébergée s
 
 | Guide | Description |
 | :--- | :--- |
-| 🤖 [`tools/github_workflows.md`](tools/github_workflows.md) | Guide pédagogique complet des 6 workflows GitHub Actions (synchronisation amont, santé des branches, releases, triage automatique, catalogue maître). |
+| 🤖 [`tools/github_workflows.md`](tools/github_workflows.md) | Guide pédagogique complet des 7 workflows GitHub Actions (synchronisation amont, santé des branches, releases, triage automatique, catalogue maître, suggestions de mods). |
 | 🛠️ [`tools/task_scripts_reference.md`](tools/task_scripts_reference.md) | Référence pédagogique de l'ensemble des commandes Taskfile et scripts Python de modding (`scripts/modding/*.py`). |
 | 🚀 [`custom_entity_workflow.md`](custom_entity_workflow.md) | Guide d'ingénierie sur l'importation de modèles 3D, animations personnalisées et banques de sons (`.SBK`) avec étude de cas `og-j1-board`. |
 | ⚡ [`tools/build_and_iteration_workflow.md`](tools/build_and_iteration_workflow.md) | Modèle de compilation en 3 couches, accélération `sccache` et tâches ciblées (`build-release-game`, `build-release-decomp`). |

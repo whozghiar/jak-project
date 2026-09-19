@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "Whozghiar OpenGOAL Mods Hub",
-  "lastUpdated": "2026-09-19T12:18:25Z",
+  "lastUpdated": "2026-09-19T17:41:32Z",
   "mods": {
     "blue-krimzon-guard": {
       "displayName": "Blue Krimzon Guard",
@@ -72,8 +72,8 @@
       "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/dark_jak_enhanced/docs/img/mod/mod_cover.png"
     },
     "haven-city-rebellion": {
-      "displayName": "Haven City Rebellion",
-      "description": "This Jak 2 mod introduces the Blue Krimzon Guard as a standalone custom entity and implements a city insurrection mode, dividing Haven City into faction-controlled sectors and war zones where up to 30 autonomous blue and red/yellow guard actively wage territorial war",
+      "displayName": "haven-city-rebellion",
+      "description": "Adds the **Blue Crimson Guard** as its own standalone entity (`crimson-blue-guard`) with high-fidelity combat AI and custom textures, alongside the **City Insurrection** mode: a full-scale territorial civil war across Haven City between Baron Praxis's loyalist forces and the rebel blue guard insurgent faction.",
       "authors": [
         "whozghiar"
       ],
@@ -88,7 +88,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishedDate": "2026-09-18T00:19:03Z",
+          "publishedDate": "2026-09-17T22:56:30Z",
           "supportedGames": [
             "jak2"
           ],
@@ -97,8 +97,8 @@
             "linux": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.0/linux-haven-city-rebellion-v1.0.0.zip"
           },
           "checksums": {
-            "windows": "f44767d9db6e165f49c7205a7873b1115b65656e7f43c6a1ef94c76c2da6fd2e",
-            "linux": "944040c5708dc5c152b2f7b62dfc2ca9c087932f07246211dca18d447323e320"
+            "windows": "c815cc461bdd8d8ef753986f47ad94807d64af38bb608f8d61e3064b133e99c8",
+            "linux": "c47f52e2d6d4cd4fb14e87fabebede24d959526a1826e9b4a5213fbce36eb89c"
           }
         }
       ],
@@ -306,8 +306,8 @@
       "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/paddywagon/traffic/docs/img/mod/mod_cover.png"
     },
     "peaceful-haven-city": {
-      "displayName": "Peaceful Haven City (Freedom Fighters)",
-      "description": "This Jak 2 mod introduces the standalone blue Krimzon Guard as a replacement for red guards, deploying them across Haven City as neutral, coordinated tactical patrol squads and vehicle pilots that retaliate only when provoked without triggering city alarm raising wanted level.",
+      "displayName": "peaceful-haven-city",
+      "description": "Adds a blue-recolored Crimson Guard as its own, standalone entity — a new GOAL type (`crimson-blue-guard`) that reuses 100% of the stock `crimson-guard`'s behavior, animations and sounds, only with a re-textured mesh. It appears in Haven City mixed into the normal ambient guard traffic, alongside the regular red guards.",
       "authors": [
         "whozghiar"
       ],
@@ -351,7 +351,7 @@
         "jak2",
         "retexture",
         "hd",
-        "blue-krimzon-guard"
+        "peaceful-haven-city"
       ],
       "supportedGames": [
         "jak2"
@@ -367,9 +367,9 @@
             "jak2"
           ],
           "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/blue-krimzon-guard-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/blue-krimzon-guard-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
-            "jak2": "https://github.com/whozghiar/jak-project/releases/download/blue-krimzon-guard-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip"
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/peaceful-haven-city-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/peaceful-haven-city-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
+            "jak2": "https://github.com/whozghiar/jak-project/releases/download/peaceful-haven-city-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip"
           },
           "checksums": {
             "windows": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c",

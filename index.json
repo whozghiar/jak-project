@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "Whozghiar OpenGOAL Mods Hub",
-  "lastUpdated": "2026-09-18T22:41:12Z",
+  "lastUpdated": "2026-09-19T02:19:07Z",
   "mods": {
     "blue-krimzon-guard": {
       "displayName": "Blue Krimzon Guard",
@@ -340,5 +340,40 @@
       "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/peaceful-haven-city/docs/img/mod/mod_cover.png"
     }
   },
-  "texturePacks": {}
+  "texturePacks": {
+    "blue-krimzon-guard-textures": {
+      "displayName": "Blue Krimzon Guard Textures",
+      "description": "Texture replacement pack for Blue Krimzon Guard Textures (jak2).",
+      "authors": [
+        "whozghiar"
+      ],
+      "tags": [
+        "jak2",
+        "retexture",
+        "blue",
+        "krimzon",
+        "guard"
+      ],
+      "supportedGames": [
+        "jak2"
+      ],
+      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/blue-krimzon-guard",
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/blue-krimzon-guard/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/blue-krimzon-guard/docs/img/mod/mod_cover.png",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "publishedDate": "2026-09-18T22:12:56Z",
+          "supportedGames": [
+            "jak2"
+          ],
+          "assets": {
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/blue-krimzon-guard-v1.0.0/blue-krimzon-guard-textures-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/blue-krimzon-guard-v1.0.0/blue-krimzon-guard-textures-v1.0.0.zip",
+            "jak2": "https://github.com/whozghiar/jak-project/releases/download/blue-krimzon-guard-v1.0.0/blue-krimzon-guard-textures-v1.0.0.zip"
+          }
+        }
+      ]
+    }
+  }
 }

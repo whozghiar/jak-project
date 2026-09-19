@@ -277,9 +277,15 @@ jobs:
           mkdir -p release-files
           find downloaded-artifacts -type f -name "*.zip" -exec mv {} release-files/ \;
 
+          # Include any mod texture packs located in docs/modding/current_mod/texture_packs/
+          if [ -d "docs/modding/current_mod/texture_packs" ]; then
+            echo "Scanning for texture packs in docs/modding/current_mod/texture_packs/..."
+            find docs/modding/current_mod/texture_packs -type f -name "*.zip" -exec cp -v {} release-files/ \;
+          fi
+
           cd release-files
-          sha256sum "windows-${RELEASE_TAG}.zip" > SHA256SUMS.txt
-          sha256sum "linux-${RELEASE_TAG}.zip" >> SHA256SUMS.txt
+          # Compute checksums for all packages (binaries and texture packs)
+          sha256sum *.zip > SHA256SUMS.txt
           echo "=== SHA-256 CHECKSUMS ==="
           cat SHA256SUMS.txt
 

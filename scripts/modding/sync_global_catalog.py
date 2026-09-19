@@ -33,6 +33,7 @@ if hasattr(sys.stderr, "reconfigure"):
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SOURCE_NAME = "Whozghiar OpenGOAL Mods Hub"
+BRANCH_RE = re.compile(r"raw\.githubusercontent\.com/[^/\s]+/[^/\s]+/(jak([123])/.+?)/docs/")
 
 
 def run_cmd(cmd: str) -> str:
@@ -97,11 +98,59 @@ def fetch_all_releases(repo: str, token: str):
   return releases
 
 
-TITLE_RE = re.compile(r"^##\s*\S+\s*(.+?)\s*—\s*\S+\s*$", re.MULTILINE)
-BRANCH_RE = re.compile(r"raw\.githubusercontent\.com/[^/\s]+/[^/\s]+/(jak([123])/.+?)/docs/")
+def get_git_remote_branches() -> list[str]:
+  """List known remote branches for origin/jak*."""
+  out = run_cmd("git branch -r")
+  branches = []
+  for b in out.splitlines():
+    b = b.strip()
+    if "origin/jak" in b and "HEAD" not in b:
+      branches.append(b.replace("origin/", ""))
+  return branches
 
 
-def load_catalog_from_release_asset(rel, token: str):
+def find_branch_for_slug(slug: str, remote_branches: list[str]) -> str | None:
+  """Resolve the git branch associated with a mod slug."""
+  clean_slug = slug.lower().replace("_", "-")
+  # 1. Exact match on final path segment
+  for b in remote_branches:
+    last_seg = b.split("/")[-1].lower().replace("_", "-")
+    if last_seg == clean_slug:
+      return b
+
+  # 2. Match on multi-segment suffix (e.g. transport-ag/alert -> transport-ag-alert)
+  for b in remote_branches:
+    parts = b.split("/")
+    if len(parts) >= 3:
+      var_part = "-".join(parts[2:]).lower().replace("_", "-")
+      if var_part == clean_slug:
+        return b
+
+  # 3. Partial match
+  for b in remote_branches:
+    clean_b = b.lower().replace("_", "-")
+    if clean_slug in clean_b or clean_b.split("/")[-1] in clean_slug:
+      return b
+
+  return None
+
+
+def load_catalog_from_branch(branch: str) -> dict | None:
+  """Load index.json from a git branch (origin/branch or local branch)."""
+  if not branch:
+    return None
+  out = run_cmd(f"git show origin/{branch}:index.json")
+  if not out.strip():
+    out = run_cmd(f"git show {branch}:index.json")
+  if out.strip():
+    try:
+      return json.loads(out)
+    except Exception:
+      pass
+  return None
+
+
+def load_catalog_from_release_asset(rel, token: str) -> dict | None:
   """Attempts to load index.json attached as an asset of the release."""
   for asset in rel.get("assets", []):
     if asset.get("name") == "index.json":
@@ -114,11 +163,58 @@ def load_catalog_from_release_asset(rel, token: str):
   return None
 
 
-def collect_mods_from_releases(repo: str, token: str):
-  """Collects published mods by inspecting GitHub Releases and their index.json assets."""
-  print(f"Fetching published releases for {repo}...")
-  releases = fetch_all_releases(repo, token)
-  print(f"Found {len(releases)} release(s). Processing catalogs...")
+def get_offline_released_mods(remote_branches: list[str]):
+  """Identify released mods strictly using git release tags (never arbitrary branches)."""
+  print("Resolving published releases from git release tags (offline mode)...")
+  res = subprocess.run(["git", "tag", "-l", "*-v*"], capture_output=True, text=True, cwd=REPO_ROOT)
+  tags = [t.strip() for t in res.stdout.splitlines() if t.strip() and not t.startswith("v0.")]
+
+  # Group by mod branch
+  found_branches = {}
+  for t in tags:
+    m = re.match(r"^([a-zA-Z0-9_\-]+?)-v(\d+.*)$", t)
+    if m:
+      slug = m.group(1).replace("_", "-")
+      branch = find_branch_for_slug(slug, remote_branches)
+      if branch:
+        found_branches.setdefault(branch, []).append(t)
+
+  synthetic_releases = []
+  for branch, tag_list in sorted(found_branches.items()):
+    parts = branch.split("/")
+    slug = "-".join(parts[2:]).replace("_", "-") if len(parts) >= 3 else parts[-1].replace("_", "-")
+    sorted_tags = sorted(tag_list, reverse=True)
+    latest_tag = sorted_tags[0]
+    synthetic_releases.append({
+        "tag_name": latest_tag,
+        "name": latest_tag,
+        "body": f"https://raw.githubusercontent.com/whozghiar/jak-project/{branch}/docs/img/mod/mod_cover.png",
+        "published_at": datetime.now(timezone.utc).isoformat(),
+        "assets": [],
+        "inferred_branch": branch,
+        "inferred_slug": slug,
+    })
+
+  return synthetic_releases
+
+
+def collect_mods_from_releases(repo: str, token: str, offline: bool = False):
+  """Collects published mods strictly by inspecting GitHub Releases and their catalogs."""
+  remote_branches = get_git_remote_branches()
+  releases = []
+
+  if not offline:
+    print(f"Fetching published releases for {repo}...")
+    try:
+      releases = fetch_all_releases(repo, token)
+    except Exception as e:
+      print(f"Warning: GitHub API call failed: {e}", file=sys.stderr)
+      releases = []
+
+  if not releases:
+    releases = get_offline_released_mods(remote_branches)
+
+  print(f"Found {len(releases)} published release(s). Aggregating catalogs...")
 
   aggregated_mods = {}
   aggregated_texture_packs = {}
@@ -129,96 +225,118 @@ def collect_mods_from_releases(repo: str, token: str):
 
     tag = rel.get("tag_name", "")
     body = rel.get("body") or ""
+
+    # Resolve branch and canonical slug
     branch_match = BRANCH_RE.search(body)
-    canonical_slug = None
+    branch = None
     if branch_match:
-      branch_path = branch_match.group(1)
-      m = re.match(r"^jak[123]/(?:features|config)/(.+)$", branch_path)
+      branch = branch_match.group(1)
+    elif "inferred_branch" in rel:
+      branch = rel["inferred_branch"]
+
+    canonical_slug = None
+    if branch:
+      m = re.match(r"^jak[123]/(?:features|config)/(.+)$", branch)
       if m:
         canonical_slug = m.group(1).replace("/", "-").replace("_", "-")
       else:
-        canonical_slug = branch_path.split("/")[-1].replace("_", "-")
-
-    data = load_catalog_from_release_asset(rel, token)
-
-    if data:
-      if "mods" in data and isinstance(data["mods"], dict):
-        for mod_key, mod_info in data["mods"].items():
-          target_key = canonical_slug or mod_key
-
-          if target_key not in aggregated_mods:
-            aggregated_mods[target_key] = mod_info
-          else:
-            existing_versions = {v.get("version"): v for v in aggregated_mods[target_key].get("versions", [])}
-            for v in mod_info.get("versions", []):
-              ver_num = v.get("version")
-              if ver_num and ver_num not in existing_versions:
-                aggregated_mods[target_key].setdefault("versions", []).append(v)
-            for attr in ["displayName", "description", "coverArtUrl", "thumbnailArtUrl", "websiteUrl"]:
-              if mod_info.get(attr):
-                aggregated_mods[target_key][attr] = mod_info[attr]
-
-      if "texturePacks" in data and isinstance(data["texturePacks"], dict):
-        for tp_key, tp_info in data["texturePacks"].items():
-          if tp_key not in aggregated_texture_packs:
-            aggregated_texture_packs[tp_key] = tp_info
-          else:
-            existing_versions = {v.get("version"): v for v in aggregated_texture_packs[tp_key].get("versions", [])}
-            for v in tp_info.get("versions", []):
-              ver_num = v.get("version")
-              if ver_num and ver_num not in existing_versions:
-                aggregated_texture_packs[tp_key].setdefault("versions", []).append(v)
-            for attr in ["displayName", "description", "coverArtUrl", "thumbnailArtUrl", "websiteUrl"]:
-              if tp_info.get(attr):
-                aggregated_texture_packs[tp_key][attr] = tp_info[attr]
-
-      print(f"  ✓ {tag}: loaded via release asset")
+        canonical_slug = branch.split("/")[-1].replace("_", "-")
+    elif "inferred_slug" in rel:
+      canonical_slug = rel["inferred_slug"]
+      branch = find_branch_for_slug(canonical_slug, remote_branches)
     else:
-      print(f"  - {tag}: no index.json asset found, skipping")
+      m_tag = re.match(r"^([a-zA-Z0-9_\-]+?)-v\d+", tag)
+      if m_tag:
+        canonical_slug = m_tag.group(1).replace("_", "-")
+        branch = find_branch_for_slug(canonical_slug, remote_branches)
 
-  return aggregated_mods, aggregated_texture_packs
+    # 1. Load data from release asset (if available)
+    rel_catalog = load_catalog_from_release_asset(rel, token)
 
+    # 2. Load data from mod branch (if available in git)
+    branch_catalog = load_catalog_from_branch(branch) if branch else None
 
-def collect_mods_from_branches():
-  """Offline fallback: collects index.json from all origin/jak* mod branches."""
-  print("Collecting index.json from local/remote mod branches (offline mode)...")
-  branches_output = run_cmd("git branch -r")
-  branches = [
-      b.strip()
-      for b in branches_output.splitlines()
-      if "origin/jak" in b and "HEAD" not in b
-  ]
+    # Available asset names on the release
+    rel_asset_names = {a.get("name") for a in rel.get("assets", [])}
 
-  aggregated_mods = {}
-  aggregated_texture_packs = {}
-  for b in sorted(branches):
-    cat_res = run_cmd(f"git show {b}:index.json")
-    if cat_res.strip():
-      try:
-        data = json.loads(cat_res)
-        for mod_key, mod_info in data.get("mods", {}).items():
-          if mod_info.get("versions"):
-            if mod_key not in aggregated_mods:
-              aggregated_mods[mod_key] = mod_info
-            else:
-              existing_versions = {v.get("version"): v for v in aggregated_mods[mod_key].get("versions", [])}
-              for v in mod_info.get("versions", []):
-                ver_num = v.get("version")
-                if ver_num and ver_num not in existing_versions:
-                  aggregated_mods[mod_key].setdefault("versions", []).append(v)
+    if not rel_catalog and not branch_catalog:
+      print(f"  - {tag}: no catalog found (neither in release asset nor branch), skipping")
+      continue
 
-        for tp_key, tp_info in data.get("texturePacks", {}).items():
-          if tp_info.get("versions"):
-            if tp_key not in aggregated_texture_packs:
-              aggregated_texture_packs[tp_key] = tp_info
-            else:
-              existing_versions = {v.get("version"): v for v in aggregated_texture_packs[tp_key].get("versions", [])}
-              for v in tp_info.get("versions", []):
-                ver_num = v.get("version")
-                if ver_num and ver_num not in existing_versions:
-                  aggregated_texture_packs[tp_key].setdefault("versions", []).append(v)
-      except Exception as e:
-        print(f"Warning: could not parse index.json on {b}: {e}", file=sys.stderr)
+    # Merge mods
+    source_mod_data = {}
+    if rel_catalog and "mods" in rel_catalog and isinstance(rel_catalog["mods"], dict):
+      source_mod_data.update(rel_catalog["mods"])
+    if branch_catalog and "mods" in branch_catalog and isinstance(branch_catalog["mods"], dict):
+      for m_k, m_v in branch_catalog["mods"].items():
+        if m_k not in source_mod_data:
+          source_mod_data[m_k] = m_v
+        else:
+          # Merge versions
+          existing_versions = {v.get("version"): v for v in source_mod_data[m_k].get("versions", [])}
+          for v in m_v.get("versions", []):
+            ver_num = v.get("version")
+            if ver_num and ver_num not in existing_versions:
+              source_mod_data[m_k].setdefault("versions", []).append(v)
+
+    for mod_key, mod_info in source_mod_data.items():
+      target_key = canonical_slug or mod_key
+      if target_key not in aggregated_mods:
+        aggregated_mods[target_key] = mod_info
+      else:
+        existing_versions = {v.get("version"): v for v in aggregated_mods[target_key].get("versions", [])}
+        for v in mod_info.get("versions", []):
+          ver_num = v.get("version")
+          if ver_num and ver_num not in existing_versions:
+            aggregated_mods[target_key].setdefault("versions", []).append(v)
+        for attr in ["displayName", "description", "coverArtUrl", "thumbnailArtUrl", "websiteUrl"]:
+          if mod_info.get(attr):
+            aggregated_mods[target_key][attr] = mod_info[attr]
+
+    # Merge texture packs
+    # Priority order: branch catalog has the up-to-date texture pack registered by package_texture_pack.py!
+    source_tp_data = {}
+    if branch_catalog and "texturePacks" in branch_catalog and isinstance(branch_catalog["texturePacks"], dict):
+      source_tp_data.update(branch_catalog["texturePacks"])
+
+    if rel_catalog and "texturePacks" in rel_catalog and isinstance(rel_catalog["texturePacks"], dict):
+      for tp_k, tp_v in rel_catalog["texturePacks"].items():
+        # Check if asset actually exists in release
+        has_valid_asset = False
+        for v in tp_v.get("versions", []):
+          assets = v.get("assets", {})
+          for url in assets.values():
+            if url:
+              zip_fname = url.split("/")[-1]
+              if not rel_asset_names or zip_fname in rel_asset_names:
+                has_valid_asset = True
+                break
+        if has_valid_asset:
+          if tp_k not in source_tp_data:
+            source_tp_data[tp_k] = tp_v
+
+    for tp_key, tp_info in source_tp_data.items():
+      # Ensure releasing mod slug is included in tags for clean affiliation
+      if canonical_slug:
+        tags = tp_info.setdefault("tags", [])
+        if canonical_slug not in tags:
+          tags.append(canonical_slug)
+        if branch and not tp_info.get("websiteUrl"):
+          tp_info["websiteUrl"] = f"https://github.com/{repo}/tree/{branch}"
+
+      if tp_key not in aggregated_texture_packs:
+        aggregated_texture_packs[tp_key] = tp_info
+      else:
+        existing_versions = {v.get("version"): v for v in aggregated_texture_packs[tp_key].get("versions", [])}
+        for v in tp_info.get("versions", []):
+          ver_num = v.get("version")
+          if ver_num and ver_num not in existing_versions:
+            aggregated_texture_packs[tp_key].setdefault("versions", []).append(v)
+        for attr in ["displayName", "description", "coverArtUrl", "thumbnailArtUrl", "websiteUrl"]:
+          if tp_info.get(attr):
+            aggregated_texture_packs[tp_key][attr] = tp_info[attr]
+
+    print(f"  ✓ {tag}: aggregated successfully")
 
   return aggregated_mods, aggregated_texture_packs
 
@@ -226,7 +344,7 @@ def collect_mods_from_branches():
 def generate_global_catalog(mods, texture_packs, source_name: str):
   """Builds the final OpenGOAL Launcher Mod Source Schema v1 document."""
   now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-  
+
   # Sort mods alphabetically by displayName
   sorted_mods = {}
   for k in sorted(mods.keys(), key=lambda x: (mods[x].get("displayName") or x).lower()):
@@ -236,7 +354,7 @@ def generate_global_catalog(mods, texture_packs, source_name: str):
       mod_info["versions"] = sorted(
           mod_info["versions"],
           key=lambda v: v.get("publishedDate") or "",
-          reverse=True
+          reverse=True,
       )
     sorted_mods[k] = mod_info
 
@@ -248,7 +366,7 @@ def generate_global_catalog(mods, texture_packs, source_name: str):
       tp_info["versions"] = sorted(
           tp_info["versions"],
           key=lambda v: v.get("publishedDate") or "",
-          reverse=True
+          reverse=True,
       )
     sorted_tps[k] = tp_info
 
@@ -257,7 +375,7 @@ def generate_global_catalog(mods, texture_packs, source_name: str):
       "sourceName": source_name,
       "lastUpdated": now_iso,
       "mods": sorted_mods,
-      "texturePacks": sorted_tps
+      "texturePacks": sorted_tps,
   }
 
 
@@ -284,7 +402,7 @@ def main():
   parser.add_argument(
       "--offline",
       action="store_true",
-      help="Force collecting only from branch index.json without GitHub API calls",
+      help="Force collecting strictly from git release tags without GitHub API calls",
   )
   parser.add_argument(
       "--dry-run",
@@ -295,18 +413,7 @@ def main():
   args = parser.parse_args()
   token = get_token()
 
-  mods = {}
-  texture_packs = {}
-  if not args.offline:
-    try:
-      mods, texture_packs = collect_mods_from_releases(args.repo, token)
-    except Exception as e:
-      print(f"Error connecting to GitHub API: {e}. Falling back to branch inspection.", file=sys.stderr)
-      mods, texture_packs = {}, {}
-
-  if not mods and not texture_packs:
-    print("Falling back to scanning git mod branches...")
-    mods, texture_packs = collect_mods_from_branches()
+  mods, texture_packs = collect_mods_from_releases(args.repo, token, offline=args.offline)
 
   print(f"\nTotal distinct published mods found: {len(mods)}")
   for k, v in mods.items():
@@ -321,7 +428,8 @@ def main():
       v_count = len(v.get("versions", []))
       name = v.get("displayName", k)
       game = (v.get("supportedGames") or ["?"])[0]
-      print(f"  • [{game}] {name} ({k}) — {v_count} version(s)")
+      tags = v.get("tags", [])
+      print(f"  • [{game}] {name} ({k}) — {v_count} version(s) [tags: {', '.join(tags)}]")
 
   catalog = generate_global_catalog(mods, texture_packs, args.source_name)
   catalog_json = json.dumps(catalog, indent=2, ensure_ascii=False) + "\n"

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "Whozghiar OpenGOAL Mods Hub",
-  "lastUpdated": "2026-09-19T17:58:18Z",
+  "lastUpdated": "2026-09-19T18:13:35Z",
   "mods": {
     "blue-krimzon-guard": {
       "displayName": "Blue Krimzon Guard",
@@ -351,7 +351,9 @@
         "jak2",
         "retexture",
         "hd",
-        "peaceful-haven-city"
+        "peaceful-haven-city",
+        "haven-city-rebellion",
+        "blue-krimzon-guard"
       ],
       "supportedGames": [
         "jak2"
@@ -370,6 +372,40 @@
             "windows": "https://github.com/whozghiar/jak-project/releases/download/peaceful-haven-city-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
             "linux": "https://github.com/whozghiar/jak-project/releases/download/peaceful-haven-city-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
             "jak2": "https://github.com/whozghiar/jak-project/releases/download/peaceful-haven-city-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip"
+          },
+          "checksums": {
+            "windows": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c",
+            "linux": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c",
+            "jak2": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c"
+          }
+        },
+        {
+          "version": "1.0.0",
+          "publishedDate": "2026-09-19T00:00:00Z",
+          "supportedGames": [
+            "jak2"
+          ],
+          "assets": {
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
+            "jak2": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip"
+          },
+          "checksums": {
+            "windows": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c",
+            "linux": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c",
+            "jak2": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c"
+          }
+        },
+        {
+          "version": "1.0.0",
+          "publishedDate": "2026-09-19T00:00:00Z",
+          "supportedGames": [
+            "jak2"
+          ],
+          "assets": {
+            "windows": "https://github.com/whozghiar/jak-project/releases/download/blue-krimzon-guard-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
+            "linux": "https://github.com/whozghiar/jak-project/releases/download/blue-krimzon-guard-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
+            "jak2": "https://github.com/whozghiar/jak-project/releases/download/blue-krimzon-guard-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip"
           },
           "checksums": {
             "windows": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c",

@@ -12,8 +12,8 @@
 
 > ### 📑 Summary / Sommaire
 >
-> - 🇬🇧 **English:** [1. CI/CD Architecture & Mental Model](#1-cicd-architecture--mental-model) · [2. Upstream & Dev Synchronization (`sync-upstream.yaml`)](#2-upstream--dev-synchronization-sync-upstreamyaml) · [3. Per-Branch Health Check (`branch-sync-check.yaml`)](#3-per-branch-health-check-branch-sync-checkyaml) · [4. Automated Release & Packaging (`release.yml`)](#4-automated-release--packaging-releaseyml) · [5. Bug Report Sync (`mod-bug-report-sync.yml`)](#5-bug-report-sync-mod-bug-report-syncyml) · [6. Bug Triage & Auto-Labeling (`mod-bug-triage.yml`)](#6-bug-triage--auto-labeling-mod-bug-triageyml) · [7. Master Mod Catalog Sync (`sync-global-catalog.yml`)](#7-master-mod-catalog-sync-sync-global-catalogyml) · [8. Quick Reference Matrix](#8-quick-reference-matrix)
-> - 🇫🇷 **Français :** [1. Modèle Mental & Architecture CI/CD](#1-modèle-mental--architecture-cicd) · [2. Synchronisation Amont & Dev (`sync-upstream.yaml`)](#2-synchronisation-amont--dev-sync-upstreamyaml) · [3. Vérification de Santé par Branche (`branch-sync-check.yaml`)](#3-vérification-de-santé-par-branche-branch-sync-checkyaml) · [4. Construction & Distribution des Releases (`release.yml`)](#4-construction--distribution-des-releases-releaseyml) · [5. Synchronisation des Rapports de Bugs (`mod-bug-report-sync.yml`)](#5-synchronisation-des-rapports-de-bugs-mod-bug-report-syncyml) · [6. Triage Automatique des Bugs (`mod-bug-triage.yml`)](#6-triage-automatique-des-bugs-mod-bug-triageyml) · [7. Synchronisation du Catalogue Global (`sync-global-catalog.yml`)](#7-synchronisation-du-catalogue-global-sync-global-catalogyml) · [8. Matrice Récapitulative](#8-matrice-récapitulative)
+> - 🇬🇧 **English:** [1. CI/CD Architecture & Mental Model](#1-cicd-architecture--mental-model) · [2. Upstream & Dev Synchronization (`sync-upstream.yaml`)](#2-upstream--dev-synchronization-sync-upstreamyaml) · [3. Per-Branch Health Check (`branch-sync-check.yaml`)](#3-per-branch-health-check-branch-sync-checkyaml) · [4. Automated Release & Packaging (`release.yml`)](#4-automated-release--packaging-releaseyml) · [5. Bug Report Sync (`mod-bug-report-sync.yml`)](#5-bug-report-sync-mod-bug-report-syncyml) · [6. Bug Triage & Auto-Labeling (`mod-bug-triage.yml`)](#6-bug-triage--auto-labeling-mod-bug-triageyml) · [7. Master Mod Catalog Sync (`sync-global-catalog.yml`)](#7-master-mod-catalog-sync-sync-global-catalogyml) · [8. Mod Suggestion Auto-Triage (`mod-suggestion-triage.yml`)](#8-mod-suggestion-auto-triage-mod-suggestion-triageyml) · [9. Quick Reference Matrix](#9-quick-reference-matrix)
+> - 🇫🇷 **Français :** [1. Modèle Mental & Architecture CI/CD](#1-modèle-mental--architecture-cicd) · [2. Synchronisation Amont & Dev (`sync-upstream.yaml`)](#2-synchronisation-amont--dev-sync-upstreamyaml) · [3. Vérification de Santé par Branche (`branch-sync-check.yaml`)](#3-vérification-de-santé-par-branche-branch-sync-checkyaml) · [4. Construction & Distribution des Releases (`release.yml`)](#4-construction--distribution-des-releases-releaseyml) · [5. Synchronisation des Rapports de Bugs (`mod-bug-report-sync.yml`)](#5-synchronisation-des-rapports-de-bugs-mod-bug-report-syncyml) · [6. Triage Automatique des Bugs (`mod-bug-triage.yml`)](#6-triage-automatique-des-bugs-mod-bug-triageyml) · [7. Synchronisation du Catalogue Global (`sync-global-catalog.yml`)](#7-synchronisation-du-catalogue-global-sync-global-catalogyml) · [8. Triage Automatique des Suggestions de Mods (`mod-suggestion-triage.yml`)](#8-triage-automatique-des-suggestions-de-mods-mod-suggestion-triageyml) · [9. Matrice Récapitulative](#9-matrice-récapitulative)
 
 ---
 
@@ -156,7 +156,22 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
 
 ---
 
-## 8. Quick Reference Matrix
+## 8. Mod Suggestion Auto-Triage (`mod-suggestion-triage.yml`)
+
+- **File:** [`.github/workflows/mod-suggestion-triage.yml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/mod-suggestion-triage.yml)
+- **When is it called?**
+  - **On Issue:** Triggered whenever a community idea or feature suggestion is `opened` or `edited` using the "💡 Mod Suggestion" form (`mod-suggestion.yml`).
+- **Why does it exist?**
+  - Enables players and developers to suggest new mod ideas directly on the fork.
+  - Parses the form's targeted game and category to auto-apply labels:
+    - Game labels: `jak1`, `jak2`, `jak3`, `jakx`
+    - Category labels: `type:gameplay`, `type:entities`, `type:textures`, `type:audio`, `type:levels`, `type:qol`
+    - Status labels: `enhancement`, `mod-suggestion`, `needs-triage`
+  - Facilitates community triage and allows mod authors to filter concepts when starting new branches (`task modding-new-branch`).
+
+---
+
+## 9. Quick Reference Matrix
 
 | Workflow | Trigger | Permissions | Target Branch | Primary Outcome |
 | :--- | :--- | :--- | :--- | :--- |
@@ -165,7 +180,8 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
 | `release.yml` | Manual `workflow_dispatch` | `contents: write` | Triggered mod branch | Builds Win/Linux binaries, packages texture packs, creates GitHub Release, updates `index.json`. |
 | `sync-global-catalog.yml` | Release events / workflow call / dispatch | `contents: write` | `master-dev` | Consolidates all released mods and texture packs into root `index.json` catalog. |
 | `mod-bug-report-sync.yml`| Release events / dispatch | `contents: write` | `master-dev` | Refreshes mod dropdown in bug report issue template. |
-| `mod-bug-triage.yml` | Issues (`opened`, `edited`) | `issues: write` | N/A (Repository issues) | Labels issues by game (`jak1|2|3`) and mod (`mod:<slug>`). |
+| `mod-bug-triage.yml` | Issues (`opened`, `edited`) | `issues: write` | N/A (Repository issues) | Labels bug issues by game (`jak1|2|3`) and mod (`mod:<slug>`). |
+| `mod-suggestion-triage.yml` | Issues (`opened`, `edited` with `mod-suggestion`) | `issues: write` | N/A (Repository issues) | Labels mod suggestions by game and category (`type:*`). |
 
 ---
 
@@ -307,7 +323,22 @@ Dans ce dépôt, les workflows GitHub Actions sont conçus pour répondre à deu
 
 ---
 
-## 8. Matrice Récapitulative
+## 8. Triage Automatique des Suggestions de Mods (`mod-suggestion-triage.yml`)
+
+- **Fichier :** [`.github/workflows/mod-suggestion-triage.yml`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/.github/workflows/mod-suggestion-triage.yml)
+- **Quand est-il appelé ?**
+  - **Sur Ticket (Issue) :** Déclenché à l'ouverture ou modification d'une issue provenant du formulaire « 💡 Mod Suggestion » (`mod-suggestion.yml`).
+- **Pourquoi existe-t-il ?**
+  - Permet aux joueurs et moddeurs de proposer de nouvelles idées de mods directement sur le fork.
+  - Analyse le jeu ciblé et la catégorie du formulaire pour appliquer automatiquement les labels :
+    - Labels de jeu : `jak1`, `jak2`, `jak3`, `jakx`
+    - Labels de catégorie : `type:gameplay`, `type:entities`, `type:textures`, `type:audio`, `type:levels`, `type:qol`
+    - Labels d'état : `enhancement`, `mod-suggestion`, `needs-triage`
+  - Facilite le triage communautaire et permet aux moddeurs d'explorer des concepts lorsqu'ils créent une nouvelle branche (`task modding-new-branch`).
+
+---
+
+## 9. Matrice Récapitulative
 
 | Workflow | Déclencheur | Permissions | Branche Cible | Résultat Principal |
 | :--- | :--- | :--- | :--- | :--- |
@@ -317,3 +348,4 @@ Dans ce dépôt, les workflows GitHub Actions sont conçus pour répondre à deu
 | `sync-global-catalog.yml` | Événements Release / workflow call / dispatch | `contents: write` | `master-dev` | Consolide tous les mods et packs de textures publiés dans le catalogue `index.json` racine. |
 | `mod-bug-report-sync.yml`| Événements de Release / dispatch | `contents: write` | `master-dev` | Rafraîchit le menu déroulant des mods dans le template d'issue. |
 | `mod-bug-triage.yml` | Issues (`opened`, `edited`) | `issues: write` | N/A (Issues du dépôt) | Applique les labels de jeu (`jak1|2|3`) et de mod (`mod:<slug>`). |
+| `mod-suggestion-triage.yml` | Issues (`opened`, `edited` avec `mod-suggestion`) | `issues: write` | N/A (Issues du dépôt) | Applique les labels de jeu et de catégorie (`type:*`) aux suggestions. |

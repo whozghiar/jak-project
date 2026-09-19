@@ -160,7 +160,7 @@ task modding-texture-gui                           # Launch OpenGOAL Texture Pac
 
 ## 6. CI/CD & GitHub Actions Workflows
 
-Our repository relies on 6 specialized GitHub Actions workflows. For a comprehensive pedagogical breakdown, see **[GitHub Actions Workflows Guide](docs/modding/tools/github_workflows.md)**:
+Our repository relies on 7 specialized GitHub Actions workflows. For a comprehensive pedagogical breakdown, see **[GitHub Actions Workflows Guide](docs/modding/tools/github_workflows.md)**:
 
 1. **`sync-upstream.yaml`** (Daily Cron at 10:00 UTC / Dispatch): Fast-forwards `master` from official OpenGOAL, updates `master-dev`, auto-merges clean mod branches (`scripts/modding/sync_branches_with_master.py`), and updates the conflict dashboard (`branch_sync_status.md`).
 2. **`branch-sync-check.yaml`** (Push on `jak[1-3]/**` / Dispatch): Lightweight ancestry check against `master-dev`. Powers each mod branch's live GitHub Actions status badge in its `README.md`.
@@ -168,6 +168,7 @@ Our repository relies on 6 specialized GitHub Actions workflows. For a comprehen
 4. **`mod-bug-report-sync.yml`** (Release events): Queries GitHub Releases to keep the bug report dropdown strictly aligned with released mods.
 5. **`mod-bug-triage.yml`** (Issues opened/edited with `mod-bug`): Parses the issue form and auto-applies game and `mod:<slug>` labels.
 6. **`sync-global-catalog.yml`** (Release events / Workflow call / Dispatch): Aggregates all published releases and texture packs into the root `index.json` on `master-dev` so players can subscribe to a single catalog URL in the OpenGOAL Launcher.
+7. **`mod-suggestion-triage.yml`** (Issues opened/edited with `mod-suggestion`): Parses community mod suggestions and auto-labels them by game (`jak1|2|3|jakx`) and category (`type:*`).
 
 ---
 
@@ -377,7 +378,7 @@ task modding-texture-gui                           # Lance l'application de bure
 
 ## 6. Workflows CI/CD & GitHub Actions
 
-Notre dépôt s'appuie sur 6 workflows GitHub Actions spécialisés. Pour un guide pédagogique complet, consultez le **[Guide des Workflows GitHub Actions](docs/modding/tools/github_workflows.md)** :
+Notre dépôt s'appuie sur 7 workflows GitHub Actions spécialisés. Pour un guide pédagogique complet, consultez le **[Guide des Workflows GitHub Actions](docs/modding/tools/github_workflows.md)** :
 
 1. **`sync-upstream.yaml`** (Cron quotidien à 10:00 UTC / Dispatch) : Avance rapide de `master` depuis l'OpenGOAL officiel, synchronisation de `master-dev`, auto-fusion des branches saines (`scripts/modding/sync_branches_with_master.py`) et mise à jour du tableau de bord (`branch_sync_status.md`).
 2. **`branch-sync-check.yaml`** (Push sur `jak[1-3]/**` / Dispatch) : Vérification de filiation légère avec `master-dev`. Pilote le badge d'état GitHub Actions natif dans le `README.md` de chaque mod.
@@ -385,6 +386,7 @@ Notre dépôt s'appuie sur 6 workflows GitHub Actions spécialisés. Pour un gui
 4. **`mod-bug-report-sync.yml`** (Événements de Release) : Interroge l'API GitHub Releases pour restreindre le formulaire de bug aux mods réellement publiés.
 5. **`mod-bug-triage.yml`** (Issues ouvertes/modifiées avec `mod-bug`) : Analyse le formulaire et applique automatiquement les labels de jeu et de mod (`mod:<slug>`).
 6. **`sync-global-catalog.yml`** (Événements de Release / Appel de workflow / Dispatch) : Agrège l'ensemble des releases et packs de textures publiés dans le catalogue `index.json` à la racine de `master-dev` pour permettre aux joueurs de s'abonner à une source unique dans le Launcher.
+7. **`mod-suggestion-triage.yml`** (Issues ouvertes/modifiées avec `mod-suggestion`) : Analyse les suggestions de mods et applique automatiquement les labels de jeu (`jak1|2|3|jakx`) et de catégorie (`type:*`).
 
 ---
 

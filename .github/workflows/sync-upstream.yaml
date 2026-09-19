@@ -70,7 +70,7 @@ jobs:
             conflicts=$(git diff --name-only --diff-filter=U)
             echo "Conflicts detected in: $conflicts"
 
-            # Discard any upstream workflow changes for deleted workflows
+            # Discard any upstream workflow changes for deleted workflows and pruned issue templates
             allowed_workflows=(".github/workflows/sync-upstream.yaml" ".github/workflows/release.yml" ".github/workflows/branch-sync-check.yaml" ".github/workflows/sync-global-catalog.yml" ".github/workflows/mod-bug-report-sync.yml" ".github/workflows/mod-bug-triage.yml")
             for file in $conflicts; do
               if [[ "$file" == .github/workflows/* ]]; then
@@ -85,10 +85,19 @@ jobs:
                   echo "Ignoring upstream changes and removing unwanted workflow: $file"
                   git rm -f "$file"
                 fi
+              elif [[ "$file" == .github/ISSUE_TEMPLATE/* ]]; then
+                if [ "$file" == ".github/ISSUE_TEMPLATE/config.yml" ]; then
+                  echo "Preserving custom mod issue configuration in $file"
+                  git checkout --ours "$file"
+                  git add "$file"
+                elif [ "$file" != ".github/ISSUE_TEMPLATE/mod-bug-report.yml" ]; then
+                  echo "Pruning upstream issue template: $file"
+                  git rm -f "$file"
+                fi
               fi
             done
 
-            # Verify if any non-workflow conflicts remain
+            # Verify if any non-workflow / non-template conflicts remain
             remaining=$(git diff --name-only --diff-filter=U)
             if [ -n "$remaining" ]; then
               echo "::warning::Real code conflict detected between upstream master and master-dev in: $remaining. Aborting merge."
@@ -108,6 +117,14 @@ jobs:
             done
             if [ "$is_allowed" = false ]; then
               echo "Pruning unwanted workflow: $f"
+              git rm -rf "$f" 2>/dev/null || rm -rf "$f"
+            fi
+          done
+
+          # Safety cleanup: ensure master-dev strictly keeps only Mod Bug Report template
+          for f in .github/ISSUE_TEMPLATE/*; do
+            if [ "$f" != ".github/ISSUE_TEMPLATE/mod-bug-report.yml" ] && [ "$f" != ".github/ISSUE_TEMPLATE/config.yml" ]; then
+              echo "Pruning unwanted upstream issue template: $f"
               git rm -rf "$f" 2>/dev/null || rm -rf "$f"
             fi
           done

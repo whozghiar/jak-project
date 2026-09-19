@@ -138,9 +138,8 @@ These tasks wrap specialized Python automation scripts located in `scripts/moddi
 
 ### 10. `task modding-package-texture-pack`
 - **Script:** [`package_texture_pack.py`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/scripts/modding/package_texture_pack.py)
-- **When?** When creating or updating a standalone texture pack from `custom_assets/<game>/texture_replacements/`.
-- **Why?** Packages modified textures into an OpenGOAL Launcher-compliant `.zip` archive with `metadata.json` and `cover.png`, computes the SHA256 checksum, and optionally registers/updates the texture pack in `index.json` (`--update-index`).
-
+- **When?** When creating or updating a standalone texture pack from `custom_assets/<game>/texture_replacements/` (or use the graphical app [`open-goal-texture-pack-generator`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/docs/modding/tools/open-goal-texture-pack-generator)).
+- **Why?** Packages modified textures into an OpenGOAL Launcher-compliant `.zip` archive with `metadata.json` and `cover.png`, computes the SHA256 checksum, targets `docs/modding/current_mod/texture_packs/` by default so it is automatically packaged during GitHub Releases, and optionally registers/updates the texture pack in `index.json` (`--update-index`).
 
 ---
 
@@ -281,9 +280,8 @@ Ces tâches enveloppent les scripts Python du dossier `scripts/modding/`. Vous p
 
 ### 10. `task modding-package-texture-pack`
 - **Script :** [`package_texture_pack.py`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/scripts/modding/package_texture_pack.py)
-- **Quand ?** Lors de la création ou mise à jour d'un pack de textures autonome depuis `custom_assets/<game>/texture_replacements/`.
-- **Pourquoi ?** Empaquette les textures modifiées dans une archive `.zip` strictement conforme au Launcher OpenGOAL (avec `metadata.json` et `cover.png`), calcule l'empreinte SHA256, et enregistre ou met à jour le pack dans le catalogue `index.json` (`--update-index`).
-
+- **Quand ?** Lors de la création ou mise à jour d'un pack de textures autonome depuis `custom_assets/<game>/texture_replacements/` (ou utilisez l'application graphique [`open-goal-texture-pack-generator`](file:///d:/Developpement/OpenGoal%20Dev/jak-project/docs/modding/tools/open-goal-texture-pack-generator)).
+- **Pourquoi ?** Empaquette les textures modifiées dans une archive `.zip` strictement conforme au Launcher OpenGOAL (avec `metadata.json` et `cover.png`), calcule l'empreinte SHA256, cible par défaut `docs/modding/current_mod/texture_packs/` pour une publication automatique lors des releases GitHub, et enregistre ou met à jour le pack dans le catalogue `index.json` (`--update-index`).
 
 ---
 

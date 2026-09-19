@@ -71,7 +71,7 @@ jobs:
             echo "Conflicts detected in: $conflicts"
 
             # Discard any upstream workflow changes for deleted workflows and pruned issue templates
-            allowed_workflows=(".github/workflows/sync-upstream.yaml" ".github/workflows/release.yml" ".github/workflows/branch-sync-check.yaml" ".github/workflows/sync-global-catalog.yml" ".github/workflows/mod-bug-report-sync.yml" ".github/workflows/mod-bug-triage.yml")
+            allowed_workflows=(".github/workflows/sync-upstream.yaml" ".github/workflows/release.yml" ".github/workflows/branch-sync-check.yaml" ".github/workflows/sync-global-catalog.yml" ".github/workflows/mod-bug-report-sync.yml" ".github/workflows/mod-bug-triage.yml" ".github/workflows/mod-suggestion-triage.yml")
             for file in $conflicts; do
               if [[ "$file" == .github/workflows/* ]]; then
                 is_allowed=false
@@ -90,7 +90,7 @@ jobs:
                   echo "Preserving custom mod issue configuration in $file"
                   git checkout --ours "$file"
                   git add "$file"
-                elif [ "$file" != ".github/ISSUE_TEMPLATE/mod-bug-report.yml" ]; then
+                elif [ "$file" != ".github/ISSUE_TEMPLATE/mod-bug-report.yml" ] && [ "$file" != ".github/ISSUE_TEMPLATE/mod-suggestion.yml" ]; then
                   echo "Pruning upstream issue template: $file"
                   git rm -f "$file"
                 fi
@@ -121,9 +121,9 @@ jobs:
             fi
           done
 
-          # Safety cleanup: ensure master-dev strictly keeps only Mod Bug Report template
+          # Safety cleanup: ensure master-dev strictly keeps only mod issue templates
           for f in .github/ISSUE_TEMPLATE/*; do
-            if [ "$f" != ".github/ISSUE_TEMPLATE/mod-bug-report.yml" ] && [ "$f" != ".github/ISSUE_TEMPLATE/config.yml" ]; then
+            if [ "$f" != ".github/ISSUE_TEMPLATE/mod-bug-report.yml" ] && [ "$f" != ".github/ISSUE_TEMPLATE/mod-suggestion.yml" ] && [ "$f" != ".github/ISSUE_TEMPLATE/config.yml" ]; then
               echo "Pruning unwanted upstream issue template: $f"
               git rm -rf "$f" 2>/dev/null || rm -rf "$f"
             fi

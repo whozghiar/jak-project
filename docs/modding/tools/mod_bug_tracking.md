@@ -27,8 +27,7 @@ the fix through to the next release.
 ## 1. The form
 
 [`.github/ISSUE_TEMPLATE/mod-bug-report.yml`](../../../.github/ISSUE_TEMPLATE/mod-bug-report.yml)
-is offered as **"🧩 Mod Bug Report"** in the issue chooser, separate from the vanilla
-`jak[1-3]-bug-report.yml` templates (those stay for base-game bugs only). It asks for:
+is offered as **"🧩 Mod Bug Report"** in the issue chooser (alongside **"💡 Mod Suggestion"**). It asks for:
 
 | Field | Why |
 | :--- | :--- |
@@ -109,8 +108,7 @@ reproduire et pour suivre le correctif jusqu'à la prochaine release.
 ## 1. Le formulaire
 
 [`.github/ISSUE_TEMPLATE/mod-bug-report.yml`](../../../.github/ISSUE_TEMPLATE/mod-bug-report.yml)
-apparaît comme **« 🧩 Mod Bug Report »** dans le sélecteur d'issue, séparé des modèles
-`jak[1-3]-bug-report.yml` (réservés aux bugs du jeu vanilla). Il demande :
+apparaît comme **« 🧩 Mod Bug Report »** dans le sélecteur d'issue (aux côtés de **« 💡 Mod Suggestion »**). Il demande :
 
 | Champ | Pourquoi |
 | :--- | :--- |

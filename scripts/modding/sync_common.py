@@ -92,6 +92,7 @@ def classify_conflict_path(filepath):
             or filepath == "AGENTS.md"
             or filepath == ".gitmodules"
             or filepath.startswith(".agents/")
+            or filepath.startswith(".github/ISSUE_TEMPLATE/")
             or (filepath.startswith("docs/modding/") and not filepath.startswith("docs/modding/current_mod/"))):
         return "theirs"
     return None

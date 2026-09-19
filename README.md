@@ -55,15 +55,13 @@ The goal of this repository is to explore the use of AI to create mods for the J
          │      │
          │      ├── Root README.md automatically initialized for the mod
          │      ├── Mod source code (goal_src/) + Modding Changes Log in the root README
-         │      └── Automated health checks on push (branch-sync-check.yaml)
-         │
-         └── Live branch status and conflict tracking dashboard (branch_sync_status.md)
+         │      └── Automated branch mergeability and conflict detection in CI / CLI
 ```
 
 ### GitHub Actions Workflows Pipeline
 Our repository relies on 6 specialized CI/CD workflows. For complete architectural documentation and detailed triggers, see the **[GitHub Actions Workflows Guide](docs/modding/tools/github_workflows.md)**:
 
-1. **[`sync-upstream.yaml`](.github/workflows/sync-upstream.yaml)** *(Daily Cron at 10:00 UTC / Dispatch)*: Fast-forwards `master` from official OpenGOAL, updates `master-dev`, auto-merges clean mod branches via [`scripts/modding/sync_branches_with_master.py`](scripts/modding/sync_branches_with_master.py), and generates the live conflict dashboard ([`branch_sync_status.md`](docs/modding/tools/branch_sync_status.md)).
+1. **[`sync-upstream.yaml`](.github/workflows/sync-upstream.yaml)** *(Daily Cron at 10:00 UTC / Dispatch)*: Fast-forwards `master` from official OpenGOAL, updates `master-dev`, auto-merges clean mod branches via [`scripts/modding/sync_branches_with_master.py`](scripts/modding/sync_branches_with_master.py), and reports mergeability status in GitHub Actions summary.
 2. **[`branch-sync-check.yaml`](.github/workflows/branch-sync-check.yaml)** *(On push to `jak[1-3]/**` / Dispatch)*: Lightweight ancestry check verifying that a mod branch is strictly up-to-date with `master-dev`. Powers each mod branch's live status badge in its `README.md`.
 3. **[`release.yml`](.github/workflows/release.yml)** *(Manual `workflow_dispatch`)*: Builds fully static Windows and Linux binaries from clean source, packages assets, publishes GitHub Releases, computes SHA256 hashes, and updates the `index.json` catalog for the OpenGOAL Launcher (see **[Mod Distribution Guide](docs/modding/tools/mod_distribution_guide.md)**).
 4. **[`sync-global-catalog.yml`](.github/workflows/sync-global-catalog.yml)** *(On Release / Workflow Call / Dispatch)*: Consolidates all published mod releases into the unified root `index.json` catalog for the OpenGOAL Launcher.
@@ -84,9 +82,8 @@ This badge indicates the state of the automated daily synchronization workflow (
 - **Green:** The latest sync (upstream → `master` → `master-dev` → mod branches) completed successfully with all clean branches merged.
 - **Red:** A conflict or failure occurred during the synchronization pipeline.
 
-Per-branch mergeability details and ready-to-run resolution commands are tracked on `master-dev`:
-- 📋 **Live Status Dashboard:** [`docs/modding/tools/branch_sync_status.md`](docs/modding/tools/branch_sync_status.md) *(master-dev only, updated on every sync)*
-- 📜 **Full Merge History:** [`docs/modding/tools/branch_sync_history.md`](docs/modding/tools/branch_sync_history.md)
+Per-branch mergeability details and ready-to-run resolution commands can be audited locally at any time:
+- 📋 **Audit Command:** `task modding-branch-status` (displays status and conflict commands in terminal or CI).
 
 Each individual mod branch also carries its own live status badge in its root `README.md` driven by [`branch-sync-check.yaml`](.github/workflows/branch-sync-check.yaml). For full operational details, refer to the **[GitHub Actions Workflows Guide](docs/modding/tools/github_workflows.md)**.
 
@@ -104,7 +101,6 @@ Each individual mod branch also carries its own live status badge in its root `R
 | [`docs/modding/tools/task_scripts_reference.md`](docs/modding/tools/task_scripts_reference.md) | **Pedagogical reference for all `task` commands** and modding automation scripts. |
 | [`docs/modding/tools/mod_distribution_guide.md`](docs/modding/tools/mod_distribution_guide.md) | Multi-platform binary release pipeline and launcher catalog architecture (`index.json`). |
 | [`docs/modding/tools/mod_bug_tracking.md`](docs/modding/tools/mod_bug_tracking.md) | Bug reporting automation, release synchronization, and issue triage. |
-| [`docs/modding/tools/branch_sync_status.md`](docs/modding/tools/branch_sync_status.md) | Live mergeability dashboard across all mod branches (`task modding-branch-status`). |
 | [`docs/modding/tools/mods_menu.md`](docs/modding/tools/mods_menu.md) | Unified in-game Mods menu architecture (`mods-menu-register`, L3 + SELECT). |
 | [`docs/modding/how_to_install_mod.md`](docs/modding/how_to_install_mod.md) | Step-by-step player guide to installing mods via the official OpenGOAL Launcher. |
 | [`docs/saves/`](docs/saves/README.md) | **100% completion save files** for Jak 1, Jak 2, and Jak 3 (Vanilla game and Mods). |
@@ -165,7 +161,7 @@ Each individual mod branch also carries its own live status badge in its root `R
 | `task modding-sync-docs` | Pull latest `docs/modding`, `AGENTS.md`, and `CLAUDE.md` from `master-dev` |
 | `task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "…" --push` | Land verified Lisp discoveries on `master-dev` conflict-free, then re-sync |
 | `task modding-sync-catalog` | Refresh and regenerate the root `index.json` catalog from published GitHub releases |
-| `task modding-branch-status` | Refresh mergeability of all mod branches against `master-dev` (`branch_sync_status.md`) |
+| `task modding-branch-status` | Audit and auto-merge mod branches against `master-dev` |
 | `task modding-audit` | Regenerate repo-wide compliance audit report (`docs/modding/branch_audit.md`) |
 
 ### Automated Tests
@@ -211,15 +207,13 @@ L'objectif de ce projet est d'utiliser l'IA pour créer des mods pour la trilogi
          │      │
          │      ├── README.md racine initialisé automatiquement pour le mod
          │      ├── Code source du mod (goal_src/) + Journal des modifications dans le README
-         │      └── Vérifications de santé automatiques au push (branch-sync-check.yaml)
-         │
-         └── Tableau de bord en direct de l'état des branches (branch_sync_status.md)
+         │      └── Détection et fusion automatique des branches de mods en CI / CLI
 ```
 
 ### Pipeline des Workflows GitHub Actions
 Notre dépôt repose sur 6 workflows CI/CD spécialisés. Pour une documentation architecturale complète et le détail des déclencheurs, consultez le **[Guide des Workflows GitHub Actions](docs/modding/tools/github_workflows.md)** :
 
-1. **[`sync-upstream.yaml`](.github/workflows/sync-upstream.yaml)** *(Cron quotidien à 10:00 UTC / Dispatch)* : Rapatrie les nouveautés d'OpenGOAL amont sur `master`, met à jour `master-dev`, fusionne automatiquement les branches de mods prêtes via [`scripts/modding/sync_branches_with_master.py`](scripts/modding/sync_branches_with_master.py), et actualise le tableau de bord des conflits ([`branch_sync_status.md`](docs/modding/tools/branch_sync_status.md)).
+1. **[`sync-upstream.yaml`](.github/workflows/sync-upstream.yaml)** *(Cron quotidien à 10:00 UTC / Dispatch)* : Rapatrie les nouveautés d'OpenGOAL amont sur `master`, met à jour `master-dev`, fusionne automatiquement les branches de mods prêtes via [`scripts/modding/sync_branches_with_master.py`](scripts/modding/sync_branches_with_master.py), et publie le rapport de synthèse dans GitHub Actions.
 2. **[`branch-sync-check.yaml`](.github/workflows/branch-sync-check.yaml)** *(Au push sur `jak[1-3]/**` / Dispatch)* : Vérification ultra-rapide d'ascendance garantissant qu'une branche de mod est à jour avec `master-dev`. Alimente le badge d'état GitHub Actions dans le `README.md` de chaque mod.
 3. **[`release.yml`](.github/workflows/release.yml)** *(Déclenchement manuel `workflow_dispatch`)* : Compile des binaires Windows et Linux entièrement statiques depuis les sources propres, empaquette les assets, publie les releases GitHub, calcule les empreintes SHA256 et met à jour le catalogue `index.json` du Launcher OpenGOAL (voir le **[Guide de Distribution des Mods](docs/modding/tools/mod_distribution_guide.md)**).
 4. **[`sync-global-catalog.yml`](.github/workflows/sync-global-catalog.yml)** *(À chaque Release / Workflow Call / Dispatch)* : Consolide l'ensemble des releases de mods publiées dans le catalogue unifié `index.json` à la racine pour le Launcher OpenGOAL.
@@ -240,9 +234,8 @@ Ce badge indique l'état d'exécution du workflow de synchronisation quotidienne
 - **Vert :** La dernière synchronisation (amont → `master` → `master-dev` → branches de mods) s'est déroulée avec succès et toutes les branches sans conflit ont été fusionnées automatiquement.
 - **Rouge :** Un conflit ou un incident est survenu pendant le pipeline de synchronisation.
 
-Le détail branche par branche avec les commandes prêtes à l'emploi pour résoudre les conflits est consigné sur `master-dev` dans :
-- 📋 **Tableau de bord en direct :** [`docs/modding/tools/branch_sync_status.md`](docs/modding/tools/branch_sync_status.md) *(réservé à master-dev, mis à jour à chaque synchro)*
-- 📜 **Historique complet des fusions :** [`docs/modding/tools/branch_sync_history.md`](docs/modding/tools/branch_sync_history.md)
+Le détail branche par branche avec les commandes prêtes à l'emploi pour résoudre les conflits peut être audité à tout moment :
+- 📋 **Commande d'audit :** `task modding-branch-status` (affiche le bilan et les commandes de résolution en console ou en CI).
 
 Chaque branche de mod dispose également de son propre badge d'état en direct dans son `README.md` racine, alimenté par [`branch-sync-check.yaml`](.github/workflows/branch-sync-check.yaml). Pour tous les détails d'architecture, consultez le **[Guide des Workflows GitHub Actions](docs/modding/tools/github_workflows.md)**.
 
@@ -260,7 +253,6 @@ Chaque branche de mod dispose également de son propre badge d'état en direct d
 | [`docs/modding/tools/task_scripts_reference.md`](docs/modding/tools/task_scripts_reference.md) | **Référence pédagogique de toutes les commandes `task`** et des scripts Python d'automatisation. |
 | [`docs/modding/tools/mod_distribution_guide.md`](docs/modding/tools/mod_distribution_guide.md) | Pipeline de release multiplateforme et architecture du catalogue Launcher (`index.json`). |
 | [`docs/modding/tools/mod_bug_tracking.md`](docs/modding/tools/mod_bug_tracking.md) | Automatisation des rapports de bugs, synchronisation des releases et triage automatique des tickets. |
-| [`docs/modding/tools/branch_sync_status.md`](docs/modding/tools/branch_sync_status.md) | Tableau de bord de fusionnabilité en direct de toutes les branches de mods (`task modding-branch-status`). |
 | [`docs/modding/tools/mods_menu.md`](docs/modding/tools/mods_menu.md) | Architecture unifiée du menu Mods en jeu (`mods-menu-register`, L3 + SELECT). |
 | [`docs/modding/how_to_install_mod.md`](docs/modding/how_to_install_mod.md) | Guide pas à pas pour les joueurs expliquant comment installer un mod via le Launcher OpenGOAL. |
 | [`docs/saves/`](docs/saves/README.md) | **Sauvegardes terminées à 100%** pour Jak 1, Jak 2 et Jak 3 (Jeu original et Mods). |
@@ -321,7 +313,7 @@ Chaque branche de mod dispose également de son propre badge d'état en direct d
 | `task modding-sync-docs` | Rapatrie `docs/modding`, `AGENTS.md` et `CLAUDE.md` depuis `master-dev` |
 | `task modding-land-doc -- --file docs/modding/jak2_lisp_instructions.md --message "…" --push` | Intègre des découvertes Lisp sur `master-dev` sans conflit, puis resynchronise |
 | `task modding-sync-catalog` | Actualise et régénère le catalogue `index.json` racine à partir des releases GitHub publiées |
-| `task modding-branch-status` | Actualise l'état de fusion de chaque branche de mod (`branch_sync_status.md`) |
+| `task modding-branch-status` | Audite et fusionne automatiquement les branches de mods avec `master-dev` |
 | `task modding-audit` | Régénère le rapport d'audit de conformité (`docs/modding/branch_audit.md`) |
 
 ### Tests Automatisés

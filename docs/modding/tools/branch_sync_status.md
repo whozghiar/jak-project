@@ -4,27 +4,27 @@
 > branches de mods (voir `sync_common.MASTER_DEV_ONLY_PATHS`) : chaque branche
 > porte seulement son propre badge de synchro dans son `README.md`.
 
-> **Dernière mise à jour :** `2026-09-19 01:31:41 UTC`  
-> **Branche source :** `master-dev` (`4fb99ec09`)  
+> **Dernière mise à jour :** `2026-09-19 01:35:54 UTC`  
+> **Branche source :** `master-dev` (`c93381ebd`)  
 > **Statut global :** 15/15 synchronisées (0 conflits)
 
 | Branche | Statut | Dernier Commit Branche | Conflits / Détails | Commande de Résolution |
 | :--- | :---: | :--- | :--- | :--- |
-| `jak2/config/enhanced_spawnrates` | 🔄 Synchronisée | `694554002 - chore(sync): align jak2/config/enhanced_spawnrates with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/config/start_menu_wheel` | 🔄 Synchronisée | `c04e662b3 - chore(sync): align jak2/config/start_menu_wheel with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/blue-krimzon-guard` | 🔄 Synchronisée | `f3b523b95 - chore(sync): align jak2/features/blue-krimzon-guard with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/dark_jak_enhanced` | 🔄 Synchronisée | `b6e47b7f7 - chore(sync): align jak2/features/dark_jak_enhanced with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/haven-city-chaos` | 🔄 Synchronisée | `7e63ee4bc - chore(sync): align jak2/features/haven-city-chaos with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/haven-city-rebellion` | 🔄 Synchronisée | `ada6f9c53 - chore(sync): align jak2/features/haven-city-rebellion with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/jak3-jetBoard` | 🔄 Synchronisée | `7decda160 - chore(sync): align jak2/features/jak3-jetBoard with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/killable_yakow` | 🔄 Synchronisée | `73fd6e342 - chore(sync): align jak2/features/killable_yakow with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/paddywagon/traffic` | 🔄 Synchronisée | `796fdd227 - chore(sync): align jak2/features/paddywagon/traffic with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/peaceful-haven-city` | 🔄 Synchronisée | `17e7d1b00 - chore(sync): align jak2/features/peaceful-haven-city with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/transport-ag/alert` | 🔄 Synchronisée | `ef22b6737 - chore(sync): align jak2/features/transport-ag/alert with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak2/features/transport-ag/traffic` | 🔄 Synchronisée | `026f3333e - chore(sync): align jak2/features/transport-ag/traffic with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak3/features/city-behavior` | 🔄 Synchronisée | `853087814 - chore(sync): align jak3/features/city-behavior with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak3/features/jak2_skin_secret` | 🔄 Synchronisée | `24fddc905 - chore(sync): align jak3/features/jak2_skin_secret with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
-| `jak3/features/mega_dark_jak` | 🔄 Synchronisée | `d59a18103 - chore(sync): align jak3/features/mega_dark_jak with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/config/enhanced_spawnrates` | 🔄 Synchronisée | `c20fd5286 - chore(sync): align jak2/config/enhanced_spawnrates with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/config/start_menu_wheel` | 🔄 Synchronisée | `209947ab7 - chore(sync): align jak2/config/start_menu_wheel with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/blue-krimzon-guard` | 🔄 Synchronisée | `b29e95e78 - chore(sync): align jak2/features/blue-krimzon-guard with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/dark_jak_enhanced` | 🔄 Synchronisée | `db0b49989 - chore(sync): align jak2/features/dark_jak_enhanced with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/haven-city-chaos` | 🔄 Synchronisée | `33d1c8adc - chore(sync): align jak2/features/haven-city-chaos with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/haven-city-rebellion` | 🔄 Synchronisée | `5320bcdbb - chore(sync): align jak2/features/haven-city-rebellion with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/jak3-jetBoard` | 🔄 Synchronisée | `1baaa2910 - chore(sync): align jak2/features/jak3-jetBoard with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/killable_yakow` | 🔄 Synchronisée | `917e292b5 - chore(sync): align jak2/features/killable_yakow with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/paddywagon/traffic` | 🔄 Synchronisée | `cc433ff69 - chore(sync): align jak2/features/paddywagon/traffic with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/peaceful-haven-city` | 🔄 Synchronisée | `ff860bfa8 - chore(sync): align jak2/features/peaceful-haven-city with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/transport-ag/alert` | 🔄 Synchronisée | `d04382f15 - chore(sync): align jak2/features/transport-ag/alert with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak2/features/transport-ag/traffic` | 🔄 Synchronisée | `a549a0169 - chore(sync): align jak2/features/transport-ag/traffic with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak3/features/city-behavior` | 🔄 Synchronisée | `93860ddb4 - chore(sync): align jak3/features/city-behavior with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak3/features/jak2_skin_secret` | 🔄 Synchronisée | `d212be410 - chore(sync): align jak3/features/jak2_skin_secret with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
+| `jak3/features/mega_dark_jak` | 🔄 Synchronisée | `f2148ca30 - chore(sync): align jak3/features/mega_dark_jak with latest origin/master-dev` | Fusionnée et poussée avec succès | — |
 
 ---
 ### Guide de Résolution des Conflits

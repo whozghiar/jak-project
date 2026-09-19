@@ -37,52 +37,10 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-DASHBOARD_FILE = os.path.join(REPO_ROOT, "docs", "modding", "tools", "branch_sync_status.md")
-HISTORY_LOG_FILE = os.path.join(REPO_ROOT, "docs", "modding", "tools", "branch_sync_history.md")
-
-EVENT_LOGS = []
-
-def log_event(event_type, branch, details):
-    """Buffer a structured log entry."""
-    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-    icon_map = {
-        "CONFLICT": "⚠️ Conflit",
-        "AUTO-MERGE": "🔄 Auto-fusion",
-        "RESOLVED": "✅ Conflit Résolu",
-        "ERROR": "❌ Erreur"
-    }
-    event_label = icon_map.get(event_type, event_type)
-    line = f"| `{timestamp}` | {event_label} | `{branch}` | {details} |"
-    print(f"  [LOG] {event_type} - {branch}: {details}")
-    EVENT_LOGS.append(line)
-
-def flush_event_logs():
-    """Write all buffered log entries to persistent history file."""
-    if not EVENT_LOGS:
-        return
-    os.makedirs(os.path.dirname(HISTORY_LOG_FILE), exist_ok=True)
-    if not os.path.isfile(HISTORY_LOG_FILE):
-        with open(HISTORY_LOG_FILE, "w", encoding="utf-8") as f:
-            f.write("# 📜 Historique des Synchronisations des Branches / Branch Sync History\n\n")
-            f.write("| Date (UTC) | Événement | Branche | Détails |\n")
-            f.write("| :--- | :---: | :--- | :--- |\n")
-    with open(HISTORY_LOG_FILE, "a", encoding="utf-8") as f:
-        for line in EVENT_LOGS:
-            f.write(line + "\n")
 
 def get_previous_statuses():
-    """Parse previous branch statuses from existing branch_sync_status.md if available."""
-    prev = {}
-    if os.path.isfile(DASHBOARD_FILE):
-        with open(DASHBOARD_FILE, "r", encoding="utf-8") as f:
-            for line in f:
-                m = re.match(r"^\|\s*`([^`]+)`\s*\|\s*([^|]+)\s*\|\s*`([^`]+)`", line)
-                if m:
-                    prev[m.group(1).strip()] = {
-                        "status": m.group(2).strip(),
-                        "commit": m.group(3).strip()
-                    }
-    return prev
+    """Previous status parsing retained for interface compatibility (returns empty dict)."""
+    return {}
 
 def run_cmd(cmd, check=False):
     res = subprocess.run(
@@ -233,8 +191,8 @@ def merge_and_push_branch(branch, source_ref):
         run_cmd("git checkout master-dev")
         run_cmd(f"git branch -D {temp_branch}")
 
-def generate_dashboard(results, source_ref, source_sha, updated_at):
-    """Generate Markdown dashboard file."""
+def generate_dashboard(results, source_ref, source_sha, updated_at, output_file=None):
+    """Generate Markdown dashboard and print summary."""
     total = len(results)
     # "Prête à fusionner" (dry-run, no --push) is just as "in sync" as "À jour" or
     # "Synchronisée" (post-push) — only a real, unresolved conflict should count against
@@ -291,35 +249,45 @@ def generate_dashboard(results, source_ref, source_sha, updated_at):
     md.append("")
     new_content = "\n".join(md)
 
-    # The "Dernière mise à jour" timestamp changes on literally every run, even when
-    # nothing else did — writing (and thus committing) the file on that basis alone
-    # produces a meaningless commit every single day forever. Compare content with
-    # that one line stripped out first, and skip the write entirely if nothing else
-    # moved, so `git status` (and the cron's commit step) sees no diff to act on.
-    def _without_timestamp(text):
-        return re.sub(r"^> \*\*Dernière mise à jour :\*\*.*$", "", text, flags=re.MULTILINE)
+    # Print clean summary table to stdout
+    print("\n" + "=" * 70)
+    print(f"📊 Mod Branches Sync Summary: {synced_count}/{total} synced ({conflict_count} conflicts)")
+    print("=" * 70)
+    for r in results:
+        b = r["branch"]
+        st = r["status"]
+        if r["conflicts"]:
+            print(f"  {st:<22} {b} -> Conflicts: {', '.join(r['conflicts'])}")
+        else:
+            print(f"  {st:<22} {b}")
+    print("=" * 70 + "\n")
 
-    previous_content = ""
-    if os.path.isfile(DASHBOARD_FILE):
-        with open(DASHBOARD_FILE, "r", encoding="utf-8") as f:
-            previous_content = f.read()
+    # Output to GitHub Actions Step Summary if running in CI
+    step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if step_summary:
+        try:
+            with open(step_summary, "a", encoding="utf-8") as f:
+                f.write(new_content + "\n\n")
+            print("Summary successfully appended to GITHUB_STEP_SUMMARY.")
+        except Exception as err:
+            print(f"Notice: Could not write to GITHUB_STEP_SUMMARY: {err}")
 
-    if _without_timestamp(previous_content) == _without_timestamp(new_content):
-        print(f"Dashboard content unchanged besides the timestamp — leaving {DASHBOARD_FILE} as-is.")
-    else:
-        with open(DASHBOARD_FILE, "w", encoding="utf-8") as f:
-            f.write(new_content)
-
-    # master-dev's own root README no longer embeds the full table (that stayed a
-    # master-dev-only file, see the note above) — just GitHub's own status badge for
-    # THIS workflow (sync-upstream.yaml), hardcoded once in README.md. Nothing to
+    # Output to file if requested
+    if output_file:
+        try:
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(new_content)
+            print(f"Summary markdown written to: {output_file}")
+        except Exception as err:
+            print(f"Error writing output file {output_file}: {err}")
     # write here: GitHub renders that badge live from the workflow's run history.
 
 def main():
     parser = argparse.ArgumentParser(description="Synchronize modding branches with master-dev and detect conflicts.")
     parser.add_argument("--source", default="master-dev", help="Source branch to sync from (default: master-dev).")
     parser.add_argument("--push", action="store_true", help="Perform merge and push for clean branches.")
-    parser.add_argument("--output-only", action="store_true", help="Only generate markdown without merging.")
+    parser.add_argument("--output-only", action="store_true", help="Only check mergeability and display summary without merging.")
+    parser.add_argument("--output-file", default=None, help="Optional path to write summary markdown to.")
     args = parser.parse_args()
 
     source_branch = args.source
@@ -348,7 +316,6 @@ def main():
     branches = get_remote_branches()
     print(f"Found {len(branches)} mod branches to inspect.")
 
-    prev_statuses = get_previous_statuses()
     results = []
     now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
@@ -360,8 +327,6 @@ def main():
         # Check if already ancestor
         if check_ancestor(source_ref, branch_ref):
             print(f"  -> Already up to date.")
-            if branch in prev_statuses and "Conflit" in prev_statuses[branch].get("status", ""):
-                log_event("RESOLVED", branch, f"Conflit résolu manuellement. Synchronisée avec {source_ref} (`{last_commit}`)")
             results.append({
                 "branch": branch,
                 "status": "✅ À jour",
@@ -383,11 +348,8 @@ def main():
                 success, msg = merge_and_push_branch(branch, source_ref)
                 if success:
                     status_text = "🔄 Synchronisée"
-                    new_commit = get_commit_info(f"origin/{branch}")
-                    log_event("AUTO-MERGE", branch, f"Fusion automatique réussie avec {source_ref} (`{new_commit}`)")
                 else:
                     status_text = "⚠️ Erreur push"
-                    log_event("ERROR", branch, f"Échec git push: {msg}")
                 results.append({
                     "branch": branch,
                     "status": status_text,
@@ -405,8 +367,6 @@ def main():
                 })
         else:
             print(f"  -> Real code conflicts detected in {len(real_conflicts)} file(s): {', '.join(real_conflicts)}")
-            confl_fmt = ", ".join([f"`{f}`" for f in real_conflicts])
-            log_event("CONFLICT", branch, f"Conflit de code détecté lors de la fusion avec {source_ref} dans: {confl_fmt}")
             results.append({
                 "branch": branch,
                 "status": "⚠️ Conflit",
@@ -415,43 +375,7 @@ def main():
                 "details": f"{len(real_conflicts)} fichier(s) de code en conflit"
             })
 
-    print(f"\nGenerating dashboard at {DASHBOARD_FILE}...")
-    generate_dashboard(results, source_branch, source_sha, now_str)
-    flush_event_logs()
-    print("Dashboard and history log generated successfully.")
-
-    if args.push:
-        commit_and_push_dashboard()
-
-def commit_and_push_dashboard():
-    """Commit + push branch_sync_status.md / branch_sync_history.md to master-dev if
-    they changed. Without this, `--push` would fully merge and push every mod branch
-    but leave the dashboard files it just wrote sitting uncommitted on disk — the
-    fleet-wide merge would be real, but the dashboard describing it wouldn't be, until
-    someone remembered to commit it by hand (previously only the sync-upstream.yaml
-    cron did this, so a local `task modding-branch-status -- --push` run never did)."""
-    tracked = [
-        p for p in (DASHBOARD_FILE, HISTORY_LOG_FILE)
-        if run_cmd(f'git status --porcelain -- "{p}"').stdout.strip()
-    ]
-    if not tracked:
-        print("\nDashboard/history unchanged — nothing to commit.")
-        return
-
-    print(f"\nCommitting updated dashboard file(s): {', '.join(os.path.basename(p) for p in tracked)}")
-    for p in tracked:
-        run_cmd(f'git add "{p}"')
-    commit_res = run_cmd(
-        'git commit -m "docs: update mod branches sync dashboard and history log (AI-assisted)"'
-    )
-    if commit_res.returncode != 0:
-        print(f"⚠️ Dashboard commit failed: {(commit_res.stderr or commit_res.stdout).strip()}", file=sys.stderr)
-        return
-    push_res = run_cmd("git push origin master-dev")
-    if push_res.returncode != 0:
-        print(f"⚠️ Dashboard push failed: {(push_res.stderr or push_res.stdout).strip()}", file=sys.stderr)
-        return
-    print("[OK] Dashboard + history pushed to origin/master-dev.")
+    generate_dashboard(results, source_branch, source_sha, now_str, output_file=args.output_file)
 
 if __name__ == "__main__":
     main()

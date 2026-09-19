@@ -35,12 +35,7 @@ def main() -> int:
     if exe_path:
         print(f"Starting OpenGOAL Texture Pack Generator: {exe_path.name}")
         try:
-            if sys.platform == "win32":
-                # Detached process so the calling terminal/task returns immediately
-                DETACHED_PROCESS = 0x00000008
-                subprocess.Popen([str(exe_path)], cwd=str(TOOL_DIR), creationflags=DETACHED_PROCESS)
-            else:
-                subprocess.Popen([str(exe_path)], cwd=str(TOOL_DIR))
+            subprocess.Popen([str(exe_path)], cwd=str(TOOL_DIR))
             print("Texture Pack Generator started successfully.")
             return 0
         except Exception as err:

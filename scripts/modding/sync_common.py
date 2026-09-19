@@ -30,9 +30,7 @@ from urllib.parse import quote
 # explicitly `git rm` them back out after merging. Keep this list short: it
 # is a statement of "this file does not belong on a mod branch", not a
 # general-purpose ignore list.
-MASTER_DEV_ONLY_PATHS = [
-    "docs/modding/tools/branch_sync_status.md",
-]
+MASTER_DEV_ONLY_PATHS = []
 
 # The only two workflow files a mod branch is meant to carry (see
 # classify_conflict_path's "drop" rule below and AGENTS.md for why this fork

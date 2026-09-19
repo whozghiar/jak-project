@@ -82,10 +82,9 @@ These curated, verified documents are the **single source of truth** hosted on `
 
 ---
 
-## 5. Branch Dashboards & Compliance
+## 5. Branch Audits & Compliance
 
-- 📊 [`tools/branch_sync_status.md`](tools/branch_sync_status.md): Live mergeability dashboard across all mod branches (`task modding-branch-status`). **`master-dev`-only**.
-- 📜 [`tools/branch_sync_history.md`](tools/branch_sync_history.md): Historical log of automated branch merges and conflict resolutions.
+- 📊 `task modding-branch-status`: Live mergeability audit and auto-merge across all mod branches (outputs summary to terminal and GitHub Actions CI).
 - 📋 [`branch_audit.md`](branch_audit.md): Compliance report tracking active mod branches against project standards (`task modding-audit`).
 
 ---
@@ -167,10 +166,9 @@ Ces documents validés constituent la **source unique de vérité** hébergée s
 
 ---
 
-## 5. Tableaux de Bord & Conformité des Branches
+## 5. Audits & Conformité des Branches
 
-- 📊 [`tools/branch_sync_status.md`](tools/branch_sync_status.md) : Tableau de bord de fusion en direct pour toutes les branches de mods (`task modding-branch-status`). **Réservé à `master-dev`**.
-- 📜 [`tools/branch_sync_history.md`](tools/branch_sync_history.md) : Journal historique des fusions automatiques et résolutions de conflits.
+- 📊 `task modding-branch-status` : Audit de fusionnabilité en direct de toutes les branches de mods (résumé en console et dans GitHub Actions CI).
 - 📋 [`branch_audit.md`](branch_audit.md) : Rapport d'audit de conformité par rapport aux standards du projet (`task modding-audit`).
 
 ---

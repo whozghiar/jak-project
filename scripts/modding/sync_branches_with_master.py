@@ -1,24 +1,20 @@
 #!/usr/bin/env python3
 """
 Automated synchronization script for Jak modding branches.
-Tests mergeability against a source branch (default: origin/master) using in-memory `git merge-tree`,
-optionally merges clean branches, and generates a live markdown dashboard of branch sync statuses.
+Tests mergeability against a source branch (default: master-dev) using in-memory `git merge-tree`,
+optionally merges clean branches, and displays a summary table in terminal output and GitHub Actions Step Summary.
 
-Where the sync status actually lives (two different granularities, on purpose):
-    - The full, all-branches dashboard (docs/modding/tools/branch_sync_status.md) is
-      master-dev-only (see sync_common.MASTER_DEV_ONLY_PATHS): it is never carried onto
-      a mod branch, and master-dev's own root README.md only shows GitHub's native
-      status badge for THIS workflow, linking here for the branch-by-branch detail.
-    - Each mod branch instead carries its own native GitHub Actions status badge for
+How sync status is reported:
+    - In CLI / terminal: prints a formatted summary table of all branches and conflict commands.
+    - In GitHub Actions CI: appends the summary markdown to $GITHUB_STEP_SUMMARY for a clean web report.
+    - Each mod branch carries its own native GitHub Actions status badge for
       .github/workflows/branch-sync-check.yaml (?branch=<it>), written once into its
-      README.md at creation time (create_mod_branch.py). This script does not touch
-      that badge at all: pushing a successful merge to a branch is exactly what makes
-      branch-sync-check.yaml run and go green — GitHub renders the badge live from
-      that run history, nothing here needs to keep it in sync.
+      README.md at creation time (create_mod_branch.py). Pushing a successful merge to a branch
+      is what triggers branch-sync-check.yaml and turns the badge green.
 
 Usage:
-    python scripts/modding/sync_branches_with_master.py           # Test and update dashboard without pushing
-    python scripts/modding/sync_branches_with_master.py --push    # Merge clean branches, push, and update dashboard
+    python scripts/modding/sync_branches_with_master.py           # Test and display summary without pushing
+    python scripts/modding/sync_branches_with_master.py --push    # Merge clean branches and push to origin
     python scripts/modding/sync_branches_with_master.py --source master-dev  # Use master-dev as source
 """
 

@@ -1,14 +1,10 @@
 {
   "mcpServers": {
     "blender-mcp": {
-      "type": "stdio",
-      "command": "cmd.exe",
+      "command": "uvx",
       "args": [
-        "/c",
-        "uvx",
-        "mcp-for-blender"
-      ],
-      "env": {}
+        "blender-mcp"
+      ]
     }
   }
 }

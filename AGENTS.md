@@ -49,8 +49,8 @@ To avoid context saturation, agents should **not** read every reference file at 
 - **Trigger:** Engine architecture, C++ runtime (`gk`), compiler (`goalc`), decompiler, REPL lifecycle, heap/memory management, Taskfile builds.
 - **Path:** [`.agents/skills/engine-internals/SKILL.md`](.agents/skills/engine-internals/SKILL.md) and [`.agents/skills/engine-internals/repl-workflow.md`](.agents/skills/engine-internals/repl-workflow.md).
 
-### Skill: [Custom Actors & 3D Assets]
-- **Trigger:** Adding `.glb` models, armatures, joint channels, Blender imports, animations, custom entities, sound banks (SBK), or new actors/levels.
+### Skill: [Custom Actors, 3D Assets & Rig Adapter]
+- **Trigger:** Adding `.glb` models, armatures, joint channels, Blender imports/MCP, character/enemy adaptation and backporting between Jak games (Jak 1, 2, 3), armature retargeting, non-destructive textures, animations, custom entities, sound banks (SBK), or new actors/levels.
 - **Path:** [`.agents/skills/custom-actors-levels/SKILL.md`](.agents/skills/custom-actors-levels/SKILL.md) and [`.agents/skills/custom-actors-levels/discoveries.md`](.agents/skills/custom-actors-levels/discoveries.md).
 
 ### Skill: [Texture Modding]
@@ -297,8 +297,8 @@ Pour éviter la saturation du contexte, les agents ne doivent **pas** lire l'ens
 - **Déclencheur :** Architecture moteur, runtime C++ (`gk`), compilateur (`goalc`), décompilateur, cycle REPL, gestion mémoire/heaps, commandes Taskfile.
 - **Chemin :** [`.agents/skills/engine-internals/SKILL.md`](.agents/skills/engine-internals/SKILL.md) et [`.agents/skills/engine-internals/repl-workflow.md`](.agents/skills/engine-internals/repl-workflow.md).
 
-### Compétence : [Acteurs Personnalisés & Assets 3D]
-- **Déclencheur :** Ajout de modèles `.glb`, armatures, canaux d'articulations, imports Blender, animations, entités custom, banques de sons (SBK) ou niveaux.
+### Compétence : [Acteurs Personnalisés, Assets 3D & Adaptateur de Modèles]
+- **Déclencheur :** Ajout de modèles `.glb`, armatures, canaux d'articulations, imports/MCP Blender, adaptation et rétro-portage de personnages/ennemis entre jeux Jak (Jak 1, 2, 3), retargeting d'armatures, textures non-destructives, animations, entités custom, banques de sons (SBK) ou nouveaux niveaux.
 - **Chemin :** [`.agents/skills/custom-actors-levels/SKILL.md`](.agents/skills/custom-actors-levels/SKILL.md) et [`.agents/skills/custom-actors-levels/discoveries.md`](.agents/skills/custom-actors-levels/discoveries.md).
 
 ### Compétence : [Modding de Textures]

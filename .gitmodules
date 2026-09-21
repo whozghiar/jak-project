@@ -1,9 +1,3 @@
-[submodule "docs/modding/tools/open-goal-glb-reskin-tool"]
-	path = docs/modding/tools/open-goal-glb-reskin-tool
-	url = https://github.com/whozghiar/open-goal-glb-reskin-tool.git
-[submodule "docs/modding/tools/open-goal-level-builder"]
-	path = docs/modding/tools/open-goal-level-builder
-	url = https://github.com/whozghiar/open-goal-level-builder.git
 [submodule "docs/modding/tools/open-goal-texture-pack-generator"]
 	path = docs/modding/tools/open-goal-texture-pack-generator
 	url = https://github.com/whozghiar/open-goal-texture-pack-generator.git

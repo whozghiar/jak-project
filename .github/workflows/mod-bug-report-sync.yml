@@ -4,7 +4,7 @@ name: 🏷️ Sync Mod Bug Report Options
 # have a published GitHub Release — never to whatever a branch's committed index.json
 # happens to say, since that file can carry a real-looking checksummed version even when
 # no release was ever actually published (a local/dry run, a release later deleted, ...).
-# See scripts/modding/sync_bug_report_options.py and docs/modding/tools/mod_bug_tracking.md.
+# See scripts/modding/sync_bug_report_options.py and docs/modding/guides/mod_bug_tracking.md.
 
 on:
   release:

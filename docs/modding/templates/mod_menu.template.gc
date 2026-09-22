@@ -20,7 +20,7 @@
   menu code in a file that already has one. The OpenGOAL launcher boots with
   `-boot`, which strips every DEBUG segment: a debug-only menu file is simply
   not linked, so the player can never reach your toggles. See
-  docs/modding/tools/mods_menu.md §1.
+  docs/modding/guides/mods_menu.md §1.
 
   Rules of engagement
   -------------------
@@ -55,7 +55,7 @@
 
   Works as-is on Jak 2 and Jak 3 -- the registry API is identical in both
   (`goal_src/jak[2|3]/pc/features/mods-menu.gc`). Jak 1 has no registry yet --
-  see section 6 of docs/modding/tools/mods_menu.md.
+  see section 7 of docs/modding/guides/mods_menu.md.
 |#
 
 ;; ============================================================================

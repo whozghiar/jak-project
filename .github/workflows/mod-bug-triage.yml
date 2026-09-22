@@ -6,7 +6,7 @@ name: 🐛 Mod Bug Auto-Triage
 # tracking usable: a maintainer fixing a mod filters issues by its label,
 # fixes it on that mod's branch with `Fixes #<issue>` in the commit, and the
 # issue auto-closes when that commit lands on the branch's default merge
-# target. See docs/modding/tools/mod_bug_tracking.md for the full workflow.
+# target. See docs/modding/guides/mod_bug_tracking.md for the full workflow.
 
 on:
   issues:

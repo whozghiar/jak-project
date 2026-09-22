@@ -25,7 +25,7 @@
 ## 1. CI/CD Architecture & Mental Model
 
 In this repository, GitHub Actions workflows are engineered to solve three fundamental challenges of OpenGOAL modding:
-1. **Parallel Mod Development Without Upstream Divergence:** Retain perfect alignment with official OpenGOAL (`open-goal/jak-project:master`) while simultaneously maintaining 15+ independent mod branches without manual merge overhead.
+1. **Parallel Mod Development Without Upstream Divergence:** Retain perfect alignment with official OpenGOAL (`open-goal/jak-project:master`) while simultaneously maintaining 15+ independent mod branches, each caught up with `master-dev` on demand rather than by surprise.
 2. **Player-Grade Distribution:** Deliver fully compiled, statically linked, zero-dependency release archives installable in one click via the official OpenGOAL Launcher.
 3. **Fast, Low-Noise Feedback On Every Branch:** Catch broken syntax and non-compiling code on any mod branch, on demand or on every push, without running the full release pipeline for it.
 
@@ -37,31 +37,30 @@ In this repository, GitHub Actions workflows are engineered to solve three funda
                │
                ▼  (Fast-forward / Merge)
 [origin/master-dev] (Modding Core Base: scripts, tools, verified docs)
-   │           │
-   │           ├── Auto-merge clean branches ──► [origin/jak2/features/my-mod]
-   │           │                                         │
-   │           │                                         ├── (on: push: branch-sync-check.yaml)
-   │           │                                         │     Status Badge: GREEN
-   │           │                                         │
-   │           │                                         ├── (on: push: lint.yml)
-   │           │                                         │     Fast source checks
-   │           │                                         │
-   │           │                                         └── Standalone Texture Packs:
-   │           │                                             docs/modding/current_mod/texture_packs/*.zip
-   │           │                                               │
-   │           └── Summary report in GitHub Actions Step Summary│
-   │                                                           │
-   ▼ (Manual trigger: release.yml) ◄───────────────────────────┘
+               │
+               ▼  (Manual, per branch: sync-branch-with-master-dev.yml)
+[origin/jak2/features/my-mod]
+   │
+   ├── (on: push: branch-sync-check.yaml)
+   │     Status Badge: GREEN
+   │
+   ├── (on: push: lint.yml)
+   │     Fast source checks
+   │
+   ├── Standalone Texture Packs:
+   │     docs/modding/current_mod/texture_packs/*.zip
+   │
+   ▼ (Manual trigger: release.yml)
 [GitHub Releases: windows-v*.zip, linux-v*.zip, texture-pack-v*.zip]
    │
    ├── (on: release: mod-bug-report-sync.yml)
    │     Update Mod Concerned dropdown in mod-bug-report.yml
    │
-   └── (workflow_call: sync-global-catalog.yml)
+   └── (gh workflow run: sync-global-catalog.yml)
          Update root index.json on master-dev (mods + texture packs)
 ```
 
-Two workflows sit outside this pipeline as on-demand tools, usable from any branch that carries the file (every mod branch does): `build.yml` (manual compile check) and `sync-branch-with-master-dev.yml` (manual, single-branch sync with `master-dev`, without waiting for the next cron run).
+`sync-upstream.yaml` stops at `master-dev` — it never touches mod branches. Catching up `origin/jak2/features/my-mod` (or any other mod branch) with `master-dev` is always a deliberate action: `sync-branch-with-master-dev.yml` for one branch from the Actions tab, or `task modding-branch-status -- --push` locally for every clean branch in one pass. `build.yml` (manual compile check) is the other on-demand tool that sits outside this pipeline, usable from any branch that carries the file.
 
 ---
 
@@ -73,17 +72,14 @@ Two workflows sit outside this pipeline as on-demand tools, usable from any bran
   - **Manual Trigger:** Any maintainer can trigger it via `workflow_dispatch` from the GitHub Actions tab.
 - **Why does it exist?**
   - Prevents our fork from drifting away from upstream bug fixes, compiler enhancements, and engine optimizations.
-  - Automates the tedious task of testing and merging `master-dev` into all clean active mod branches (`jak[1-3]/**`).
-  - Reports the fleet mergeability summary directly to terminal output and GitHub Actions Step Summary.
+  - Keeps `master-dev` (the base every mod branch is created from and synced against) current with `master`, without ever touching a mod branch directly.
+- **Scope, deliberately:** this workflow stops at `master-dev`. It used to also auto-merge every clean mod branch once a day; that step was removed so a mod branch only ever changes when someone deliberately syncs it (§3) — no surprise commits landing on a branch overnight.
 
 ### Detailed Execution Trace:
 1. **Upstream Fast-Forward:** Fetches `https://github.com/open-goal/jak-project.git:master` and performs a fast-forward merge into our local `master`.
 2. **Master-Dev Merge & Workflow Sanitization:** Merges `master` into `master-dev`. Because upstream contains numerous CI workflows that are irrelevant or problematic for mod branches, the step explicitly prunes all workflows except the ones listed in its own `allowed_workflows` array (kept in sync with `scripts/modding/sync_common.ALLOWED_MOD_BRANCH_WORKFLOWS` plus the repo-wide, master-dev-only automation: `sync-upstream.yaml`, `release.yml`, `branch-sync-check.yaml`, `lint.yml`, `build.yml`, `sync-branch-with-master-dev.yml`, `sync-global-catalog.yml`, `mod-bug-report-sync.yml`, `mod-bug-triage.yml`, `mod-suggestion-triage.yml`).
-3. **Mod Branch Synchronization:** Runs `python scripts/modding/sync_branches_with_master.py --push`.
-   - Tests every active mod branch for mergeability against `origin/master-dev`.
-   - If clean (no conflicts), automatically merges `master-dev` and pushes the branch.
-   - If conflicts exist, leaves the branch untouched, identifies conflicting files, and generates a concrete resolution command.
-   - Generates the summary report in GitHub Actions without polluting the git tree with markdown churn.
+
+To catch mod branches up with the newly-updated `master-dev`, see §3 (one branch, on demand) or run `task modding-branch-status -- --push` locally (every clean branch, in one pass — the same `scripts/modding/sync_branches_with_master.py` this workflow used to call automatically).
 
 ---
 
@@ -93,7 +89,7 @@ Two workflows sit outside this pipeline as on-demand tools, usable from any bran
 - **When is it called?**
   - **Manual Trigger Only (`workflow_dispatch`):** Pick the branch to sync with "Use workflow from" in the Actions tab, then run it. No inputs required — the selected branch is the one that gets synced.
 - **Why does it exist?**
-  - The fleet-wide sync in `sync-upstream.yaml` already merges `master-dev` into every clean branch once a day, but that means waiting for the next cron run (or a maintainer triggering the whole fleet workflow) just to get one branch caught up.
+  - `sync-upstream.yaml` (§2) no longer touches mod branches automatically — this is the primary, day-to-day way a mod branch actually gets `master-dev`'s changes, straight from the Actions tab, without needing a local checkout.
   - This is the GitHub UI equivalent of running `task modding-sync-branch -- --push` locally: it wraps `scripts/modding/sync_branch_with_master_dev.py --push`, which resolves the same deterministic README/doc/workflow conflicts the fleet-wide script resolves (see `scripts/modding/sync_common.py`), then pushes.
   - **Merge only, never rebase.** A CI-triggered rebase would force-push over a branch's published history with nobody there to review the result first. Do that locally instead (`task modding-sync-branch -- --rebase`) if a linear history is actually needed.
   - Refuses to run against `master` or `master-dev` (there is nothing to sync them with — they *are* the source).
@@ -250,7 +246,7 @@ Two workflows sit outside this pipeline as on-demand tools, usable from any bran
 
 | Workflow | Trigger | Permissions | Target Branch | Primary Outcome |
 | :--- | :--- | :--- | :--- | :--- |
-| `sync-upstream.yaml` | Schedule (daily 10:00 UTC) / dispatch | `contents: write` | `master`, `master-dev`, all clean `jak*/**` | Mirrors upstream, auto-merges clean branches, updates dashboard. |
+| `sync-upstream.yaml` | Schedule (daily 10:00 UTC) / dispatch | `contents: write` | `master`, `master-dev` only | Fast-forwards `master` from upstream, merges it into `master-dev`. Never touches mod branches. |
 | `sync-branch-with-master-dev.yml` | Manual `workflow_dispatch` | `contents: write` | Any branch except `master`/`master-dev` | On-demand merge of `master-dev` into the selected branch, then push. |
 | `branch-sync-check.yaml` | Push on `jak[1-3]/**` / dispatch | `contents: read` | Current mod branch | Verifies ancestry with `master-dev`; drives GitHub status badge. |
 | `lint.yml` | Push (any branch) / dispatch | `contents: read` | Any branch | Fast source checks: whitespace, forbidden `assert()`, translation chars/autoglottonyms, preserved `goal_src` markers. |

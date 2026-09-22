@@ -195,9 +195,10 @@ full trigger and behavior detail, see
 [GitHub Actions Workflows Guide](docs/modding/guides/github_workflows.md).
 
 1. `sync-upstream.yaml` — daily sync from upstream OpenGOAL into `master`
-   and `master-dev`, auto-merges clean mod branches.
+   and `master-dev` only; does not touch mod branches.
 2. `sync-branch-with-master-dev.yml` — manual, single-branch merge of
-   `master-dev` on demand, without waiting for the daily cron.
+   `master-dev` on demand; the only way a mod branch gets `master-dev`'s
+   changes now that `sync-upstream.yaml` no longer auto-merges branches.
 3. `branch-sync-check.yaml` — lightweight ancestry check that drives each
    mod branch's status badge.
 4. `lint.yml` — fast source checks (whitespace, forbidden asserts,

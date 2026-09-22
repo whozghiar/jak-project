@@ -1,4 +1,11 @@
-name: 🔄 Sync Upstream Mirror & Mod Branches
+name: 🔄 Sync Upstream Mirror
+
+# Scope is deliberately just master and master-dev: fast-forwards master from
+# upstream open-goal/jak-project, then merges master into master-dev (pruning
+# any upstream workflow/issue-template this fork doesn't want). It no longer
+# touches mod branches automatically - use sync-branch-with-master-dev.yml
+# (per-branch, on demand) or `task modding-branch-status -- --push`
+# (fleet-wide, run manually) to catch a branch up with master-dev.
 
 on:
   schedule:
@@ -133,8 +140,3 @@ jobs:
           git commit -m "chore: sync master-dev with upstream master (AI-assisted)" || true
           git push origin master-dev
           echo "master-dev successfully updated with latest upstream changes (unwanted workflows ignored)."
-
-      - name: Sync Mod Branches & Report Summary
-        run: |
-          echo "Synchronizing clean mod branches with master and reporting summary..."
-          python scripts/modding/sync_branches_with_master.py --push

@@ -99,16 +99,16 @@ This is the generic install flow for any mod published from this repository, usi
 
 ---
 
-## Mod Branch Synchronization
+## Upstream Sync Status
 
 [![Sync Upstream](https://github.com/whozghiar/jak-project/actions/workflows/sync-upstream.yaml/badge.svg)](https://github.com/whozghiar/jak-project/actions/workflows/sync-upstream.yaml)
 
-This badge indicates the state of the automated daily synchronization workflow (`sync-upstream.yaml`) running at 10:00 UTC:
+This badge indicates the state of the automated daily synchronization workflow (`sync-upstream.yaml`) running at 10:00 UTC, which fast-forwards `master` from upstream `open-goal/jak-project` and merges that into `master-dev`:
 
-- **Green:** the latest sync (upstream -> `master` -> `master-dev` -> mod branches) completed successfully with all clean branches merged.
-- **Red:** a conflict or failure occurred during the synchronization pipeline.
+- **Green:** the latest sync (upstream -> `master` -> `master-dev`) completed successfully.
+- **Red:** a conflict or failure occurred during the synchronization.
 
-Per-branch mergeability details and ready-to-run resolution commands can be audited locally at any time with `task modding-branch-status`. Each individual mod branch also carries its own live status badge in its root `README.md`, driven by `branch-sync-check.yaml`.
+Mod branches are **not** synced automatically by this workflow. To catch up a branch with `master-dev`, run `task modding-sync-branch -- --push` locally, or trigger the `sync-branch-with-master-dev.yml` workflow from that branch in the Actions tab. Per-branch mergeability details and ready-to-run resolution commands can be audited locally at any time with `task modding-branch-status` (add `-- --push` to auto-merge every clean branch in one pass). Each individual mod branch also carries its own live status badge in its root `README.md`, driven by `branch-sync-check.yaml`.
 
 ---
 

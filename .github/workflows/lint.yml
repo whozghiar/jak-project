@@ -1,4 +1,4 @@
-name: 🧹 Lint
+name: 🧪 Lint
 
 # Fast, dependency-light source checks that catch mistakes before they land:
 # trailing whitespace in goal_src, forbidden assert() calls in the C++ engine,
@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   lint:
-    name: "🧹 Source Lint"
+    name: "🧪 Source Lint"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

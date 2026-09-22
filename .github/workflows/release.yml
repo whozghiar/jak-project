@@ -1,5 +1,11 @@
 name: 🚀 Build & Release OpenGOAL Mod Package
 
+# Manual only (workflow_dispatch), by design usable from any branch: there is
+# no `branches:` restriction on workflow_dispatch, so any branch that carries
+# this file (every mod branch does, see scripts/modding/sync_common.py) can
+# be picked with "Use workflow from" in the Actions tab and released
+# directly, no need to be on master/master-dev first.
+
 on:
   workflow_dispatch:
     inputs:

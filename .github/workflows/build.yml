@@ -1,0 +1,121 @@
+name: 🛠️ Build Check
+
+# On-demand compile check for gk, goalc and extractor - the same binaries
+# release.yml packages - on Windows and Linux, Release config, static
+# libraries. Manual only (workflow_dispatch): open this workflow from the
+# Actions tab, pick "Use workflow from" with any branch that carries this
+# file (every mod branch does, see scripts/modding/sync_common.py), and run
+# it. This never packages or publishes anything, it only confirms the
+# project builds cleanly and uploads the raw binaries as build artifacts.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: "🖥️ Windows (Clang-CL Static)"
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Install NASM
+        run: choco install nasm
+
+      - name: Setup sccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          variant: sccache
+          key: windows-build-check-static-${{ github.sha }}
+          restore-keys: windows-build-check-static-
+
+      - name: Setup MSVC Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Remove Strawberry Perl from PATH
+        run: |
+          $env:PATH = $env:PATH -replace "C:\\Strawberry\\c\\bin;", ""
+          "PATH=$env:PATH" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Configure CMake
+        shell: cmd
+        run: |
+          cmake -B build --preset=Release-windows-clang-static ^
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+      - name: Build Binaries (gk, goalc, extractor)
+        shell: cmd
+        run: cmake --build build --config Release --target gk --target goalc --target extractor --parallel %NUMBER_OF_PROCESSORS%
+
+      - name: Upload Windows Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-check-windows
+          path: |
+            build/bin/gk.exe
+            build/bin/goalc.exe
+            build/bin/extractor.exe
+          if-no-files-found: error
+          retention-days: 3
+
+  build-linux:
+    name: "🐧 Linux (Clang Static)"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake clang gcc g++ nasm \
+            libxrandr-dev libxinerama-dev libxcursor-dev libpulse-dev \
+            libxi-dev libgl1-mesa-dev libssl-dev ninja-build zip
+
+      - name: Setup sccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          variant: sccache
+          key: linux-build-check-static-${{ github.sha }}
+          restore-keys: linux-build-check-static-
+
+      - name: Configure CMake
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake -B build --preset=Release-linux-clang-static \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+      - name: Build Binaries (gk, goalc, extractor)
+        run: cmake --build build --config Release --target gk --target goalc --target extractor --parallel $(nproc)
+
+      - name: Strip Binaries
+        run: |
+          strip build/game/gk
+          strip build/goalc/goalc
+          strip build/decompiler/extractor
+
+      - name: Upload Linux Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-check-linux
+          path: |
+            build/game/gk
+            build/goalc/goalc
+            build/decompiler/extractor
+          if-no-files-found: error
+          retention-days: 3

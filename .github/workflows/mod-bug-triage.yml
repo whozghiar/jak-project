@@ -1,4 +1,4 @@
-name: 🐛 Mod Bug Auto-Triage
+name: "Bugs: 🐛 Mod Bug Auto-Triage"
 
 # Auto-labels issues opened from the "Mod Bug Report" form so bugs can be
 # tracked per game and per mod (label:jak2 label:mod:transport-ag-traffic),

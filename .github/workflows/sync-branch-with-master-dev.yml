@@ -1,0 +1,47 @@
+name: 🔀 Sync Branch with master-dev
+
+# On-demand equivalent of `task modding-sync-branch -- --push`, runnable
+# without a local checkout: merges origin/master-dev into whichever branch
+# you pick with "Use workflow from" in the Actions tab, resolves the same
+# deterministic doc/workflow conflicts scripts/modding/sync_branch_with_master_dev.py
+# always resolves locally (see scripts/modding/sync_common.py), and pushes
+# the result. Manual only (workflow_dispatch) - the daily fleet-wide sync in
+# sync-upstream.yaml already does this automatically for every clean branch;
+# this is for syncing one branch right now instead of waiting for the next
+# cron run.
+#
+# Merge only, no --rebase: a CI-triggered rebase would force-push over a
+# branch's published history with nobody there to review the result first -
+# do that locally instead if you actually want a linear history
+# (task modding-sync-branch -- --rebase).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-branch:
+    name: "🔀 Merge master-dev & Push"
+    if: github.ref_name != 'master-dev' && github.ref_name != 'master'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Configure Git Author
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge master-dev and push
+        run: python scripts/modding/sync_branch_with_master_dev.py --push

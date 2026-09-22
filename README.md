@@ -95,7 +95,7 @@ This is the generic install flow for any mod published from this repository, usi
                 +-- Automated branch mergeability and conflict detection in CI / CLI
 ```
 
-7 specialized GitHub Actions workflows automate this pipeline — see the [GitHub Actions Workflows Guide](docs/modding/guides/github_workflows.md) for every trigger, exact behavior, and a worked example.
+10 specialized GitHub Actions workflows automate this pipeline — see the [GitHub Actions Workflows Guide](docs/modding/guides/github_workflows.md) for every trigger, exact behavior, and a worked example.
 
 ---
 

@@ -2,28 +2,32 @@
 
 > - **Applies to:** Jak 1 / Jak 2 / Jak 3 — Modding Infrastructure & CI/CD
 > - **Origin:** `master-dev`
-> - **Scope:** Automated Upstream Synchronization, Branch Health, Multi-Platform Releases & Issue Triage
+> - **Scope:** Automated Upstream Synchronization, Branch Health, Lint/Build Checks, Multi-Platform Releases & Issue Triage
 
 ## Table of Contents
 
 - [1. CI/CD Architecture & Mental Model](#1-cicd-architecture--mental-model)
 - [2. Upstream & Dev Synchronization (`sync-upstream.yaml`)](#2-upstream--dev-synchronization-sync-upstreamyaml)
-- [3. Per-Branch Health Check (`branch-sync-check.yaml`)](#3-per-branch-health-check-branch-sync-checkyaml)
+- [3. On-Demand Branch Sync (`sync-branch-with-master-dev.yml`)](#3-on-demand-branch-sync-sync-branch-with-master-devyml)
+- [4. Per-Branch Health Check (`branch-sync-check.yaml`)](#4-per-branch-health-check-branch-sync-checkyaml)
   - [Worked example: pushing to a mod branch](#worked-example-pushing-to-a-mod-branch)
-- [4. Automated Release & Packaging (`release.yml`)](#4-automated-release--packaging-releaseyml)
-- [5. Bug Report Sync (`mod-bug-report-sync.yml`)](#5-bug-report-sync-mod-bug-report-syncyml)
-- [6. Bug Triage & Auto-Labeling (`mod-bug-triage.yml`)](#6-bug-triage--auto-labeling-mod-bug-triageyml)
-- [7. Master Mod Catalog Sync (`sync-global-catalog.yml`)](#7-master-mod-catalog-sync-sync-global-catalogyml)
-- [8. Mod Suggestion Auto-Triage (`mod-suggestion-triage.yml`)](#8-mod-suggestion-auto-triage-mod-suggestion-triageyml)
-- [9. Quick Reference Matrix](#9-quick-reference-matrix)
+- [5. Source Lint (`lint.yml`)](#5-source-lint-lintyml)
+- [6. Build Check (`build.yml`)](#6-build-check-buildyml)
+- [7. Automated Release & Packaging (`release.yml`)](#7-automated-release--packaging-releaseyml)
+- [8. Bug Report Sync (`mod-bug-report-sync.yml`)](#8-bug-report-sync-mod-bug-report-syncyml)
+- [9. Bug Triage & Auto-Labeling (`mod-bug-triage.yml`)](#9-bug-triage--auto-labeling-mod-bug-triageyml)
+- [10. Mod Suggestion Auto-Triage (`mod-suggestion-triage.yml`)](#10-mod-suggestion-auto-triage-mod-suggestion-triageyml)
+- [11. Master Mod Catalog Sync (`sync-global-catalog.yml`)](#11-master-mod-catalog-sync-sync-global-catalogyml)
+- [12. Quick Reference Matrix](#12-quick-reference-matrix)
 
 ---
 
 ## 1. CI/CD Architecture & Mental Model
 
-In this repository, GitHub Actions workflows are engineered to solve two fundamental challenges of OpenGOAL modding:
+In this repository, GitHub Actions workflows are engineered to solve three fundamental challenges of OpenGOAL modding:
 1. **Parallel Mod Development Without Upstream Divergence:** Retain perfect alignment with official OpenGOAL (`open-goal/jak-project:master`) while simultaneously maintaining 15+ independent mod branches without manual merge overhead.
 2. **Player-Grade Distribution:** Deliver fully compiled, statically linked, zero-dependency release archives installable in one click via the official OpenGOAL Launcher.
+3. **Fast, Low-Noise Feedback On Every Branch:** Catch broken syntax and non-compiling code on any mod branch, on demand or on every push, without running the full release pipeline for it.
 
 ```text
 [Upstream: open-goal/jak-project] (master)
@@ -38,6 +42,9 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
    │           │                                         │
    │           │                                         ├── (on: push: branch-sync-check.yaml)
    │           │                                         │     Status Badge: GREEN
+   │           │                                         │
+   │           │                                         ├── (on: push: lint.yml)
+   │           │                                         │     Fast source checks
    │           │                                         │
    │           │                                         └── Standalone Texture Packs:
    │           │                                             docs/modding/current_mod/texture_packs/*.zip
@@ -54,6 +61,8 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
          Update root index.json on master-dev (mods + texture packs)
 ```
 
+Two workflows sit outside this pipeline as on-demand tools, usable from any branch that carries the file (every mod branch does): `build.yml` (manual compile check) and `sync-branch-with-master-dev.yml` (manual, single-branch sync with `master-dev`, without waiting for the next cron run).
+
 ---
 
 ## 2. Upstream & Dev Synchronization (`sync-upstream.yaml`)
@@ -69,7 +78,7 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
 
 ### Detailed Execution Trace:
 1. **Upstream Fast-Forward:** Fetches `https://github.com/open-goal/jak-project.git:master` and performs a fast-forward merge into our local `master`.
-2. **Master-Dev Merge & Workflow Sanitization:** Merges `master` into `master-dev`. Because upstream contains numerous CI workflows that are irrelevant or problematic for mod branches, the step explicitly prunes all workflows except `sync-upstream.yaml`, `release.yml`, `branch-sync-check.yaml`, `mod-bug-report-sync.yml`, and `mod-bug-triage.yml`.
+2. **Master-Dev Merge & Workflow Sanitization:** Merges `master` into `master-dev`. Because upstream contains numerous CI workflows that are irrelevant or problematic for mod branches, the step explicitly prunes all workflows except the ones listed in its own `allowed_workflows` array (kept in sync with `scripts/modding/sync_common.ALLOWED_MOD_BRANCH_WORKFLOWS` plus the repo-wide, master-dev-only automation: `sync-upstream.yaml`, `release.yml`, `branch-sync-check.yaml`, `lint.yml`, `build.yml`, `sync-branch-with-master-dev.yml`, `sync-global-catalog.yml`, `mod-bug-report-sync.yml`, `mod-bug-triage.yml`, `mod-suggestion-triage.yml`).
 3. **Mod Branch Synchronization:** Runs `python scripts/modding/sync_branches_with_master.py --push`.
    - Tests every active mod branch for mergeability against `origin/master-dev`.
    - If clean (no conflicts), automatically merges `master-dev` and pushes the branch.
@@ -78,7 +87,20 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
 
 ---
 
-## 3. Per-Branch Health Check (`branch-sync-check.yaml`)
+## 3. On-Demand Branch Sync (`sync-branch-with-master-dev.yml`)
+
+- **File:** [`.github/workflows/sync-branch-with-master-dev.yml`](../../../.github/workflows/sync-branch-with-master-dev.yml)
+- **When is it called?**
+  - **Manual Trigger Only (`workflow_dispatch`):** Pick the branch to sync with "Use workflow from" in the Actions tab, then run it. No inputs required — the selected branch is the one that gets synced.
+- **Why does it exist?**
+  - The fleet-wide sync in `sync-upstream.yaml` already merges `master-dev` into every clean branch once a day, but that means waiting for the next cron run (or a maintainer triggering the whole fleet workflow) just to get one branch caught up.
+  - This is the GitHub UI equivalent of running `task modding-sync-branch -- --push` locally: it wraps `scripts/modding/sync_branch_with_master_dev.py --push`, which resolves the same deterministic README/doc/workflow conflicts the fleet-wide script resolves (see `scripts/modding/sync_common.py`), then pushes.
+  - **Merge only, never rebase.** A CI-triggered rebase would force-push over a branch's published history with nobody there to review the result first. Do that locally instead (`task modding-sync-branch -- --rebase`) if a linear history is actually needed.
+  - Refuses to run against `master` or `master-dev` (there is nothing to sync them with — they *are* the source).
+
+---
+
+## 4. Per-Branch Health Check (`branch-sync-check.yaml`)
 
 - **File:** [`.github/workflows/branch-sync-check.yaml`](../../../.github/workflows/branch-sync-check.yaml)
 - **When is it called?**
@@ -88,7 +110,7 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
   - GitHub Actions only runs scheduled cron jobs on the **default repository branch** (`master-dev`); it cannot evaluate a separate cron across 15+ mod branches.
   - This workflow provides an ultra-lightweight, 5-second check that powers each mod branch's native GitHub status badge (`?branch=jak2/features/...`).
   - It validates ancestry: `git merge-base --is-ancestor origin/master-dev HEAD`.
-  - If a developer pushes commits to a mod branch without syncing with `master-dev` first, the badge immediately turns red, signaling that a sync (`task modding-sync-branch`) is needed.
+  - If a developer pushes commits to a mod branch without syncing with `master-dev` first, the badge immediately turns red, signaling that a sync (`task modding-sync-branch`, or the `sync-branch-with-master-dev.yml` workflow) is needed.
 
 ### Worked example: pushing to a mod branch
 
@@ -105,12 +127,37 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
      [![Branch Sync Check](https://github.com/whozghiar/jak-project/actions/workflows/branch-sync-check.yaml/badge.svg?branch=jak2%2Ffeatures%2Fmy-mod)](https://github.com/whozghiar/jak-project/actions/workflows/branch-sync-check.yaml?query=branch%3Ajak2%2Ffeatures%2Fmy-mod)
      ```
      (the branch name is URL-encoded in the badge and link — `/` becomes `%2F`).
-   - **Ancestor check fails:** the step emits a `::error::` annotation, exits `1`, and the job fails, which turns the badge red. This happens when the developer committed and pushed without first merging the latest `master-dev`. The fix is to run `task modding-sync-branch`.
+   - **Ancestor check fails:** the step emits a `::error::` annotation, exits `1`, and the job fails, which turns the badge red. This happens when the developer committed and pushed without first merging the latest `master-dev`. The fix is to run `task modding-sync-branch`, or run the `sync-branch-with-master-dev.yml` workflow against that branch.
 5. **Caveat:** this workflow only re-runs on a push to the branch. If `master-dev` moves forward afterward and nobody pushes to `jak2/features/my-mod` again, the badge keeps showing its last result (green) — it does not turn red on its own just because `master-dev` advanced. To audit every branch's real mergeability at any time, regardless of recent push activity, run `task modding-branch-status`.
 
 ---
 
-## 4. Automated Release & Packaging (`release.yml`)
+## 5. Source Lint (`lint.yml`)
+
+- **File:** [`.github/workflows/lint.yml`](../../../.github/workflows/lint.yml)
+- **When is it called?**
+  - **On Push:** Every push, on every branch (this file is synced onto every mod branch, see `scripts/modding/sync_common.ALLOWED_MOD_BRANCH_WORKFLOWS`).
+  - **Manual Trigger:** via `workflow_dispatch`.
+- **Why does it exist?**
+  - Every check it runs finishes in seconds and needs no build — cheap enough to run on every single push without burning meaningful CI time.
+  - Runs `scripts/ci/lint-trailing-whitespace.py` (no trailing whitespace in `goal_src`), `scripts/ci/check-for-asserts.py` (no raw `assert()` in the C++ engine), `scripts/ci/lint-autoglottonyms.py` and `scripts/ci/lint-characters.py` (translation files stay within each game's allowed character set and never retranslate a language's own name), and `scripts/ci/lint-gsrc-removals.py` (fails if a diff against `origin/master` removes a line tagged `og:preserve-this` from `goal_src`).
+  - Read-only (`contents: read`) — it only reports, it never auto-fixes or commits anything.
+
+---
+
+## 6. Build Check (`build.yml`)
+
+- **File:** [`.github/workflows/build.yml`](../../../.github/workflows/build.yml)
+- **When is it called?**
+  - **Manual Trigger Only (`workflow_dispatch`):** Pick any branch that carries this file with "Use workflow from" in the Actions tab, then run it.
+- **Why does it exist?**
+  - Answers exactly one question — "does this branch still compile?" — for `gk`, `goalc`, and `extractor` on Windows (Clang-CL static) and Linux (Clang static), the same targets and presets `release.yml` builds.
+  - No packaging, no `index.json` update, no GitHub Release: it only uploads the raw binaries as short-lived (3-day) build artifacts so a maintainer can grab and sanity-check them.
+  - Kept manual rather than on every push on purpose: a full Release-config Windows+Linux build takes roughly 30-60 minutes, and this fork has 15+ active mod branches — running it automatically on every push across all of them would burn far more CI time than the check is worth. Run it before cutting a release, or whenever there is a reason to doubt a branch still builds.
+
+---
+
+## 7. Automated Release & Packaging (`release.yml`)
 
 - **File:** [`.github/workflows/release.yml`](../../../.github/workflows/release.yml)
 - **When is it called?**
@@ -119,6 +166,7 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
     - `mod_description`: Short summary included in `index.json`.
     - `tag_name`: Version tag (e.g. `v1.0.0`).
     - `prerelease`: Boolean flag.
+  - **Usable from any branch:** there is no `branches:` restriction on `workflow_dispatch` — pick any branch that carries this file (every mod branch does) with "Use workflow from" and run it directly, no need to be on `master`/`master-dev` first.
 - **Why does it exist?**
   - Eliminates "works on my machine" issues by building both **Windows** (Ninja + Clang) and **Linux** executables from clean source in isolated runners.
   - Bakes static libraries (`Release-windows-clang-static`, `Release-linux-clang-static`) so players do not need Visual C++ redistributables or missing shared libraries.
@@ -129,7 +177,9 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
 
 ---
 
-## 5. Bug Report Sync (`mod-bug-report-sync.yml`)
+## 8. Bug Report Sync (`mod-bug-report-sync.yml`)
+
+*Part of the **Bugs Actions** group — GitHub Actions has no native folder/section grouping in the Actions tab, so this workflow, `mod-bug-triage.yml`, and `mod-suggestion-triage.yml` share a `Bugs:` name prefix to cluster together in the (alphabetically sorted) workflow list.*
 
 - **File:** [`.github/workflows/mod-bug-report-sync.yml`](../../../.github/workflows/mod-bug-report-sync.yml)
 - **When is it called?**
@@ -142,7 +192,9 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
 
 ---
 
-## 6. Bug Triage & Auto-Labeling (`mod-bug-triage.yml`)
+## 9. Bug Triage & Auto-Labeling (`mod-bug-triage.yml`)
+
+*Part of the **Bugs Actions** group — see the note under §8.*
 
 - **File:** [`.github/workflows/mod-bug-triage.yml`](../../../.github/workflows/mod-bug-triage.yml)
 - **When is it called?**
@@ -156,25 +208,9 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
 
 ---
 
-## 7. Master Mod Catalog Sync (`sync-global-catalog.yml`)
+## 10. Mod Suggestion Auto-Triage (`mod-suggestion-triage.yml`)
 
-- **File:** [`.github/workflows/sync-global-catalog.yml`](../../../.github/workflows/sync-global-catalog.yml)
-- **When is it called?**
-  - **On Release:** Triggered automatically whenever a GitHub Release is `published`, `unpublished`, `edited`, or `deleted`.
-  - **Workflow Call:** Called directly at the end of the release pipeline (`release.yml`) to ensure instant catalog updates.
-  - **Manual Trigger:** via `workflow_dispatch` on `master-dev`.
-- **Why does it exist?**
-  - Rather than requiring players to manually find and add 15+ individual mod URLs in their OpenGOAL Launcher, the repository provides a single, consolidated master catalog ([`index.json`](../../../index.json) at the root of `master-dev`).
-  - This workflow automates catalog maintenance by running `scripts/modding/sync_global_catalog.py`:
-    1. Fetches all releases published across the repository via the GitHub REST API.
-    2. Downloads and parses individual release assets and catalogs.
-    3. Normalizes branch slugs and dedupes versions.
-    4. Aggregates all download URLs (Windows and Linux ZIPs, and standalone texture packs), SHA256 checksums, and cover artwork into a single OpenGOAL Launcher v1 compliant schema.
-    5. Commits and pushes the updated `index.json` directly to `master-dev`.
-
----
-
-## 8. Mod Suggestion Auto-Triage (`mod-suggestion-triage.yml`)
+*Part of the **Bugs Actions** group — see the note under §8.*
 
 - **File:** [`.github/workflows/mod-suggestion-triage.yml`](../../../.github/workflows/mod-suggestion-triage.yml)
 - **When is it called?**
@@ -189,14 +225,38 @@ In this repository, GitHub Actions workflows are engineered to solve two fundame
 
 ---
 
-## 9. Quick Reference Matrix
+## 11. Master Mod Catalog Sync (`sync-global-catalog.yml`)
+
+*Part of the **Catalog Mods** group — this workflow shares a `Catalog:` name prefix so it stands out in the Actions tab's workflow list; see the grouping note under §8.*
+
+- **File:** [`.github/workflows/sync-global-catalog.yml`](../../../.github/workflows/sync-global-catalog.yml)
+- **When is it called?**
+  - **On Release:** Triggered automatically whenever a GitHub Release is `published`, `unpublished`, `edited`, or `deleted`.
+  - **Workflow Call:** Called directly at the end of the release pipeline (`release.yml`) to ensure instant catalog updates.
+  - **Manual Trigger:** via `workflow_dispatch`.
+- **Why does it exist?**
+  - Rather than requiring players to manually find and add 15+ individual mod URLs in their OpenGOAL Launcher, the repository provides a single, consolidated master catalog ([`index.json`](../../../index.json) at the root of `master-dev`).
+  - **Master-dev only, regardless of trigger branch:** every job step explicitly checks out `ref: master-dev` and pushes back to `master-dev` — running it from a release cut on a mod branch never touches that branch's own `index.json`, only the global one.
+  - This workflow automates catalog maintenance by running `scripts/modding/sync_global_catalog.py`:
+    1. Fetches all releases published across the repository via the GitHub REST API.
+    2. Downloads and parses individual release assets and catalogs.
+    3. Normalizes branch slugs and dedupes versions.
+    4. Aggregates all download URLs (Windows and Linux ZIPs, and standalone texture packs), SHA256 checksums, and cover artwork into a single OpenGOAL Launcher v1 compliant schema.
+    5. Commits and pushes the updated `index.json` directly to `master-dev`.
+
+---
+
+## 12. Quick Reference Matrix
 
 | Workflow | Trigger | Permissions | Target Branch | Primary Outcome |
 | :--- | :--- | :--- | :--- | :--- |
 | `sync-upstream.yaml` | Schedule (daily 10:00 UTC) / dispatch | `contents: write` | `master`, `master-dev`, all clean `jak*/**` | Mirrors upstream, auto-merges clean branches, updates dashboard. |
+| `sync-branch-with-master-dev.yml` | Manual `workflow_dispatch` | `contents: write` | Any branch except `master`/`master-dev` | On-demand merge of `master-dev` into the selected branch, then push. |
 | `branch-sync-check.yaml` | Push on `jak[1-3]/**` / dispatch | `contents: read` | Current mod branch | Verifies ancestry with `master-dev`; drives GitHub status badge. |
-| `release.yml` | Manual `workflow_dispatch` | `contents: write` | Triggered mod branch | Builds Win/Linux binaries, packages texture packs, creates GitHub Release, updates `index.json`. |
-| `sync-global-catalog.yml` | Release events / workflow call / dispatch | `contents: write` | `master-dev` | Consolidates all released mods and texture packs into root `index.json` catalog. |
+| `lint.yml` | Push (any branch) / dispatch | `contents: read` | Any branch | Fast source checks: whitespace, forbidden `assert()`, translation chars/autoglottonyms, preserved `goal_src` markers. |
+| `build.yml` | Manual `workflow_dispatch` | `contents: read` | Any branch that carries the file | Compiles `gk`/`goalc`/`extractor` for Windows+Linux Release as a pure compile check; uploads binaries as build artifacts. |
+| `release.yml` | Manual `workflow_dispatch` | `contents: write` | Any branch that carries the file | Builds Win/Linux binaries, packages texture packs, creates GitHub Release, updates `index.json`. |
 | `mod-bug-report-sync.yml`| Release events / dispatch | `contents: write` | `master-dev` | Refreshes mod dropdown in bug report issue template. |
 | `mod-bug-triage.yml` | Issues (`opened`, `edited`) | `issues: write` | N/A (Repository issues) | Labels bug issues by game (`jak1|2|3`) and mod (`mod:<slug>`). |
 | `mod-suggestion-triage.yml` | Issues (`opened`, `edited` with `mod-suggestion`) | `issues: write` | N/A (Repository issues) | Labels mod suggestions by game and category (`type:*`). |
+| `sync-global-catalog.yml` | Release events / workflow call / dispatch | `contents: write` | `master-dev` | Consolidates all released mods and texture packs into root `index.json` catalog. |

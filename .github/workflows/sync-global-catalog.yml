@@ -1,4 +1,4 @@
-name: 📦 Sync Global Mod Catalog
+name: "Catalog: 📦 Sync Global Mod Catalog"
 
 # Regenerates root index.json on master-dev by aggregating all published GitHub Releases
 # into an OpenGOAL Launcher Mod Source Schema v1 compliant catalog.

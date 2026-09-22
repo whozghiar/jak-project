@@ -190,21 +190,28 @@ task modding-texture-gui                           # Launch OpenGOAL Texture Pac
 
 ## 6. CI/CD & GitHub Actions Workflows
 
-The repository relies on 7 specialized GitHub Actions workflows. For the
+The repository relies on 10 specialized GitHub Actions workflows. For the
 full trigger and behavior detail, see
 [GitHub Actions Workflows Guide](docs/modding/guides/github_workflows.md).
 
 1. `sync-upstream.yaml` — daily sync from upstream OpenGOAL into `master`
    and `master-dev`, auto-merges clean mod branches.
-2. `branch-sync-check.yaml` — lightweight ancestry check that drives each
+2. `sync-branch-with-master-dev.yml` — manual, single-branch merge of
+   `master-dev` on demand, without waiting for the daily cron.
+3. `branch-sync-check.yaml` — lightweight ancestry check that drives each
    mod branch's status badge.
-3. `release.yml` — manual trigger that builds and publishes a mod release.
-4. `mod-bug-report-sync.yml` — keeps the bug report form's mod dropdown
+4. `lint.yml` — fast source checks (whitespace, forbidden asserts,
+   translation chars) on every push, on every branch.
+5. `build.yml` — manual compile check (gk/goalc/extractor, Windows+Linux)
+   usable from any branch, no packaging.
+6. `release.yml` — manual trigger that builds and publishes a mod release,
+   usable from any branch.
+7. `mod-bug-report-sync.yml` — keeps the bug report form's mod dropdown
    aligned with published releases.
-5. `mod-bug-triage.yml` — auto-labels bug report issues by game and mod.
-6. `sync-global-catalog.yml` — rebuilds the root `index.json` launcher
-   catalog from published releases.
-7. `mod-suggestion-triage.yml` — auto-labels community mod suggestions.
+8. `mod-bug-triage.yml` — auto-labels bug report issues by game and mod.
+9. `mod-suggestion-triage.yml` — auto-labels community mod suggestions.
+10. `sync-global-catalog.yml` — rebuilds the root `index.json` launcher
+    catalog from published releases, master-dev only.
 
 ---
 

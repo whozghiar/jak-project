@@ -1,4 +1,4 @@
-name: 💡 Mod Suggestion Auto-Triage
+name: "Bugs: 💡 Mod Suggestion Auto-Triage"
 
 on:
   issues:

@@ -60,7 +60,7 @@ jobs:
       - name: Sync master-dev with master
         id: sync_master_dev
         run: |
-          allowed_workflows=(".github/workflows/sync-upstream.yaml" ".github/workflows/release.yml" ".github/workflows/branch-sync-check.yaml" ".github/workflows/sync-global-catalog.yml" ".github/workflows/mod-bug-report-sync.yml" ".github/workflows/mod-bug-triage.yml" ".github/workflows/mod-suggestion-triage.yml")
+          allowed_workflows=(".github/workflows/sync-upstream.yaml" ".github/workflows/release.yml" ".github/workflows/branch-sync-check.yaml" ".github/workflows/sync-global-catalog.yml" ".github/workflows/mod-bug-report-sync.yml" ".github/workflows/mod-bug-triage.yml" ".github/workflows/mod-suggestion-triage.yml" ".github/workflows/lint.yml" ".github/workflows/build.yml" ".github/workflows/sync-branch-with-master-dev.yml")
 
           echo "Checking out master-dev..."
           git checkout master-dev

@@ -8,9 +8,18 @@ name: "Catalog: 📦 Sync Global Mod Catalog"
 # and have all published mods appear at once with 1-click install.
 #
 # Triggers:
-# - Whenever a release is published, unpublished, edited, or deleted on GitHub
-# - workflow_call: can be invoked directly from release.yml
+# - Whenever a release is published, unpublished, edited, or deleted directly
+#   through the GitHub UI/API by a human (a release created by release.yml's
+#   own GITHUB_TOKEN does not fire this - see its "Trigger Downstream Syncs"
+#   step, which calls this workflow explicitly instead)
+# - workflow_call: available for a future reusable-workflow `uses:` invocation;
+#   nothing calls it that way today - release.yml uses `gh workflow run`
+#   (workflow_dispatch) instead, see its own header comment
 # - workflow_dispatch: manual execution anytime from the Actions tab
+#
+# Restricted to the repository owner or release.yml's own internal automation
+# (see the "Restrict to repository owner or internal automation" step) - this
+# pushes to master-dev, so nobody else may trigger it directly.
 
 on:
   release:
@@ -25,16 +34,23 @@ jobs:
   sync-catalog:
     name: "📦 Refresh Global index.json from Releases"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
+      - name: Restrict to repository owner or internal automation
+        if: github.actor != github.repository_owner && github.actor != 'github-actions[bot]'
+        run: |
+          echo "::error::This workflow may only be run by the repository owner (${{ github.repository_owner }}) or internal automation. Triggered by: ${{ github.actor }}."
+          exit 1
+
       - name: Checkout master-dev
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: master-dev
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'
 

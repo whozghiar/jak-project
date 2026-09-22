@@ -7,6 +7,14 @@ name: "Bugs: 🐛 Mod Bug Auto-Triage"
 # fixes it on that mod's branch with `Fixes #<issue>` in the commit, and the
 # issue auto-closes when that commit lands on the branch's default merge
 # target. See docs/modding/guides/mod_bug_tracking.md for the full workflow.
+#
+# Deliberately NOT restricted to the repository owner: this exists to triage
+# bug reports from players and community contributors, so it has to react to
+# anyone opening an issue. It only reads the issue body and applies labels
+# (issues: write, nothing else) - low blast radius even if abused. It reads
+# `context.payload.issue.body` inside actions/github-script's JS sandbox
+# rather than interpolating it into the YAML via `${{ }}`, which avoids the
+# classic script-injection risk of untrusted issue text.
 
 on:
   issues:
@@ -19,9 +27,10 @@ jobs:
   label-mod-bug:
     if: contains(github.event.issue.labels.*.name, 'mod-bug')
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Derive game + mod labels from the form answers
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const body = context.payload.issue.body || "";

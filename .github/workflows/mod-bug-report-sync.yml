@@ -5,6 +5,16 @@ name: "Bugs: 🏷️ Sync Mod Bug Report Options"
 # happens to say, since that file can carry a real-looking checksummed version even when
 # no release was ever actually published (a local/dry run, a release later deleted, ...).
 # See scripts/modding/sync_bug_report_options.py and docs/modding/guides/mod_bug_tracking.md.
+#
+# Triggered directly by a human publishing/editing/deleting a release through
+# the GitHub UI/API, or explicitly by release.yml's own "Trigger Downstream
+# Syncs" step (a release created with GITHUB_TOKEN, as release.yml's is,
+# never fires another workflow's `on: release` listener - that step exists to
+# work around exactly that).
+#
+# Restricted to the repository owner or release.yml's own internal automation
+# (see the "Restrict to repository owner or internal automation" step) - this
+# pushes to master-dev, so nobody else may trigger it directly.
 
 on:
   release:
@@ -18,16 +28,23 @@ jobs:
   sync-options:
     name: "🔄 Refresh Mod Concerned dropdown from Releases"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
+      - name: Restrict to repository owner or internal automation
+        if: github.actor != github.repository_owner && github.actor != 'github-actions[bot]'
+        run: |
+          echo "::error::This workflow may only be run by the repository owner (${{ github.repository_owner }}) or internal automation. Triggered by: ${{ github.actor }}."
+          exit 1
+
       - name: Checkout master-dev
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: master-dev
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'
 

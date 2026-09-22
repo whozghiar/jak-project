@@ -7,6 +7,7 @@
 ## Table of Contents
 
 - [1. CI/CD Architecture & Mental Model](#1-cicd-architecture--mental-model)
+  - [Access Control](#access-control)
 - [2. Upstream & Dev Synchronization (`sync-upstream.yaml`)](#2-upstream--dev-synchronization-sync-upstreamyaml)
 - [3. On-Demand Branch Sync (`sync-branch-with-master-dev.yml`)](#3-on-demand-branch-sync-sync-branch-with-master-devyml)
 - [4. Per-Branch Health Check (`branch-sync-check.yaml`)](#4-per-branch-health-check-branch-sync-checkyaml)
@@ -62,6 +63,20 @@ In this repository, GitHub Actions workflows are engineered to solve three funda
 
 `sync-upstream.yaml` stops at `master-dev` — it never touches mod branches. Catching up `origin/jak2/features/my-mod` (or any other mod branch) with `master-dev` is always a deliberate action: `sync-branch-with-master-dev.yml` for one branch from the Actions tab, or `task modding-branch-status -- --push` locally for every clean branch in one pass. `build.yml` (manual compile check) is the other on-demand tool that sits outside this pipeline, usable from any branch that carries the file.
 
+### Access Control
+
+Six of the ten workflows push commits, publish releases, or spend real CI minutes, so each one starts with an explicit actor check (a dedicated `authorize` job every other job `needs:`, or an early step in a single-job workflow) rather than relying only on GitHub's own "write access required to dispatch" rule:
+
+- **Repository owner only** (`github.actor == github.repository_owner`): `sync-upstream.yaml`, `sync-branch-with-master-dev.yml`, `build.yml`, `release.yml`.
+- **Repository owner, or `release.yml`'s own internal automation** (`github.actor == github.repository_owner || github.actor == 'github-actions[bot]'`): `sync-global-catalog.yml`, `mod-bug-report-sync.yml`. Both are also chain-triggered by `release.yml`'s "Trigger Downstream Syncs" step via `gh workflow run`, which dispatches as `github-actions[bot]`, not as the human who ran `release.yml` — the check has to let that through.
+
+An unauthorized run fails immediately with a clear `::error::` annotation naming who triggered it, instead of silently skipping or (worse) silently succeeding at nothing.
+
+The other four workflows are **deliberately left open**, not overlooked:
+
+- `mod-bug-triage.yml` and `mod-suggestion-triage.yml` exist specifically to triage issues opened by players and community contributors — restricting them to the owner would defeat their entire purpose. Their blast radius is narrow even if abused: `issues: write` only, and they read `context.payload.issue.body` inside `actions/github-script`'s JS sandbox rather than interpolating it into YAML, which avoids the classic script-injection risk of untrusted issue text.
+- `branch-sync-check.yaml` and `lint.yml` trigger on `push`, which already requires write access to the repository — GitHub itself, not the workflow file, is what restricts who can fire them. Both are also read-only (`contents: read`).
+
 ---
 
 ## 2. Upstream & Dev Synchronization (`sync-upstream.yaml`)
@@ -69,7 +84,7 @@ In this repository, GitHub Actions workflows are engineered to solve three funda
 - **File:** [`.github/workflows/sync-upstream.yaml`](../../../.github/workflows/sync-upstream.yaml)
 - **When is it called?**
   - **Scheduled Cron:** Daily at `10:00 UTC` (`12:00` Paris summer time).
-  - **Manual Trigger:** Any maintainer can trigger it via `workflow_dispatch` from the GitHub Actions tab.
+  - **Manual Trigger:** The repository owner can trigger it via `workflow_dispatch` from the GitHub Actions tab (see [Access Control](#access-control)).
 - **Why does it exist?**
   - Prevents our fork from drifting away from upstream bug fixes, compiler enhancements, and engine optimizations.
   - Keeps `master-dev` (the base every mod branch is created from and synced against) current with `master`, without ever touching a mod branch directly.
@@ -87,7 +102,7 @@ To catch mod branches up with the newly-updated `master-dev`, see §3 (one branc
 
 - **File:** [`.github/workflows/sync-branch-with-master-dev.yml`](../../../.github/workflows/sync-branch-with-master-dev.yml)
 - **When is it called?**
-  - **Manual Trigger Only (`workflow_dispatch`):** Pick the branch to sync with "Use workflow from" in the Actions tab, then run it. No inputs required — the selected branch is the one that gets synced.
+  - **Manual Trigger Only (`workflow_dispatch`), repository owner only** (see [Access Control](#access-control)): pick the branch to sync with "Use workflow from" in the Actions tab, then run it. No inputs required — the selected branch is the one that gets synced.
 - **Why does it exist?**
   - `sync-upstream.yaml` (§2) no longer touches mod branches automatically — this is the primary, day-to-day way a mod branch actually gets `master-dev`'s changes, straight from the Actions tab, without needing a local checkout.
   - This is the GitHub UI equivalent of running `task modding-sync-branch -- --push` locally: it wraps `scripts/modding/sync_branch_with_master_dev.py --push`, which resolves the same deterministic README/doc/workflow conflicts the fleet-wide script resolves (see `scripts/modding/sync_common.py`), then pushes.
@@ -145,7 +160,7 @@ To catch mod branches up with the newly-updated `master-dev`, see §3 (one branc
 
 - **File:** [`.github/workflows/build.yml`](../../../.github/workflows/build.yml)
 - **When is it called?**
-  - **Manual Trigger Only (`workflow_dispatch`):** Pick any branch that carries this file with "Use workflow from" in the Actions tab, then run it.
+  - **Manual Trigger Only (`workflow_dispatch`), repository owner only** (see [Access Control](#access-control)): pick any branch that carries this file with "Use workflow from" in the Actions tab, then run it.
 - **Why does it exist?**
   - Answers exactly one question — "does this branch still compile?" — for `gk`, `goalc`, and `extractor` on Windows (Clang-CL static) and Linux (Clang static), the same targets and presets `release.yml` builds.
   - No packaging, no `index.json` update, no GitHub Release: it only uploads the raw binaries as short-lived (3-day) build artifacts so a maintainer can grab and sanity-check them.
@@ -157,7 +172,7 @@ To catch mod branches up with the newly-updated `master-dev`, see §3 (one branc
 
 - **File:** [`.github/workflows/release.yml`](../../../.github/workflows/release.yml)
 - **When is it called?**
-  - **Manual Trigger Only (`workflow_dispatch`):** Maintainers trigger it from GitHub Actions with required inputs:
+  - **Manual Trigger Only (`workflow_dispatch`), repository owner only** (see [Access Control](#access-control)): triggered from GitHub Actions with required inputs:
     - `mod_name`: Display name (e.g. `Jak 3 JetBoard in Jak 1`).
     - `mod_description`: Short summary included in `index.json`.
     - `tag_name`: Version tag (e.g. `v1.0.0`).
@@ -169,7 +184,8 @@ To catch mod branches up with the newly-updated `master-dev`, see §3 (one branc
   - Automatically packages the required runtime structure (`gk`, `goalc`, `extractor`, `data/`).
   - **Standalone Texture Pack Packaging:** Automatically scans `docs/modding/current_mod/texture_packs/` for any packaged texture pack `.zip` files, computes their checksums, attaches them as release assets, and registers them under `"texturePacks"` in `index.json`.
   - Computes SHA256 checksums across all assets (`SHA256SUMS.txt`) and updates the mod's `index.json` catalog file, committing it directly back to the branch so the OpenGOAL Launcher immediately detects the update.
-  - **Automated Catalog Synchronization:** Automatically invokes `sync-global-catalog.yml` via `workflow_call` at the conclusion of the job, ensuring the unified catalog on `master-dev` is regenerated immediately.
+  - **Automated Downstream Syncs:** the final step runs `gh workflow run` (a `workflow_dispatch` call, not a reusable-workflow `workflow_call`) against both `sync-global-catalog.yml` and `mod-bug-report-sync.yml` on `master-dev`. This is necessary, not a belt-and-suspenders extra: this job authenticates as `GITHUB_TOKEN`, and GitHub does not let `GITHUB_TOKEN`-authored actions trigger other workflows' event listeners (it would recurse otherwise) — so those two workflows' own `on: release:` triggers never actually fire from a release published here. The `publish` job needs `actions: write` (in addition to `contents: write`) specifically for these two calls to succeed.
+- **Permissions, scoped per job:** the workflow defaults to `contents: read`; only the `publish` job (the one that pushes `index.json` and creates the release) escalates to `contents: write` + `actions: write`. `check_mode`, `build-windows`, and `build-linux` never need write access.
 
 ---
 
@@ -179,8 +195,9 @@ To catch mod branches up with the newly-updated `master-dev`, see §3 (one branc
 
 - **File:** [`.github/workflows/mod-bug-report-sync.yml`](../../../.github/workflows/mod-bug-report-sync.yml)
 - **When is it called?**
-  - **On Release:** Triggered whenever a GitHub Release is `published`, `unpublished`, `edited`, or `deleted`.
+  - **On Release:** Triggered when a GitHub Release is `published`, `unpublished`, `edited`, or `deleted` directly by a human through the GitHub UI/API. A release created by `release.yml` (which uses `GITHUB_TOKEN`) does not fire this trigger — `release.yml`'s own "Trigger Downstream Syncs" step calls this workflow explicitly instead (see §7).
   - **Manual Trigger:** via `workflow_dispatch`.
+  - **Restricted to the repository owner, or `release.yml`'s own internal automation** (see [Access Control](#access-control)).
 - **Why does it exist?**
   - In our GitHub Issue form (`mod-bug-report.yml`), players choose which mod their issue concerns from a dropdown list.
   - A branch may have an `index.json` committed during local testing without having an actual published release.
@@ -227,9 +244,11 @@ To catch mod branches up with the newly-updated `master-dev`, see §3 (one branc
 
 - **File:** [`.github/workflows/sync-global-catalog.yml`](../../../.github/workflows/sync-global-catalog.yml)
 - **When is it called?**
-  - **On Release:** Triggered automatically whenever a GitHub Release is `published`, `unpublished`, `edited`, or `deleted`.
-  - **Workflow Call:** Called directly at the end of the release pipeline (`release.yml`) to ensure instant catalog updates.
+  - **On Release:** Triggered when a GitHub Release is `published`, `unpublished`, `edited`, or `deleted` directly by a human through the GitHub UI/API — same `GITHUB_TOKEN` caveat as §8: a release published by `release.yml` itself does not fire this trigger.
+  - **`workflow_call`:** declared as an available trigger for a future reusable-workflow `uses:` invocation. Nothing calls it that way today.
+  - **Chained from `release.yml`:** the actual mechanism that keeps this in sync after every release is `release.yml`'s "Trigger Downstream Syncs" step calling `gh workflow run sync-global-catalog.yml` (a `workflow_dispatch` invocation, dispatched as `github-actions[bot]`) — see §7.
   - **Manual Trigger:** via `workflow_dispatch`.
+  - **Restricted to the repository owner, or `release.yml`'s own internal automation** (see [Access Control](#access-control)).
 - **Why does it exist?**
   - Rather than requiring players to manually find and add 15+ individual mod URLs in their OpenGOAL Launcher, the repository provides a single, consolidated master catalog ([`index.json`](../../../index.json) at the root of `master-dev`).
   - **Master-dev only, regardless of trigger branch:** every job step explicitly checks out `ref: master-dev` and pushes back to `master-dev` — running it from a release cut on a mod branch never touches that branch's own `index.json`, only the global one.
@@ -244,15 +263,15 @@ To catch mod branches up with the newly-updated `master-dev`, see §3 (one branc
 
 ## 12. Quick Reference Matrix
 
-| Workflow | Trigger | Permissions | Target Branch | Primary Outcome |
-| :--- | :--- | :--- | :--- | :--- |
-| `sync-upstream.yaml` | Schedule (daily 10:00 UTC) / dispatch | `contents: write` | `master`, `master-dev` only | Fast-forwards `master` from upstream, merges it into `master-dev`. Never touches mod branches. |
-| `sync-branch-with-master-dev.yml` | Manual `workflow_dispatch` | `contents: write` | Any branch except `master`/`master-dev` | On-demand merge of `master-dev` into the selected branch, then push. |
-| `branch-sync-check.yaml` | Push on `jak[1-3]/**` / dispatch | `contents: read` | Current mod branch | Verifies ancestry with `master-dev`; drives GitHub status badge. |
-| `lint.yml` | Push (any branch) / dispatch | `contents: read` | Any branch | Fast source checks: whitespace, forbidden `assert()`, translation chars/autoglottonyms, preserved `goal_src` markers. |
-| `build.yml` | Manual `workflow_dispatch` | `contents: read` | Any branch that carries the file | Compiles `gk`/`goalc`/`extractor` for Windows+Linux Release as a pure compile check; uploads binaries as build artifacts. |
-| `release.yml` | Manual `workflow_dispatch` | `contents: write` | Any branch that carries the file | Builds Win/Linux binaries, packages texture packs, creates GitHub Release, updates `index.json`. |
-| `mod-bug-report-sync.yml`| Release events / dispatch | `contents: write` | `master-dev` | Refreshes mod dropdown in bug report issue template. |
-| `mod-bug-triage.yml` | Issues (`opened`, `edited`) | `issues: write` | N/A (Repository issues) | Labels bug issues by game (`jak1|2|3`) and mod (`mod:<slug>`). |
-| `mod-suggestion-triage.yml` | Issues (`opened`, `edited` with `mod-suggestion`) | `issues: write` | N/A (Repository issues) | Labels mod suggestions by game and category (`type:*`). |
-| `sync-global-catalog.yml` | Release events / workflow call / dispatch | `contents: write` | `master-dev` | Consolidates all released mods and texture packs into root `index.json` catalog. |
+| Workflow | Trigger | Who Can Trigger | Permissions | Target Branch | Primary Outcome |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `sync-upstream.yaml` | Schedule (daily 10:00 UTC) / dispatch | Owner only | `contents: write` | `master`, `master-dev` only | Fast-forwards `master` from upstream, merges it into `master-dev`. Never touches mod branches. |
+| `sync-branch-with-master-dev.yml` | Manual `workflow_dispatch` | Owner only | `contents: write` | Any branch except `master`/`master-dev` | On-demand merge of `master-dev` into the selected branch, then push. |
+| `branch-sync-check.yaml` | Push on `jak[1-3]/**` / dispatch | Anyone with write access (push already requires it) | `contents: read` | Current mod branch | Verifies ancestry with `master-dev`; drives GitHub status badge. |
+| `lint.yml` | Push (any branch) / dispatch | Anyone with write access (push already requires it) | `contents: read` | Any branch | Fast source checks: whitespace, forbidden `assert()`, translation chars/autoglottonyms, preserved `goal_src` markers. |
+| `build.yml` | Manual `workflow_dispatch` | Owner only | `contents: read` | Any branch that carries the file | Compiles `gk`/`goalc`/`extractor` for Windows+Linux Release as a pure compile check; uploads binaries as build artifacts. |
+| `release.yml` | Manual `workflow_dispatch` | Owner only | `contents: read` (`contents: write` + `actions: write` on `publish` only) | Any branch that carries the file | Builds Win/Linux binaries, packages texture packs, creates GitHub Release, updates `index.json`. |
+| `mod-bug-report-sync.yml`| Release events / dispatch | Owner, or `release.yml`'s internal automation | `contents: write` | `master-dev` | Refreshes mod dropdown in bug report issue template. |
+| `mod-bug-triage.yml` | Issues (`opened`, `edited`) | Anyone (by design — see [Access Control](#access-control)) | `issues: write` | N/A (Repository issues) | Labels bug issues by game (`jak1|2|3`) and mod (`mod:<slug>`). |
+| `mod-suggestion-triage.yml` | Issues (`opened`, `edited` with `mod-suggestion`) | Anyone (by design — see [Access Control](#access-control)) | `issues: write` | N/A (Repository issues) | Labels mod suggestions by game and category (`type:*`). |
+| `sync-global-catalog.yml` | Release events / workflow call / dispatch | Owner, or `release.yml`'s internal automation | `contents: write` | `master-dev` | Consolidates all released mods and texture packs into root `index.json` catalog. |

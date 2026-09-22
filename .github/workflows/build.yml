@@ -7,21 +7,40 @@ name: 🛠️ Build Check
 # file (every mod branch does, see scripts/modding/sync_common.py), and run
 # it. This never packages or publishes anything, it only confirms the
 # project builds cleanly and uploads the raw binaries as build artifacts.
+#
+# Restricted to the repository owner (see the `authorize` job) - a full
+# Windows+Linux build burns real CI minutes, so only the owner may trigger
+# it, regardless of who else has write access.
 
 on:
   workflow_dispatch:
+
+concurrency:
+  group: build-check-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
+  authorize:
+    name: "🔒 Verify Authorized Actor"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restrict to repository owner
+        if: github.actor != github.repository_owner
+        run: |
+          echo "::error::This workflow may only be run by the repository owner (${{ github.repository_owner }}). Triggered by: ${{ github.actor }}."
+          exit 1
+
   build-windows:
     name: "🖥️ Windows (Clang-CL Static)"
+    needs: authorize
     runs-on: windows-2022
     timeout-minutes: 60
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: false
           fetch-depth: 0
@@ -30,14 +49,14 @@ jobs:
         run: choco install nasm
 
       - name: Setup sccache
-        uses: hendrikmuhs/ccache-action@v1.2
+        uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2
         with:
           variant: sccache
           key: windows-build-check-static-${{ github.sha }}
           restore-keys: windows-build-check-static-
 
       - name: Setup MSVC Command Prompt
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
 
       - name: Remove Strawberry Perl from PATH
         run: |
@@ -56,7 +75,7 @@ jobs:
         run: cmake --build build --config Release --target gk --target goalc --target extractor --parallel %NUMBER_OF_PROCESSORS%
 
       - name: Upload Windows Binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: build-check-windows
           path: |
@@ -68,11 +87,12 @@ jobs:
 
   build-linux:
     name: "🐧 Linux (Clang Static)"
+    needs: authorize
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: false
           fetch-depth: 0
@@ -85,7 +105,7 @@ jobs:
             libxi-dev libgl1-mesa-dev libssl-dev ninja-build zip
 
       - name: Setup sccache
-        uses: hendrikmuhs/ccache-action@v1.2
+        uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2
         with:
           variant: sccache
           key: linux-build-check-static-${{ github.sha }}
@@ -110,7 +130,7 @@ jobs:
           strip build/decompiler/extractor
 
       - name: Upload Linux Binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: build-check-linux
           path: |

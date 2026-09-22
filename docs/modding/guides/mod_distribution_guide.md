@@ -77,6 +77,11 @@ The `.github/workflows/release.yml` workflow lives on `master-dev` and is synced
 > `mod_description`, `tag_name` are all **mandatory** — no more auto-detection or
 > `auto` value: you decide the name, description and version number that ship to
 > players.
+>
+> **Repository owner only.** The workflow checks `github.actor` against the
+> repository owner before doing anything else — write access to push a branch is
+> not enough to trigger a release. See
+> [GitHub Actions Workflows Guide § Access Control](github_workflows.md#access-control).
 
 ### Triggering it — via GitHub Actions or the `gh` CLI
 

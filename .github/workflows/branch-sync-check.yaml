@@ -10,12 +10,13 @@ name: 🔗 Branch Sync Health Check
 # Why "on: push" and not "on: schedule": GitHub Actions only ever evaluates a
 # scheduled (cron) trigger from the repository's default branch — there is no
 # way to cron this separately on ~20 mod branches. `push` is the next best
-# signal: it fires right after sync_branches_with_master.py auto-merges and
-# pushes to a branch (so in the common case the badge re-confirms itself
-# every day), and it also fires — and can go red — if someone pushes their
-# own commits to the branch without syncing first. What it cannot do is turn
-# red purely because master-dev moved on without any new push landing here;
-# to audit fleet-wide mergeability at any time, run 'task modding-branch-status'.
+# signal: it fires right after a sync-branch-with-master-dev.yml run (or a
+# local `task modding-sync-branch -- --push`) pushes to a branch, so the
+# badge re-confirms itself the moment someone actually syncs it, and it also
+# fires — and can go red — if someone pushes their own commits to the branch
+# without syncing first. What it cannot do is turn red purely because
+# master-dev moved on without any new push landing here; to audit fleet-wide
+# mergeability at any time, run 'task modding-branch-status'.
 
 on:
   push:
@@ -30,9 +31,10 @@ jobs:
   check-sync:
     name: "🔗 Caught up with master-dev?"
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout Branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
@@ -46,6 +48,6 @@ jobs:
           if git merge-base --is-ancestor "$TARGET_REF" HEAD; then
             echo "✅ This branch includes the latest master-dev ($TARGET_REF)."
           else
-            echo "::error::This branch has not merged the latest origin/master-dev yet ($TARGET_REF). Run 'task modding-sync-branch', or wait for the next automated sync."
+            echo "::error::This branch has not merged the latest origin/master-dev yet ($TARGET_REF). Run 'task modding-sync-branch -- --push', or trigger the sync-branch-with-master-dev.yml workflow against this branch."
             exit 1
           fi

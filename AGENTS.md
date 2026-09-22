@@ -194,25 +194,36 @@ The repository relies on 10 specialized GitHub Actions workflows. For the
 full trigger and behavior detail, see
 [GitHub Actions Workflows Guide](docs/modding/guides/github_workflows.md).
 
-1. `sync-upstream.yaml` — daily sync from upstream OpenGOAL into `master`
-   and `master-dev` only; does not touch mod branches.
-2. `sync-branch-with-master-dev.yml` — manual, single-branch merge of
-   `master-dev` on demand; the only way a mod branch gets `master-dev`'s
-   changes now that `sync-upstream.yaml` no longer auto-merges branches.
+Six of the ten (any workflow that pushes, releases, or spends real CI
+minutes) are restricted to the repository owner specifically, not just
+"anyone with write access" — see the guide's Access Control section. The
+remaining four (`branch-sync-check.yaml`, `lint.yml` on push; `mod-bug-triage.yml`,
+`mod-suggestion-triage.yml` on issues) are deliberately left open: the two
+triage workflows exist to react to community-submitted issues, and the two
+push-triggered checks are already scoped by GitHub's own write-access
+requirement for `push`.
+
+1. `sync-upstream.yaml` (owner only) — daily sync from upstream OpenGOAL
+   into `master` and `master-dev` only; does not touch mod branches.
+2. `sync-branch-with-master-dev.yml` (owner only) — manual, single-branch
+   merge of `master-dev` on demand; the only way a mod branch gets
+   `master-dev`'s changes now that `sync-upstream.yaml` no longer
+   auto-merges branches.
 3. `branch-sync-check.yaml` — lightweight ancestry check that drives each
    mod branch's status badge.
 4. `lint.yml` — fast source checks (whitespace, forbidden asserts,
    translation chars) on every push, on every branch.
-5. `build.yml` — manual compile check (gk/goalc/extractor, Windows+Linux)
-   usable from any branch, no packaging.
-6. `release.yml` — manual trigger that builds and publishes a mod release,
-   usable from any branch.
-7. `mod-bug-report-sync.yml` — keeps the bug report form's mod dropdown
-   aligned with published releases.
+5. `build.yml` (owner only) — manual compile check (gk/goalc/extractor,
+   Windows+Linux) usable from any branch, no packaging.
+6. `release.yml` (owner only) — manual trigger that builds and publishes a
+   mod release, usable from any branch.
+7. `mod-bug-report-sync.yml` (owner, or `release.yml`'s own automation) —
+   keeps the bug report form's mod dropdown aligned with published releases.
 8. `mod-bug-triage.yml` — auto-labels bug report issues by game and mod.
 9. `mod-suggestion-triage.yml` — auto-labels community mod suggestions.
-10. `sync-global-catalog.yml` — rebuilds the root `index.json` launcher
-    catalog from published releases, master-dev only.
+10. `sync-global-catalog.yml` (owner, or `release.yml`'s own automation) —
+    rebuilds the root `index.json` launcher catalog from published releases,
+    master-dev only.
 
 ---
 

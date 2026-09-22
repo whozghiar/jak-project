@@ -5,43 +5,71 @@ name: 🚀 Build & Release OpenGOAL Mod Package
 # this file (every mod branch does, see scripts/modding/sync_common.py) can
 # be picked with "Use workflow from" in the Actions tab and released
 # directly, no need to be on master/master-dev first.
+#
+# Restricted to the repository owner (see the `authorize` job) - this builds
+# and publishes real, player-facing binaries and pushes to the repo, so only
+# the owner may trigger it, regardless of who else has write access.
 
 on:
   workflow_dispatch:
     inputs:
       mod_name:
-        description: 'Nom d''affichage du mod (obligatoire, ex: Jak 3 JetBoard)'
+        description: 'Mod display name (required, e.g. Jak 3 JetBoard)'
         required: true
       mod_description:
-        description: 'Descriptif court du mod, obligatoire (inclus tel quel dans index.json)'
+        description: 'Short mod description, required (included as-is in index.json)'
         required: true
       tag_name:
-        description: 'Tag de version du mod, obligatoire (ex: v1.0.0)'
+        description: 'Mod version tag, required (e.g. v1.0.0)'
         required: true
       prerelease:
-        description: 'Marquer comme pré-release'
+        description: 'Mark as pre-release'
         type: boolean
         default: false
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   # =========================================================================
-  # 0. RÉSOLUTION DE VERSION / MÉTADONNÉES
+  # OWNER-ONLY GATE
   #
-  # Ce workflow ne propose plus de choix "recompiler ou pas" : une release
-  # reconstruit systématiquement Windows + Linux depuis les sources. C'est un
-  # choix assumé — un mod livré sans jamais être passé par une compilation
-  # complète est exactement le genre de release qu'on ne veut pas distribuer
-  # aux joueurs. Le nom du mod, sa description et son tag de version sont
-  # `required: true` côté `workflow_dispatch` (voir plus haut) : il n'y a donc
-  # plus de détection/valeur "auto" à résoudre ici, seulement les métadonnées
-  # explicitement fournies par la personne qui déclenche la release.
+  # workflow_dispatch already requires write access to see/trigger this
+  # workflow, but that only means "any collaborator with write access" - this
+  # narrows it further to specifically the repository owner. Every other job
+  # depends on this one (directly or transitively via check_mode), so an
+  # unauthorized actor never gets as far as checking out the repo.
+  # =========================================================================
+  authorize:
+    name: "🔒 Verify Authorized Actor"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restrict to repository owner
+        if: github.actor != github.repository_owner
+        run: |
+          echo "::error::This workflow may only be run by the repository owner (${{ github.repository_owner }}). Triggered by: ${{ github.actor }}."
+          exit 1
+
+  # =========================================================================
+  # 0. VERSION / METADATA RESOLUTION
+  #
+  # This workflow no longer offers a "recompile or not" choice: a release
+  # always rebuilds Windows + Linux from source. That is a deliberate choice
+  # - a mod shipped without ever going through a full compile is exactly the
+  # kind of release we don't want to distribute to players. The mod name,
+  # description and version tag are `required: true` on workflow_dispatch
+  # (see above), so there is no "auto" value to detect here, only the
+  # metadata explicitly provided by whoever triggers the release.
   # =========================================================================
   check_mode:
-    name: "🔍 Résolution de la Version & des Métadonnées"
+    name: "🔍 Resolve Version & Metadata"
+    needs: authorize
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       release_tag: ${{ steps.meta.outputs.release_tag }}
       display_name: ${{ steps.meta.outputs.display_name }}
@@ -49,28 +77,29 @@ jobs:
       target_branch: ${{ steps.meta.outputs.target_branch }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: false
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'
 
-      - name: Résolution de la Version et Métadonnées
+      - name: Resolve Version and Metadata
         id: meta
         env:
           INPUT_MOD_NAME: ${{ github.event.inputs.mod_name }}
           INPUT_MOD_DESC: ${{ github.event.inputs.mod_description }}
+          INPUT_TAG_NAME: ${{ github.event.inputs.tag_name }}
         run: |
           TARGET_BRANCH="${{ github.ref_name }}"
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            # Tag détecté : identifier la branche origin/jak* associée
+            # Tag detected: identify the associated origin/jak* branch
             RESOLVED=$(git branch -r --contains HEAD | grep -E 'origin/jak[123]/' | head -n 1 | sed 's/^[[:space:]]*origin\///')
             if [ -n "$RESOLVED" ]; then
-              echo "Tag détecté (${{ github.ref_name }}), branche parente résolue : $RESOLVED"
+              echo "Tag detected (${{ github.ref_name }}), resolved parent branch: $RESOLVED"
               TARGET_BRANCH="$RESOLVED"
             fi
           fi
@@ -78,13 +107,13 @@ jobs:
 
           python ./scripts/modding/update_mod_catalog.py \
             --branch "$TARGET_BRANCH" \
-            --tag "${{ github.event.inputs.tag_name }}" \
+            --tag "$INPUT_TAG_NAME" \
             --display-name "$INPUT_MOD_NAME" \
             --description "$INPUT_MOD_DESC" \
             --export-github-output
 
   # =========================================================================
-  # 1. BUILD WINDOWS (systématique — voir la note sur le rebuild complet ci-dessus)
+  # 1. BUILD WINDOWS (always, see the note on the full rebuild above)
   # =========================================================================
   build-windows:
     name: "🖥️ Windows (Clang-CL Static)"
@@ -93,7 +122,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: false
           fetch-depth: 0
@@ -102,14 +131,14 @@ jobs:
         run: choco install nasm
 
       - name: Setup sccache
-        uses: hendrikmuhs/ccache-action@v1.2
+        uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2
         with:
           variant: sccache
           key: windows-release-static-${{ github.sha }}
           restore-keys: windows-release-static-
 
       - name: Setup MSVC Command Prompt
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
 
       - name: Remove Strawberry Perl from PATH
         run: |
@@ -123,7 +152,7 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
 
-      - name: Build Binaries (gk, goalc, extractor uniquement)
+      - name: Build Binaries (gk, goalc, extractor only)
         shell: cmd
         run: cmake --build build --config Release --target gk --target goalc --target extractor --parallel %NUMBER_OF_PROCESSORS%
 
@@ -159,14 +188,14 @@ jobs:
           cd ..
 
       - name: Upload Windows Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-windows
           path: final-artifacts/*.zip
           if-no-files-found: error
 
   # =========================================================================
-  # 2. BUILD LINUX (systématique — voir la note sur le rebuild complet en tête de fichier)
+  # 2. BUILD LINUX (always, see the note on the full rebuild at the top of the file)
   # =========================================================================
   build-linux:
     name: "🐧 Linux (Clang Static)"
@@ -175,7 +204,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: false
           fetch-depth: 0
@@ -188,7 +217,7 @@ jobs:
             libxi-dev libgl1-mesa-dev libssl-dev ninja-build zip
 
       - name: Setup sccache
-        uses: hendrikmuhs/ccache-action@v1.2
+        uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2
         with:
           variant: sccache
           key: linux-release-static-${{ github.sha }}
@@ -203,7 +232,7 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=sccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
 
-      - name: Build Binaries (gk, goalc, extractor uniquement)
+      - name: Build Binaries (gk, goalc, extractor only)
         run: cmake --build build --config Release --target gk --target goalc --target extractor --parallel $(nproc)
 
       - name: Strip Binaries
@@ -244,34 +273,38 @@ jobs:
           cd ..
 
       - name: Upload Linux Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-linux
           path: final-artifacts/*.zip
           if-no-files-found: error
 
   # =========================================================================
-  # 3. PUBLICATION DE LA RELEASE & CATALOGUE MOD (index.json)
+  # 3. RELEASE PUBLICATION & MOD CATALOG (index.json)
   # =========================================================================
   publish:
     name: "📦 Publish Release & Catalog"
     needs: [check_mode, build-windows, build-linux]
     if: always() && !cancelled() && needs.check_mode.result == 'success' && !contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: write
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: false
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'
 
       - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: downloaded-artifacts
 
@@ -340,18 +373,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.check_mode.outputs.release_tag }}
+          PRERELEASE_INPUT: ${{ github.event.inputs.prerelease }}
         run: |
           PRERELEASE_FLAG=""
-          if [ "${{ github.event.inputs.prerelease }}" = "true" ]; then
+          if [ "$PRERELEASE_INPUT" = "true" ]; then
             PRERELEASE_FLAG="--prerelease"
           fi
 
           if gh release view "${RELEASE_TAG}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "La release existe déjà, mise à jour des notes et upload des assets avec --clobber..."
+            echo "Release already exists, updating notes and uploading assets with --clobber..."
             gh release edit "${RELEASE_TAG}" --title "${RELEASE_TAG}" --notes-file release_notes.md $PRERELEASE_FLAG --repo "${{ github.repository }}"
             gh release upload "${RELEASE_TAG}" release-files/* --repo "${{ github.repository }}" --clobber
           else
-            echo "Création de la release..."
+            echo "Creating the release..."
             gh release create "${RELEASE_TAG}" \
               release-files/* \
               --title "${RELEASE_TAG}" \
@@ -373,13 +407,24 @@ jobs:
             git commit -m "chore(release): update index.json for ${RELEASE_TAG}"
             git push origin "HEAD:${TARGET_BRANCH}" || echo "Warning: Could not push index.json directly to ref ${TARGET_BRANCH}"
           else
-            echo "index.json déjà à jour sur la branche."
+            echo "index.json already up to date on the branch."
           fi
 
-      - name: Trigger Global Catalog Sync on master-dev
+      - name: Trigger Downstream Syncs on master-dev
+        # Creating the release and pushing index.json above both happen with
+        # the default GITHUB_TOKEN - GitHub does not let GITHUB_TOKEN-authored
+        # actions trigger other workflows' event listeners (it would recurse
+        # otherwise), so sync-global-catalog.yml's and mod-bug-report-sync.yml's
+        # own `on: release:` triggers never actually fire from this job. These
+        # explicit `gh workflow run` calls (workflow_dispatch, not workflow_call
+        # - there is no `uses:` reusable-workflow invocation here) are the real
+        # mechanism that keeps master-dev's catalog and issue-template dropdown
+        # current after every release. Requires `actions: write` above.
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Triggering sync-global-catalog.yml on master-dev..."
-          gh workflow run sync-global-catalog.yml --ref master-dev --repo "${{ github.repository }}" || echo "Note: Global catalog will also be synced via release event."
+          gh workflow run sync-global-catalog.yml --ref master-dev --repo "${{ github.repository }}"
+          echo "Triggering mod-bug-report-sync.yml on master-dev..."
+          gh workflow run mod-bug-report-sync.yml --ref master-dev --repo "${{ github.repository }}"

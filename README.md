@@ -108,7 +108,7 @@ This badge indicates the state of the automated daily synchronization workflow (
 - **Green:** the latest sync (upstream -> `master` -> `master-dev`) completed successfully.
 - **Red:** a conflict or failure occurred during the synchronization.
 
-Mod branches are **not** synced automatically by this workflow. To catch up a branch with `master-dev`, run `task modding-sync-branch -- --push` locally, or trigger the `sync-branch-with-master-dev.yml` workflow from that branch in the Actions tab. Per-branch mergeability details and ready-to-run resolution commands can be audited locally at any time with `task modding-branch-status` (add `-- --push` to auto-merge every clean branch in one pass). Each individual mod branch also carries its own live status badge in its root `README.md`, driven by `branch-sync-check.yaml`.
+Mod branches are **not** synced automatically by this workflow. To catch up a branch with `master-dev`, run `task modding-sync-branch -- --push` locally, or (repository owner only, see the workflows guide's Access Control section) trigger the `sync-branch-with-master-dev.yml` workflow from that branch in the Actions tab. Per-branch mergeability details and ready-to-run resolution commands can be audited locally at any time with `task modding-branch-status` (add `-- --push` to auto-merge every clean branch in one pass). Each individual mod branch also carries its own live status badge in its root `README.md`, driven by `branch-sync-check.yaml`.
 
 ---
 

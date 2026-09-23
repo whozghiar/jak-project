@@ -1670,6 +1670,22 @@ void add_custom_model_to_level(tfrag3::Level& lvl,
     lvl.merc_data.vertices.push_back(vert);
   }
   lvl.merc_data.models.push_back(merc_data.new_model);
+  // A custom model may ship a texture whose name already exists in the level but with different
+  // pixels (e.g. a common utility texture name reused by a model imported from another game).
+  // The runtime looks some textures up by name (TextureAnimator::tex_by_name) and dies on such a
+  // duplicate at boot, so give the model's copy a unique name. Merc itself uses texture ids, so
+  // the model keeps rendering with its own texture.
+  for (auto& tex : merc_data.new_textures) {
+    for (const auto& existing : lvl.textures) {
+      if (existing.debug_name == tex.debug_name && existing.data != tex.data) {
+        std::string renamed = tex.debug_name + "-" + name;
+        lg::info("custom model {}: texture {} clashes with a level texture, renamed to {}", name,
+                 tex.debug_name, renamed);
+        tex.debug_name = renamed;
+        break;
+      }
+    }
+  }
   lvl.textures.insert(lvl.textures.end(), merc_data.new_textures.begin(),
                       merc_data.new_textures.end());
 }

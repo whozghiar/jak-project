@@ -32,12 +32,17 @@ from urllib.parse import quote
 # general-purpose ignore list.
 MASTER_DEV_ONLY_PATHS = []
 
-# The only two workflow files a mod branch is meant to carry (see
+# The only workflow files a mod branch is meant to carry (see
 # classify_conflict_path's "drop" rule below and AGENTS.md for why this fork
-# does not mirror upstream's own CI workflows onto every branch).
+# does not mirror upstream's own CI workflows onto every branch). Repo-wide
+# automation that only makes sense running from master-dev (upstream sync,
+# issue triage, the global catalog) stays off this list on purpose.
 ALLOWED_MOD_BRANCH_WORKFLOWS = {
     "release.yml",
     "branch-sync-check.yaml",
+    "lint.yml",
+    "build.yml",
+    "sync-branch-with-master-dev.yml",
 }
 
 
@@ -70,9 +75,9 @@ def classify_conflict_path(filepath):
     resolve it:
         "ours"   - keep the mod branch's own version (its README, its Tier-2 docs)
         "theirs" - take master-dev's version (shared guidelines/skills/tools)
-        "drop"   - delete it (any workflow file that isn't release.yml or
-                   branch-sync-check.yaml — see AGENTS.md for why this fork
-                   does not mirror upstream's own CI workflows)
+        "drop"   - delete it (any workflow file not in
+                   ALLOWED_MOD_BRANCH_WORKFLOWS — see AGENTS.md for why this
+                   fork does not mirror upstream's own CI workflows)
         None     - not a path this project auto-resolves; a real conflict.
     """
     if filepath == "README.md" or filepath == "index.json" or filepath.startswith("docs/modding/current_mod/"):

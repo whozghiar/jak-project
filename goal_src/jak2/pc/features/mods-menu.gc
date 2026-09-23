@@ -64,7 +64,7 @@
 
   See the copy-paste template in
   docs/modding/templates/mod_menu.template.gc and the full write-up in
-  docs/modding/tools/mods_menu.md
+  docs/modding/guides/mods_menu.md
 
   ------------------------------------------------------------------------------
   CONTROLS (handled by popup-menu.gc, listed here for convenience)

@@ -141,9 +141,10 @@ def merge_and_push_branch(branch, source_ref):
             if os.path.isfile(os.path.join(REPO_ROOT, mdo_path)):
                 run_cmd(f'git rm -f -q "{mdo_path}"')
 
-        # Same deal for any workflow master-dev added that isn't release.yml or
-        # branch-sync-check.yaml: a clean merge carries it in with no conflict to
-        # catch, so it has to be swept out explicitly too (see stray_workflow_files).
+        # Same deal for any workflow master-dev added that isn't in
+        # sync_common.ALLOWED_MOD_BRANCH_WORKFLOWS: a clean merge carries it in
+        # with no conflict to catch, so it has to be swept out explicitly too
+        # (see stray_workflow_files).
         for wf_path in sync_common.stray_workflow_files(REPO_ROOT):
             run_cmd(f'git rm -f -q "{wf_path}"')
 

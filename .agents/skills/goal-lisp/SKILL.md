@@ -1,214 +1,134 @@
 ---
 name: goal-lisp
-description: Comprehensive guide to OpenGOAL LISP syntax, typing system, processes, behaviors, virtual states, macros, and common language traps.
+description: Conceptual guide to OpenGOAL LISP syntax, typing system, processes, behaviors, virtual states, macros, and common language traps. Points to the per-game Lisp wiki for worked code examples.
 ---
 
-# GOAL Lisp & Syntax — Engineering Reference
+# GOAL Lisp & Syntax — Conceptual Reference
 
-OpenGOAL is an x86-64 native port and extension of GOAL (Game Oriented Assembly Lisp), the proprietary compiled LISP dialect created by Naughty Dog for the Jak & Daxter series. This skill provides the syntax, type system, process model, state machine semantics, and common traps required to author robust `.gc` code.
+OpenGOAL is an x86-64 native port and extension of GOAL (Game Oriented
+Assembly Lisp), the compiled LISP dialect Naughty Dog wrote for the Jak &
+Daxter series. This skill explains the mental model behind GOAL's syntax,
+type system, process model, and state machine semantics.
 
----
-
-## 1. Syntax Basics & Lexical Conventions
-
-- **Comments:** Single-line comments start with semicolons (`;;`). Block comments use `#| ... |#`.
-- **Booleans:** `#t` (true) and `#f` (false). Note: In GOAL, anything other than `#f` evaluates as truthy.
-- **Symbols & Keywords:**
-  - Symbols: `'my-symbol` or unquoted identifier `my-symbol`.
-  - Keywords: Colon-prefixed tokens `:enter`, `:event`, `:inline`, `:virtual`.
-- **Numeric Units & Literals:**
-  - Floating point literals must have decimal points (e.g. `1.0`, `0.0`).
-  - Distance unit: `(meters 4.0)` converts meters to PS2 internal world units (1 meter = 4096.0 internal units).
-  - Angle unit: `(degrees 90.0)` converts degrees to binary angles/rotations.
-  - Time unit: `(seconds 2.5)` converts game seconds to TICKS (typically based on 60 FPS / 300 ticks/sec).
-
-```lisp
-;; Example unit conversions
-(let ((dist (meters 5.0))
-      (angle (degrees 180.0))
-      (duration (seconds 1.0)))
-  (format #t "Dist: ~M, Angle: ~R, Ticks: ~D~%" dist angle duration))
-```
+It intentionally carries no code. Every GOAL/Lisp code example in this
+project lives in the Lisp wiki:
+[`docs/modding/lisp_instructions.md`](../../../docs/modding/lisp_instructions.md)
+(Part 1 is shared by all three games; Parts 2-4 cover each game's
+specifics). Read this skill for the "why" and the wiki for the "exact
+syntax to write".
 
 ---
 
-## 2. Type System & Struct Alignment
+## 1. Lexical conventions
 
-GOAL has a strongly typed, object-oriented system with single inheritance.
+- Comments: `;;` for a line, `#| ... |#` for a block.
+- Booleans: `#t` and `#f`. Anything other than `#f` is truthy.
+- Symbols are written bare (`my-symbol`) or quoted (`'my-symbol`); keywords
+  are colon-prefixed (`:enter`, `:event`, `:inline`, `:virtual`).
+- Floating point literals need a decimal point (`1.0`, not `1`).
+- Unit macros convert real-world quantities into the engine's internal
+  units: `meters` for distance, `degrees` for angle, `seconds` for time
+  (ticks). Always use them instead of hardcoding raw internal values — see
+  the wiki's "Core Lisp patterns" section for the exact call shape.
 
-### Type Hierarchy
-- `object`: Root of all types.
-  - `structure`: Unboxed by default. When stored in another struct without `:inline #t`, it is stored as a 4-byte pointer. With `:inline #t`, it is embedded directly.
-    - `basic`: Boxed object. Always has a runtime `type` tag at offset -4 (or 0). Can be checked dynamically via `type-type?`.
-      - `process`: Base class for concurrent kernel threads/actors.
-        - `process-drawable`: Base class for any 3D entity with a position, skeleton, bounding box, and drawing components.
+## 2. Type system
 
-### Defining Types (`deftype`)
+GOAL has a strongly typed, single-inheritance object system.
 
-```lisp
-(deftype my-actor (process-drawable)
-  ((speed              meters)
-   (turn-rate          degrees)
-   (charge-timer       time-frame)
-   (active?            symbol)
-   (target-pos         vector :inline)     ;; Embedded 16-byte vector directly inside my-actor
-   (custom-substruct   my-struct :inline)  ;; Inline structure
-   (other-actor        my-actor)           ;; Reference/pointer to another actor (not inline)
-   )
-  (:methods
-    (my-actor-method-1 (_type_ int) symbol)
-    (my-actor-method-2 (_type_ vector) none)
-    )
-  (:states
-    my-actor-idle
-    (my-actor-move meters)
-    my-actor-die
-    )
-  )
-```
+- `object` is the root of all types.
+- `structure` is unboxed by default: stored as a 4-byte pointer unless
+  marked `:inline`, in which case it is embedded directly in its parent.
+- `basic` is a boxed object with a runtime type tag, checkable dynamically.
+- `process` is the base for concurrent kernel "threads" (actors).
+- `process-drawable` is a process that also has a position, skeleton,
+  bounding box, and drawing components — the base most custom entities
+  derive from.
 
-### Alignment & Sizing Rules
-- Vectors (`vector`, `matrix`) are 128-bit (16-byte) aligned.
-- Structures containing `:inline` vectors or 128-bit fields will be padded to 16 bytes.
-- Misaligned fields can cause memory corruption or CPU exceptions. Check decompiled definitions in `goal_src/jak[x]/` for field layout references.
+`deftype` declares a new type: its fields, its methods (`:methods`), and the
+states it can be in (`:states`). Vectors and matrices are 128-bit aligned;
+a structure containing an inline vector or 128-bit field gets padded to
+match. Misaligned fields corrupt memory or trigger CPU exceptions — when in
+doubt, check a decompiled definition in `goal_src/jak[x]/` for the real
+layout.
 
----
+## 3. Processes and behaviors
 
-## 3. Processes, Behaviors & `self`
+A `behavior` is a function that runs in the execution context of a specific
+process type. Inside a behavior, `self` is statically typed to that
+process, so its fields and methods are known at compile time.
 
-### Behaviors (`defbehavior`)
-A behavior is a function that runs in the execution context of a specific process type. Inside a behavior, `self` is statically typed to that process:
+## 4. Virtual states and the state machine
 
-```lisp
-(defbehavior my-actor-init-by-other my-actor ((init-pos vector))
-  ;; self is known to be of type 'my-actor' here
-  (set! (-> self root) (new 'process 'trsqv))
-  (vector-copy! (-> self root trans) init-pos)
-  (set! (-> self speed) (meters 2.0))
-  (go-virtual my-actor-idle)
-  )
-```
+Every process runs a finite state machine. A state can implement:
 
----
+- `:enter` — runs once when entering the state.
+- `:trans` — runs every frame before physics/collision.
+- `:code` — the main coroutine loop; can suspend and resume across frames.
+- `:post` — runs every frame after physics/collision, usually to flush
+  animation or collision transforms.
+- `:event` — an asynchronous message handler triggered by another process.
+- `:exit` — runs once when leaving the state, even if interrupted.
 
-## 4. Virtual States & State Machine (`defstate`)
+A state transition can target a specific type's state directly, or dispatch
+through the type's virtual table so a subclass's override wins — this
+matters for residency (see §6 below and the wiki's pitfalls section).
 
-Processes in OpenGOAL execute finite state machines. Each state can implement the following lifecycle hooks:
-- `:enter` — Run once when entering the state (before the first `:trans` or `:code`).
-- `:trans` — Executed every frame before process physics/collision.
-- `:code` — Main coroutine loop. Can call `(suspend)`, `(sleep-code)`, or animation loops.
-- `:post` — Executed every frame after physics/collision; usually handles animation evaluation (`ja-post`) or collision transforms (`transform-post`).
-- `:event` — Event message handler triggered asynchronously by other processes via `send-event`.
-- `:exit` — Executed once upon leaving the state (even if aborted by an external `go`).
+## 5. Coroutine control
 
-### State Definition Example
+GOAL's kernel provides non-preemptive cooperative scheduling for processes:
+a process can yield for exactly one frame and resume at the same point next
+frame, or suspend indefinitely until an external event wakes it. This is
+what lets a `:code` loop "wait" for an animation to finish without blocking
+the rest of the engine.
 
-```lisp
-(defstate my-actor-idle (my-actor)
-  :virtual #t
-  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
-    (case message
-      (('trigger)
-       (format #t "Triggered by ~A!~%" proc)
-       (go-virtual my-actor-move (meters 5.0)))
-      (('touch 'attack)
-       (format #t "Hit!~%")
-       #t)
-      )
-    )
-  :enter (behavior ()
-    (set-time! (-> self charge-timer))
-    (set! (-> self active?) #t)
-    )
-  :trans (behavior ()
-    ;; Runs every frame
-    (if (time-elapsed? (-> self charge-timer) (seconds 3.0))
-        (go-virtual my-actor-move (meters 1.0)))
-    )
-  :code (behavior ()
-    (loop
-      ;; Play an animation loop
-      (ja-no-eval :group! my-actor-idle-ja :num! (seek!) :frame-num 0.0)
-      (until (ja-done? 0)
-        (suspend)
-        (ja :num! (seek!))
-        )
-      )
-    )
-  :post (behavior ()
-    (transform-post)
-    )
-  )
-```
+## 6. Macros and conditionals
 
-### State Transitions
-- `(go my-actor-idle)`: Transition to a static state.
-- `(go-virtual my-actor-idle)`: Transition to a virtual state defined on the actor's type hierarchy.
-- Passing arguments to states: `(go-virtual my-actor-move (meters 5.0))`. The target state's hooks receive arguments matching its signature.
+GOAL has the conditional and macro forms you would expect from a Lisp:
+conditional execution (`when`/`unless`), multi-branch dispatch
+(`cond`/`case`), and compile-time macro expansion (`defmacro`). The wiki's
+worked examples use these throughout — there is nothing GOAL-specific about
+their shape.
 
----
+## 7. Why traps matter here specifically
 
-## 5. Coroutine Control: `suspend`, `sleep-code`, `wait-for`
+GOAL's traps are not generic Lisp gotchas — they come from the engine
+running as a simulated PS2 machine with hot-reloadable native code:
 
-The GOAL kernel provides non-preemptive green threading for processes:
-- `(suspend)`: Yield execution until the next frame. Execution resumes at the exact point after `(suspend)` on the next engine cycle.
-- `(sleep-code)`: Suspends indefinitely. Useful when an actor is static or driven entirely by `:trans` or `:event`.
-- Animation seek loop pattern:
-  ```lisp
-  (ja-no-eval :group! my-anim-ja :num! (seek!) :frame-num 0.0)
-  (until (ja-done? 0)
-    (suspend)
-    (ja :num! (seek!))
-    )
-  ```
+- Floating point equality comparisons fail on precision noise more often
+  than in a typical scripting language, because gameplay code compares
+  computed physics values every frame.
+- A `basic` and a `structure` are allocated and checked differently — the
+  compiler enforces this, but it explains why some engine helpers only
+  accept one or the other.
+- Hot-reloading via `(mi)` can leave "ghost" state in a running game session
+  that a clean boot would catch immediately — this is the single most
+  common source of "it worked in my session" bugs.
+- A type's vtable slot is only filled once its defining file is linked into
+  memory, which is a DGO-load-time event, not a compile-time one — this is
+  why state/method placement (resident vs. level file) matters.
+- The engine has three distinct memory heaps with very different
+  lifetimes; picking the wrong one either leaks permanently or gets freed
+  out from under you.
 
----
+Every one of these has a concrete, verified code example and fix pattern in
+the wiki's "Known pitfalls" section (Part 1.4) — read the trap names here,
+then the code there.
 
-## 6. Macros & Conditionals
+## 8. Mod architecture: the in-game Mods menu
 
-- `(when condition ...)`: Executes body if condition is true.
-- `(unless condition ...)`: Executes body if condition is false.
-- `(cond (c1 e1) (c2 e2) (else e3))`: Multi-branch conditional.
-- `(case val ((val1) e1) ((val2 val3) e2) (else e3))`: Equality switch-case.
-- `(defmacro name (args...) body...)`: Compile-time macro expansion.
+Every new mod (without exception for `jak[x]/features/*` branches) must be
+toggleable at runtime and ship off by default, so it never changes default
+game behavior unless a player explicitly turns it on. The mechanism is the
+unified in-game Mods menu, opened with L3 + SELECT in both retail and debug
+boots on Jak 2 and Jak 3 (Jak 1 does not have this menu yet — see the
+wiki's Jak 1 section for the workaround). See
+[`docs/modding/guides/mods_menu.md`](../../../docs/modding/guides/mods_menu.md)
+for the architecture, the copy-paste template at
+[`docs/modding/templates/mod_menu.template.gc`](../../../docs/modding/templates/mod_menu.template.gc),
+and the exact registration call in the Lisp wiki ("Register an in-game Mods
+toggle").
 
----
+## See also
 
-## 7. Crucial Traps & Gotchas in GOAL
-
-1. **Floating Point Equality:**
-   - **NEVER** compare floats with `(= f1 f2)`. Slight precision inaccuracies will fail equality.
-   - Use `(< (abs (- f1 f2)) 0.001)` or integer/unit approximations.
-2. **`basic` vs `structure` Allocation:**
-   - A `basic` always has a runtime type tag and can be passed generically.
-   - A `structure` has **no runtime type tag**. The compiler must know its type at compile time.
-3. **Ghost Memory in REPL:**
-   - Changing a `deftype` field layout in an active game session without restarting the game will corrupt RAM because existing allocated processes retain the old struct layout. Always test struct changes with a clean cold boot (`task boot-game`).
-4. **Virtual Method ID Limits:**
-   - Methods must be declared in `:methods` before being defined with `defmethod`. Never reorder or remove methods on existing engine classes as it shifts the vtable indices for the entire engine.
-5. **Memory Heap Selection:**
-   - Allocating transient actor data on `'global` leaks memory permanently across level loads. Use the process heap (`'process`) or level heap (`'level`) for gameplay instances.
-
----
-
-## 8. Mod Architecture & In-Game Mods Menu Integration
-
-All new mods (strictly required for `jak[x]/features/*`) must be toggleable at runtime and ship **OFF by default** to preserve native non-regression.
-- **Unified Menu Registration:** Register via `(mods-menu-register "<slug>" builder-fn)`.
-- **Runtime Invocation:** The unified menu opens in-game via **L3 + SELECT** in both retail boot (OpenGOAL Launcher) and debug mode (Jak 2 and Jak 3).
-- **Flag Pattern:**
-  ```lisp
-  (define *mod-my-feature-enabled?* #f)
-
-  (defun mod-my-feature-build-menu ()
-    (let ((menu (new 'debug 'popup-menu-submenu "My Feature")))
-      (popup-menu-add-entry! menu
-        (new 'debug 'popup-menu-flag "Enable Feature"
-          :is-toggled? (lambda () *mod-my-feature-enabled?*)
-          :on-confirm (lambda () (set! *mod-my-feature-enabled?* (not *mod-my-feature-enabled?*)))))
-      menu))
-
-  (mods-menu-register "my-feature" mod-my-feature-build-menu)
-  ```
-- **Never Modify `default-menu*.gc`:** Do not attach mod toggles to debug menus or mark your files with `(declare-file (debug))` as debug segments are skipped in retail boot.
-- Full reference: [`docs/modding/tools/mods_menu.md`](../../docs/modding/tools/mods_menu.md) and [`docs/modding/templates/mod_menu.template.gc`](../../docs/modding/templates/mod_menu.template.gc).
+- [`docs/modding/lisp_instructions.md`](../../../docs/modding/lisp_instructions.md) — every worked code example and trap, common patterns plus per-game specifics (including the engine model: memory heaps, DGOs, process lifecycle).
+- [`engine-internals`](../engine-internals/SKILL.md) — the C++ runtime/compiler/build system this language compiles to and runs on.

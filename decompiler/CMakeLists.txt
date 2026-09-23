@@ -119,6 +119,20 @@ target_link_libraries(decompiler
 )
 
 
+# standalone .SBK sound-bank extractor (see decompiler/sbk_tool/main.cpp)
+add_executable(extract_sbk
+        sbk_tool/main.cpp)
+
+target_link_libraries(extract_sbk
+        decomp
+        common
+        lzokay
+        fmt
+        stb_image
+        tiny_gltf
+        sound
+)
+
 add_executable(extractor
         extractor/main.cpp)
 

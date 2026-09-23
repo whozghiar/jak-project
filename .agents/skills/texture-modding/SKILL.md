@@ -3,109 +3,111 @@ name: texture-modding
 description: Guide to custom texture replacement, directory layout, PNG format requirements, texture merging, and task extract baking in OpenGOAL.
 ---
 
-# Texture Modding & Replacement — Engineering Reference
+# Texture Modding & Replacement
 
-OpenGOAL features native texture replacement and texture merging mechanisms. Custom textures are processed during asset extraction and baked directly into PC-optimized renderer packages (`.fr3` and texture databases).
+OpenGOAL features native texture replacement and texture merging
+mechanisms. Custom textures are processed during asset extraction and baked
+directly into PC-optimized renderer packages (`.fr3` and texture
+databases).
 
 ---
 
-## 1. Texture Replacement Directory Structure
+## 1. Texture replacement directory structure
 
 Texture replacements are located under `custom_assets/`:
 
-```text
+```
 custom_assets/
-└── jak[x]/
-    ├── texture_replacements/
-    │   ├── <tpage-name>/
-    │   │   └── <texture-name>.png      # Replaces texture specifically in that tpage
-    │   └── _all/
-    │       └── <texture-name>.png      # Global fallback: replaces texture across ALL tpages
-    └── texture_merges/
-        └── <tpage-name>/
-            └── <texture-name>.png      # Merges non-transparent pixels onto original texture
+  jak[x]/
+    texture_replacements/
+      <tpage-name>/
+        <texture-name>.png      replaces the texture in that one tpage
+      _all/
+        <texture-name>.png      global fallback: replaces the texture across ALL tpages
+    texture_merges/
+      <tpage-name>/
+        <texture-name>.png      merges non-transparent pixels onto the original texture
 ```
 
-### Folder Explanations
-1. **Specific TPage Folder (`<tpage-name>/`):**
-   - E.g. `custom_assets/jak2/texture_replacements/tpage-1234/guard-armor.png`
-   - Only replaces the texture inside the designated texture page.
-2. **Global Fallback Folder (`_all/`):**
-   - E.g. `custom_assets/jak2/texture_replacements/_all/jak-eyes.png`
-   - If a texture is not found in a specific `<tpage-name>` subfolder, the extractor checks `_all/`.
-   - Useful for universal textures shared across multiple levels.
+- **Specific tpage folder (`<tpage-name>/`):** only replaces the texture
+  inside the designated texture page, e.g.
+  `custom_assets/jak2/texture_replacements/tpage-1234/guard-armor.png`.
+- **Global fallback folder (`_all/`):** if a texture isn't found in a
+  specific `<tpage-name>` subfolder, the extractor checks `_all/` — useful
+  for a texture shared across multiple levels, e.g.
+  `custom_assets/jak2/texture_replacements/_all/jak-eyes.png`.
+- Use `_all/` whenever a texture is genuinely shared: over a third of this
+  project's retail textures are shared across multiple levels. Check
+  `decompiler/config/<game>/ntsc_v1/tex-info.min.json` (or the
+  `open-goal-texture-pack-generator` tool) to detect sharing conflicts
+  before packaging a pack.
 
----
+## 2. Image specifications
 
-## 2. Image Specifications
+- Format: standard PNG.
+- Color channels: 32-bit RGBA (8 bits per channel).
+- Resolution: can match the original PS2 dimensions or be higher (HD
+  textures).
+- For texture merging (`texture_merges`), the merge PNG's dimensions must
+  strictly match the source texture's dimensions.
 
-- **Format:** Standard PNG (Portable Network Graphics).
-- **Color Channels:** 32-bit RGBA (8 bits per channel: Red, Green, Blue, Alpha).
-- **Resolution:** Can match original PS2 dimensions or be higher resolution (HD textures).
-- **Dimensions:** Must have valid dimensions. For texture merging (`texture_merges`), the merge PNG dimensions **must strictly match** the source texture dimensions.
+## 3. Extraction & baking workflow
 
----
+Textures are not loaded as loose `.png` files at runtime — they are baked
+into binary texture pages and `.fr3` level files during offline extraction.
 
-## 3. Extraction & Baking Workflow
-
-Textures in OpenGOAL are not loaded as loose `.png` files at runtime; they are baked into binary texture pages and `.fr3` level files during offline extraction.
-
-### Step-by-Step Replacement Workflow:
-1. Identify the texture name and tpage (e.g. from `decompiler_out/jak[x]/textures/` or level files).
-2. Place your edited `.png` in:
-   ```text
-   custom_assets/jak[x]/texture_replacements/<tpage-name>/<texture-name>.png
-   ```
-   *(or `_all/<texture-name>.png`)*
-3. Run extraction to bake the textures:
-   ```bash
-   task extract
-   ```
-4. Boot the game to inspect in-game textures:
-   ```bash
-   task boot-game
-   ```
+1. Identify the texture name and tpage (from `decompiler_out/jak[x]/textures/`
+   or level files).
+2. Place your edited `.png` under
+   `custom_assets/jak[x]/texture_replacements/<tpage-name>/<texture-name>.png`
+   (or `_all/<texture-name>.png`).
+3. Run `task extract` to bake the textures.
+4. Run `task boot-game` to inspect them in-game.
 
 > [!NOTE]
-> Editing or adding a PNG in `custom_assets/` does **not** update the game immediately. You must run `task extract` to bake the changes.
+> Editing or adding a PNG in `custom_assets/` does not update the game
+> immediately. You must run `task extract` to bake the change.
+
+## 4. Standalone texture pack distribution & packaging
+
+To distribute custom textures as an official, one-click-installable
+texture pack for the OpenGOAL Launcher:
+
+1. **Package interactively:** run `task modding-texture-gui` to launch the
+   desktop GUI tool. Select your texture replacements, fill in display
+   name, author, version, and description, then export the `.zip` archive
+   into `docs/modding/current_mod/texture_packs/<slug>-v<version>.zip`.
+2. **Register the archive:** run `task modding-package-texture-pack` (alias
+   `task modding-register-texture-pack`) to inspect the generated `.zip`,
+   read its internal `metadata.json`, and register it in `index.json`.
+   `--zip <path>` registers a specific archive directly; `--from-source`
+   forces compiling directly from raw `custom_assets/<game>/texture_replacements/`
+   PNGs instead of reading a GUI-exported archive.
+
+The resulting `.zip` must have this exact structure (the GUI generator
+guarantees it):
+
+```
+metadata.json     root metadata (author, version, description, tags)
+cover.png         optional thumbnail
+custom_assets/jak[x]/texture_replacements/   the replacement textures
+```
+
+`metadata.json` needs `author`/`authors` and `releaseDate`/`publishedDate`
+at minimum. If the pack is releasing alongside a specific mod, add the
+mod's slug to `metadata.json`'s `tags` and point `websiteUrl` at the mod
+branch — this is what the launcher catalog schema uses to associate a
+texture pack with its mod.
+
+Archives in `docs/modding/current_mod/texture_packs/` are git-tracked (only
+`custom_assets/jak*/texture_replacements/*` itself is gitignored). During
+`.github/workflows/release.yml`, CI automatically picks up any `.zip` from
+that directory, computes its SHA256 checksum, registers it in `index.json`,
+and attaches it to the GitHub Release assets.
 
 ---
 
-## 4. Standalone Texture Pack Distribution & Packaging
- 
-To distribute custom textures as an official, 1-click installable Texture Pack for the OpenGOAL Launcher:
+## See also
 
-### Recommended Workflow (GUI + Registration):
-1. **Interactive Texture Packaging:**
-   Launch the desktop GUI tool:
-   ```bash
-   task modding-texture-gui
-   ```
-   Select your texture replacements, fill in display name, author, version, and description, then export the `.zip` archive into:
-   ```text
-   docs/modding/current_mod/texture_packs/<slug>-v<version>.zip
-   ```
-
-2. **Catalog Registration:**
-   Run the registration task to inspect the generated `.zip`, read its internal `metadata.json`, and register it in `index.json`:
-   ```bash
-   task modding-package-texture-pack
-   # Or alias:
-   task modding-register-texture-pack
-   ```
-   *Options:*
-   - `--zip <path>`: Register a specific `.zip` file.
-   - `--from-source`: Force compiling directly from raw `custom_assets/<game>/texture_replacements/` PNGs.
-
-### Archive Structure:
-The resulting `.zip` must have this exact structure (guaranteed by the GUI generator):
-```text
-metadata.json                                     # Root metadata (author, version, description, tags)
-cover.png                                         # Optional thumbnail
-custom_assets/jak[x]/texture_replacements/        # Replacement textures
-```
-
-### Automatic Release Pipeline:
-- **Git Ignored / Release Hosted:** Stored in `docs/modding/current_mod/texture_packs/`. To avoid git repository bloat, large `.zip` files can be added to `.gitignore` and uploaded as GitHub Release assets.
-- **Automated GitHub Release:** During `.github/workflows/release.yml`, CI automatically picks up any `.zip` from this directory, computes SHA256 checksums, registers it in `index.json`, and attaches it to the GitHub Release assets!
-
+- [`custom-actors-levels`](../custom-actors-levels/SKILL.md) — the wider asset pipeline this texture workflow is part of.
+- [`docs/modding/guides/mod_distribution_guide.md`](../../../docs/modding/guides/mod_distribution_guide.md) — the full release packaging and launcher catalog pipeline.

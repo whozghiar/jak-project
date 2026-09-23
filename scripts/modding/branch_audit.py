@@ -110,7 +110,7 @@ def audit_branch(branch):
                      f"({', '.join('`'+m+'`' for m in menu_edits)}) into a `mods-menu-register` submenu.")
     if not has_toggle and game in ("jak2", "jak3"):
         prefix = "MANDATORY" if "/features/" in branch else "Recommended"
-        todos.append(f"Add an in-game Mods toggle via `mods-menu-register` ({prefix} for features; see `docs/modding/tools/mods_menu.md`).")
+        todos.append(f"Add an in-game Mods toggle via `mods-menu-register` ({prefix} for features; see `docs/modding/guides/mods_menu.md`).")
     if not has_toggle and game == "jak1":
         todos.append("Add a mod-slug-prefixed debug submenu; port to `mods-menu-register` once the "
                      "jak1 framework lands.")

@@ -26,6 +26,13 @@ std::vector<T> compute_keyframes(const std::vector<float>& times,
   std::vector<T> ret;
   ASSERT(!times.empty());
   ASSERT(times.size() == values.size());
+  // A static pose exported as a single keyframe (or several keyframes all at t=0, as the
+  // decompiler emits for retail 1-frame anims such as many simple idles) would otherwise produce
+  // 0 frames and crash compress_animation on frames[0].
+  if (times.size() == 1 || times.back() <= 0.f) {
+    ret.push_back(values.front());
+    return ret;
+  }
   size_t i = 0;
   float t = 0;
   while (t < times.back()) {

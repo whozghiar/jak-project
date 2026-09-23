@@ -5,9 +5,8 @@ mod branch.
 
 Why this exists
 ---------------
-`docs/modding/*_lisp_instructions.md`, `docs/modding/engine_generic_concepts.md`
-and `.agents/skills/*/discoveries.md` have exactly one source of truth: **master-dev**.
-Editing them on a mod branch and merging later is what produced constant conflicts.
+`docs/modding/lisp_instructions.md` has exactly one source of truth: **master-dev**.
+Editing it on a mod branch and merging later is what produced constant conflicts.
 Instead, a discovery made while modding is "landed" straight onto master-dev as a tiny
 dedicated commit, then pulled back into the mod branch with `sync_docs_from_master.py`.
 
@@ -18,16 +17,11 @@ This script does that round-trip for you:
 
 Usage
 -----
-    # 1. On your mod branch, edit the doc/memory file(s) — append your verified block.
+    # 1. On your mod branch, edit the doc file(s) — append your verified block.
     # 2. Run:
     python scripts/modding/land_doc_on_master_dev.py \
-        --file docs/modding/jak2_lisp_instructions.md \
+        --file docs/modding/lisp_instructions.md \
         --message "jak2: send-event stack message block" --push
-
-    # Or for agent memory discoveries:
-    python scripts/modding/land_doc_on_master_dev.py \
-        --file .agents/skills/engine-internals/discoveries.md \
-        --message "engine: haven city traffic discoveries" --push
 
 Rules enforced
 --------------

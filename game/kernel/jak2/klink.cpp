@@ -562,7 +562,12 @@ void link_control::jak2_finish(bool jump_from_c_to_goal) {
   *EnableMethodSet = *EnableMethodSet + m_keep_debug;
 
   ObjectFileHeader* ofh = m_link_block_ptr.cast<ObjectFileHeader>().c();
-  lg::debug("link finish: {}", m_object_name);
+  // Also print where the main segment landed so a native crash address (e.g. from lldb) can be
+  // mapped back to an object file / function offset.
+  lg::debug("link finish: {} (main @ 0x{:x} size 0x{:x})", m_object_name,
+            ofh->object_file_version == 3 ? ofh->code_infos[MAIN_SEGMENT].offset
+                                          : m_object_data.offset,
+            ofh->object_file_version == 3 ? ofh->code_infos[MAIN_SEGMENT].size : m_code_size);
   if (ofh->object_file_version == 3) {
     // todo check function type of entry
 

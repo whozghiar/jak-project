@@ -387,14 +387,23 @@
   "Keep CUR while it is a live foe and this is not THIS's scan frame; otherwise re-scan.
    Re-scanning every frame makes a unit flip between two near-equidistant foes and never finish
    a burst."
-  (if (and cur
-           (mod-spargus-foe-alive? cur)
-           (or (type? cur foe-type) (and include-jak (= cur *target*)))
-           (logtest? (logxor traffic-id (-> this clock integral-frame-counter)) SPARGUS_INVASION_SCAN_MASK)
-           )
-      cur
-      (mod-spargus-find-foe this foe-type include-jak)
-      )
+  (let ((keep (if (and cur
+                       (mod-spargus-foe-alive? cur)
+                       (or (type? cur foe-type) (and include-jak (= cur *target*)))
+                       )
+                  cur
+                  (the-as process-focusable #f)
+                  )
+              )
+        )
+    ;; Off THIS unit's scan frame, never query the actor hash -- even with no foe held. Rescanning
+    ;; every frame whenever nobody is in range cost one 60 m box query per idle unit per frame (and
+    ;; the target hooks run several times per frame), enough to crawl the game with a full battle.
+    (if (logtest? (logxor traffic-id (-> this clock integral-frame-counter)) SPARGUS_INVASION_SCAN_MASK)
+        keep
+        (mod-spargus-find-foe this foe-type include-jak)
+        )
+    )
   )
 
 (defun mod-spargus-guard-target ((arg0 object))

@@ -11,12 +11,11 @@ To create a custom level, copy the layout of `custom_assets/jak1/levels/test-zon
 Modify `goal_src/jak1/engine/level/level-info.gc` to add level info for each custom level. There is level info for `test-zone` at the bottom that can be used as an example.
 
 # 3: Modify the build system
-Modify `goal_src/jak1/game.gp` and add a custom level target:
-```lisp
-(build-custom-level "test-zone")
-;; the DGO file
-(custom-level-cgo "TESTZONE.DGO" "test-zone/testzone.gd")
-```
+Modify `goal_src/jak1/game.gp` and add a custom level build target and its
+DGO file declaration. The exact macro calls are documented in
+`docs/modding/lisp_instructions.md` ("Static props, custom levels, and
+audio banks") — the same two calls apply to every game, only the file paths
+change.
 
 # 4: Export the GLTF file from blender.
 For now, all meshes are displayed and treated as ground collision. This causes buggy collision because walls shouldn't use "floor" mode.

@@ -650,10 +650,21 @@ void extract_sfx_block(std::span<const u8> bank_data,
       if (snd.grains[gi].is_tone())
         tone_indices.push_back(gi);
     }
+    // A few retail sound names contain characters that are not legal in file names (e.g. a
+    // leading "*" seen in some Jak 2/3 banks). Left unsanitized, these make write_sample_wav
+    // throw and abort the whole extraction; sanitize the file name only (the sound name written
+    // to metadata.txt stays untouched so name-based lookups keep matching).
+    std::string file_stem = snd.name;
+    for (auto& ch : file_stem) {
+      if (ch == '*' || ch == '?' || ch == ':' || ch == '"' || ch == '<' || ch == '>' || ch == '|' ||
+          ch == '/' || ch == '\\') {
+        ch = '_';
+      }
+    }
     for (size_t vi = 0; vi < tone_indices.size(); vi++) {
       auto& g = snd.grains[tone_indices[vi]];
       g.wav_filename =
-          (tone_indices.size() == 1) ? snd.name + ".wav" : fmt::format("{}_{}.wav", snd.name, vi);
+          (tone_indices.size() == 1) ? file_stem + ".wav" : fmt::format("{}_{}.wav", file_stem, vi);
     }
 
     all_sounds.push_back(std::move(snd));
@@ -835,7 +846,22 @@ void extract_sbk(const fs::path& sbk_path, const fs::path& output_dir) {
 
 }  // namespace
 
-void extract_sbk_files(const fs::path& input_dir, const fs::path& output_dir) {
+// A single malformed / unexpected bank must not abort the whole extraction run (a
+// std::out_of_range thrown by a span/BinaryReader on one bad bank previously killed the
+// decompiler after tens of minutes of DGO loading, leaving every alphabetically-later bank
+// unextracted). Each bank is now isolated.
+void extract_sbk_file(const fs::path& sbk_path, const fs::path& output_dir) {
+  file_util::create_dir_if_needed(output_dir);
+  try {
+    extract_sbk(sbk_path, output_dir);
+  } catch (const std::exception& e) {
+    lg::error("[sbk] failed to extract {}: {}", sbk_path.string(), e.what());
+  }
+}
+
+void extract_sbk_files(const fs::path& input_dir,
+                       const fs::path& output_dir,
+                       const std::vector<std::string>& only_banks) {
   if (!fs::exists(input_dir)) {
     lg::warn("[sbk] input directory {} does not exist", input_dir.string());
     return;
@@ -846,9 +872,26 @@ void extract_sbk_files(const fs::path& input_dir, const fs::path& output_dir) {
   for (const auto& entry : fs::directory_iterator(input_dir)) {
     auto ext = entry.path().extension().string();
     std::ranges::transform(ext, ext.begin(), tolower);
-    if (ext == ".sbk") {
-      extract_sbk(entry.path(), output_dir);
+    if (ext != ".sbk") {
+      continue;
     }
+    if (!only_banks.empty()) {
+      auto stem = entry.path().stem().string();
+      std::ranges::transform(stem, stem.begin(), toupper);
+      bool wanted = false;
+      for (auto& b : only_banks) {
+        std::string bu = b;
+        std::ranges::transform(bu, bu.begin(), toupper);
+        if (bu == stem) {
+          wanted = true;
+          break;
+        }
+      }
+      if (!wanted) {
+        continue;
+      }
+    }
+    extract_sbk_file(entry.path(), output_dir);
   }
 }
 

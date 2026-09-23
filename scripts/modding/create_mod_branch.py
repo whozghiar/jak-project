@@ -170,7 +170,7 @@ def main():
     print("   Every new mod MUST be toggleable at runtime via the in-game Mods Menu")
     print("   (opens with L3 + SELECT in retail boots on Jak 2 & Jak 3).")
     print(f"   Register your submenu via: (mods-menu-register \"{mod_slug_clean}\" builder)")
-    print("   Guide   : docs/modding/tools/mods_menu.md")
+    print("   Guide   : docs/modding/guides/mods_menu.md")
     print("   Template: docs/modding/templates/mod_menu.template.gc")
     print("="*70 + "\n")
 

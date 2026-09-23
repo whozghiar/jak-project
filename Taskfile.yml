@@ -171,7 +171,7 @@ tasks:
     cmds:
       - "{{.PYTHON}} ./scripts/modding/sync_docs_from_master.py {{.CLI_ARGS}}"
   modding-land-doc:
-    desc: "Land a lisp/engine doc change on master-dev conflict-free, then re-sync your branch (scripts/modding/land_doc_on_master_dev.py). e.g. -- --file docs/modding/jak2_lisp_instructions.md --message '...' --push"
+    desc: "Land a lisp/engine doc change on master-dev conflict-free, then re-sync your branch (scripts/modding/land_doc_on_master_dev.py). e.g. -- --file docs/modding/lisp_instructions.md --message '...' --push"
     cmds:
       - "{{.PYTHON}} ./scripts/modding/land_doc_on_master_dev.py {{.CLI_ARGS}}"
   modding-branch-status:

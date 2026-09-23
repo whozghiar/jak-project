@@ -351,6 +351,7 @@
   "popup-menu.o" ;; added
   "speedruns.o" ;; added
   "mods-menu.o" ;; added -- unified in-game "Mods" menu (see pc/features/mods-menu.gc)
+  "mod-spargus-invasion-menu.o" ;; [MOD: Spargus Invasion] Mods-menu entry (must be resident, see file)
   "drawable.o"
   "drawable-group.o"
   "drawable-inline-array.o"

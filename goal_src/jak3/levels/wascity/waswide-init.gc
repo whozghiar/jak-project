@@ -54,6 +54,9 @@
   (set! *traffic-engine* (new 'loading-level 'traffic-engine))
   (set! *waswide-squad-control* (new 'loading-level 'squad-control))
   (set! *city-mode* 'waswide)
+  ;; [MOD: Spargus Invasion] build the Freedom League / Metal Head squad singletons the borrowed
+  ;; units dereference, and install the mod hooks. See mod-spargus-invasion.gc.
+  (mod-spargus-invasion-login arg0)
   0
   (none)
   )
@@ -90,12 +93,18 @@
     )
   (market-activate arg0)
   (restore-wascity-speeches)
+  ;; [MOD: Spargus Invasion] must run AFTER traffic-start above, which respawns the traffic manager
+  ;; and resets every want-count from its init params.
+  (mod-spargus-invasion-activate arg0 arg1)
   0
   (none)
   )
 
 (defun waswide-deactivate ((arg0 level))
   (format 0 "waswide-deactivate~%")
+  ;; [MOD: Spargus Invasion] runs first, while *city-mode* is still 'waswide and the traffic engine
+  ;; is still alive, so it can park the borrowed units and drop the hooks before the heap goes away.
+  (mod-spargus-invasion-deactivate arg0)
   (set! (-> *traffic-info* ctywide-level) (the-as level #f))
   (set! *city-mode* #f)
   0

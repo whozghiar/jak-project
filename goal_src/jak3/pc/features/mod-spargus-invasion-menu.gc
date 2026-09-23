@@ -1,0 +1,176 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: mod-spargus-invasion-menu.gc
+;; name in dgo: mod-spargus-invasion-menu
+;; dgos: GAME
+
+#|
+  [MOD: Spargus Invasion] -- in-game menu, [L3 + SELECT] > Mods > spargus-invasion.
+
+  WHY THIS FILE IS IN GAME.CGO, NOT NEXT TO THE MOD
+  The scenario logic (levels/wascity/mod-spargus-invasion.gc) only exists while Spargus is loaded.
+  The Mods menu keeps a pointer to this builder and calls it every time it opens -- anywhere in
+  the game. A builder living in WWD would dangle into freed memory the moment the player left
+  Spargus. Everything this file touches is therefore GAME.CGO-resident: the state globals and
+  `*mod-spargus-apply-hook*` in engine/ai/traffic-h.gc. Outside Spargus the hook is a no-op, so
+  picking a scenario there simply records it for the next visit.
+
+  Hierarchy:
+    spargus-invasion > Scenario             > Off / Battle of Spargus / Pacified Spargus /
+                                              Invasion: Freedom League defends /
+                                              Invasion: Wastelanders defend
+                     > Freedom League guards > 4 / 8 / 12 / 16
+                     > Guard squads          > 0 / 1 / 2 / 3
+                     > Haven City civilians  > 6 / 12 / 18 / 24
+                     > Metal Heads           > 5 / 10 / 15 / 20
+|#
+
+;; ============================================================================
+;; Side-effect helpers (the menu's lambdas stay one-liners, see the template rules)
+;; ============================================================================
+
+(defun mod-spargus-invasion-set-mode ((mode symbol))
+  "Pick a scenario and push it straight into the running traffic engine (a no-op outside Spargus).
+   The borrow levels holding the new units follow within a few frames."
+  (set! *spargus-invasion-mode* mode)
+  (*mod-spargus-apply-hook* #f)
+  (none)
+  )
+
+(defun mod-spargus-invasion-reapply ()
+  "Re-apply the current scenario after a population knob changed."
+  (*mod-spargus-apply-hook* #f)
+  (none)
+  )
+
+;; ============================================================================
+;; The menu -- entirely static, so it costs no heap and survives a retail boot
+;; ============================================================================
+
+(define *mod-spargus-invasion-menu*
+  (new 'static 'popup-menu-submenu :label "spargus-invasion"
+    :entries (new 'static 'boxed-array :type popup-menu-entry
+
+      (new 'static 'popup-menu-submenu :label "Scenario"
+        :entries (new 'static 'boxed-array :type popup-menu-entry
+          (new 'static 'popup-menu-flag :label "Off (retail Spargus)"
+               :is-toggled? (lambda () (= *spargus-invasion-mode* 'off))
+               :on-confirm (lambda () (mod-spargus-invasion-set-mode 'off) (none))
+               )
+          (new 'static 'popup-menu-flag :label "Battle of Spargus"
+               :is-toggled? (lambda () (= *spargus-invasion-mode* 'battle))
+               :on-confirm (lambda () (mod-spargus-invasion-set-mode 'battle) (none))
+               )
+          (new 'static 'popup-menu-flag :label "Pacified Spargus"
+               :is-toggled? (lambda () (= *spargus-invasion-mode* 'pacified))
+               :on-confirm (lambda () (mod-spargus-invasion-set-mode 'pacified) (none))
+               )
+          (new 'static 'popup-menu-flag :label "Invasion: Freedom League defends"
+               :is-toggled? (lambda () (= *spargus-invasion-mode* 'invasion-ff))
+               :on-confirm (lambda () (mod-spargus-invasion-set-mode 'invasion-ff) (none))
+               )
+          (new 'static 'popup-menu-flag :label "Invasion: Wastelanders defend"
+               :is-toggled? (lambda () (= *spargus-invasion-mode* 'invasion-wl))
+               :on-confirm (lambda () (mod-spargus-invasion-set-mode 'invasion-wl) (none))
+               )
+          )
+        )
+
+      (new 'static 'popup-menu-submenu :label "Freedom League guards"
+        :entries (new 'static 'boxed-array :type popup-menu-entry
+          (new 'static 'popup-menu-flag :label "4"
+               :is-toggled? (lambda () (= *spargus-invasion-guard-count* 4))
+               :on-confirm (lambda () (set! *spargus-invasion-guard-count* 4) (mod-spargus-invasion-reapply) (none))
+               )
+          (new 'static 'popup-menu-flag :label "8"
+               :is-toggled? (lambda () (= *spargus-invasion-guard-count* 8))
+               :on-confirm (lambda () (set! *spargus-invasion-guard-count* 8) (mod-spargus-invasion-reapply) (none))
+               )
+          (new 'static 'popup-menu-flag :label "12"
+               :is-toggled? (lambda () (= *spargus-invasion-guard-count* 12))
+               :on-confirm (lambda () (set! *spargus-invasion-guard-count* 12) (mod-spargus-invasion-reapply) (none))
+               )
+          (new 'static 'popup-menu-flag :label "16"
+               :is-toggled? (lambda () (= *spargus-invasion-guard-count* 16))
+               :on-confirm (lambda () (set! *spargus-invasion-guard-count* 16) (mod-spargus-invasion-reapply) (none))
+               )
+          )
+        )
+
+      (new 'static 'popup-menu-submenu :label "Guard squads"
+        :entries (new 'static 'boxed-array :type popup-menu-entry
+          (new 'static 'popup-menu-flag :label "0"
+               :is-toggled? (lambda () (= *spargus-invasion-squad-count* 0))
+               :on-confirm (lambda () (set! *spargus-invasion-squad-count* 0) (mod-spargus-invasion-reapply) (none))
+               )
+          (new 'static 'popup-menu-flag :label "1"
+               :is-toggled? (lambda () (= *spargus-invasion-squad-count* 1))
+               :on-confirm (lambda () (set! *spargus-invasion-squad-count* 1) (mod-spargus-invasion-reapply) (none))
+               )
+          (new 'static 'popup-menu-flag :label "2"
+               :is-toggled? (lambda () (= *spargus-invasion-squad-count* 2))
+               :on-confirm (lambda () (set! *spargus-invasion-squad-count* 2) (mod-spargus-invasion-reapply) (none))
+               )
+          (new 'static 'popup-menu-flag :label "3"
+               :is-toggled? (lambda () (= *spargus-invasion-squad-count* 3))
+               :on-confirm (lambda () (set! *spargus-invasion-squad-count* 3) (mod-spargus-invasion-reapply) (none))
+               )
+          )
+        )
+
+      (new 'static 'popup-menu-submenu :label "Haven City civilians"
+        :entries (new 'static 'boxed-array :type popup-menu-entry
+          (new 'static 'popup-menu-flag :label "6"
+               :is-toggled? (lambda () (= *spargus-invasion-civilian-count* 6))
+               :on-confirm (lambda () (set! *spargus-invasion-civilian-count* 6) (mod-spargus-invasion-reapply) (none))
+               )
+          (new 'static 'popup-menu-flag :label "12"
+               :is-toggled? (lambda () (= *spargus-invasion-civilian-count* 12))
+               :on-confirm (lambda () (set! *spargus-invasion-civilian-count* 12) (mod-spargus-invasion-reapply) (none))
+               )
+          (new 'static 'popup-menu-flag :label "18"
+               :is-toggled? (lambda () (= *spargus-invasion-civilian-count* 18))
+               :on-confirm (lambda () (set! *spargus-invasion-civilian-count* 18) (mod-spargus-invasion-reapply) (none))
+               )
+          (new 'static 'popup-menu-flag :label "24"
+               :is-toggled? (lambda () (= *spargus-invasion-civilian-count* 24))
+               :on-confirm (lambda () (set! *spargus-invasion-civilian-count* 24) (mod-spargus-invasion-reapply) (none))
+               )
+          )
+        )
+
+      (new 'static 'popup-menu-submenu :label "Metal Heads"
+        :entries (new 'static 'boxed-array :type popup-menu-entry
+          (new 'static 'popup-menu-flag :label "5"
+               :is-toggled? (lambda () (= *spargus-invasion-metalhead-count* 5))
+               :on-confirm (lambda () (set! *spargus-invasion-metalhead-count* 5) (mod-spargus-invasion-reapply) (none))
+               )
+          (new 'static 'popup-menu-flag :label "10"
+               :is-toggled? (lambda () (= *spargus-invasion-metalhead-count* 10))
+               :on-confirm (lambda () (set! *spargus-invasion-metalhead-count* 10) (mod-spargus-invasion-reapply) (none))
+               )
+          (new 'static 'popup-menu-flag :label "15"
+               :is-toggled? (lambda () (= *spargus-invasion-metalhead-count* 15))
+               :on-confirm (lambda () (set! *spargus-invasion-metalhead-count* 15) (mod-spargus-invasion-reapply) (none))
+               )
+          (new 'static 'popup-menu-flag :label "20"
+               :is-toggled? (lambda () (= *spargus-invasion-metalhead-count* 20))
+               :on-confirm (lambda () (set! *spargus-invasion-metalhead-count* 20) (mod-spargus-invasion-reapply) (none))
+               )
+          )
+        )
+      )
+    )
+  )
+
+;; ============================================================================
+;; Builder + registration (top-level, runs when GAME.CGO links)
+;; ============================================================================
+
+(defun mod-spargus-invasion-build-menu ()
+  "Return this mod's entry for the Mods menu. Pure: hands back the pre-built static node."
+  (the-as popup-menu-entry *mod-spargus-invasion-menu*)
+  )
+
+(mods-menu-register "spargus-invasion" mod-spargus-invasion-build-menu)

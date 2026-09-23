@@ -635,6 +635,11 @@
           (t9-0)
           )
       )
+    ;; [MOD: Spargus Invasion] let a wastelander going about its day notice an armed raider.
+    ;; Retail only sweeps for a target from the `panic` state (wascity-defend). The hook is the
+    ;; no-op declared in traffic-h.gc unless the raid is armed and we are in waswide, so with the
+    ;; mod off this line costs one indirect call and changes nothing.
+    (*mod-spargus-wlander-trans-hook* self)
     (if (handle->process (-> self focus handle))
         (go-virtual hostile)
         )

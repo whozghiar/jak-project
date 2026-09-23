@@ -76,6 +76,58 @@
 (define-extern traffic-kill (function none))
 (define-extern ctywide-entity-hack (function none))
 
+;; ------------------------------------------------------------------------------------------------
+;; [MOD: Spargus Invasion] -- resident state + optional hook layer.
+;;
+;; WHY HERE: traffic-h.o is part of GAME.CGO, so everything below is resident for the whole run.
+;; The shared citizen code this mod hooks (guard.gc, mh-squad-member.gc, wlander-male.gc) is linked
+;; in Haven City (CWI) as well as in Spargus (WWD), so those call sites need symbols that resolve
+;; everywhere, including when the mod's own object file (WWD-only mod-spargus-invasion.o) is not
+;; loaded. Every hook defaults to a genuine no-op; mod-spargus-invasion.gc re-points them while
+;; waswide is logged in and restores them when it deactivates.
+;;
+;; Hook contract (every hook takes the calling object and returns an object):
+;;   *mod-spargus-guard-target-hook*     crimson-guard-method-290 -- a process to engage, or #f to
+;;                                       fall through to the retail attacker-info target.
+;;   *mod-spargus-guard-init-hook*       crimson-guard citizen-method-194 tail. Return ignored.
+;;   *mod-spargus-mh-target-hook*        mh-squad-member get-current-enemy -- same contract as the
+;;                                       guard target hook, for the three Metal Head species.
+;;   *mod-spargus-mh-init-hook*          mh-squad-member citizen-method-194 tail. Return ignored.
+;;   *mod-spargus-wlander-trans-hook*    wlander active:trans -- lets the militia acquire a foe.
+;;   *mod-spargus-apply-hook*            re-apply the current mode (called by the Mods menu).
+;; ------------------------------------------------------------------------------------------------
+(defun mod-spargus-hook-none ((arg0 object))
+  "Default (retail) implementation of every *mod-spargus-* hook: do nothing, engage nobody.
+   The return is explicitly widened to `object`: that is what fixes each hook variable's type at
+   (function object object), which in turn lets mod-spargus-invasion.gc assign its own
+   implementations (some of which return a process) into them."
+  arg0
+  (the object #f)
+  )
+
+(define *mod-spargus-guard-target-hook* mod-spargus-hook-none)
+(define *mod-spargus-guard-init-hook* mod-spargus-hook-none)
+(define *mod-spargus-mh-target-hook* mod-spargus-hook-none)
+(define *mod-spargus-mh-init-hook* mod-spargus-hook-none)
+(define *mod-spargus-wlander-trans-hook* mod-spargus-hook-none)
+(define *mod-spargus-apply-hook* mod-spargus-hook-none)
+
+;; Which scenario Spargus runs. The mod ships OFF, so retail Spargus is untouched until the player
+;; picks a scenario from [L3 + SELECT] > Mods > spargus-invasion.
+;;   'off          retail Spargus
+;;   'battle       Battle of Spargus   -- Freedom League guards vs the Wastelander militia
+;;   'pacified     Pacified Spargus    -- FL squads patrol, Haven City civilians, no militia
+;;   'invasion-ff  Spargus Invasion 1  -- Metal Heads assault a city held by the Freedom League
+;;   'invasion-wl  Spargus Invasion 2  -- Metal Heads assault a city held by the Wastelanders
+(define *spargus-invasion-mode* 'off)
+
+;; Population knobs, read every time the mode is (re)applied. Defaults stay under the retail
+;; Haven City want-counts: Spargus' nav mesh is far smaller than Haven City's.
+(define *spargus-invasion-guard-count* 8)      ;; loose Freedom League guards
+(define *spargus-invasion-squad-count* 2)      ;; guard squads (formation-object, up to 5 guards each)
+(define *spargus-invasion-civilian-count* 12)  ;; Haven City civilians (Pacified only)
+(define *spargus-invasion-metalhead-count* 10) ;; Metal Heads (Invasion only)
+
 ;; +++vehicle-type
 (defenum vehicle-type
   :type int32

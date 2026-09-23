@@ -1137,7 +1137,10 @@
   )
 
 (defmethod citizen-method-215 ((this metalhead-predator))
-  (when (nonzero? *cty-attack-controller*)
+  ;; [MOD: Spargus Invasion] `(nonzero? ...)` alone does NOT catch #f (the false symbol has a
+  ;; non-zero address), so outside ctywide this fell through to `(allocate-attacker #f)` and an
+  ;; `(init! #f ...)` crash. This is the exact guard `civilian::citizen-method-215` already uses.
+  (when (and *cty-attack-controller* (nonzero? *cty-attack-controller*))
     (set! (-> this mission-squad) *cty-attack-controller*)
     (when (not (-> this attacker-info))
       (set! (-> this attacker-info) (allocate-attacker (-> this mission-squad)))

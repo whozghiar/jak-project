@@ -122,6 +122,25 @@
 
   // turn this on to extract level background graphics data as .fr3 files in out/<game>/fr3
   "levels_extract": true,
+  // [MOD: Spargus Invasion] art groups to bake into a level's .fr3 even though they did NOT ship
+  // in that level's retail DGO. The PC merc renderer resolves models by name against the .fr3 of
+  // whatever level is resident, so adding "<x>-ag.go" to a .gd is only half the job: without an
+  // entry here the actor links and animates but draws nothing at all.
+  // Syntax: "<art-group>" or "<art-group>:<HOME.DGO>". The merc's texture ids are relative to the
+  // level it shipped in, so <HOME.DGO> names the level whose texture-remap-table to resolve them
+  // against -- get it wrong and the model renders untextured.
+  "extra_art_groups_by_dgo": {
+    // Haven City units brought into Spargus (WWD); home = the ctype level each ships in.
+    "WWD.DGO": [
+      "crimson-guard-ag:CTYPESA.DGO",
+      "city-grunt-ag:CTYPESB.DGO",
+      "city-flitter-ag:CTYPESB.DGO",
+      "predator-ag:CTYPEPB.DGO",
+      "citizen-norm-ag:CTYPEPA.DGO",
+      "citizen-fat-ag:CTYPEPA.DGO",
+      "citizen-chick-ag:CTYPEPA.DGO"
+    ]
+  },
   // turn this on if you want extracted levels to be saved out as .glb files in decompiler_out/<game>/levels
   "rip_levels": false,
   // should we also extract collision meshes to the .fr3 files?

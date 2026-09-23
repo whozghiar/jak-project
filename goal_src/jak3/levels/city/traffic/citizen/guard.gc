@@ -287,7 +287,11 @@
 ;; WARN: Return type mismatch time-frame vs none.
 (defmethod enemy-common-post ((this crimson-guard))
   "Common implementation of post. Runs ja-post."
-  (when (nonzero? (-> this controller branch))
+  ;; [MOD: Spargus Invasion] added the *cty-faction-manager* null test. Retail only ever ran
+  ;; guards under ctywide, whose login builds the manager; Spargus deliberately does NOT build one
+  ;; (a live manager would let traffic-manager-method-22 overwrite the raid's want-count every
+  ;; frame), so this dereference has to tolerate #f. In Haven City the test is always true.
+  (when (and (nonzero? (-> this controller branch)) *cty-faction-manager* (nonzero? *cty-faction-manager*))
     (let* ((v1-2 *cty-faction-manager*)
            (a1-0 (-> this controller branch clock-type))
            (s5-0 (-> v1-2 territory-faction-modes 0 data (+ 0 (* a1-0 16))))
@@ -383,7 +387,11 @@
                       )
                   )
            )
-     (set! (-> this attacker-info hatred-map-callback) (the-as (function process city-attacker-info int) v0-0))
+     ;; [MOD: Spargus Invasion] guarded: outside ctywide there is no *cty-attack-controller*,
+     ;; so a guard can legitimately have no attacker-info. Always true in Haven City.
+     (if (-> this attacker-info)
+         (set! (-> this attacker-info hatred-map-callback) (the-as (function process city-attacker-info int) v0-0))
+         )
      v0-0
      )
     (('change-faction-mode)
@@ -865,10 +873,27 @@
 
 ;; WARN: disable def twice: 6. This may happen when a cond (no else) is nested inside of another conditional, but it should be rare.
 (defmethod crimson-guard-method-290 ((this crimson-guard))
-  (if #t
-      (handle->process (-> this attacker-info enemy))
-      (squad-control-city-method-35 (-> this squad) this (-> this focus handle))
+  ;; [MOD: Spargus Invasion] give the mod first refusal on this guard's target. The hook is
+  ;; the no-op declared in traffic-h.gc everywhere except an active Spargus (waswide), so in Haven
+  ;; City this falls straight through to the retail city-attack-controller assignment below.
+  (let ((mod-target (*mod-spargus-guard-target-hook* this)))
+    (cond
+      (mod-target
+        (the-as process mod-target)
+        )
+      (else
+        (if #t
+            ;; [MOD: Spargus Invasion] attacker-info is #f when no city attack controller
+            ;; exists (i.e. anywhere but ctywide). Always non-#f in Haven City.
+            (if (-> this attacker-info)
+                (handle->process (-> this attacker-info enemy))
+                (the-as process #f)
+                )
+            (squad-control-city-method-35 (-> this squad) this (-> this focus handle))
+            )
+        )
       )
+    )
   )
 
 (defmethod crimson-guard-method-261 ((this crimson-guard))
@@ -900,7 +925,8 @@
           )
         )
       )
-    (when (logtest? (-> this attacker-info flags) (city-attacker-info-flag cai2))
+    ;; [MOD: Spargus Invasion] added the attacker-info null test -- see method 290 above.
+    (when (and (-> this attacker-info) (logtest? (-> this attacker-info flags) (city-attacker-info-flag cai2)))
       (set! (-> this attacker-info next-update-target-time) (+ (current-time) (seconds 0.5)))
       (logclear! (-> this attacker-info flags) (city-attacker-info-flag cai2))
       )
@@ -968,7 +994,10 @@
     (b! #t cfg-78 :delay (nop!))
     (label cfg-65)
     (set! (-> this target-status handle) (the-as handle #f))
-    (set! (-> this attacker-info next-update-target-time) 0)
+    ;; [MOD: Spargus Invasion] added the attacker-info null test -- see method 290 above.
+    (if (-> this attacker-info)
+        (set! (-> this attacker-info next-update-target-time) 0)
+        )
     (logclear! (-> this flags) (citizen-flag persistent in-pursuit hostile))
     (when (and s5-0
                (not (and (-> this next-state) (let ((v1-109 (-> this next-state name)))
@@ -1760,6 +1789,9 @@
   (set! (-> this move-index) -1)
   (set! (-> this reaction-time) (rnd-time-frame this (seconds 0.1) (seconds 0.15)))
   (ja-channel-set! 0)
+  ;; [MOD: Spargus Invasion] per-raider setup (enemy process-mask + ranged weapon roll).
+  ;; No-op outside an armed Spargus -- see traffic-h.gc.
+  (*mod-spargus-guard-init-hook* this)
   0
   (none)
   )
@@ -2005,7 +2037,10 @@
   )
 
 (defmethod citizen-method-215 ((this crimson-guard))
-  (when (nonzero? *cty-attack-controller*)
+  ;; [MOD: Spargus Invasion] `(nonzero? ...)` alone does NOT catch #f (the false symbol has a
+  ;; non-zero address), so outside ctywide this used to fall through to
+  ;; `(allocate-attacker #f)`. This is the exact guard `civilian::citizen-method-215` already uses.
+  (when (and *cty-attack-controller* (nonzero? *cty-attack-controller*))
     (set! (-> this mission-squad) *cty-attack-controller*)
     (when (not (-> this attacker-info))
       (set! (-> this attacker-info) (allocate-attacker (-> this mission-squad)))

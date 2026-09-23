@@ -1,0 +1,639 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: mod-spargus-invasion.gc
+;; name in dgo: mod-spargus-invasion
+;; dgos: WWD
+
+;; ================================================================================================
+;; [MOD] SPARGUS INVASION  (branch jak3/features/battle_of_spargus)
+;;
+;; Turns Spargus into a war zone, with four scenarios picked from
+;; [L3 + SELECT] > Mods > spargus-invasion (menu: pc/features/mod-spargus-invasion-menu.gc):
+;;
+;;   'battle       Freedom League guards vs the Wastelander militia, shooting on sight.
+;;   'pacified     The Freedom League holds the city: guard squads patrol, Haven City civilians
+;;                 walk the streets, the Wastelander militia is gone.
+;;   'invasion-ff  Metal Heads (grunt, flitter, predator) assault a city held by the Freedom League.
+;;   'invasion-wl  Metal Heads assault a city held by the Wastelander militia.
+;;
+;; HOW FOREIGN UNITS GET INTO SPARGUS
+;; ----------------------------------
+;; Spargus (`waswide`, DGO WWD) already runs Haven City's traffic/citizen engine for its own
+;; wastelanders. What it lacks is the ART and the BEHAVIOUR CODE of Haven City's units, so both
+;; are shipped inside WWD itself (the approach the first, playable version of this mod used):
+;;
+;;   CODE  -- guard, civilian and Metal Head behaviour objects are added to wwd.gd.
+;;   ART   -- the unit art groups and their texture pages (normally in Haven City's ctypesa,
+;;            ctypesb, ctypepa and ctypepb levels) are added to wwd.gd as well, and baked into
+;;            waswide.fr3 through "extra_art_groups_by_dgo" in decompiler/config/jak3/
+;;            jak3_config.jsonc -- the PC renderer only draws merc models found in the .fr3 of a
+;;            loaded level, so `task extract` is REQUIRED after changing that list.
+;; Every foreign traffic type is therefore pointed at level 'waswide.
+;;
+;; A first rework streamed Haven City's ctype levels into extra waswide borrow slots instead. It
+;; loaded and spawned correctly but crashed the game (Windows heap failure) a few seconds after
+;; ANY ctype level was hosted by Spargus, even with no unit spawned -- see the Tier-2 doc.
+;;
+;; WHY NO HAVEN CITY CONTROLLERS
+;; -----------------------------
+;; *cty-attack-controller* and *cty-faction-manager* are deliberately NOT built out here:
+;;   * the attack controller hands one of its 64 attacker slots to EVERY civilian, i.e. every
+;;     wastelander -- it runs dry and `(init! #f ...)` asserts a few seconds into the city;
+;;   * a live faction manager makes `traffic-manager-method-22` rewrite want-counts every frame,
+;;     silently overriding this mod's population settings.
+;; Targets therefore come from the *mod-spargus-*-target-hook* hooks below, and every
+;; attacker-info / faction-manager dereference in guard.gc and mh-squad-member.gc is null-guarded.
+;;
+;; The mod ships OFF: with `*spargus-invasion-mode*` = 'off every foreign traffic type has no level
+;; and a want-count of 0, and Spargus is stock Jak 3.
+;; ================================================================================================
+
+;; ------------------------------------------------------------------------------------------------
+;; 1. Tuning
+;; ------------------------------------------------------------------------------------------------
+
+;; How far a combatant looks for a foe. The same 60 m box the retail `wlander::search-for-focus`
+;; uses, so no side can acquire the other from outside the range it can be acquired back.
+(defconstant SPARGUS_INVASION_ENGAGE_DIST (meters 60))
+
+;; One actor-hash sweep per combatant every 16 frames, spread across the population by traffic-id
+;; (the same trick retail uses in `crimson-guard-method-270`). A per-frame 64-shape box query on
+;; every combatant is far more than the frame budget allows.
+(defconstant SPARGUS_INVASION_SCAN_MASK 15)
+
+;; Retail wastelander want-count in Spargus (traffic-manager-method-21 default for both sexes).
+(defconstant SPARGUS_INVASION_MILITIA_COUNT 14)
+
+;; A squad is a `formation-object`: the retail cross and wedge layouts hold 5 guards, which the
+;; formation pulls from the INACTIVE guard pool. Each squad therefore reserves this many extra guard
+;; processes on top of the loose guards.
+(defconstant SPARGUS_INVASION_SQUAD_SIZE 5)
+
+;; HARD LIMIT: at most 20 processes per traffic type. `traffic-engine::reset-and-init-from-manager`
+;; hands every type a 20-handle slice of `inactive-object-array`, and `add-reserved-process` silently
+;; drops a 21st freshly spawned process. That process is then untracked, active + inactive never
+;; reaches a want-count above 20, and `spawn-all` spawns a new untracked unit EVERY frame until
+;; memory runs out -- the "raise a count in the Mods menu, crash almost instantly" bug.
+;; Every want-count this file writes is clamped to this.
+(defconstant SPARGUS_INVASION_MAX_POOL 20)
+
+;; ------------------------------------------------------------------------------------------------
+;; 2. Scenario table
+;; ------------------------------------------------------------------------------------------------
+
+(defun mod-spargus-invasion-active? ()
+  "#t only when a scenario is armed AND we are actually running the Spargus traffic engine.
+   Every hook body starts with this: a stale hook pointer must never act on Haven City."
+  (and (!= *spargus-invasion-mode* 'off) (= *city-mode* 'waswide) *traffic-engine* #t)
+  )
+
+(defun mod-spargus-mode-guards? ()
+  "Freedom League guards are in the city."
+  (and (mod-spargus-invasion-active?)
+       (or (= *spargus-invasion-mode* 'battle)
+           (= *spargus-invasion-mode* 'pacified)
+           (= *spargus-invasion-mode* 'invasion-ff)
+           )
+       )
+  )
+
+(defun mod-spargus-mode-metalheads? ()
+  "Metal Heads are assaulting the city."
+  (and (mod-spargus-invasion-active?)
+       (or (= *spargus-invasion-mode* 'invasion-ff) (= *spargus-invasion-mode* 'invasion-wl))
+       )
+  )
+
+(defun mod-spargus-mode-civilians? ()
+  "Haven City civilians walk the streets."
+  (and (mod-spargus-invasion-active?) (= *spargus-invasion-mode* 'pacified))
+  )
+
+(defun mod-spargus-mode-militia? ()
+  "The Wastelander militia still lives in the city. True in retail ('off) too: the militia only
+   leaves when the Freedom League has taken the city over ('pacified, 'invasion-ff)."
+  (not (or (= *spargus-invasion-mode* 'pacified) (= *spargus-invasion-mode* 'invasion-ff)))
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; 3. Traffic wiring
+;; ------------------------------------------------------------------------------------------------
+
+;; The squad controllers THIS level built at login. They are only published into *ff-squad-control*
+;; / *mh-squad-control* once a scenario is armed (mod-spargus-arm-squads).
+(define *mod-spargus-ff-squad* (the-as ff-squad-control #f))
+(define *mod-spargus-mh-squad* (the-as mh-squad-control #f))
+
+;; #t once a scenario has been armed during this Spargus visit (squads published, traffic types
+;; rewritten). While #f the mod has changed nothing in the running game.
+(define *mod-spargus-armed* #f)
+
+(defun mod-spargus-purge-type ((type traffic-type))
+  "Send every live object of traffic type TYPE back to the inactive pool. The traffic manager then
+   deactivates the pooled processes one per frame while active + inactive exceeds the want-count."
+  (let ((engine *traffic-engine*))
+    (when engine
+      (let ((info (-> engine object-type-info-array type)))
+        (for-all-active-processes-of-type
+          (-> engine tracker-array (-> info tracker-index))
+          type
+          (lambda ((arg0 process-focusable) (arg1 traffic-object-type-info))
+            (send-event arg0 'traffic-off-force)
+            (none)
+            )
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+(defun mod-spargus-set-type ((type traffic-type) (lev-name symbol) (want int) (target int))
+  "Point traffic type TYPE at level LEV-NAME with the given pool size (WANT) and active target
+   (TARGET). A #f level parks the type: no level, want 0, survivors purged.
+
+   All three knobs have to be written by hand, because the retail engine only computes them once,
+   when the traffic manager starts:
+     * `level`   -- `traffic-entity-hack` gives a spawned unit this level, i.e. where its art is;
+     * `ttf3`    -- the spawner's 'level is active' flag, normally set by `spawn-all` only;
+     * `target-count` -- active objects the spawner aims for, normally (want - 1) at start-up.
+   `traffic-object-levels` lives in the STATIC *traffic-info*, so it outlives the level: the park
+   path must run on the way out of Spargus or Haven City would inherit the entry."
+  (let* ((engine *traffic-engine*)
+         (info (-> engine object-type-info-array type))
+         (lvl lev-name)
+         )
+    (set! (-> *traffic-info* traffic-object-levels type) lvl)
+    (set! (-> info level) lvl)
+    (cond
+      (lvl
+        (set! (-> info want-count) (min SPARGUS_INVASION_MAX_POOL (max 0 want)))
+        (set-object-target-count engine (the-as int type) (min SPARGUS_INVASION_MAX_POOL (max 0 target)))
+        (logior! (-> info flags) (traffic-type-flag ttf3))
+        )
+      (else
+        (set! (-> info want-count) 0)
+        (set-object-target-count engine (the-as int type) 0)
+        (logclear! (-> info flags) (traffic-type-flag ttf3))
+        (if (> (-> info active-count) 0)
+            (mod-spargus-purge-type type)
+            )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+(defun mod-spargus-arm-squads ()
+  "Publish and initialise the two Haven City squad controllers built at login, the first time a
+   scenario is armed during this Spargus visit. Until then they stay private to this file, so a
+   Spargus where the mod is never switched on runs exactly the retail code.
+
+   The squads are pointed at the traffic engine (units read their settings from them) but
+   deliberately NOT registered with it (`add-squad-to-traffic-engine` -> add-squad-ctrl): a
+   registered squad runs its per-frame update/alert logic over the WHOLE Spargus traffic, and the
+   Freedom League squad counts `wlander-male` as one of its own guard types
+   (ff-squad-control::squad-control-method-10, guard-type-info-array 3)."
+  (when (and (not *mod-spargus-armed*) *traffic-engine*)
+    (when *mod-spargus-ff-squad*
+      (set! *ff-squad-control* *mod-spargus-ff-squad*)
+      (set! (-> *ff-squad-control* traffic) *traffic-engine*)
+      (squad-control-method-10 *ff-squad-control*)
+      ;; ...and keep its alert logic (ff-squad-control-method-45) from ever rewriting the
+      ;; wastelanders' target-count.
+      (set! (-> *ff-squad-control* guard-type-mask-from-object-type (traffic-type wlander-male)) (the-as uint 0))
+      )
+    (when *mod-spargus-mh-squad*
+      (set! *mh-squad-control* *mod-spargus-mh-squad*)
+      (set! (-> *mh-squad-control* traffic) *traffic-engine*)
+      (squad-control-method-10 *mh-squad-control*)
+      )
+    (set! *mod-spargus-armed* #t)
+    )
+  0
+  (none)
+  )
+
+(defun mod-spargus-apply ()
+  "Push the current scenario into the running traffic engine. Idempotent: called on every mode or
+   count change from the Mods menu, and when waswide activates.
+   While the mod is off and has not been armed during this visit it touches NOTHING: the traffic
+   engine keeps the settings the retail traffic manager gave it."
+  (when (and *traffic-engine* (or *mod-spargus-armed* (mod-spargus-invasion-active?)))
+    (if (mod-spargus-invasion-active?)
+        (mod-spargus-arm-squads)
+        )
+    ;; Freedom League guards. Loose guards spawn up to the target; the extra pool slots stay inactive
+    ;; so formation-object can pull whole squads out of them. Squads get their slots first: the
+    ;; loose guards only take what is left of the SPARGUS_INVASION_MAX_POOL guard-a slots.
+    (let* ((guard-lev (if (mod-spargus-mode-guards?)
+                          'waswide
+                          #f
+                          )
+                      )
+           (squads (min (max 0 *spargus-invasion-squad-count*) (/ SPARGUS_INVASION_MAX_POOL SPARGUS_INVASION_SQUAD_SIZE)))
+           (squad-slots (* squads SPARGUS_INVASION_SQUAD_SIZE))
+           (loose (min (max 0 *spargus-invasion-guard-count*) (- SPARGUS_INVASION_MAX_POOL squad-slots)))
+           )
+      (mod-spargus-set-type
+        (traffic-type guard-a)
+        guard-lev
+        (+ loose squad-slots)
+        loose
+        )
+      (mod-spargus-set-type
+        (traffic-type formation)
+        (if (> squads 0)
+            guard-lev
+            #f
+            )
+        squads
+        squads
+        )
+      )
+    ;; Haven City civilians: one in six is a fat citizen, the rest split between men and women.
+    (let* ((civ-lev (if (mod-spargus-mode-civilians?)
+                        'waswide
+                        #f
+                        )
+                    )
+           (n (max 0 *spargus-invasion-civilian-count*))
+           (fat (/ n 6))
+           (rest (- n fat))
+           )
+      (mod-spargus-set-type (traffic-type civilian-male) civ-lev (- rest (/ rest 2)) (- rest (/ rest 2)))
+      (mod-spargus-set-type (traffic-type civilian-female) civ-lev (/ rest 2) (/ rest 2))
+      (mod-spargus-set-type (traffic-type civilian-fat) civ-lev fat fat)
+      )
+    ;; Metal Heads: one in five is a predator, the rest split between grunts and flitters.
+    (let* ((mh-lev (if (mod-spargus-mode-metalheads?)
+                       'waswide
+                       #f
+                       )
+                   )
+           (n (max 0 *spargus-invasion-metalhead-count*))
+           (pred (/ n 5))
+           (rest (- n pred))
+           )
+      (mod-spargus-set-type
+        (traffic-type metalhead-grunt)
+        mh-lev
+        (- rest (/ rest 2))
+        (- rest (/ rest 2))
+        )
+      (mod-spargus-set-type
+        (traffic-type metalhead-flitter)
+        mh-lev
+        (/ rest 2)
+        (/ rest 2)
+        )
+      (mod-spargus-set-type
+        (traffic-type metalhead-predator)
+        mh-lev
+        pred
+        pred
+        )
+      )
+    ;; The Wastelander militia: retail population (want 14, target 13 -- what
+    ;; `restore-default-settings` derives at start-up) unless the Freedom League holds the city.
+    (let ((militia-lev (if (mod-spargus-mode-militia?)
+                           'waswide
+                           #f
+                           )
+                       )
+          )
+      (mod-spargus-set-type
+        (traffic-type wlander-male)
+        militia-lev
+        SPARGUS_INVASION_MILITIA_COUNT
+        (+ SPARGUS_INVASION_MILITIA_COUNT -1)
+        )
+      (mod-spargus-set-type
+        (traffic-type wlander-female)
+        militia-lev
+        SPARGUS_INVASION_MILITIA_COUNT
+        (+ SPARGUS_INVASION_MILITIA_COUNT -1)
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+(defun mod-spargus-apply-hook-impl ((arg0 object))
+  "Installed as *mod-spargus-apply-hook*: the Mods menu calls it after every change."
+  arg0
+  (mod-spargus-apply)
+  (the object #f)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; 4. Target acquisition
+;; ------------------------------------------------------------------------------------------------
+
+(defun mod-spargus-foe-alive? ((proc process-focusable))
+  "#t when PROC can still be engaged."
+  (and proc (not (focus-test? proc inactive disable dead ignore)))
+  )
+
+(defun mod-spargus-find-foe ((this process-focusable) (foe-type type) (include-jak symbol))
+  "Nearest living FOE-TYPE (or, with INCLUDE-JAK, Jak himself) within SPARGUS_INVASION_ENGAGE_DIST
+   of THIS, or #f. Mirrors the box query retail `wlander::search-for-focus` uses, but keeps the
+   closest hit rather than the first one, so nobody walks past a foe at its elbow."
+  (let ((probe (new 'stack-no-clear 'vector))
+        (shapes (new 'stack-no-clear 'array 'collide-shape 64))
+        (best (the-as process-focusable #f))
+        (best-dist SPARGUS_INVASION_ENGAGE_DIST)
+        )
+    (vector-copy! probe (-> this root trans))
+    (set! (-> probe w) SPARGUS_INVASION_ENGAGE_DIST)
+    (countdown (idx (fill-actor-list-for-box *actor-hash* probe shapes 64))
+      (let ((shape (as-type (-> shapes idx) collide-shape)))
+        (when shape
+          (let ((proc (as-type (-> shape process) process-focusable)))
+            (when (and proc (!= proc this) (type? proc foe-type) (mod-spargus-foe-alive? proc))
+              (let ((dist (vector-vector-xz-distance (-> this root trans) (-> proc root trans))))
+                (when (< dist best-dist)
+                  (set! best-dist dist)
+                  (set! best proc)
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    (when (and include-jak *target* (mod-spargus-foe-alive? *target*))
+      (let ((dist (vector-vector-xz-distance (-> this root trans) (-> *target* root trans))))
+        (when (< dist best-dist)
+          (set! best-dist dist)
+          (set! best *target*)
+          )
+        )
+      )
+    best
+    )
+  )
+
+(defun mod-spargus-hold-or-scan ((this process-focusable)
+                                 (traffic-id int)
+                                 (cur process-focusable)
+                                 (foe-type type)
+                                 (include-jak symbol)
+                                 )
+  "Keep CUR while it is a live foe and this is not THIS's scan frame; otherwise re-scan.
+   Re-scanning every frame makes a unit flip between two near-equidistant foes and never finish
+   a burst."
+  (if (and cur
+           (mod-spargus-foe-alive? cur)
+           (or (type? cur foe-type) (and include-jak (= cur *target*)))
+           (logtest? (logxor traffic-id (-> this clock integral-frame-counter)) SPARGUS_INVASION_SCAN_MASK)
+           )
+      cur
+      (mod-spargus-find-foe this foe-type include-jak)
+      )
+  )
+
+(defun mod-spargus-guard-target ((arg0 object))
+  "*mod-spargus-guard-target-hook*: called from `crimson-guard-method-290`, which retail resolves to
+   the city attack controller's assignment. Returns the foe this guard should engage, or #f to let
+   the retail path run (which, with no attack controller, means 'nobody': a Pacified patrol).
+
+   Returning a process is enough to drive the whole retail guard AI: method-261 copies it into
+   `target-status`, `squad-control-method-16` fills in position/velocity and raises
+   `visible-now`, and the `active` state's trans calls `go-hostile` on the next reaction tick."
+  (the object
+       (let ((this (the-as crimson-guard arg0)))
+         (when (mod-spargus-invasion-active?)
+           (let ((cur (as-type (handle->process (-> this target-status handle)) process-focusable)))
+             (case *spargus-invasion-mode*
+               (('battle)
+                (mod-spargus-hold-or-scan this (the-as int (-> this traffic-id)) cur wlander #f)
+                )
+               (('invasion-ff)
+                (mod-spargus-hold-or-scan this (the-as int (-> this traffic-id)) cur mh-squad-member #f)
+                )
+               (else
+                 #f
+                 )
+               )
+             )
+           )
+         )
+       )
+  )
+
+(defun mod-spargus-mh-target ((arg0 object))
+  "*mod-spargus-mh-target-hook*: called from `mh-squad-member::get-current-enemy`. Metal Heads go
+   for the nearest defender -- a Freedom League guard or a wastelander depending on the scenario --
+   or for Jak if he is closer."
+  (the object
+       (let ((this (the-as mh-squad-member arg0)))
+         (when (mod-spargus-mode-metalheads?)
+           (let ((cur (as-type (handle->process (-> this current-enemy)) process-focusable)))
+             (case *spargus-invasion-mode*
+               (('invasion-ff)
+                (mod-spargus-hold-or-scan this (the-as int (-> this traffic-id)) cur crimson-guard #t)
+                )
+               (('invasion-wl)
+                (mod-spargus-hold-or-scan this (the-as int (-> this traffic-id)) cur wlander #t)
+                )
+               (else
+                 #f
+                 )
+               )
+             )
+           )
+         )
+       )
+  )
+
+(defun mod-spargus-wlander-trans ((arg0 object))
+  "*mod-spargus-wlander-trans-hook*: runs in `wlander::active` trans.
+
+   Retail wastelanders only sweep for a target from the `panic` state (the `wascity-defend` task).
+   This lets them do it during ordinary city life too -- only in the scenarios where they fight,
+   and `search-for-focus` only considers processes carrying (process-mask enemy), which the init
+   hooks below give to the invaders and nobody else. A focus is all the retail trans line after
+   the hook needs to go hostile."
+  (let ((this (the-as wlander arg0)))
+    (when (and (mod-spargus-invasion-active?)
+               (or (= *spargus-invasion-mode* 'battle) (= *spargus-invasion-mode* 'invasion-wl))
+               (not (handle->process (-> this focus handle)))
+               (not (logtest? (logxor (-> this traffic-id) (-> this clock integral-frame-counter))
+                              SPARGUS_INVASION_SCAN_MASK
+                              )
+                    )
+               )
+      (search-for-focus this)
+      )
+    )
+  (the object #f)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; 5. Unit setup
+;; ------------------------------------------------------------------------------------------------
+
+(defun mod-spargus-guard-init ((arg0 object))
+  "*mod-spargus-guard-init-hook*: runs at the tail of `citizen-method-194` (crimson-guard), i.e.
+   once per guard as it is pulled out of the traffic pool."
+  (let ((this (the-as crimson-guard arg0)))
+    (when (and (mod-spargus-invasion-active?)
+               (or (= *spargus-invasion-mode* 'battle) (= *spargus-invasion-mode* 'invasion-ff))
+               )
+      (if (= *spargus-invasion-mode* 'battle)
+          ;; `citizen-init-by-other` clears (process-mask enemy) for every citizen, which is exactly
+          ;; why retail guards are invisible to `wlander::search-for-focus`. Put it back and the
+          ;; militia acquires them on its own. Battle only: in the invasion it would just make Jak's
+          ;; auto-aim lock onto his allies.
+          (logior! (-> this mask) (process-mask enemy))
+          )
+      ;; (A Pacified patrol keeps its retail weapon mix.) No tasers in a war: a taser guard is
+      ;; melee-only and tries to ARREST its target. One guard in three carries the grenade launcher.
+      (crimson-guard-method-267
+        this
+        (if (zero? (rand-vu-int-count 3))
+            (guard-type grenade)
+            (guard-type rifle)
+            )
+        #f
+        )
+      ;; ...and keeps it: `crimson-guard-method-270` otherwise re-rolls the weapon off-screen from
+      ;; the squad's Haven City weapon mix, which would hand it a taser again.
+      (logior! (-> this flags) (citizen-flag sticky-weapon))
+      )
+    )
+  (the object #f)
+  )
+
+(defun mod-spargus-mh-init ((arg0 object))
+  "*mod-spargus-mh-init-hook*: runs at the tail of `mh-squad-member::citizen-method-194`. Gives the
+   invader (process-mask enemy) so the Wastelander militia's `search-for-focus` (and Jak's auto-aim)
+   can find it."
+  (let ((this (the-as mh-squad-member arg0)))
+    (if (mod-spargus-mode-metalheads?)
+        (logior! (-> this mask) (process-mask enemy))
+        )
+    )
+  (the object #f)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; 6. Level life cycle -- called from waswide-init.gc
+;; ------------------------------------------------------------------------------------------------
+
+(defun mod-spargus-invasion-login ((arg0 level))
+  "Called from `waswide-login`, i.e. while the loading-level heap is still open.
+
+   Builds the two Haven City squad controllers the unit code cannot live without: guards store
+   *ff-squad-control* in `set-squad` and read per-weapon settings from it; Metal Heads read their
+   city mode from *mh-squad-control* every frame. Built unconditionally because the heap is only
+   writable during load, but only published once a scenario is armed.
+   *cty-attack-controller* and *cty-faction-manager* are deliberately NOT built -- see the header."
+  (format 0 "mod-spargus-invasion-login~%")
+  ;; Allocated now because the loading-level heap is only writable during login, but kept private
+  ;; until a scenario is armed -- see mod-spargus-arm-squads.
+  (set! *mod-spargus-armed* #f)
+  (set! *mod-spargus-ff-squad* (new 'loading-level 'ff-squad-control))
+  (initialize *mod-spargus-ff-squad* (the-as process #f))
+  (set! *mod-spargus-mh-squad* (new 'loading-level 'mh-squad-control))
+  (initialize *mod-spargus-mh-squad* (the-as process #f))
+  ;; Install the hooks. Until now (and again after waswide-deactivate) they are the no-ops declared
+  ;; in traffic-h.gc, which is what keeps Haven City untouched.
+  (set! *mod-spargus-apply-hook* mod-spargus-apply-hook-impl)
+  (set! *mod-spargus-guard-target-hook* mod-spargus-guard-target)
+  (set! *mod-spargus-guard-init-hook* mod-spargus-guard-init)
+  (set! *mod-spargus-mh-target-hook* mod-spargus-mh-target)
+  (set! *mod-spargus-mh-init-hook* mod-spargus-mh-init)
+  (set! *mod-spargus-wlander-trans-hook* mod-spargus-wlander-trans)
+  0
+  (none)
+  )
+
+(defun mod-spargus-invasion-activate ((arg0 level) (arg1 symbol))
+  "Called at the tail of `waswide-activate`, after `traffic-start` has respawned the traffic
+   manager and reset every want-count from its init params. The squads have to be re-initialised
+   against that fresh state, so the visit starts unarmed again; with the mod off nothing else
+   happens."
+  (when (and *mod-spargus-armed* (= *ff-squad-control* *mod-spargus-ff-squad*))
+    (set! *ff-squad-control* (the-as ff-squad-control #f))
+    )
+  (when (and *mod-spargus-armed* (= *mh-squad-control* *mod-spargus-mh-squad*))
+    (set! *mh-squad-control* (the-as mh-squad-control #f))
+    )
+  (set! *mod-spargus-armed* #f)
+  (mod-spargus-apply)
+  0
+  (none)
+  )
+
+(defun mod-spargus-invasion-deactivate ((arg0 level))
+  "Called first thing in `waswide-deactivate`. Parks every foreign type, drops
+   the hooks back to their no-ops and clears the squads -- their storage lives on the waswide
+   loading-level heap, which is about to go away."
+  ;; Force every type to its retail state rather than going through the scenario: *city-mode* is
+  ;; still 'waswide here, so the scenario would happily re-arm a traffic engine about to be freed.
+  (when *mod-spargus-armed*
+    (let ((mode *spargus-invasion-mode*))
+      (set! *spargus-invasion-mode* 'off)
+      (mod-spargus-apply)
+      (set! *spargus-invasion-mode* mode)
+      )
+    )
+  (set! *mod-spargus-apply-hook* mod-spargus-hook-none)
+  (set! *mod-spargus-guard-target-hook* mod-spargus-hook-none)
+  (set! *mod-spargus-guard-init-hook* mod-spargus-hook-none)
+  (set! *mod-spargus-mh-target-hook* mod-spargus-hook-none)
+  (set! *mod-spargus-mh-init-hook* mod-spargus-hook-none)
+  (set! *mod-spargus-wlander-trans-hook* mod-spargus-hook-none)
+  (when (and *mod-spargus-ff-squad* (= *ff-squad-control* *mod-spargus-ff-squad*))
+    (set! *ff-squad-control* (the-as ff-squad-control #f))
+    )
+  (when (and *mod-spargus-mh-squad* (= *mh-squad-control* *mod-spargus-mh-squad*))
+    (set! *mh-squad-control* (the-as mh-squad-control #f))
+    )
+  (set! *mod-spargus-ff-squad* (the-as ff-squad-control #f))
+  (set! *mod-spargus-mh-squad* (the-as mh-squad-control #f))
+  (set! *mod-spargus-armed* #f)
+  0
+  (none)
+  )
+
+;; ------------------------------------------------------------------------------------------------
+;; 7. REPL helper
+;; ------------------------------------------------------------------------------------------------
+
+(defun mod-spargus-invasion-debug ()
+  "(mod-spargus-invasion-debug) from the REPL: report why the scenario is or is not running."
+  (format #t "~%--- Spargus Invasion ---~%")
+  (format #t "  mode        = ~A~%" *spargus-invasion-mode*)
+  (format #t "  city-mode   = ~A~%" *city-mode*)
+  (format #t "  armed       = ~A~%" *mod-spargus-armed*)
+  (let ((engine *traffic-engine*))
+    (cond
+      (engine
+        (dotimes (type 14)
+          (let ((info (-> engine object-type-info-array type)))
+            (format #t "  type ~2D level ~12A want ~3D target ~3D active ~3D inactive ~3D~%"
+                    type
+                    (-> info level)
+                    (-> info want-count)
+                    (-> info target-count)
+                    (-> info active-count)
+                    (-> info inactive-count)
+                    )
+            )
+          )
+        )
+      (else
+        (format #t "  no traffic engine~%")
+        )
+      )
+    )
+  0
+  (none)
+  )

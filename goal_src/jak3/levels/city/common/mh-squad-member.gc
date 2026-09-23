@@ -28,6 +28,9 @@
   (set! (-> this fact pickup-spawn-amount) 1.0)
   (set! (-> this fact fade-time) (seconds 10))
   (call-parent-method this)
+  ;; [MOD: Spargus Invasion] per-invader setup (enemy process-mask so the Wastelander militia can
+  ;; acquire it). No-op outside a Spargus invasion -- see engine/ai/traffic-h.gc.
+  (*mod-spargus-mh-init-hook* this)
   (none)
   )
 
@@ -113,6 +116,12 @@
          ((= v1-15 (squad-city-mode two))
           (set! s5-0 2)
           )
+         ;; [MOD: Spargus Invasion] added this branch. Spargus deliberately runs without a
+         ;; *cty-faction-manager* (see mod-spargus-invasion.gc), so keep the current faction mode
+         ;; instead of dereferencing #f. In Haven City the manager always exists.
+         ((not (and *cty-faction-manager* (nonzero? *cty-faction-manager*)))
+          (set! s5-0 (the-as int (-> this faction-mode)))
+          )
          (else
            (let ((v1-17 *cty-faction-manager*)
                  (a1-2 (-> this controller branch clock-type))
@@ -185,10 +194,27 @@
 
 ;; WARN: disable def twice: 6. This may happen when a cond (no else) is nested inside of another conditional, but it should be rare.
 (defmethod get-current-enemy ((this mh-squad-member))
-  (if #t
-      (handle->process (-> this attacker-info enemy))
-      (squad-control-city-method-35 (-> this squad) this (-> this current-enemy))
+  ;; [MOD: Spargus Invasion] give the mod first refusal on this Metal Head's target. The hook is
+  ;; the no-op declared in traffic-h.gc everywhere except an active Spargus invasion, so in Haven
+  ;; City this falls straight through to the retail city-attack-controller assignment below.
+  (let ((mod-target (*mod-spargus-mh-target-hook* this)))
+    (cond
+      (mod-target
+        (the-as process mod-target)
+        )
+      (else
+        (if #t
+            ;; [MOD: Spargus Invasion] attacker-info is #f when no city attack controller exists
+            ;; (i.e. anywhere but ctywide). Always non-#f in Haven City.
+            (if (-> this attacker-info)
+                (handle->process (-> this attacker-info enemy))
+                (the-as process #f)
+                )
+            (squad-control-city-method-35 (-> this squad) this (-> this current-enemy))
+            )
+        )
       )
+    )
   )
 
 ;; WARN: disable def twice: 120. This may happen when a cond (no else) is nested inside of another conditional, but it should be rare.
@@ -204,7 +230,8 @@
         (set! (-> this current-enemy) (the-as handle #f))
         )
     )
-  (when (logtest? (-> this attacker-info flags) (city-attacker-info-flag cai2))
+  ;; [MOD: Spargus Invasion] added the attacker-info null test -- see get-current-enemy above.
+  (when (and (-> this attacker-info) (logtest? (-> this attacker-info flags) (city-attacker-info-flag cai2)))
     (set! (-> this attacker-info next-update-target-time) (+ (current-time) (seconds 3)))
     (logclear! (-> this attacker-info flags) (city-attacker-info-flag cai2))
     )

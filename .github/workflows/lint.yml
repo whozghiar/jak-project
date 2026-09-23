@@ -1,0 +1,57 @@
+name: 🧪 Lint
+
+# Fast, dependency-light source checks that catch mistakes before they land:
+# trailing whitespace in goal_src, forbidden assert() calls in the C++ engine,
+# translation-file characters/autoglottonyms outside each game's allowed set,
+# and accidental removal of `og:preserve-this` markers in goal_src. Runs on
+# every push, on every branch (this file is synced onto every mod branch by
+# the modding sync scripts, see scripts/modding/sync_common.py) - each check
+# finishes in seconds, there is no build involved.
+
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: "🧪 Source Lint"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+
+      - name: Install lint dependencies
+        run: pip install unidiff==0.7.5 colorama==0.4.6
+
+      - name: Trailing whitespace (goal_src)
+        run: python scripts/ci/lint-trailing-whitespace.py
+
+      - name: Forbidden assert() calls (C++ engine)
+        run: python scripts/ci/check-for-asserts.py
+
+      - name: Autoglottonyms left untranslated
+        run: python scripts/ci/lint-autoglottonyms.py
+
+      - name: Allowed characters in translation files
+        run: python scripts/ci/lint-characters.py
+
+      - name: No 'og:preserve-this' markers removed from goal_src
+        run: |
+          git fetch origin master
+          git diff origin/master...HEAD -- goal_src > lint-changes.diff
+          python scripts/ci/lint-gsrc-removals.py

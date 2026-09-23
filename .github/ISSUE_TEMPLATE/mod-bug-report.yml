@@ -26,7 +26,7 @@ body:
       description: >
         Only mods with at least one published GitHub Release are listed, by the exact
         display name from that release (kept in sync automatically — see
-        docs/modding/tools/mod_bug_tracking.md). If your mod isn't listed — it may still
+        docs/modding/guides/mod_bug_tracking.md). If your mod isn't listed — it may still
         be unreleased.
       options:
         # BEGIN GENERATED — scripts/modding/sync_bug_report_options.py (do not edit by hand)

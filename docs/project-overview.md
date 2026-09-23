@@ -1,24 +1,12 @@
-# OpenGOAL — Project Overview / Vue d'ensemble du Projet
+# OpenGOAL — Project Overview
 
-> **Language / Langue :** [🇬🇧 English Version](#-english-version) &nbsp;•&nbsp; [🇫🇷 Version Française](#-version-française)
-
----
-
-## 📑 Summary / Sommaire
-- [🇬🇧 English Version](#-english-version)
-  - [1. `goalc` (Compiler & REPL)](#1-goalc-compiler--repl)
-  - [2. `decompiler` (Asset & Code Extraction)](#2-decompiler-asset--code-extraction)
-  - [3. `goal_src/` (Game Source Code)](#3-goal_src-game-source-code)
-  - [4. `game` runtime (C++ Engine & Kernel)](#4-game-runtime-c-engine--kernel)
-- [🇫🇷 Version Française](#-version-française)
-  - [1. `goalc` (Compilateur et REPL)](#1-goalc-compilateur-et-repl)
-  - [2. `decompiler` (Extraction des Assets et du Code)](#2-decompiler-extraction-des-assets-et-du-code)
-  - [3. `goal_src/` (Code Source du Jeu)](#3-goal_src-code-source-du-jeu)
-  - [4. `game` runtime (Moteur C++ et Kernel)](#4-game-runtime-moteur-c-et-kernel)
+## Summary
+- [1. `goalc` (Compiler & REPL)](#1-goalc-compiler--repl)
+- [2. `decompiler` (Asset & Code Extraction)](#2-decompiler-asset--code-extraction)
+- [3. `goal_src/` (Game Source Code)](#3-goal_src-game-source-code)
+- [4. `game` runtime (C++ Engine & Kernel)](#4-game-runtime-c-engine--kernel)
 
 ---
-
-# 🇬🇧 English Version
 
 There are four main components to the project:
 
@@ -101,90 +89,3 @@ In the port, this includes:
 - **Sound Engine (`game/sound/`):** Implementation of Sony's `989SND` library and PC audio output backends (Cubeb).
 - **PC Graphics Renderer (`game/graphics/`):** An OpenGL 4.3 pipeline that translates PS2 GS (Graphics Synthesizer) draw calls into modern PC shaders and render passes (TFRAG, TIE, MERC, SHRUB, etc.).
 - **Extra Assets (`game/assets/`):** Supplemental PC port assets, icons, fonts, and configuration files.
-
----
----
-
-# 🇫🇷 Version Française
-
-Le projet s'articule autour de quatre composants fondamentaux :
-
-1. `goalc` — le compilateur GOAL pour x86-64 et REPL interactif.
-2. `decompiler` — notre décompilateur pour extraire les assets et le code des disques PS2 originaux.
-3. `goal_src/` — le dossier contenant l'ensemble du code source GOAL et GOOS.
-4. `game` — le moteur d'exécution (runtime) natif écrit en C++ simulant la RAM de la PS2.
-
-Voici une description détaillée de chaque composant.
-
----
-
-## 1. `goalc` (Compilateur et REPL)
-
-Notre implémentation du langage GOAL s'appelle **OpenGOAL**.
-
-L'intégralité du code source du compilateur se trouve dans `goalc/`. Le compilateur est piloté via une invite de commande interactive permettant de :
-- Compiler des fichiers source `.gc`.
-- Se connecter à une instance de jeu en cours d'exécution pour interagir en direct.
-- Lancer le débogueur OpenGOAL.
-- Utiliser un REPL interactif (`(mi)`, etc.) afin d'évaluer du code à la volée dans la mémoire vive du jeu.
-- Empaqueter et compiler les fichiers de données binaires (DGO, tpages, etc.).
-
-### Lancer le Compilateur
-
-- **Multiplateforme (Recommandé) :**
-  Si `task` est installé, exécutez :
-  ```bash
-  task repl
-  ```
-- **Linux :**
-  Exécutez le script : `scripts/shell/gc.sh`
-- **Windows :**
-  Exécutez `scripts/batch/gc.bat` ou `scripts/batch/gc-no-lt.bat` (ce dernier ne tente pas de se connecter automatiquement à une cible active).
-
----
-
-## 2. `decompiler` (Extraction des Assets et du Code)
-
-Le second composant du projet est le décompilateur.
-
-Le décompilateur génère du désassemblage, des définitions de types et du code source GOAL lisible dans le dossier `decompiler_out/`. Les fichiers de ce dossier sont destinés à l'inspection humaine et ne sont pas directement utilisés par le compilateur.
-
-### Lancer le Décompilateur
-
-Vous devez posséder une copie légale du jeu PS2 et placer l'ensemble des fichiers du DVD dans le sous-dossier correspondant sous `iso_data/` (`jak1` pour Jak 1 Black Label, `jak2`, `jak3`), comme illustré ici :
-
-![](./img/iso_data-help.png)
-
-Le décompilateur extrait les assets dans le dossier `assets/`. Ces assets sont indispensables au compilateur pour générer le portage PC :
-- **Multiplateforme (Recommandé) :**
-  ```bash
-  task extract
-  ```
-  *(ou `task decomp` pour décompiler sans réextraire)*
-- **Linux :**
-  `scripts/shell/decomp.sh`
-- **Windows :**
-  `scripts/batch/decomp-jak1.bat`
-
----
-
-## 3. `goal_src/` (Code Source du Jeu)
-
-Le code source du jeu, écrit en OpenGOAL LISP, est situé dans `goal_src/`. Tout le code GOAL et GOOS est organisé par jeu :
-- `goal_src/jak1/`
-- `goal_src/jak2/`
-- `goal_src/jak3/`
-
----
-
-## 4. `game` runtime (Moteur C++ et Kernel)
-
-Le dernier composant est le **runtime**, situé dans le répertoire `game/`. Il s'agit de l'exécutable natif x86-64 écrit en C++ qui simule les structures matérielles de la PS2 et fournit l'environnement d'exécution pour le code GOAL.
-
-Dans le cadre du portage, cela comprend :
-- **Le Kernel C (`game/kernel/`) :** Contient l'éditeur de liens (linker) GOAL, les gestionnaires de mémoire tas (`global`, `debug`), la table des symboles, le système de types et le répartiteur du noyau. Il gère également la communication TCP avec le compilateur `goalc`.
-- **Bibliothèque standard Sony (`game/sce/`, `game/system/`) :** Implémente ou émule les fonctions du SDK Sony PS2 pour la lecture de fichiers, les cartes mémoire, les manettes et le multithreading.
-- **Pilote OVERLORD pour IOP (`game/overlord/`) :** La PS2 disposait d'un processeur dédié aux E/S (IOP). Naughty Dog a développé le pilote OVERLORD pour assurer le streaming asynchrone des données du DVD et le chargement audio.
-- **Moteur Sonore (`game/sound/`) :** Implémentation de la bibliothèque Sony `989SND` et backends audio PC (Cubeb).
-- **Moteur Graphique PC (`game/graphics/`) :** Un pipeline moderne OpenGL 4.3 convertissant les commandes d'affichage du GS (Graphics Synthesizer) de la PS2 en shaders et passes de rendu modernes (TFRAG, TIE, MERC, SHRUB, etc.).
-- **Ressources Additionnelles (`game/assets/`) :** Fichiers de configuration, icônes, polices et assets spécifiques au portage PC.

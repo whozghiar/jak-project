@@ -254,8 +254,8 @@ requirement for `push`.
 Whenever you add a new `.gc` source file, register it in the corresponding
 game project file:
 - Jak 1: `goal_src/jak1/game.gp`
-- Jak 2: `goal_src/jak2/jak2-game.gp`
-- Jak 3: `goal_src/jak3/jak3-game.gp`
+- Jak 2: `goal_src/jak2/game.gp`
+- Jak 3: `goal_src/jak3/game.gp`
 
 Ensure that dependent type files are listed before files that consume
 them.

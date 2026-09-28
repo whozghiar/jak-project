@@ -91,8 +91,8 @@ build it during a clean boot. Whenever you create a new `.gc` file:
 
 1. Open the project file for your target game:
    - Jak 1: `goal_src/jak1/game.gp`
-   - Jak 2: `goal_src/jak2/jak2-game.gp`
-   - Jak 3: `goal_src/jak3/jak3-game.gp`
+   - Jak 2: `goal_src/jak2/game.gp`
+   - Jak 3: `goal_src/jak3/game.gp`
 2. Add your file under the appropriate CGO/DGO group — the exact
    registration call is the same shape as "Register a new script" in each
    game's Lisp wiki.

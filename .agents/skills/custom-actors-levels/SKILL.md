@@ -299,7 +299,7 @@ custom_assets/jak[x]/levels/<level_name>/
 ```
 
 ### Build & registration
-1. Declare the custom level build targets in `goal_src/jak[x]/jak[x]-game.gp`
+1. Declare the custom level build targets in `goal_src/jak[x]/game.gp`
    — the exact macro calls are in
    [1.2.12 of the Lisp wiki](../../../docs/modding/lisp_instructions.md#1212-static-props-custom-levels-and-audio-banks).
 2. Add level metadata (symbol, name string, bounding box, loading

@@ -32,7 +32,7 @@ jobs:
   sync-branch:
     name: "🔀 Merge master-dev & Push"
     # Mother repository only: mod repositories created from master-dev inherit this file.
-    if: github.repository == 'whozghiar/jak-project' && github.ref_name != 'master-dev' && github.ref_name != 'master'
+    if: endsWith(github.repository, '/jak-project') && github.ref_name != 'master-dev' && github.ref_name != 'master'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

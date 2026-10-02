@@ -7,7 +7,8 @@ name: 🔄 Sync Upstream Mirror
 # (per-branch, on demand) to catch a branch up with master-dev.
 #
 # Mother repository only: mod repositories created from master-dev inherit
-# this file, so the job is skipped anywhere but whozghiar/jak-project.
+# this file, so the job runs only in a repository named jak-project (the mother
+# repository, or a fork of it).
 #
 # Restricted to the repository owner for the manual trigger path (see the
 # "Restrict to repository owner" step) - this pushes to master and
@@ -32,7 +33,7 @@ permissions:
 jobs:
   sync-upstream:
     name: Sync Master with Upstream & Propagate to Master-Dev
-    if: github.repository == 'whozghiar/jak-project'
+    if: endsWith(github.repository, '/jak-project')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -71,7 +72,13 @@ jobs:
           git fetch upstream master
 
           echo "Fast-forwarding master branch..."
-          git checkout -B master origin/master
+          if git rev-parse --verify -q origin/master >/dev/null; then
+            git checkout -B master origin/master
+          else
+            # A fork made with "copy the default branch only" has no master yet.
+            echo "No master branch here yet: creating it from upstream."
+            git checkout -B master upstream/master
+          fi
           if git merge --ff-only upstream/master; then
             echo "Pushing updated master to origin..."
             if [ -n "$GH_PAT" ]; then

@@ -30,7 +30,7 @@ jobs:
   check-sync:
     name: "🔗 Caught up with master-dev?"
     # Mother repository only: mod repositories created from master-dev inherit this file.
-    if: github.repository == 'whozghiar/jak-project'
+    if: endsWith(github.repository, '/jak-project')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

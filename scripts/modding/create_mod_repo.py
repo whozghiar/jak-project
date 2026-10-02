@@ -70,8 +70,7 @@ def is_ancestor(ancestor: str, ref: str) -> bool:
 
 
 def owner() -> str:
-    m = re.search(r"github\.com[:/]([^/]+)/", git("remote", "get-url", "origin"))
-    return m.group(1) if m else "whozghiar"
+    return sync_common.github_owner(MOTHER_ROOT)
 
 
 def catalog_mods(ref: str) -> dict:

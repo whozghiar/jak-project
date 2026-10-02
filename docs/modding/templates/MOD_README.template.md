@@ -109,7 +109,7 @@ task boot-game
 - [ ] **In-game Mods toggle [MANDATORY FOR FEATURES]:** the mod registers at least one enable/disable entry via `(mods-menu-register "{MOD_SLUG}" ...)` (Jak 2 / Jak 3, opens with **L3 + SELECT**, works in a retail boot) or a `{MOD_SLUG}`-prefixed **debug-only** submenu (Jak 1). See [`docs/modding/guides/mods_menu.md`](docs/modding/guides/mods_menu.md).
 - [ ] **No direct `default-menu*.gc` edits.**
 - [ ] **Symbols prefixed** with the mod slug (`*mod-{MOD_SLUG}-*`, `mod-{MOD_SLUG}-*`).
-- [ ] **Verified Lisp instructions** used by this mod are present in `docs/modding/lisp_instructions.md` (landed on `master-dev` via `task modding-land-doc`).
+- [ ] **Verified Lisp instructions** used by this mod are present in the Lisp wiki (`.agents/skills/goal-lisp/wiki/`), recorded with the `kb` skill.
 - [ ] **In-code comments** on every new/overridden type, method, state, macro.
 - [ ] **Mod cover thumbnail:** Optional cover image deposited at `docs/img/mod/mod_cover.png` for OpenGOAL Launcher display.
 

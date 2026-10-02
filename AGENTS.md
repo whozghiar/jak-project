@@ -12,12 +12,15 @@ REPL, `game/` builds the `gk` runtime, `decompiler/` extracts assets and code fr
 custom models. This fork adds modding tooling on `master-dev`; every mod is derived from it.
 Architecture details: [`docs/project-overview.md`](docs/project-overview.md).
 
-## 2. Skills
+## 2. Skills and knowledge base
 
-Skills live in [`.agents/skills/`](.agents/skills/), one folder per skill with a `SKILL.md`.
-Gemini CLI, Codex, Copilot and Cursor read that folder natively. Claude Code reads
-`.claude/skills/`, which `task ai-link` fills with links to `.agents/skills/` (a SessionStart
-hook runs it). Load a skill only when its description matches the task.
+Skills live in [`.agents/skills/`](.agents/skills/), a git submodule of
+[`whozghiar/opengoal-modding-kb`](https://github.com/whozghiar/opengoal-modding-kb) shared by
+this repository and every mod repository: one folder per skill with a `SKILL.md`, and the Lisp
+wiki in `.agents/skills/goal-lisp/wiki/`. Gemini CLI, Codex, Copilot and Cursor read
+`.agents/skills/` natively. Claude Code reads `.claude/skills/`, which `task ai-link` fills with
+links; a SessionStart hook refreshes the submodule (`task kb-update`) and the links. Load a skill
+only when its description matches the task.
 
 ## 3. Verify before you claim
 
@@ -37,7 +40,7 @@ hook runs it). Load a skill only when its description matches the task.
 
 ## 4. Golden rules for mods
 
-1. **Consult the Lisp wiki first.** [`docs/modding/lisp_instructions.md`](docs/modding/lisp_instructions.md)
+1. **Consult the Lisp wiki first.** [`.agents/skills/goal-lisp/wiki/`](.agents/skills/goal-lisp/wiki/index.md)
    is the only place GOAL code examples live. Never invent an instruction.
 2. **Native non-regression.** A mod must not change default game behavior unless asked: every
    change ships off by default, gated behind the mod's runtime toggle.
@@ -60,16 +63,11 @@ hook runs it). Load a skill only when its description matches the task.
 
 ## 5. Recording verified discoveries
 
-A verified GOAL pattern, language trap or crash fix goes into the Lisp wiki, never into a separate
-memory or scratch file. The wiki's single source of truth is `master-dev`; from a mod branch:
-
-```bash
-task modding-land-doc -- --file docs/modding/lisp_instructions.md --message "jak2: <description>" --push
-task modding-sync-docs
-```
-
-An engine fact with no GOAL code belongs in the wiki's "Engine model" section (Part 1.3) if all
-three games share it, otherwise in the owning skill's `SKILL.md`.
+A verified GOAL pattern, language trap, engine behavior or crash fix that could help another mod
+goes into the knowledge base, never into a separate memory or scratch file. Follow the `kb` skill:
+find the existing entry, edit it in place, cite the evidence, then commit and push from the
+`.agents/skills` submodule. Notes about the current mod alone stay in its `README.md` and
+`docs/modding/current_mod/`.
 
 ## 6. Documentation standards
 

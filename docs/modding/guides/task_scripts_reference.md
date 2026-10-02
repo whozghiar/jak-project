@@ -395,45 +395,19 @@ task modding-sync-branch -- --push
 
 ---
 
-### 3. `task modding-sync-docs -- [options]`
-- **Script:** [`sync_docs_from_master.py`](../../../scripts/modding/sync_docs_from_master.py)
-- **When?** When you want latest modding documentation, verified Lisp instructions, or agent skills on your branch without merging game code.
-- **Why?** Pulls `.agents`, `docs/modding`, `AGENTS.md`, and `CLAUDE.md` from `master-dev` without touching game source code.
-- **CLI Parameters (`-- <args>`):**
-  | Parameter | Type / Default | Description |
-  | :--- | :--- | :--- |
-  | `--commit` | Flag *(optional)* | Automatically creates a git commit (`docs: sync modding docs and agent skills from master-dev`) with the pulled documentation. |
-  | `--source <ref>` | String (`origin/master-dev`) | Source git ref or branch to pull documentation from. |
-  | `--no-fetch` | Flag *(optional)* | Skips running `git fetch` before checking out docs. |
-  | `--rebase` | Flag *(optional)* | Rebases the whole mod branch onto `origin/master-dev` instead of selective doc checkout. |
+### 3. `task kb-update` and `task ai-link`
+- **Scripts:** [`kb_sync.py`](../../../scripts/ai/kb_sync.py), [`link_skills.py`](../../../scripts/ai/link_skills.py)
+- **When?** Rarely by hand: the Claude Code SessionStart hook runs both at the start of every session.
+- **Why?** `.agents/skills/` is the knowledge-base submodule ([`opengoal-modding-kb`](https://github.com/whozghiar/opengoal-modding-kb)). `kb-update` initialises it, puts it on `main` and fast-forwards it, without ever discarding local commits or edits. `ai-link` then links each skill into `.claude/skills/`, the only folder Claude Code reads. To record a discovery in the knowledge base, follow the `kb` skill.
 
 *Example:*
 ```bash
-task modding-sync-docs -- --commit
+task kb-update
 ```
 
 ---
 
-### 4. `task modding-land-doc -- --file <path> --message "<msg>" [options]`
-- **Script:** [`land_doc_on_master_dev.py`](../../../scripts/modding/land_doc_on_master_dev.py)
-- **When?** When you discover and verify an undocumented Lisp instruction or engine fact while working on a mod.
-- **Why?** The Lisp wiki (`docs/modding/lisp_instructions.md`) has a single source of truth: `master-dev`. This script commits the update to `master-dev` and immediately syncs it back to your branch, preventing parallel branches from conflicting.
-- **CLI Parameters (`-- <args>`):**
-  | Parameter | Type / Default | Description |
-  | :--- | :--- | :--- |
-  | `--file <path>` | String *(required, repeatable)* | Path to modified file under `docs/modding/` or `.agents/`. Can be repeated for multiple files. |
-  | `--message "<msg>"` | String *(required)* | Commit message summary describing the verified discovery. |
-  | `--push` | Flag *(optional)* | Pushes `master-dev` to `origin` and re-syncs back into your current branch automatically. |
-  | `--source <branch>` | String (`master-dev`) | Canonical destination branch. |
-
-*Example:*
-```bash
-task modding-land-doc -- --file docs/modding/lisp_instructions.md --message "jak2: add send-event syntax and stack trap" --push
-```
-
----
-
-### 5. `task modding-sync-bug-report-options -- [options]`
+### 4. `task modding-sync-bug-report-options -- [options]`
 - **Script:** [`sync_bug_report_options.py`](../../../scripts/modding/sync_bug_report_options.py)
 - **When?** Automatically on release events, or manually with `--dry-run`.
 - **Why?** Keeps the bug report form dropdown restricted to mods with real published releases.

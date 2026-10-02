@@ -32,7 +32,7 @@ The goal of this repository is to explore the use of AI to create mods for the J
 
 - **Modifications to compiler & decompiler:** some liberties were taken with the GOAL compiler (`goalc`), the C++ runtime (`game`), and the extraction tools (`decompiler`) to change default behaviors and facilitate AI-assisted modding.
 - **Code reliability:** the code is not guaranteed to be 100% reliable. The focus is reaching the intended objective for each mod. Most commits created with agent assistance carry the `(AI-assisted)` tag.
-- **Documentation for developers:** the verified OpenGOAL Lisp wiki lives at `docs/modding/lisp_instructions.md` — common language patterns and engine architecture in Part 1, per-game specifics in Parts 2-4. It's the only place GOAL code examples live in this repository. Agents consult it before coding and never hallucinate an instruction. Mod-specific notes live in each mod branch's root `README.md`.
+- **Documentation for developers:** the verified OpenGOAL Lisp wiki lives in the knowledge base, [`whozghiar/opengoal-modding-kb`](https://github.com/whozghiar/opengoal-modding-kb), mounted at `.agents/skills/`: `goal-lisp/wiki/common.md` for patterns and the engine model shared by the three games, `jak1.md`, `jak2.md` and `jak3.md` for per-game specifics. It's the only place GOAL code examples live. Agents consult it before coding and never hallucinate an instruction. Mod-specific notes live in each mod branch's root `README.md`.
 - **Two golden rules:** (1) **native non-regression** — a mod never changes default behavior unless its spec requires it; changes ship off by default; (2) **in-game Mods toggle** — every mod is switchable at runtime from the in-game Mods menu (L3 + SELECT), which works in a normal launcher boot.
 - **Dedicated mod README:** each mod branch has its own `README.md` at the repository root, including an installation guide, feature list, usage instructions, and a demo video.
 - **Contributions & feedback:** constructive feedback and contributions are welcome.
@@ -117,9 +117,8 @@ Mod branches are **not** synced automatically by this workflow. To catch up a br
 | Directory / File | Description |
 | :--- | :--- |
 | [`AGENTS.md`](AGENTS.md) | Unified AI agent directives and modding rules (branching, golden rules, REPL workflow, task reference). |
-| [`.agents/skills/`](.agents/skills/) | Modularized agent skills (GOAL Lisp, engine internals, 3D assets/actors, texture modding, documentation standards). |
+| [`.agents/skills/`](.agents/skills/) | Knowledge base submodule ([`opengoal-modding-kb`](https://github.com/whozghiar/opengoal-modding-kb)): agent skills and the verified Lisp wiki (`goal-lisp/wiki/`), shared by every mod repository. |
 | [`index.json`](index.json) | Consolidated OpenGOAL Launcher mod catalog (all published mods and releases across Jak 1-3). |
-| [`docs/modding/lisp_instructions.md`](docs/modding/lisp_instructions.md) | Verified OpenGOAL Lisp wiki — common patterns and engine model, plus each game's specifics — consult before coding. |
 | [`docs/modding/guides/github_workflows.md`](docs/modding/guides/github_workflows.md) | Guide to all 7 GitHub Actions CI/CD workflows, triggers, and branch synchronization. |
 | [`docs/modding/guides/task_scripts_reference.md`](docs/modding/guides/task_scripts_reference.md) | Reference for every `task` command and modding automation script. |
 | [`docs/modding/guides/mod_distribution_guide.md`](docs/modding/guides/mod_distribution_guide.md) | Multi-platform binary release pipeline and launcher catalog architecture (`index.json`). |

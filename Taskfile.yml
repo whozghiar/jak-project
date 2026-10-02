@@ -173,14 +173,6 @@ tasks:
     desc: "Sync the current mod branch with master-dev via safe git merge (scripts/modding/sync_branch_with_master_dev.py). --rebase / --push accepted after --"
     cmds:
       - "{{.PYTHON}} ./scripts/modding/sync_branch_with_master_dev.py {{.CLI_ARGS}}"
-  modding-sync-docs:
-    desc: "Pull .agents + docs/modding + AGENTS.md + CLAUDE.md from master-dev into the current branch, pruning files deleted upstream (scripts/modding/sync_docs_from_master.py)"
-    cmds:
-      - "{{.PYTHON}} ./scripts/modding/sync_docs_from_master.py {{.CLI_ARGS}}"
-  modding-land-doc:
-    desc: "Land a lisp/engine doc change on master-dev conflict-free, then re-sync your branch (scripts/modding/land_doc_on_master_dev.py). e.g. -- --file docs/modding/lisp_instructions.md --message '...' --push"
-    cmds:
-      - "{{.PYTHON}} ./scripts/modding/land_doc_on_master_dev.py {{.CLI_ARGS}}"
   modding-sync-bug-report-options:
     desc: "Refresh the mod-bug-report.yml 'Mod Concerned' dropdown from actually-published GitHub Releases (scripts/modding/sync_bug_report_options.py). Add -- --dry-run to preview"
     cmds:
@@ -199,6 +191,10 @@ tasks:
       - "{{.PYTHON}} ./scripts/modding/package_texture_pack.py {{.CLI_ARGS}}"
 
   # AI AGENTS
+  kb-update:
+    desc: "Initialise and fast-forward the knowledge-base submodule .agents/skills (whozghiar/opengoal-modding-kb) without discarding local work (scripts/ai/kb_sync.py)"
+    cmds:
+      - "{{.PYTHON}} ./scripts/ai/kb_sync.py {{.CLI_ARGS}}"
   ai-link:
     desc: "Expose the shared skills in .agents/skills/ inside each AI tool's own skills folder (.claude/skills/) with directory links (scripts/ai/link_skills.py). Idempotent"
     cmds:

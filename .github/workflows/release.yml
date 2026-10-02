@@ -420,6 +420,8 @@ jobs:
         # - there is no `uses:` reusable-workflow invocation here) are the real
         # mechanism that keeps master-dev's catalog and issue-template dropdown
         # current after every release. Requires `actions: write` above.
+        # Mother repository only: a mod repository has no master-dev catalog to refresh.
+        if: github.repository == 'whozghiar/jak-project'
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

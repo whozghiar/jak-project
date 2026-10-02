@@ -33,6 +33,8 @@ permissions:
 jobs:
   sync-catalog:
     name: "📦 Refresh Global index.json from Releases"
+    # Mother repository only: mod repositories created from master-dev inherit this file.
+    if: github.repository == 'whozghiar/jak-project'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

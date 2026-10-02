@@ -4,8 +4,10 @@ name: 🔄 Sync Upstream Mirror
 # upstream open-goal/jak-project, then merges master into master-dev (pruning
 # any upstream workflow/issue-template this fork doesn't want). It no longer
 # touches mod branches automatically - use sync-branch-with-master-dev.yml
-# (per-branch, on demand) or `task modding-branch-status -- --push`
-# (fleet-wide, run manually) to catch a branch up with master-dev.
+# (per-branch, on demand) to catch a branch up with master-dev.
+#
+# Mother repository only: mod repositories created from master-dev inherit
+# this file, so the job is skipped anywhere but whozghiar/jak-project.
 #
 # Restricted to the repository owner for the manual trigger path (see the
 # "Restrict to repository owner" step) - this pushes to master and
@@ -30,6 +32,7 @@ permissions:
 jobs:
   sync-upstream:
     name: Sync Master with Upstream & Propagate to Master-Dev
+    if: github.repository == 'whozghiar/jak-project'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

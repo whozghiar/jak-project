@@ -27,6 +27,8 @@ permissions:
 jobs:
   sync-options:
     name: "🔄 Refresh Mod Concerned dropdown from Releases"
+    # Mother repository only: mod repositories created from master-dev inherit this file.
+    if: github.repository == 'whozghiar/jak-project'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

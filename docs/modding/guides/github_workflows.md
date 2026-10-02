@@ -61,7 +61,7 @@ In this repository, GitHub Actions workflows are engineered to solve three funda
          Update root index.json on master-dev (mods + texture packs)
 ```
 
-`sync-upstream.yaml` stops at `master-dev` — it never touches mod branches. Catching up `origin/jak2/features/my-mod` (or any other mod branch) with `master-dev` is always a deliberate action: `sync-branch-with-master-dev.yml` for one branch from the Actions tab, or `task modding-branch-status -- --push` locally for every clean branch in one pass. `build.yml` (manual compile check) is the other on-demand tool that sits outside this pipeline, usable from any branch that carries the file.
+`sync-upstream.yaml` stops at `master-dev` — it never touches mod branches. Catching up `origin/jak2/features/my-mod` (or any other mod branch) with `master-dev` is always a deliberate action: `sync-branch-with-master-dev.yml` from the Actions tab, or `task modding-sync-branch` locally. `build.yml` (manual compile check) is the other on-demand tool that sits outside this pipeline, usable from any branch that carries the file.
 
 ### Access Control
 
@@ -71,6 +71,8 @@ Six of the ten workflows push commits, publish releases, or spend real CI minute
 - **Repository owner, or `release.yml`'s own internal automation** (`github.actor == github.repository_owner || github.actor == 'github-actions[bot]'`): `sync-global-catalog.yml`, `mod-bug-report-sync.yml`. Both are also chain-triggered by `release.yml`'s "Trigger Downstream Syncs" step via `gh workflow run`, which dispatches as `github-actions[bot]`, not as the human who ran `release.yml` — the check has to let that through.
 
 An unauthorized run fails immediately with a clear `::error::` annotation naming who triggered it, instead of silently skipping or (worse) silently succeeding at nothing.
+
+**Mother repository guard.** A mod repository created from `master-dev` inherits every workflow file. The workflows that only make sense in `whozghiar/jak-project` itself — `sync-upstream.yaml`, `sync-global-catalog.yml`, `mod-bug-report-sync.yml`, `mod-bug-triage.yml`, `mod-suggestion-triage.yml`, `branch-sync-check.yaml`, `sync-branch-with-master-dev.yml`, and `release.yml`'s "Trigger Downstream Syncs" step — carry `if: github.repository == 'whozghiar/jak-project'`, so they are skipped anywhere else. `lint.yml`, `build.yml` and the rest of `release.yml` run in every repository.
 
 The other four workflows are **deliberately left open**, not overlooked:
 
@@ -94,7 +96,7 @@ The other four workflows are **deliberately left open**, not overlooked:
 1. **Upstream Fast-Forward:** Fetches `https://github.com/open-goal/jak-project.git:master` and performs a fast-forward merge into our local `master`.
 2. **Master-Dev Merge & Workflow Sanitization:** Merges `master` into `master-dev`. Because upstream contains numerous CI workflows that are irrelevant or problematic for mod branches, the step explicitly prunes all workflows except the ones listed in its own `allowed_workflows` array (kept in sync with `scripts/modding/sync_common.ALLOWED_MOD_BRANCH_WORKFLOWS` plus the repo-wide, master-dev-only automation: `sync-upstream.yaml`, `release.yml`, `branch-sync-check.yaml`, `lint.yml`, `build.yml`, `sync-branch-with-master-dev.yml`, `sync-global-catalog.yml`, `mod-bug-report-sync.yml`, `mod-bug-triage.yml`, `mod-suggestion-triage.yml`).
 
-To catch mod branches up with the newly-updated `master-dev`, see §3 (one branch, on demand) or run `task modding-branch-status -- --push` locally (every clean branch, in one pass — the same `scripts/modding/sync_branches_with_master.py` this workflow used to call automatically).
+To catch a mod branch up with the newly-updated `master-dev`, see §3.
 
 ---
 
@@ -139,7 +141,7 @@ To catch mod branches up with the newly-updated `master-dev`, see §3 (one branc
      ```
      (the branch name is URL-encoded in the badge and link — `/` becomes `%2F`).
    - **Ancestor check fails:** the step emits a `::error::` annotation, exits `1`, and the job fails, which turns the badge red. This happens when the developer committed and pushed without first merging the latest `master-dev`. The fix is to run `task modding-sync-branch`, or run the `sync-branch-with-master-dev.yml` workflow against that branch.
-5. **Caveat:** this workflow only re-runs on a push to the branch. If `master-dev` moves forward afterward and nobody pushes to `jak2/features/my-mod` again, the badge keeps showing its last result (green) — it does not turn red on its own just because `master-dev` advanced. To audit every branch's real mergeability at any time, regardless of recent push activity, run `task modding-branch-status`.
+5. **Caveat:** this workflow only re-runs on a push to the branch. If `master-dev` moves forward afterward and nobody pushes to `jak2/features/my-mod` again, the badge keeps showing its last result (green) — it does not turn red on its own just because `master-dev` advanced.
 
 ---
 

@@ -7,9 +7,7 @@ name: 🔀 Sync Branch with master-dev
 # always resolves locally (see scripts/modding/sync_common.py), and pushes
 # the result. Manual only (workflow_dispatch) - sync-upstream.yaml no longer
 # touches mod branches at all (see its own header comment), so this is the
-# primary way a branch gets master-dev's changes; `task modding-branch-status
-# -- --push` remains the fleet-wide (every clean branch) alternative, run
-# locally on demand.
+# primary way a branch gets master-dev's changes.
 #
 # Merge only, no --rebase: a CI-triggered rebase would force-push over a
 # branch's published history with nobody there to review the result first -
@@ -33,7 +31,8 @@ permissions:
 jobs:
   sync-branch:
     name: "🔀 Merge master-dev & Push"
-    if: github.ref_name != 'master-dev' && github.ref_name != 'master'
+    # Mother repository only: mod repositories created from master-dev inherit this file.
+    if: github.repository == 'whozghiar/jak-project' && github.ref_name != 'master-dev' && github.ref_name != 'master'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

@@ -15,8 +15,7 @@ name: 🔗 Branch Sync Health Check
 # badge re-confirms itself the moment someone actually syncs it, and it also
 # fires — and can go red — if someone pushes their own commits to the branch
 # without syncing first. What it cannot do is turn red purely because
-# master-dev moved on without any new push landing here; to audit fleet-wide
-# mergeability at any time, run 'task modding-branch-status'.
+# master-dev moved on without any new push landing here.
 
 on:
   push:
@@ -30,6 +29,8 @@ permissions:
 jobs:
   check-sync:
     name: "🔗 Caught up with master-dev?"
+    # Mother repository only: mod repositories created from master-dev inherit this file.
+    if: github.repository == 'whozghiar/jak-project'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -75,6 +75,12 @@ def title(slug: str) -> str:
     return " ".join(w if any(c.isupper() for c in w) else w.capitalize() for w in re.split(r"[-_]", slug))
 
 
+def tool_written_name(name: str | None, slug: str) -> bool:
+    """True for a display name a script derived from a slug or branch name (e.g.
+    `transport-ag/alert`, `killable_yakow`) rather than one a human chose."""
+    return not name or name == slug or re.fullmatch(r"[a-z0-9_/.-]+", name) is not None
+
+
 def released_entry(slug: str) -> dict:
     """The mod's entry in the mother repository's global catalog (empty if unreleased)."""
     try:
@@ -181,9 +187,13 @@ def adjust_migrated(mod: Mod) -> None:
     entry = catalog["mods"].get(mod.slug) or {}
     # One repository, one mod: drop stale keys so the repository names exactly one mod.
     catalog["mods"] = {mod.slug: entry}
+    # Older branch syncs overwrote the name with the slug or branch name: prefer the name players
+    # see in the published catalog, then a title made from the slug.
     released = released_entry(mod.slug).get("displayName")
-    if entry.get("displayName") in (None, "", mod.slug):
-        entry["displayName"] = released if released and released != mod.slug else title(mod.slug)
+    if not tool_written_name(released, mod.slug):
+        entry["displayName"] = released
+    elif tool_written_name(entry.get("displayName"), mod.slug):
+        entry["displayName"] = title(mod.slug)
     entry["websiteUrl"] = mod.url
     catalog["sourceName"] = sanitize_source_name(entry["displayName"])
     index.write_text(json.dumps(catalog, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

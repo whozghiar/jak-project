@@ -123,7 +123,9 @@ class Mod:
         return ref_exists(self.branch) and self.marker in git("log", "--format=%s", "-20", self.branch)
 
 
-def prepare(mod: Mod, description: str, youtube: str) -> None:
+def prepare(mod: Mod, description: str, youtube: str, redo: bool = False) -> None:
+    if redo and ref_exists(mod.branch):
+        git("branch", "-D", mod.branch)  # this script's own local branch, not published yet
     if mod.prepared():
         print(f"[skip] {mod.branch} is already prepared")
         return
@@ -165,6 +167,13 @@ def adjust_migrated(mod: Mod) -> None:
     first_section = next((i for i, l in enumerate(lines) if l.startswith("## ")), len(lines))
     lines.insert(first_section, note)
     readme.write_text("".join(lines), encoding="utf-8")
+
+    # docs/modding/ outside current_mod/ is shared documentation: a mod repository mirrors
+    # master-dev's, so a file only the mod branch carries is a stale copy.
+    shared = set(git("ls-tree", "-r", "--name-only", "master-dev", "--", "docs/modding").splitlines())
+    for path in git("ls-files", "--", "docs/modding", cwd=root).splitlines():
+        if not path.startswith("docs/modding/current_mod/") and path not in shared:
+            git("rm", "-q", "--", path, cwd=root)
 
     index = root / "index.json"
     catalog = json.loads(index.read_text(encoding="utf-8"))
@@ -236,6 +245,8 @@ def main() -> int:
     parser.add_argument("--description", default="", help="one-line description (new mod, or repository description)")
     parser.add_argument("--youtube", default="", help="demo video URL (new mod)")
     parser.add_argument("--prepare-only", action="store_true", help="build the local branches, publish nothing")
+    parser.add_argument("--redo", action="store_true",
+                        help="rebuild already prepared local branches (e.g. after master-dev changed)")
     args = parser.parse_args()
 
     if git("status", "--porcelain", "--ignore-submodules=all"):
@@ -244,7 +255,7 @@ def main() -> int:
     mods = [Mod.from_branch(b) for b in args.from_branch] if args.from_branch else [Mod.new(args.new)]
     for mod in mods:
         print(f"\n=== {mod.full_name} (catalog key {mod.slug}) ===")
-        prepare(mod, args.description, args.youtube)
+        prepare(mod, args.description, args.youtube, args.redo)
         if not args.prepare_only:
             publish(mod, args.description)
     if args.prepare_only:

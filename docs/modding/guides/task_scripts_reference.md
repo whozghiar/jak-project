@@ -371,6 +371,7 @@ These tasks wrap specialized Python automation scripts located in `scripts/moddi
   | `--description "<text>"` | String *(optional)* | One-line description (README overview of a new mod, and the repository description). |
   | `--youtube <url>` | String *(optional)* | Demo video URL embedded in a new mod's README. |
   | `--prepare-only` | Flag *(optional)* | Build the local branches and publish nothing. |
+  | `--redo` | Flag *(optional)* | Rebuild branches already prepared but not published (e.g. after `master-dev` changed). |
 
 *Example:*
 ```bash

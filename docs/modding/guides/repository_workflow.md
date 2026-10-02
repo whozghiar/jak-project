@@ -105,7 +105,8 @@ task build-release-decomp
 
 #### Switch to another mod
 
-Open its folder, then extract and compile it (under 3 minutes for a Jak 2 mod):
+Open its folder, then extract and compile it (under 3 minutes for a Jak 2 mod). There is no C++
+to rebuild: the worktree keeps its own `out/build/`, built once, until the mod's C++ changes.
 
 ```bash
 task extract                 # the mod's level graphics into out/<game>/fr3
@@ -120,11 +121,14 @@ Then force the compile, in the REPL (`task repl`):
 or headless: `out/build/Release/bin/goalc --user-auto --game <game> --cmd '(make-group "iso" :force #t)'`.
 
 > [!IMPORTANT]
-> A plain `(mi)` or `task compile-check` is not enough after a switch. `goalc` recompiles a file
-> only when its source is newer than its output (`Tool::needs_run` in `goalc/make/Tool.cpp`),
-> and a worktree's sources date from its checkout, older than what the previous mod compiled:
-> the previous mod's compiled files would stay. The same holds for the main folder when you come
-> back to `master-dev`.
+> `(mi)` is `(make-group "iso")` without `:force`, and that is not enough after a switch.
+> Without `:force`, `goalc` recompiles a file only when its source is newer than its output
+> (`Tool::needs_run` in `goalc/make/Tool.cpp`). A worktree's sources date from its checkout,
+> older than what the previous mod compiled into the shared `out/<game>/`, so `(mi)` and
+> `task compile-check` would keep the previous mod's compiled files. `:force #t` recompiles
+> everything. The same holds for the main folder when you come back to `master-dev`. Once the
+> mod is compiled, `(mi)` is right again for the edits that follow, since an edited file is newer
+> than its output.
 
 #### Remove a mod's worktree
 

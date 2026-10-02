@@ -13,6 +13,7 @@
 
 - [Purpose and Approach](#purpose-and-approach)
 - [Installing a Mod (Players)](#installing-a-mod-players)
+- [Creating a Mod (Developers)](#creating-a-mod-developers)
 - [Git Architecture & CI/CD Workflows](#git-architecture--cicd-workflows)
 - [Upstream Sync Status](#upstream-sync-status)
 - [Directory Overview](#directory-overview)
@@ -76,6 +77,12 @@ This is the generic install flow for any mod published from this repository, usi
 
 ---
 
+## Creating a Mod (Developers)
+
+Every mod lives in its own repository, created from this one with `task modding-new-mod`, which asks for the game, the mod name, a description and the visibility. The full procedure, from the first build to the release, with the resources to read and how to feed the shared knowledge base: [How to Create a Mod](docs/modding/guides/how_to_create_a_mod.md).
+
+---
+
 ## Git Architecture & CI/CD Workflows
 
 ```text
@@ -119,6 +126,7 @@ Mods are **not** synced automatically by this workflow. Switched to a mod (`task
 | [`AGENTS.md`](AGENTS.md) | Unified AI agent directives and modding rules (branching, golden rules, REPL workflow, task reference). |
 | [`.agents/skills/`](.agents/skills/) | Knowledge base submodule ([`opengoal-modding-kb`](https://github.com/whozghiar/opengoal-modding-kb)): agent skills and the verified Lisp wiki (`goal-lisp/wiki/`), shared by every mod repository. |
 | [`index.json`](index.json) | Consolidated OpenGOAL Launcher mod catalog (all published mods and releases across Jak 1-3). |
+| [`docs/modding/guides/how_to_create_a_mod.md`](docs/modding/guides/how_to_create_a_mod.md) | Step-by-step guide: create, build, test, document, record knowledge and release a mod. |
 | [`docs/modding/guides/repository_workflow.md`](docs/modding/guides/repository_workflow.md) | How the mother repository, the mod repositories and the knowledge base fit together; day-to-day commands. |
 | [`docs/modding/guides/github_workflows.md`](docs/modding/guides/github_workflows.md) | Guide to every GitHub Actions workflow: triggers, access control and the mother-repository guard. |
 | [`docs/modding/guides/task_scripts_reference.md`](docs/modding/guides/task_scripts_reference.md) | Reference for every `task` command and modding automation script. |

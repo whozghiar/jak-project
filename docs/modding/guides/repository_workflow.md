@@ -39,16 +39,21 @@ mod, the way it held mod branches:
 ### One worktree per mod
 
 Each mod gets its own folder, a git worktree of the clone, and the main folder stays on
-`master-dev`. Changing mods means opening another folder: each one keeps its build, its compiled
-game and its selected game, so nothing is rebuilt when you come back to a mod.
+`master-dev`. Changing mods means opening another folder: each one keeps its C++ build and its
+selected game, while the game data is shared between all of them. One copy of the extracted and
+compiled game exists at a time, so switching to a mod means extracting and compiling it again
+(see [Switch to another mod](#switch-to-another-mod)).
 
 ```text
-jak-project/                                  master-dev; holds iso_data/ and decompiler_out/
+jak-project/                                  master-dev; holds the game data
 └── .worktrees/                               ignored by git
     └── <name>.jak-project/                   mods/<name>
         ├── iso_data/        -> jak-project/iso_data/        (junction)
         ├── decompiler_out/  -> jak-project/decompiler_out/  (junction)
-        └── out/                              its own C++ build and compiled game
+        └── out/
+            ├── build/                        its own C++ build
+            ├── jak1/, jak2/, jak3/  -> jak-project/out/jak1/, ...  (junctions)
+            └── textures/        -> jak-project/out/textures/    (junction)
 ```
 
 Open a mod with **File ▸ Open Folder** on `.worktrees/<name>.jak-project`, or
@@ -66,7 +71,8 @@ What the worktrees share:
 | :--- | :--- | :--- |
 | `iso_data/` | No: the game files, never written. | A junction to the main folder's. |
 | `decompiler_out/` | No: what the decompiler extracts from the ISO. A mod's texture replacements and extra art groups are written to `out/<game>/fr3/`, not here. | A junction to the main folder's. |
-| `out/` | Yes: the C++ build, the compiled game, the `.fr3` level graphics. About 6 GB for a Jak 2 mod. | Its own. |
+| `out/build/` | Yes: seven mods change C++ (the actor builder, the overlord, the decompiler), and the build compiles the sources of the folder that configured it. About 450 MB. | Its own. |
+| `out/<game>/`, `out/textures/` | Yes: the compiled game, the built CGO/DGO files and the `.fr3` level graphics. About 6 GB for Jak 2. | A junction to the main folder's, holding the last mod extracted and compiled. |
 | `.claude/skills/`, the selected game | Per folder. | Its own. |
 
 #### Add a mod's worktree
@@ -81,30 +87,58 @@ $wt = ".worktrees\<name>.jak-project"
 Remove-Item -Recurse -Force "$wt\iso_data"    # the checkout's copy: only the per-game .gitignore files
 New-Item -ItemType Junction -Path "$wt\iso_data" -Target "$PWD\iso_data"
 New-Item -ItemType Junction -Path "$wt\decompiler_out" -Target "$PWD\decompiler_out"
+New-Item -ItemType Directory -Path "$wt\out"
+foreach ($d in "jak1", "jak2", "jak3", "textures") {
+  New-Item -ItemType Junction -Path "$wt\out\$d" -Target "$PWD\out\$d"
+}
 ```
 
-Then, once, in the new folder (times measured for a Jak 2 mod):
+Then, once, in the new folder, build its C++ (about 7 minutes for `gk` and `goalc`, seconds for
+the decompiler after them):
 
 ```bash
 task kb-update && task ai-link && task set-game-<game>
 task gen-cmake-release
-task build-release-game      # gk and goalc: about 7 minutes
-task build-release-decomp    # the decompiler: seconds once the above is built
-task extract                 # the mod's out/<game>/fr3: under a minute
-task compile-check           # or (mi) in the REPL: about a minute
+task build-release-game
+task build-release-decomp
 ```
+
+#### Switch to another mod
+
+Open its folder, then extract and compile it (under 3 minutes for a Jak 2 mod):
+
+```bash
+task extract                 # the mod's level graphics into out/<game>/fr3
+```
+
+Then force the compile, in the REPL (`task repl`):
+
+```lisp
+(make-group "iso" :force #t)
+```
+
+or headless: `out/build/Release/bin/goalc --user-auto --game <game> --cmd '(make-group "iso" :force #t)'`.
+
+> [!IMPORTANT]
+> A plain `(mi)` or `task compile-check` is not enough after a switch. `goalc` recompiles a file
+> only when its source is newer than its output (`Tool::needs_run` in `goalc/make/Tool.cpp`),
+> and a worktree's sources date from its checkout, older than what the previous mod compiled:
+> the previous mod's compiled files would stay. The same holds for the main folder when you come
+> back to `master-dev`.
 
 #### Remove a mod's worktree
 
 > [!CAUTION]
 > Git sees a junction as a plain folder. `git worktree remove`, VS Code's **Delete Worktree** or
-> `git clean -x` would delete the shared `iso_data/` and `decompiler_out/` through it. Remove the
-> junctions first with `rmdir`, which deletes only the link (PowerShell 5.1's
-> `Remove-Item -Recurse` on a junction empties its target).
+> `git clean -x` would delete the shared `iso_data/`, `decompiler_out/` and `out/` game folders
+> through it. Remove the junctions first with `rmdir`, which deletes only the link (PowerShell
+> 5.1's `Remove-Item -Recurse` on a junction empties its target).
 
 ```powershell
-cmd /c rmdir ".worktrees\<name>.jak-project\iso_data"
-cmd /c rmdir ".worktrees\<name>.jak-project\decompiler_out"
+$wt = ".worktrees\<name>.jak-project"
+foreach ($d in "iso_data", "decompiler_out", "out\jak1", "out\jak2", "out\jak3", "out\textures") {
+  cmd /c rmdir "$wt\$d"
+}
 git worktree remove .worktrees/<name>.jak-project     # the branch mods/<name> stays
 ```
 
@@ -112,11 +146,11 @@ git worktree remove .worktrees/<name>.jak-project     # the branch mods/<name> s
 
 | To | Do |
 | :--- | :--- |
-| Work on a mod | Open its folder; edit, `task compile-check`, commit, `git push` (it goes to the mod repository). |
+| Work on a mod | Open its folder and, coming from another mod, [switch](#switch-to-another-mod) first; then edit, `task compile-check`, commit, `git push` (it goes to the mod repository). |
 | Bring `master-dev` into a mod | `task modding-sync-branch -- --push` in its folder. |
 | Bring it into every mod | `task modding-sync-all` from the main folder: it merges in each mod's worktree, which must have no uncommitted changes. |
 | Rebuild after the mod's C++ changed (`game/`, `goalc/`, `common/`) | `task build-release-game` in its folder. |
-| Re-extract after its texture replacements or decompiler config changed | `task extract` in its folder. Run one extraction at a time: every worktree writes the same `decompiler_out/`. |
+| Re-extract after its texture replacements or decompiler config changed | `task extract` in its folder. |
 
 ### Switching one folder
 

@@ -114,9 +114,11 @@ Creating a mod step by step: [`docs/modding/guides/how_to_create_a_mod.md`](docs
   `git switch`). `git push` goes to its `main`, and
   `task modding-sync-branch -- --push` merges the latest `master-dev` into it.
   `task modding-sync-all` does it for every mod repository; run it only when the user asks.
-- A worktree's `iso_data/` and `decompiler_out/` are junctions to the main folder's: delete them
-  with `rmdir` before `git worktree remove`, and keep `git clean -x` out of worktrees
-  ([`repository_workflow.md`](docs/modding/guides/repository_workflow.md#remove-a-mods-worktree)).
+- In a worktree, `iso_data/`, `decompiler_out/` and the `out/` game folders are junctions to the
+  main folder's, shared by every mod. Force the session's first compile with
+  `(make-group "iso" :force #t)`: `task compile-check` alone can keep the previous mod's compiled
+  files. Delete the junctions with `rmdir` before `git worktree remove`, and keep `git clean -x`
+  out of worktrees ([`repository_workflow.md`](docs/modding/guides/repository_workflow.md#one-worktree-per-mod)).
 - `task modding-new-mod` creates a mod repository (it asks for the game, name, description and
   visibility); `-- --from-branch <branch>` moves an archived mod branch into one.
 - The old mod branches (`jak[N]/[type]/[slug]`) are archived as tags `archive/<branch>`. Never

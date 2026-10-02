@@ -422,7 +422,7 @@ task modding-sync-branch -- --push
 ### 4. `task kb-update` and `task ai-link`
 - **Scripts:** [`kb_sync.py`](../../../scripts/ai/kb_sync.py), [`link_skills.py`](../../../scripts/ai/link_skills.py)
 - **When?** Rarely by hand: the Claude Code SessionStart hook runs both at the start of every session.
-- **Why?** `.agents/skills/` is the knowledge-base submodule ([`opengoal-modding-kb`](https://github.com/whozghiar/opengoal-modding-kb)). `kb-update` initialises it, puts it on `main` and fast-forwards it, without ever discarding local commits or edits. `ai-link` then links each skill into `.claude/skills/`, the only folder Claude Code reads. To record a discovery in the knowledge base, follow the `kb` skill.
+- **Why?** `.agents/skills/` is the knowledge-base submodule ([`opengoal-modding-kb`](https://github.com/whozghiar/opengoal-modding-kb)). `kb-update` initialises it, puts it on `main` and fast-forwards it, without ever discarding local commits or edits, then links each skill into `.claude/skills/`, the only folder Claude Code reads. `ai-link` does the linking alone. To record a discovery in the knowledge base, follow the `kb` skill.
 
 *Example:*
 ```bash

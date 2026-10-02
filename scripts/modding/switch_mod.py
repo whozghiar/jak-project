@@ -100,6 +100,10 @@ def resolve(target: str) -> str:
         return target
     if re.fullmatch(r"jak[123]-[A-Za-z0-9_.-]+", target):
         return mod_branch(target)
+    if ref_exists(f"refs/tags/archive/{target}"):
+        sys.exit(f"{target} is archived as the tag archive/{target}. Restore it with "
+                 f"git switch -c {target} archive/{target}, or move it into its own repository with "
+                 f"task modding-new-mod -- --from-branch {target}")
     sys.exit(f"Unknown target '{target}': give a mod repository name (e.g. jak2-mod-blue-krimzon-guard), "
              "master-dev, or a branch name (see: task modding-switch -- --list)")
 

@@ -256,6 +256,7 @@ def adjust_new(mod: Mod, description: str, youtube: str) -> None:
         "{TARGET_GAME}": label,
         "{GAME_BADGE}": label.replace(" ", "%20"),
         "{REPO_PATH}": mod.full_name,
+        "{BASE_REPO_PATH}": f"{owner()}/{sync_common.MOTHER_NAME}",
         "{REPO_NAME}": mod.name,
         "{TASK_SET_GAME}": f"task set-game-{mod.game}",
         "{GAME_DIR}": mod.game,

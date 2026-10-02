@@ -11,7 +11,7 @@ vars:
   # Compiler cache: if `sccache` is on PATH (install it with `scoop install sccache` on Windows,
   # or your package manager elsewhere), bake it in as the compiler launcher at CMake-generate time.
   # This makes rebuilds after a branch switch / partial revert near-instant for unchanged files -
-  # the same trick the CI uses (see .github/workflows/windows-build-clang.yaml). No-op if sccache
+  # the same trick upstream's CI uses (its windows-build-clang.yaml workflow). No-op if sccache
   # is not installed, so this stays safe on every platform.
   SCCACHE_FLAGS:
     sh: command -v sccache >/dev/null 2>&1 && echo "-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache" || true

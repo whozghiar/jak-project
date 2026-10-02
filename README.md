@@ -23,7 +23,7 @@
 
 ## Purpose and Approach
 
-This project is an unofficial fork of [OpenGOAL](https://github.com/open-goal/jak-project), with no direct affiliation with the original OpenGOAL team or Naughty Dog. For the original technical documentation and build instructions of the native port, see the [original OpenGOAL README](open-goal-original-readme.md).
+This project is an unofficial fork of [OpenGOAL](https://github.com/open-goal/jak-project), with no direct affiliation with the original OpenGOAL team or Naughty Dog. For the original technical documentation and build instructions of the native port, see the [original OpenGOAL README](https://github.com/open-goal/jak-project#readme).
 
 ### Objectives
 
@@ -79,30 +79,13 @@ This is the generic install flow for any mod published from this repository, usi
 
 ## Creating a Mod (Developers)
 
-Every mod lives in its own repository, created from this one with `task modding-new-mod`, which asks for the game, the mod name, a description and the visibility. The full procedure, from the first build to the release, with the resources to read and how to feed the shared knowledge base: [How to Create a Mod](docs/modding/guides/how_to_create_a_mod.md).
+Every mod lives in its own repository, created from this one with `task modding-new-mod`, which asks for the game, the mod name, a description and the visibility. To mod under your own GitHub account, fork this repository: the tooling reads the owner from your clone, so the fork works without edits. The full procedure, from the fork and the first build to the release, with the resources to read, the AI-agent workflow and how to feed the shared knowledge base: [How to Create a Mod](docs/modding/guides/how_to_create_a_mod.md).
 
 ---
 
 ## Git Architecture & CI/CD Workflows
 
-```text
-[open-goal/jak-project] master
-         |  daily at 10:00 UTC: sync-upstream.yaml
-         v
-[whozghiar/jak-project] master        clean upstream mirror (no custom commits)
-         |  merged by sync-upstream.yaml
-         v
-[whozghiar/jak-project] master-dev    modding base: engine patches, tooling, Mods menu
-         |
-         +-- one repository per mod: whozghiar/<game>-<slug>   (task modding-new-mod)
-                |
-                +-- root README.md initialized from the mod template
-                +-- mod source code + Modding Changes Log in the root README
-                +-- .agents/skills: the shared knowledge base (submodule)
-                +-- latest master-dev merged on demand (task modding-sync-branch -- --push)
-```
-
-How it all works day to day (switching between mods in one working directory, syncing, releasing, recording knowledge): [Repository Workflow Guide](docs/modding/guides/repository_workflow.md). 8 GitHub Actions workflows automate this pipeline — see the [GitHub Actions Workflows Guide](docs/modding/guides/github_workflows.md) for every trigger and access rule.
+`master` mirrors `open-goal/jak-project`, `master-dev` is the modding base, and every mod lives in its own repository created from `master-dev`, with the knowledge base mounted as a submodule. How it all works day to day (switching between mods in one working directory, syncing, releasing, recording knowledge): [Repository Workflow Guide](docs/modding/guides/repository_workflow.md). 8 GitHub Actions workflows automate this pipeline — see the [GitHub Actions Workflows Guide](docs/modding/guides/github_workflows.md) for every trigger and access rule.
 
 ---
 
@@ -115,7 +98,7 @@ This badge indicates the state of the automated daily synchronization workflow (
 - **Green:** the latest sync (upstream -> `master` -> `master-dev`) completed successfully.
 - **Red:** a conflict or failure occurred during the synchronization.
 
-Mods are **not** synced automatically by this workflow. Switched to a mod (`task modding-switch -- <name>`), `task modding-sync-branch -- --push` merges the latest `master-dev` and pushes it to the mod's repository. The mods that still live on a branch of this repository use the same task, or the owner-only `sync-branch-with-master-dev.yml` workflow.
+Mods are **not** synced automatically by this workflow. `task modding-sync-all` merges the latest `master-dev` into every mod repository and pushes them; `task modding-sync-branch -- --push` does it for the mod you are on. The mods that still live on a branch of this repository use the same task, or the owner-only `sync-branch-with-master-dev.yml` workflow.
 
 ---
 
@@ -123,16 +106,16 @@ Mods are **not** synced automatically by this workflow. Switched to a mod (`task
 
 | Directory / File | Description |
 | :--- | :--- |
-| [`AGENTS.md`](AGENTS.md) | Unified AI agent directives and modding rules (branching, golden rules, REPL workflow, task reference). |
+| [`AGENTS.md`](AGENTS.md) | Instructions for every AI agent: compile but never launch the game, golden rules for mods, knowledge base, documentation standards, commands and Git. |
 | [`.agents/skills/`](.agents/skills/) | Knowledge base submodule ([`opengoal-modding-kb`](https://github.com/whozghiar/opengoal-modding-kb)): agent skills and the verified Lisp wiki (`goal-lisp/wiki/`), shared by every mod repository. |
 | [`index.json`](index.json) | Consolidated OpenGOAL Launcher mod catalog (all published mods and releases across Jak 1-3). |
+| [`docs/`](docs/README.md) | Documentation index: setup guides for each system and editor, modding guides, engine notes. |
 | [`docs/modding/guides/how_to_create_a_mod.md`](docs/modding/guides/how_to_create_a_mod.md) | Step-by-step guide: create, build, test, document, record knowledge and release a mod. |
 | [`docs/modding/guides/repository_workflow.md`](docs/modding/guides/repository_workflow.md) | How the mother repository, the mod repositories and the knowledge base fit together; day-to-day commands. |
 | [`docs/modding/guides/github_workflows.md`](docs/modding/guides/github_workflows.md) | Guide to every GitHub Actions workflow: triggers, access control and the mother-repository guard. |
 | [`docs/modding/guides/task_scripts_reference.md`](docs/modding/guides/task_scripts_reference.md) | Reference for every `task` command and modding automation script. |
 | [`docs/modding/guides/mod_distribution_guide.md`](docs/modding/guides/mod_distribution_guide.md) | Multi-platform binary release pipeline and launcher catalog architecture (`index.json`). |
 | [`docs/modding/guides/mods_menu.md`](docs/modding/guides/mods_menu.md) | Unified in-game Mods menu architecture. |
-| [`docs/saves/`](docs/saves/README.md) | 100%-completion save files for Jak 1, Jak 2, and Jak 3 (vanilla game and mods). |
 | [`docs/modding/templates/`](docs/modding/templates/) | [`MOD_README.template.md`](docs/modding/templates/MOD_README.template.md), [`mod_menu.template.gc`](docs/modding/templates/mod_menu.template.gc). |
 | [`scripts/modding/`](scripts/modding/) | Python automation (mod repository creation, mod sync, global catalog, texture packs). |
 | [`scripts/ai/`](scripts/ai/) | AI agent tooling: knowledge-base submodule update and skill links for Claude Code. |
@@ -146,42 +129,7 @@ Mods are **not** synced automatically by this workflow. Switched to a mod (`task
 
 ## Task Command Reference
 
-Automation and builds are driven by [Taskfile](https://taskfile.dev/). Pass script arguments after `--`. For every task, including Decompiling, Asset Ripping, Tools, and Tests categories, see the [full Task Reference](docs/modding/guides/task_scripts_reference.md).
-
-### Active target game selection
-
-| Command | Purpose |
-| :--- | :--- |
-| `task set-game-jak1` · `-jak2` · `-jak3` | Persist active target game configuration (`jak1`, `jak2`, or `jak3`) |
-
-### Build & CMake (3-layer rule)
-
-| Command | Purpose |
-| :--- | :--- |
-| `task gen-cmake-release` | Configure CMake build system (Ninja + Clang); auto-wires `sccache` if installed |
-| `task build-release` | Build all ~20 binaries (first setup / full regression check) |
-| `task build-release-game` | Build only `gk` + `goalc` — fast iteration for engine runtime & compiler C++ |
-| `task build-release-decomp` | Build only the decompiler — use after changing `decompiler/`, then re-extract |
-| `task build-debug` / `-debug-game` / `-debug-decomp` | Debug build equivalents with full symbols |
-| `task clean-cmake` | Remove build artifacts and CMake cache |
-
-### Asset extraction & decompilation
-
-| Command | Purpose |
-| :--- | :--- |
-| `task extract` | Extract retail assets and run the decompiler (run after decompiler config edits) |
-| `task decomp` / `decomp-file FILE=...` | Decompile all objects or a single specific GOAL object |
-| `task rip-textures` / `rip-levels` / `rip-collision` / `rip-audio` | Rip specific asset categories |
-
-### Interactive REPL & game execution
-
-| Command | Purpose |
-| :--- | :--- |
-| `task repl` -> `(mi)` | Start compiler REPL; `(mi)` hot-reloads GOAL code directly into running RAM (no C++ build needed) |
-| `task boot-game` | Boot game executable in debug mode without attaching REPL |
-| `task boot-game-retail` | Boot game in retail mode (`-boot -fakeiso`) to test the Mods menu (L3 + SELECT) |
-| `task run-game` | Launch runtime process driven and monitored via REPL connection |
-| `task format` / `format-gsrc FILE=...` | Format all C++ and GOAL source code or a single `.gc` file |
+Automation and builds are driven by [Taskfile](https://taskfile.dev/): `task --list` shows every task, and pass script arguments after `--`. Every task, with when and why to use it, is in the [Task Reference](docs/modding/guides/task_scripts_reference.md).
 
 ---
 

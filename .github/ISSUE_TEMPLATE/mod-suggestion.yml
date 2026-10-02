@@ -1,20 +1,20 @@
-name: "💡 Mod Suggestion / Suggestion de Mod"
-description: Propose a new mod concept, gameplay mechanic, custom asset, or feature / Proposer une idée de mod pour OpenGOAL.
+name: "Mod Suggestion"
+description: Propose a new mod concept, gameplay mechanic, custom asset, or feature.
 labels: ["enhancement", "mod-suggestion", "needs-triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        ### 💡 OpenGOAL Mod Suggestion / Proposition d'Idée de Mod
+        ### OpenGOAL Mod Suggestion
         Have a creative idea for a new mod or feature for **Jak 1, Jak 2, or Jak 3**?
         Share your concept below! Community modders and maintainers can review, discuss, and implement ideas.
         
-        *Note: All mods in this repository follow our non-regression rule and in-game toggle policy (L3 + SELECT in retail boot).*
+        *Note: Every mod built from this repository follows our non-regression rule and in-game toggle policy (L3 + SELECT in retail boot).*
 
   - type: dropdown
     id: game
     attributes:
-      label: Target Game / Jeu Ciblé
+      label: Target Game
       description: Which game is this mod idea intended for?
       options:
         - Jak 1
@@ -28,7 +28,7 @@ body:
   - type: dropdown
     id: category
     attributes:
-      label: Mod Category / Catégorie de Mod
+      label: Mod Category
       description: What type of mod is this?
       options:
         - "Gameplay & Mechanics (moves, abilities, combat, vehicles)"
@@ -43,7 +43,7 @@ body:
   - type: input
     id: title
     attributes:
-      label: Mod Title / Nom Proposé du Mod
+      label: Mod Title
       description: A short, catchy working title for this mod idea.
       placeholder: "e.g. Jak 3 JetBoard in Jak 1 / Blue Krimzon Guard / Hoverboard Grinding"
     validations:
@@ -52,7 +52,7 @@ body:
   - type: textarea
     id: description
     attributes:
-      label: Concept & Gameplay Description / Description Détaillée
+      label: Concept & Gameplay Description
       description: Describe what the mod would do, how it would work in-game, and why players would enjoy it.
       placeholder: "Explain the gameplay changes, new abilities, mechanics, or art in detail..."
     validations:
@@ -61,7 +61,7 @@ body:
   - type: textarea
     id: toggle_settings
     attributes:
-      label: In-Game Toggle & Options / Activation & Menu en Jeu
+      label: In-Game Toggle & Options
       description: How should this feature be toggled or configured in the in-game Mods menu (L3 + SELECT)?
       placeholder: "e.g. OFF by default, toggleable in Mods menu with an option for speed multiplier..."
     validations:
@@ -70,7 +70,7 @@ body:
   - type: textarea
     id: inspirations
     attributes:
-      label: Inspirations & References / Références & Liens
+      label: Inspirations & References
       description: Links to videos, screenshots, other games, or code concepts that illustrate your idea.
     validations:
       required: false

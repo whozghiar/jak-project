@@ -92,10 +92,10 @@ This is the generic install flow for any mod published from this repository, usi
                 +-- root README.md initialized from the mod template
                 +-- mod source code + Modding Changes Log in the root README
                 +-- .agents/skills: the shared knowledge base (submodule)
-                +-- latest master-dev merged on demand (task modding-sync-branch -- --remote mother)
+                +-- latest master-dev merged on demand (task modding-sync-branch -- --push)
 ```
 
-8 GitHub Actions workflows automate this pipeline — see the [GitHub Actions Workflows Guide](docs/modding/guides/github_workflows.md) for every trigger and access rule.
+How it all works day to day (switching between mods in one working directory, syncing, releasing, recording knowledge): [Repository Workflow Guide](docs/modding/guides/repository_workflow.md). 8 GitHub Actions workflows automate this pipeline — see the [GitHub Actions Workflows Guide](docs/modding/guides/github_workflows.md) for every trigger and access rule.
 
 ---
 
@@ -108,7 +108,7 @@ This badge indicates the state of the automated daily synchronization workflow (
 - **Green:** the latest sync (upstream -> `master` -> `master-dev`) completed successfully.
 - **Red:** a conflict or failure occurred during the synchronization.
 
-Mods are **not** synced automatically by this workflow. A mod repository merges the latest `master-dev` with `task modding-sync-branch -- --remote mother`. The mods that still live on a branch of this repository use `task modding-sync-branch -- --push`, or the owner-only `sync-branch-with-master-dev.yml` workflow.
+Mods are **not** synced automatically by this workflow. Switched to a mod (`task modding-switch -- <name>`), `task modding-sync-branch -- --push` merges the latest `master-dev` and pushes it to the mod's repository. The mods that still live on a branch of this repository use the same task, or the owner-only `sync-branch-with-master-dev.yml` workflow.
 
 ---
 
@@ -119,6 +119,7 @@ Mods are **not** synced automatically by this workflow. A mod repository merges 
 | [`AGENTS.md`](AGENTS.md) | Unified AI agent directives and modding rules (branching, golden rules, REPL workflow, task reference). |
 | [`.agents/skills/`](.agents/skills/) | Knowledge base submodule ([`opengoal-modding-kb`](https://github.com/whozghiar/opengoal-modding-kb)): agent skills and the verified Lisp wiki (`goal-lisp/wiki/`), shared by every mod repository. |
 | [`index.json`](index.json) | Consolidated OpenGOAL Launcher mod catalog (all published mods and releases across Jak 1-3). |
+| [`docs/modding/guides/repository_workflow.md`](docs/modding/guides/repository_workflow.md) | How the mother repository, the mod repositories and the knowledge base fit together; day-to-day commands. |
 | [`docs/modding/guides/github_workflows.md`](docs/modding/guides/github_workflows.md) | Guide to every GitHub Actions workflow: triggers, access control and the mother-repository guard. |
 | [`docs/modding/guides/task_scripts_reference.md`](docs/modding/guides/task_scripts_reference.md) | Reference for every `task` command and modding automation script. |
 | [`docs/modding/guides/mod_distribution_guide.md`](docs/modding/guides/mod_distribution_guide.md) | Multi-platform binary release pipeline and launcher catalog architecture (`index.json`). |

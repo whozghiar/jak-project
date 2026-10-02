@@ -1,32 +1,28 @@
 name: "Catalog: 📦 Sync Global Mod Catalog"
 
-# Regenerates root index.json on master-dev by aggregating all published GitHub Releases
-# into an OpenGOAL Launcher Mod Source Schema v1 compliant catalog: this repository's, plus
-# those of every mod repository (repositories of the same owner with the opengoal-mod topic).
+# Regenerates root index.json on master-dev as an OpenGOAL Launcher Mod Source Schema v1
+# catalog built from the mod repositories alone (public repositories of the same owner with the
+# opengoal-mod topic): for each one, the index.json attached to its most advanced release, the
+# one with the highest version in its tag. Branches and this repository's own releases are
+# never read.
 #
 # This allows players to add a single URL into the OpenGOAL Launcher:
 #   https://raw.githubusercontent.com/<user>/<repo>/master-dev/index.json
 # and have all published mods appear at once with 1-click install.
 #
 # Triggers:
-# - Whenever a release is published, unpublished, edited, or deleted directly
-#   through the GitHub UI/API by a human (a release created by release.yml's
-#   own GITHUB_TOKEN does not fire this - see its "Trigger Downstream Syncs"
-#   step, which calls this workflow explicitly instead)
-# - workflow_call: available for a future reusable-workflow `uses:` invocation;
-#   nothing calls it that way today - release.yml uses `gh workflow run`
-#   (workflow_dispatch) instead, see its own header comment
 # - schedule: daily, so releases published from mod repositories (which cannot
 #   trigger a workflow here) reach the catalog within a day
-# - workflow_dispatch: manual execution anytime from the Actions tab
+# - workflow_dispatch: manual execution anytime from the Actions tab, to list
+#   a new release at once
+# - workflow_call: available for a reusable-workflow `uses:` invocation;
+#   nothing calls it that way today
 #
-# Restricted to the repository owner or release.yml's own internal automation
-# (see the "Restrict to repository owner or internal automation" step) - this
-# pushes to master-dev, so nobody else may trigger it directly.
+# Restricted to the repository owner or GitHub's own automation (see the
+# "Restrict to repository owner or internal automation" step) - this pushes to
+# master-dev, so nobody else may trigger it directly.
 
 on:
-  release:
-    types: [published, unpublished, edited, deleted]
   schedule:
     # Daily at 10:30 UTC, after sync-upstream.yaml (10:00 UTC).
     - cron: '30 10 * * *'
@@ -38,7 +34,7 @@ permissions:
 
 jobs:
   sync-catalog:
-    name: "📦 Refresh Global index.json from Releases"
+    name: "📦 Refresh Global index.json from Mod Repositories"
     # Mother repository only: mod repositories created from master-dev inherit this file.
     if: endsWith(github.repository, '/jak-project')
     runs-on: ubuntu-latest
@@ -54,7 +50,6 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: master-dev
-          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
@@ -62,7 +57,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Aggregate published releases into root index.json
+      - name: Build root index.json from each mod repository's latest release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/modding/sync_global_catalog.py --repo "${{ github.repository }}"

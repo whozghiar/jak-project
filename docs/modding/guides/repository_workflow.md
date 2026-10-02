@@ -149,7 +149,8 @@ use. `whozghiar/jak-project` itself stays public: it is a fork of a public repos
 ### Group the repositories on GitHub
 
 GitHub has no folders. Every mod repository carries the `opengoal-mod` topic, so
-`https://github.com/whozghiar?tab=repositories&q=topic%3Aopengoal-mod` lists them all. For a
+`https://github.com/search?q=user%3Awhozghiar+topic%3Aopengoal-mod&type=repositories` and
+`gh repo list whozghiar --topic opengoal-mod` list them all. For a
 dedicated page, a free GitHub organization can hold the mother repository, the mod repositories
 and the knowledge base; moving them there means updating the `whozghiar/jak-project` references
 in workflows, scripts and docs, and regenerating the catalog.

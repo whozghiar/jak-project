@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "Whozghiar OpenGOAL Mods Hub",
-  "lastUpdated": "2026-10-02T12:36:01Z",
+  "lastUpdated": "2026-10-02T14:20:24Z",
   "mods": {
     "blue-krimzon-guard": {
       "displayName": "Blue Krimzon Guard",
@@ -16,7 +16,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/blue-krimzon-guard",
+      "websiteUrl": "https://github.com/whozghiar/jak2-mod-blue-krimzon-guard",
       "versions": [
         {
           "version": "1.0.0",
@@ -50,7 +50,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/dark_jak_enhanced",
+      "websiteUrl": "https://github.com/whozghiar/jak2-mod-dark-jak-enhanced",
       "versions": [
         {
           "version": "1.0.0",
@@ -84,7 +84,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak2-haven-city-rebellion",
+      "websiteUrl": "https://github.com/whozghiar/jak2-mod-haven-city-rebellion",
       "versions": [
         {
           "version": "1.0.0",
@@ -118,7 +118,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak2-jak3-jetBoard",
+      "websiteUrl": "https://github.com/whozghiar/jak2-mod-jak3-jetBoard",
       "versions": [
         {
           "version": "1.0.0",
@@ -152,7 +152,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak2-transport-ag-alert",
+      "websiteUrl": "https://github.com/whozghiar/jak2-mod-transport-ag-alert",
       "versions": [
         {
           "version": "1.0.0",
@@ -186,7 +186,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak2-transport-ag-traffic",
+      "websiteUrl": "https://github.com/whozghiar/jak2-mod-transport-ag-traffic",
       "versions": [
         {
           "version": "1.0.0",
@@ -220,7 +220,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak2-killable-yakow",
+      "websiteUrl": "https://github.com/whozghiar/jak2-mod-killable-yakow",
       "versions": [
         {
           "version": "yakow_killable-vkillable-yakow-v1.0",
@@ -284,7 +284,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak2-paddywagon-traffic",
+      "websiteUrl": "https://github.com/whozghiar/jak2-mod-paddywagon-traffic",
       "versions": [
         {
           "version": "1.0.0",
@@ -318,7 +318,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak2-peaceful-haven-city",
+      "websiteUrl": "https://github.com/whozghiar/jak2-mod-peaceful-haven-city",
       "versions": [
         {
           "version": "1.0.0",

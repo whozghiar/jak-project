@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
 """
-Shared rules used by both branch-sync scripts:
-    - sync_branches_with_master.py  (CI fan-out: every mod branch, daily cron)
-    - sync_branch_with_master_dev.py (local: one branch, run by a developer)
+Shared rules used by the branch-sync script, sync_branch_with_master_dev.py
+(run locally by a developer, or by sync-branch-with-master-dev.yml).
 
 Why this module exists
 -----------------------
-Both scripts merge `master-dev` into a mod branch and must resolve the same
+The script merges `master-dev` into a mod branch and must resolve the same
 handful of paths the same way every time (the mod's own README stays the
 mod's, the shared docs/skills come from master-dev, stray workflow files are
-dropped). Before this module, that rule table was copy-pasted in both
-scripts; a rule change made in one and forgotten in the other would silently
-desync CI behaviour from local behaviour. Now there is exactly one place to
-edit it.
+dropped). Keeping that rule table in its own module gives the workflows that
+rely on it (build.yml, lint.yml, release.yml) one place to point at.
 
 It also carries a tiny helper for building GitHub's own Actions status badge
 markdown (see docs.github.com/actions/how-tos/monitor-workflows/add-a-status-badge).
@@ -91,8 +88,7 @@ def classify_conflict_path(filepath):
         return "drop"
     if filepath.startswith(".github/workflows/"):
         return "theirs" if filepath[len(".github/workflows/"):] in ALLOWED_MOD_BRANCH_WORKFLOWS else "drop"
-    if (filepath == "docs/modding/branch_audit.md"
-            or filepath == "AGENTS.md"
+    if (filepath == "AGENTS.md"
             or filepath == ".gitmodules"
             or filepath.startswith(".agents/")
             or filepath.startswith(".github/ISSUE_TEMPLATE/")

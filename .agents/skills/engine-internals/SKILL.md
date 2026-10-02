@@ -88,8 +88,6 @@ task modding-new-branch -- jak2/features/my-mod   # Create mod branch from maste
 task modding-sync-branch                          # Safe git merge of master-dev into current branch
 task modding-sync-docs                            # Pull docs/modding + AGENTS.md + CLAUDE.md from master-dev
 task modding-land-doc -- --file docs/modding/lisp_instructions.md --message "..." --push
-task modding-branch-status                        # Update branch synchronization dashboard
-task modding-audit                                 # Regenerate the branch compliance report (local only, no longer git-tracked)
 ```
 
 For every other task (decompiling, asset ripping, tools, tests) see

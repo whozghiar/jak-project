@@ -73,8 +73,9 @@ into binary texture pages and `.fr3` level files during offline extraction.
 To distribute custom textures as an official, one-click-installable
 texture pack for the OpenGOAL Launcher:
 
-1. **Package interactively:** run `task modding-texture-gui` to launch the
-   desktop GUI tool. Select your texture replacements, fill in display
+1. **Package interactively:** open the
+   [OpenGOAL Texture Pack Generator](https://github.com/whozghiar/open-goal-texture-pack-generator)
+   desktop tool (separate repository). Select your texture replacements, fill in display
    name, author, version, and description, then export the `.zip` archive
    into `docs/modding/current_mod/texture_packs/<slug>-v<version>.zip`.
 2. **Register the archive:** run `task modding-package-texture-pack` (alias

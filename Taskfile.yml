@@ -135,6 +135,13 @@ tasks:
         msg: "Couldn't locate compiler executable in '{{.GOALC_BIN_RELEASE_DIR}}/goalc'"
     cmds:
       - "{{.GOALC_BIN_RELEASE_DIR}}/goalc --user-auto --game {{.GAME}}"
+  compile-check:
+    desc: "Compile the active game's GOAL code headless ((mi) through goalc --cmd) and exit. Never starts the game, so agents may run it to verify their work"
+    preconditions:
+      - sh: test -f {{.GOALC_BIN_RELEASE_DIR}}/goalc{{.EXE_FILE_EXTENSION}}
+        msg: "Couldn't locate compiler executable in '{{.GOALC_BIN_RELEASE_DIR}}/goalc'"
+    cmds:
+      - "{{.GOALC_BIN_RELEASE_DIR}}/goalc --user-auto --game {{.GAME}} --cmd \"(mi)\""
   format-json:
     desc: "Format code"
     cmds:
@@ -174,14 +181,6 @@ tasks:
     desc: "Land a lisp/engine doc change on master-dev conflict-free, then re-sync your branch (scripts/modding/land_doc_on_master_dev.py). e.g. -- --file docs/modding/lisp_instructions.md --message '...' --push"
     cmds:
       - "{{.PYTHON}} ./scripts/modding/land_doc_on_master_dev.py {{.CLI_ARGS}}"
-  modding-branch-status:
-    desc: "Test every mod branch's mergeability with master-dev (scripts/modding/sync_branches_with_master.py). Add -- --push to auto-merge clean branches"
-    cmds:
-      - "{{.PYTHON}} ./scripts/modding/sync_branches_with_master.py {{.CLI_ARGS}}"
-  modding-audit:
-    desc: "Regenerate docs/modding/branch_audit.md: per-branch compliance with the modding standards (scripts/modding/branch_audit.py)"
-    cmds:
-      - "{{.PYTHON}} ./scripts/modding/branch_audit.py {{.CLI_ARGS}}"
   modding-sync-bug-report-options:
     desc: "Refresh the mod-bug-report.yml 'Mod Concerned' dropdown from actually-published GitHub Releases (scripts/modding/sync_bug_report_options.py). Add -- --dry-run to preview"
     cmds:
@@ -198,10 +197,12 @@ tasks:
     desc: "Alias for modding-package-texture-pack: register texture pack .zip from docs/modding/current_mod/texture_packs/ into index.json"
     cmds:
       - "{{.PYTHON}} ./scripts/modding/package_texture_pack.py {{.CLI_ARGS}}"
-  modding-texture-gui:
-    desc: "Launch the OpenGOAL Texture Pack Generator GUI tool (Tauri v2 desktop app) to preview and package texture packs"
+
+  # AI AGENTS
+  ai-link:
+    desc: "Expose the shared skills in .agents/skills/ inside each AI tool's own skills folder (.claude/skills/) with directory links (scripts/ai/link_skills.py). Idempotent"
     cmds:
-      - "{{.PYTHON}} ./scripts/modding/launch_texture_gui.py {{.CLI_ARGS}}"
+      - "{{.PYTHON}} ./scripts/ai/link_skills.py {{.CLI_ARGS}}"
 
   # DECOMPILING
   disasm:

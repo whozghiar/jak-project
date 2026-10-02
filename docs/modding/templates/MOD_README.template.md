@@ -18,10 +18,9 @@
 > [`branch-sync-check.yaml`](https://github.com/{REPO_PATH}/actions/workflows/branch-sync-check.yaml),
 > scoped to this branch — GitHub renders it live from that workflow's own run history,
 > nothing generates or rewrites this image by hand. It goes green the moment this branch
-> next merges `master-dev` cleanly (usually via the daily automated sync), and can turn
-> red if someone pushes commits here without syncing first. It cannot turn red purely
-> because `master-dev` moved on without a new push landing here — run `task modding-branch-status`
-> or check GitHub Actions to audit fleet-wide mergeability.
+> next merges `master-dev` cleanly, and can turn red if someone pushes commits here
+> without syncing first. It cannot turn red purely because `master-dev` moved on without
+> a new push landing here.
 
 > **Contents:** [Overview](#overview) · [Key Features](#key-features) · [Download & Play](#download--play-via-opengoal-launcher-players) · [Developer Setup](#developer-setup--local-compilation) · [Demo Video](#demonstration-video) · [Compliance Checklist](#compliance-checklist) · [Technical Documentation](#technical-documentation)
 

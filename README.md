@@ -98,7 +98,7 @@ This badge indicates the state of the automated daily synchronization workflow (
 - **Green:** the latest sync (upstream -> `master` -> `master-dev`) completed successfully.
 - **Red:** a conflict or failure occurred during the synchronization.
 
-Mods are **not** synced automatically by this workflow. `task modding-sync-all` merges the latest `master-dev` into every mod repository and pushes them; `task modding-sync-branch -- --push` does it for the mod you are on. The mods that still live on a branch of this repository use the same task, or the owner-only `sync-branch-with-master-dev.yml` workflow.
+Mods are **not** synced automatically by this workflow. `task modding-sync-all` merges the latest `master-dev` into every mod repository and pushes them; `task modding-sync-branch -- --push` does it for the mod you are on. The old mod branches of this repository are archived as tags `archive/<branch>`.
 
 ---
 

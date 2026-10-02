@@ -127,7 +127,14 @@ local branch `mods/<game>-mod-<name>`. The whole procedure, through to the relea
 
 On `mods/<name>`: edit, verify with `task compile-check`, ask for a cold boot
 (`task boot-game-retail` checks the Mods menu), commit, then `git push`. The golden rules are in
-[`AGENTS.md`](../../../AGENTS.md): runtime toggle, native non-regression, comments, change log.
+[`AGENTS.md`](../../../AGENTS.md): runtime toggle, native non-regression, comments, change log
+(in the mod's technical README, not in its player README).
+
+`git push` on `mods/<name>` goes to that repository's `main`: the branch tracks `<name>/main`,
+and the remote `<name>` carries the push rule `refs/heads/mods/<name>:refs/heads/main`. VS
+Code's Push and Sync buttons follow the same tracking. Only a typed `git push origin` would go
+elsewhere, creating a `mods/<name>` branch in the mother repository: the pre-push hook that
+`task git-hooks` installs refuses it.
 
 ### Bring the latest modding base into the current mod
 

@@ -106,7 +106,7 @@ Mods are **not** synced automatically by this workflow. `task modding-sync-all` 
 
 | Directory / File | Description |
 | :--- | :--- |
-| [`AGENTS.md`](AGENTS.md) | Instructions for every AI agent: compile but never launch the game, golden rules for mods, knowledge base, documentation standards, commands and Git. |
+| [`AGENTS.md`](AGENTS.md) | Instructions for every AI agent: compile but never launch the game, golden rules for mods, knowledge base, language and documentation standards, commands and Git. |
 | [`.agents/skills/`](.agents/skills/) | Knowledge base submodule ([`opengoal-modding-kb`](https://github.com/whozghiar/opengoal-modding-kb)): agent skills and the verified Lisp wiki (`goal-lisp/wiki/`), shared by every mod repository. |
 | [`index.json`](index.json) | Consolidated OpenGOAL Launcher mod catalog (all published mods and releases across Jak 1-3). |
 | [`docs/`](docs/README.md) | Documentation index: setup guides for each system and editor, modding guides, engine notes. |

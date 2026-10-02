@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "Whozghiar OpenGOAL Mods Hub",
-  "lastUpdated": "2026-10-02T14:20:24Z",
+  "lastUpdated": "2026-10-02T15:11:14Z",
   "mods": {
     "blue-krimzon-guard": {
       "displayName": "Blue Krimzon Guard",
@@ -34,8 +34,8 @@
           }
         }
       ],
-      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/blue-krimzon-guard/docs/img/mod/mod_cover.png",
-      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/blue-krimzon-guard/docs/img/mod/mod_cover.png"
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-blue-krimzon-guard/main/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-blue-krimzon-guard/main/docs/img/mod/mod_cover.png"
     },
     "dark-jak-enhanced": {
       "displayName": "Dark Jak Enhanced",
@@ -68,8 +68,8 @@
           }
         }
       ],
-      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/dark_jak_enhanced/docs/img/mod/mod_cover.png",
-      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/dark_jak_enhanced/docs/img/mod/mod_cover.png"
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-dark-jak-enhanced/main/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-dark-jak-enhanced/main/docs/img/mod/mod_cover.png"
     },
     "haven-city-rebellion": {
       "displayName": "Haven City Rebellion",
@@ -102,8 +102,8 @@
           }
         }
       ],
-      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/haven-city-rebellion/docs/img/mod/mod_cover.png",
-      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/haven-city-rebellion/docs/img/mod/mod_cover.png"
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-haven-city-rebellion/main/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-haven-city-rebellion/main/docs/img/mod/mod_cover.png"
     },
     "jak3-jetBoard": {
       "displayName": "Jak 3 Jetboard",
@@ -136,8 +136,8 @@
           }
         }
       ],
-      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/jak3-jetBoard/docs/img/mod/mod_cover.png",
-      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/jak3-jetBoard/docs/img/mod/mod_cover.png"
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-jak3-jetBoard/main/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-jak3-jetBoard/main/docs/img/mod/mod_cover.png"
     },
     "transport-ag-alert": {
       "displayName": "KG-Transporter Alert",
@@ -170,8 +170,8 @@
           }
         }
       ],
-      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/transport-ag/alert/docs/img/mod/mod_cover.png",
-      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/transport-ag/alert/docs/img/mod/mod_cover.png"
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-transport-ag-alert/main/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-transport-ag-alert/main/docs/img/mod/mod_cover.png"
     },
     "transport-ag-traffic": {
       "displayName": "KG-Transporter Traffic",
@@ -204,8 +204,8 @@
           }
         }
       ],
-      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/transport-ag/traffic/docs/img/mod/mod_cover.png",
-      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/transport-ag/traffic/docs/img/mod/mod_cover.png"
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-transport-ag-traffic/main/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-transport-ag-traffic/main/docs/img/mod/mod_cover.png"
     },
     "killable-yakow": {
       "displayName": "Killable Yakow",
@@ -268,8 +268,8 @@
           }
         }
       ],
-      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/killable_yakow/docs/img/mod/mod_cover.png",
-      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/killable_yakow/docs/img/mod/mod_cover.png"
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-killable-yakow/main/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-killable-yakow/main/docs/img/mod/mod_cover.png"
     },
     "paddywagon-traffic": {
       "displayName": "Paddy-Wagon Traffic",
@@ -302,8 +302,8 @@
           }
         }
       ],
-      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/paddywagon/traffic/docs/img/mod/mod_cover.png",
-      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/paddywagon/traffic/docs/img/mod/mod_cover.png"
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-paddywagon-traffic/main/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-paddywagon-traffic/main/docs/img/mod/mod_cover.png"
     },
     "peaceful-haven-city": {
       "displayName": "Peaceful Haven City",
@@ -336,8 +336,8 @@
           }
         }
       ],
-      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/peaceful-haven-city/docs/img/mod/mod_cover.png",
-      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/peaceful-haven-city/docs/img/mod/mod_cover.png"
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-peaceful-haven-city/main/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-peaceful-haven-city/main/docs/img/mod/mod_cover.png"
     }
   },
   "texturePacks": {
@@ -352,15 +352,14 @@
         "retexture",
         "hd",
         "peaceful-haven-city",
-        "haven-city-rebellion",
-        "blue-krimzon-guard"
+        "haven-city-rebellion"
       ],
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/blue-krimzon-guard",
-      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/blue-krimzon-guard/docs/img/mod/mod_cover.png",
-      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/blue-krimzon-guard/docs/img/mod/mod_cover.png",
+      "websiteUrl": "https://github.com/whozghiar/jak2-mod-haven-city-rebellion",
+      "coverArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-haven-city-rebellion/main/docs/img/mod/mod_cover.png",
+      "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak2-mod-haven-city-rebellion/main/docs/img/mod/mod_cover.png",
       "versions": [
         {
           "version": "1.0.0",
@@ -389,23 +388,6 @@
             "windows": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
             "linux": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
             "jak2": "https://github.com/whozghiar/jak-project/releases/download/haven-city-rebellion-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip"
-          },
-          "checksums": {
-            "windows": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c",
-            "linux": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c",
-            "jak2": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c"
-          }
-        },
-        {
-          "version": "1.0.0",
-          "publishedDate": "2026-09-19T00:00:00Z",
-          "supportedGames": [
-            "jak2"
-          ],
-          "assets": {
-            "windows": "https://github.com/whozghiar/jak-project/releases/download/blue-krimzon-guard-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
-            "linux": "https://github.com/whozghiar/jak-project/releases/download/blue-krimzon-guard-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip",
-            "jak2": "https://github.com/whozghiar/jak-project/releases/download/blue-krimzon-guard-v1.0.0/blue-kg-vehicles-textures-v1.0.0.zip"
           },
           "checksums": {
             "windows": "d46f66e83f64bdfc34fe54d7df1d71d35034b65018548bcc9f8e7111f1698e2c",

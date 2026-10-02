@@ -20,6 +20,7 @@ Usage:
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 
@@ -58,6 +59,24 @@ def find_repo_root():
 
 
 REPO_ROOT = find_repo_root()
+
+
+def git_quiet(*args):
+    """Run git without a shell, ignoring failures. Shell redirections such as 2>/dev/null
+    do not exist in cmd.exe, which Python uses for shell=True on Windows."""
+    return subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace")
+
+
+def drop_path(path):
+    """Remove a path from the merge result, whether git still tracks it or not."""
+    git_quiet("rm", "-r", "-q", "-f", "--", path)
+    full = os.path.join(REPO_ROOT, path)
+    if os.path.isdir(full) and not os.path.islink(full):
+        shutil.rmtree(full)
+    elif os.path.lexists(full):
+        os.remove(full)
+    git_quiet("add", "-A", "--", path)
 
 
 def get_current_branch():
@@ -204,18 +223,20 @@ def main():
         unmerged = [l.strip() for l in unmerged_res.stdout.splitlines() if l.strip()]
         for f in unmerged:
             action = sync_common.classify_conflict_path(f, allowed_workflows)
+            print(f"   conflict {f}: {action or 'manual'}")
             if action == "ours":
-                run_cmd(f'git checkout HEAD -- "{f}" 2>/dev/null || true', check=False)
-                run_cmd(f'git add "{f}"', check=False)
+                git_quiet("checkout", "HEAD", "--", f)
+                git_quiet("add", "--", f)
             elif action == "theirs":
-                run_cmd(f'git checkout MERGE_HEAD -- "{f}" 2>/dev/null || git rm -q -f "{f}"', check=False)
-                run_cmd(f'git add -A "{f}"', check=False)
+                if git_quiet("checkout", "MERGE_HEAD", "--", f).returncode:
+                    git_quiet("rm", "-q", "-f", "--", f)  # deleted on master-dev
+                git_quiet("add", "-A", "--", f)
             elif action == "drop":
-                run_cmd(f'git rm -rf "{f}" 2>/dev/null || rm -rf "{f}"', check=False)
+                drop_path(f)
 
         # CRITICAL: Always ensure the mod's root README.md is strictly preserved from HEAD
         # (prevents Git 3-way merge from silently splicing master-dev's hub README into the mod's)
-        run_cmd('git checkout HEAD -- README.md 2>/dev/null || true', check=False)
+        git_quiet("checkout", "HEAD", "--", "README.md")
 
         # master-dev-only files ride along on a clean, no-conflict merge too:
         # strip them back out (see sync_common).

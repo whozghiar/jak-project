@@ -353,44 +353,50 @@ These wrap the `goalc-test` and `offline-test` binaries. `unit-tests` uses the D
 
 ## 10. Modding Automation Scripts (`scripts/modding/`)
 
-These tasks wrap specialized Python automation scripts located in `scripts/modding/`. You can pass parameters to any script after `--` (e.g. `task modding-new-branch -- jak2/features/my-mod --youtube https://youtu.be/...`).
+These tasks wrap specialized Python automation scripts located in `scripts/modding/` and `scripts/ai/`. You can pass parameters to any script after `--` (e.g. `task modding-new-mod -- --new jak2/my-mod --youtube https://youtu.be/...`).
 
 ---
 
-### 1. `task modding-new-branch -- jak[x]/[type]/[slug] [options]`
-- **Script:** [`create_mod_branch.py`](../../../scripts/modding/create_mod_branch.py)
-- **When?** Creating a new mod branch.
-- **Why?** Branches cleanly from `master-dev`, auto-initializes the root `README.md` from the mod template, sets up the GitHub Actions sync badge, and verifies naming rules (`jak[1-3]/[features|config|chore]/[slug]`).
+### 1. `task modding-new-mod -- (--new <game>/<slug> | --from-branch <branch>...) [options]`
+- **Script:** [`create_mod_repo.py`](../../../scripts/modding/create_mod_repo.py)
+- **When?** Starting a new mod, or moving a mod that still lives on a branch of this repository into its own repository.
+- **Why?** Every mod lives in its own GitHub repository, `<owner>/<game>-<slug>`, where the slug is the mod's launcher catalog key kept verbatim. The script works in two steps, each skipped when already done, so a failed run can simply be re-run:
+  1. **Prepare (local):** builds the branch `mod-repo/<name>` in a temporary worktree next to this repository: the mod merged with the local `master-dev` under the mod-repository rules, plus one commit with the repository-specific changes (README from the template or a "moved from" note, catalog name and `websiteUrl`).
+  2. **Publish:** creates the public repository with the `opengoal-mod` topic (how the global catalog finds it) and pushes the prepared branch as its `main`. Needs `gh`, authenticated with `gh auth login`.
 - **CLI Parameters (`-- <args>`):**
   | Parameter | Type / Default | Description |
   | :--- | :--- | :--- |
-  | `<branch_name>` | Positional *(required)* | Branch name conforming to `jak[1-3]/[type]/[slug]` (e.g. `jak2/features/my-mod`). |
-  | `--youtube <url>` | String *(optional)* | YouTube demonstration video URL (e.g. `https://youtu.be/MnqnybexhSA`). Automatically extracts the video ID and embeds responsive video player markdown in `README.md`. |
-  | `--no-commit` | Flag *(optional)* | Creates the branch and initializes the customized `README.md` without creating the initial git commit. |
-  | `--push` | Flag *(optional)* | Pushes the newly created branch to `origin` immediately. |
+  | `--new <game>/<slug>` | String | Start a new mod from `master-dev`, e.g. `jak2/my-mod`. |
+  | `--from-branch <branch>...` | One or more strings | Move existing mod branches (`jak[1-3]/<type>/<slug>`) into their own repositories. |
+  | `--description "<text>"` | String *(optional)* | One-line description (README overview of a new mod, and the repository description). |
+  | `--youtube <url>` | String *(optional)* | Demo video URL embedded in a new mod's README. |
+  | `--prepare-only` | Flag *(optional)* | Build the local branches and publish nothing. |
 
 *Example:*
 ```bash
-task modding-new-branch -- jak2/features/traffic-overhaul --youtube https://youtu.be/MnqnybexhSA --push
+task modding-new-mod -- --new jak2/traffic-overhaul --description "Denser, smarter Haven City traffic."
 ```
 
 ---
 
 ### 2. `task modding-sync-branch -- [options]`
 - **Script:** [`sync_branch_with_master_dev.py`](../../../scripts/modding/sync_branch_with_master_dev.py)
-- **When?** Regularly during mod development on your mod branch.
-- **Why?** Safely merges latest `origin/master-dev` into your current branch while strictly preserving your mod's root `README.md` and excluding `master-dev`-only files.
+- **When?** Whenever your mod needs the latest modding base.
+- **Why?** Merges `master-dev` into the current mod while preserving its root `README.md` and `index.json`, taking the shared agent configuration and docs from `master-dev`, and dropping the workflows and files that only belong to the mother repository.
 - **CLI Parameters (`-- <args>`):**
   | Parameter | Type / Default | Description |
   | :--- | :--- | :--- |
-  | `--branch <name>` | String (`current branch`) | Target branch to synchronize (defaults to currently checked-out branch). |
+  | `--remote <name>` | String (`origin`) | Remote holding `master-dev`. In a mod repository use `mother` (added automatically on first use); this also applies the mod-repository rules. |
+  | `--branch <name>` | String (`current branch`) | Target branch to synchronize. |
   | `--rebase` | Flag *(optional)* | Uses `git rebase` instead of `git merge` (rewrites local commit history; use only on unpushed local commits). |
-  | `--push` | Flag *(optional)* | Automatically pushes the synchronized branch to `origin` if merge succeeds cleanly. |
-  | `--source <branch>` | String (`master-dev`) | Source base branch to merge changes from. |
+  | `--push` | Flag *(optional)* | Pushes the synchronized branch to `origin` if the merge succeeds cleanly. |
+  | `--source <branch>` | String (`master-dev`) | Source branch to merge from. |
+  | `--local-source` | Flag *(optional)* | Merge the local source branch without fetching (used by `create_mod_repo.py`). |
+  | `--mod-repo` | Flag *(optional)* | Apply the mod-repository rules without a `mother` remote. |
 
-*Example:*
+*Example (in a mod repository):*
 ```bash
-task modding-sync-branch -- --push
+task modding-sync-branch -- --remote mother --push
 ```
 
 ---
@@ -407,35 +413,17 @@ task kb-update
 
 ---
 
-### 4. `task modding-sync-bug-report-options -- [options]`
-- **Script:** [`sync_bug_report_options.py`](../../../scripts/modding/sync_bug_report_options.py)
-- **When?** Automatically on release events, or manually with `--dry-run`.
-- **Why?** Keeps the bug report form dropdown restricted to mods with real published releases.
-- **CLI Parameters (`-- <args>`):**
-  | Parameter | Type / Default | Description |
-  | :--- | :--- | :--- |
-  | `--repo <owner/repo>` | String (`whozghiar/jak-project`) | Target GitHub repository to query for published releases. |
-  | `--file <path>` | String (`.github/ISSUE_TEMPLATE/mod-bug-report.yml`) | Path to the bug report form template to regenerate. |
-  | `--dry-run` | Flag *(optional)* | Preview the generated dropdown options in the terminal without modifying the file. |
-
-*Example:*
-```bash
-task modding-sync-bug-report-options -- --dry-run
-```
-
----
-
-### 6. `task modding-sync-catalog -- [options]`
+### 4. `task modding-sync-catalog -- [options]`
 - **Script:** [`sync_global_catalog.py`](../../../scripts/modding/sync_global_catalog.py)
 - **When?** On `master-dev` to refresh and rebuild the unified root `index.json` catalog containing all published mods and versions.
-- **Why?** Queries GitHub Releases across the repository, parses attached mod assets and metadata, dedupes versions, normalizes branch slugs, and updates the consolidated Launcher v1 schema file.
+- **Why?** Queries the GitHub Releases of this repository and of every mod repository (same owner, `opengoal-mod` topic), parses the catalog attached to each release, dedupes versions, takes each mod repository's own `index.json` as the source of its name, description and website, and writes the consolidated Launcher v1 schema file.
 - **CLI Parameters (`-- <args>`):**
   | Parameter | Type / Default | Description |
   | :--- | :--- | :--- |
   | `--repo <owner/repo>` | String (`auto-detect`) | Target GitHub repository in `owner/repo` format. |
   | `--output <path>` | Path (`<repo_root>/index.json`) | Output path for the consolidated catalog file. |
   | `--offline` | Flag *(optional)* | Gathers releases strictly from local git release tags (`*-v*.*.*`) without calling GitHub REST API. |
-  | `--source-name "<name>"` | String (`OpenGOAL Community Mods & Texture Packs`) | Catalog display title shown in the OpenGOAL Launcher UI. |
+  | `--source-name "<name>"` | String (`Whozghiar OpenGOAL Mods Hub`) | Catalog display title shown in the OpenGOAL Launcher UI. |
   | `--dry-run` | Flag *(optional)* | Analyzes releases and prints summary statistics to terminal without modifying `index.json`. |
 
 *Example:*
@@ -445,13 +433,13 @@ task modding-sync-catalog -- --offline
 
 ---
 
-### 7. Per-Mod Catalog Tool: `update_mod_catalog.py`
+### 5. Per-Mod Catalog Tool: `update_mod_catalog.py`
 - **When?** During release creation (`release.yml` calls it).
 - **Why?** Generates and maintains an individual mod's `index.json` catalog.
 
 ---
 
-### 8. `task modding-package-texture-pack` (Alias: `task modding-register-texture-pack`) `-- [options]`
+### 6. `task modding-package-texture-pack` (Alias: `task modding-register-texture-pack`) `-- [options]`
 - **Script:** [`package_texture_pack.py`](../../../scripts/modding/package_texture_pack.py)
 - **When?** When registering a standalone texture pack into `index.json` after exporting it via the OpenGOAL Texture Pack Generator GUI (or when creating one via CLI with `--from-source`).
 - **Why?** Recovers launcher-compliant `.zip` archives from `docs/modding/current_mod/texture_packs/` (generated by the GUI tool), inspects their internal `metadata.json`, computes SHA256 checksums, and automatically registers or updates the texture pack in `index.json` under `"texturePacks"`. Also supports building directly from raw PNG textures in `custom_assets/<game>/texture_replacements/` when run with `--from-source`.
@@ -505,7 +493,7 @@ task modding-package-texture-pack -- --from-source --game jak2 --slug blue-kg-te
 4. Register the pack into `index.json`: `task modding-package-texture-pack`.
 5. When publishing, upload the `.zip` archive as a GitHub Release asset (or trigger `release.yml` which automatically packages it).
 
-### Scenario D: Synchronizing Your Mod Branch with Master-Dev
-1. On your mod branch: `task modding-sync-branch`
+### Scenario D: Bringing the Latest Modding Base into a Mod
+1. In the mod repository: `task modding-sync-branch -- --remote mother` (a mod still on a branch here: `task modding-sync-branch`).
 2. If conflicts occur, inspect the reported files or run the recommended resolution command.
 3. Test with cold boot: `task boot-game-retail`.

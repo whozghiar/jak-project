@@ -99,7 +99,12 @@ guarded with `github.repository == 'whozghiar/jak-project'`.
 
 - `master` mirrors `open-goal/jak-project`. Never commit to it.
 - `master-dev` is the modding base. Every mod starts from it.
-- Mod branches are named `jak[N]/[type]/[slug]` (e.g. `jak2/features/jak3-jetBoard`).
+- **One repository per mod:** `whozghiar/<game>-<slug>`, the slug being the mod's launcher
+  catalog key. `task modding-new-mod -- --new jak2/<slug>` creates one;
+  `-- --from-branch <branch>` moves a mod branch into one. In a mod repository,
+  `task modding-sync-branch -- --remote mother` merges the latest `master-dev`.
+- Mods not moved yet live on branches of this repository named `jak[N]/[type]/[slug]`; sync them
+  with `task modding-sync-branch`.
 - A mod has two documentation tiers: the root `README.md` for players (from
   [`docs/modding/templates/MOD_README.template.md`](docs/modding/templates/MOD_README.template.md))
   and `docs/modding/current_mod/<slug>_readme.md` for developers and agents.

@@ -14,7 +14,7 @@
 - [Purpose and Approach](#purpose-and-approach)
 - [Installing a Mod (Players)](#installing-a-mod-players)
 - [Git Architecture & CI/CD Workflows](#git-architecture--cicd-workflows)
-- [Mod Branch Synchronization](#mod-branch-synchronization)
+- [Upstream Sync Status](#upstream-sync-status)
 - [Directory Overview](#directory-overview)
 - [Task Command Reference](#task-command-reference)
 
@@ -32,9 +32,9 @@ The goal of this repository is to explore the use of AI to create mods for the J
 
 - **Modifications to compiler & decompiler:** some liberties were taken with the GOAL compiler (`goalc`), the C++ runtime (`game`), and the extraction tools (`decompiler`) to change default behaviors and facilitate AI-assisted modding.
 - **Code reliability:** the code is not guaranteed to be 100% reliable. The focus is reaching the intended objective for each mod. Most commits created with agent assistance carry the `(AI-assisted)` tag.
-- **Documentation for developers:** the verified OpenGOAL Lisp wiki lives in the knowledge base, [`whozghiar/opengoal-modding-kb`](https://github.com/whozghiar/opengoal-modding-kb), mounted at `.agents/skills/`: `goal-lisp/wiki/common.md` for patterns and the engine model shared by the three games, `jak1.md`, `jak2.md` and `jak3.md` for per-game specifics. It's the only place GOAL code examples live. Agents consult it before coding and never hallucinate an instruction. Mod-specific notes live in each mod branch's root `README.md`.
+- **Documentation for developers:** the verified OpenGOAL Lisp wiki lives in the knowledge base, [`whozghiar/opengoal-modding-kb`](https://github.com/whozghiar/opengoal-modding-kb), mounted at `.agents/skills/`: `goal-lisp/wiki/common.md` for patterns and the engine model shared by the three games, `jak1.md`, `jak2.md` and `jak3.md` for per-game specifics. It's the only place GOAL code examples live. Agents consult it before coding and never hallucinate an instruction. Mod-specific notes live in each mod's own root `README.md`.
 - **Two golden rules:** (1) **native non-regression** — a mod never changes default behavior unless its spec requires it; changes ship off by default; (2) **in-game Mods toggle** — every mod is switchable at runtime from the in-game Mods menu (L3 + SELECT), which works in a normal launcher boot.
-- **Dedicated mod README:** each mod branch has its own `README.md` at the repository root, including an installation guide, feature list, usage instructions, and a demo video.
+- **Dedicated mod README:** each mod repository has its own `README.md` at its root, including an installation guide, feature list, usage instructions, and a demo video.
 - **Contributions & feedback:** constructive feedback and contributions are welcome.
 
 ---
@@ -47,7 +47,7 @@ This is the generic install flow for any mod published from this repository, usi
    ```text
    https://raw.githubusercontent.com/whozghiar/jak-project/master-dev/index.json
    ```
-   Or add an individual mod branch's own catalog URL instead. Click Add.
+   Or add an individual mod's own catalog URL instead (`https://raw.githubusercontent.com/whozghiar/<mod repository>/main/index.json`). Click Add.
 
    ![Adding a mod source in the OpenGOAL Launcher settings](docs/img/add_mod_1.png)
 
@@ -79,23 +79,23 @@ This is the generic install flow for any mod published from this repository, usi
 ## Git Architecture & CI/CD Workflows
 
 ```text
-[open-goal/jak-project] (upstream/master)
-         |  (Daily automatic sync at 10:00 UTC: sync-upstream.yaml)
+[open-goal/jak-project] master
+         |  daily at 10:00 UTC: sync-upstream.yaml
          v
-  [whozghiar/jak-project] (origin/master)      <-- Clean upstream mirror (no custom commits)
-         |
-         |  (Fast-forward / automatic merge)
+[whozghiar/jak-project] master        clean upstream mirror (no custom commits)
+         |  merged by sync-upstream.yaml
          v
-  [whozghiar/jak-project] (origin/master-dev)  <-- Modding base branch (tools, docs, stable base)
+[whozghiar/jak-project] master-dev    modding base: engine patches, tooling, Mods menu
          |
-         +-- New mod branch: jak[N]/[type]/[name]
+         +-- one repository per mod: whozghiar/<game>-<slug>   (task modding-new-mod)
                 |
-                +-- Root README.md automatically initialized for the mod
-                +-- Mod source code (goal_src/) + Modding Changes Log in the root README
-                +-- Automated branch mergeability and conflict detection in CI / CLI
+                +-- root README.md initialized from the mod template
+                +-- mod source code + Modding Changes Log in the root README
+                +-- .agents/skills: the shared knowledge base (submodule)
+                +-- latest master-dev merged on demand (task modding-sync-branch -- --remote mother)
 ```
 
-10 specialized GitHub Actions workflows automate this pipeline — see the [GitHub Actions Workflows Guide](docs/modding/guides/github_workflows.md) for every trigger, exact behavior, and a worked example.
+8 GitHub Actions workflows automate this pipeline — see the [GitHub Actions Workflows Guide](docs/modding/guides/github_workflows.md) for every trigger and access rule.
 
 ---
 
@@ -108,7 +108,7 @@ This badge indicates the state of the automated daily synchronization workflow (
 - **Green:** the latest sync (upstream -> `master` -> `master-dev`) completed successfully.
 - **Red:** a conflict or failure occurred during the synchronization.
 
-Mod branches are **not** synced automatically by this workflow. To catch up a branch with `master-dev`, run `task modding-sync-branch -- --push` locally, or (repository owner only, see the workflows guide's Access Control section) trigger the `sync-branch-with-master-dev.yml` workflow from that branch in the Actions tab. Each individual mod branch also carries its own live status badge in its root `README.md`, driven by `branch-sync-check.yaml`.
+Mods are **not** synced automatically by this workflow. A mod repository merges the latest `master-dev` with `task modding-sync-branch -- --remote mother`. The mods that still live on a branch of this repository use `task modding-sync-branch -- --push`, or the owner-only `sync-branch-with-master-dev.yml` workflow.
 
 ---
 
@@ -119,14 +119,14 @@ Mod branches are **not** synced automatically by this workflow. To catch up a br
 | [`AGENTS.md`](AGENTS.md) | Unified AI agent directives and modding rules (branching, golden rules, REPL workflow, task reference). |
 | [`.agents/skills/`](.agents/skills/) | Knowledge base submodule ([`opengoal-modding-kb`](https://github.com/whozghiar/opengoal-modding-kb)): agent skills and the verified Lisp wiki (`goal-lisp/wiki/`), shared by every mod repository. |
 | [`index.json`](index.json) | Consolidated OpenGOAL Launcher mod catalog (all published mods and releases across Jak 1-3). |
-| [`docs/modding/guides/github_workflows.md`](docs/modding/guides/github_workflows.md) | Guide to all 7 GitHub Actions CI/CD workflows, triggers, and branch synchronization. |
+| [`docs/modding/guides/github_workflows.md`](docs/modding/guides/github_workflows.md) | Guide to every GitHub Actions workflow: triggers, access control and the mother-repository guard. |
 | [`docs/modding/guides/task_scripts_reference.md`](docs/modding/guides/task_scripts_reference.md) | Reference for every `task` command and modding automation script. |
 | [`docs/modding/guides/mod_distribution_guide.md`](docs/modding/guides/mod_distribution_guide.md) | Multi-platform binary release pipeline and launcher catalog architecture (`index.json`). |
-| [`docs/modding/guides/mod_bug_tracking.md`](docs/modding/guides/mod_bug_tracking.md) | Bug reporting automation, release synchronization, and issue triage. |
 | [`docs/modding/guides/mods_menu.md`](docs/modding/guides/mods_menu.md) | Unified in-game Mods menu architecture. |
 | [`docs/saves/`](docs/saves/README.md) | 100%-completion save files for Jak 1, Jak 2, and Jak 3 (vanilla game and mods). |
 | [`docs/modding/templates/`](docs/modding/templates/) | [`MOD_README.template.md`](docs/modding/templates/MOD_README.template.md), [`mod_menu.template.gc`](docs/modding/templates/mod_menu.template.gc). |
-| [`scripts/modding/`](scripts/modding/) | Python automation (branch creation, branch/doc sync, doc landing, branch audit, global catalog sync). |
+| [`scripts/modding/`](scripts/modding/) | Python automation (mod repository creation, mod sync, global catalog, texture packs). |
+| [`scripts/ai/`](scripts/ai/) | AI agent tooling: knowledge-base submodule update and skill links for Claude Code. |
 | [`goal_src/`](goal_src/) | Decompiled and modified GOAL source code by game (`jak1/`, `jak2/`, `jak3/`). |
 | [`goalc/`](goalc/) | OpenGOAL compiler with modding adjustments. |
 | [`game/`](game/) | C++ runtime simulating the Emotion Engine memory on PC. |

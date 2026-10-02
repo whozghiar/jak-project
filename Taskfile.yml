@@ -164,19 +164,15 @@ tasks:
       - "{{.FORMATTER_BIN_RELEASE_DIR}}/formatter --write --file '{{.FILE}}'"
   # MODDING WORKFLOW
   # Thin wrappers over scripts/modding/*.py so the mod workflow is discoverable via
-  # `task --list`. Pass script args after `--`, e.g. `task modding-new-branch -- jak2/features/foo`.
-  modding-new-branch:
-    desc: "Create a new mod branch from master-dev with an initialised root README (scripts/modding/create_mod_branch.py). Args after --, e.g. -- jak2/features/my-mod"
+  # `task --list`. Pass script args after `--`, e.g. `task modding-new-mod -- --new jak2/my-mod`.
+  modding-new-mod:
+    desc: "Create a mod repository (GitHub, one per mod) from master-dev, or move a mod branch into one (scripts/modding/create_mod_repo.py). e.g. -- --new jak2/my-mod, or -- --from-branch jak2/features/foo"
     cmds:
-      - "{{.PYTHON}} ./scripts/modding/create_mod_branch.py {{.CLI_ARGS}}"
+      - "{{.PYTHON}} ./scripts/modding/create_mod_repo.py {{.CLI_ARGS}}"
   modding-sync-branch:
-    desc: "Sync the current mod branch with master-dev via safe git merge (scripts/modding/sync_branch_with_master_dev.py). --rebase / --push accepted after --"
+    desc: "Merge master-dev into the current mod (scripts/modding/sync_branch_with_master_dev.py): a mod branch here, or a mod repository with -- --remote mother. --rebase / --push accepted after --"
     cmds:
       - "{{.PYTHON}} ./scripts/modding/sync_branch_with_master_dev.py {{.CLI_ARGS}}"
-  modding-sync-bug-report-options:
-    desc: "Refresh the mod-bug-report.yml 'Mod Concerned' dropdown from actually-published GitHub Releases (scripts/modding/sync_bug_report_options.py). Add -- --dry-run to preview"
-    cmds:
-      - "{{.PYTHON}} ./scripts/modding/sync_bug_report_options.py {{.CLI_ARGS}}"
   modding-sync-catalog:
     desc: "Regenerate master-dev root index.json global catalog from published GitHub Releases (scripts/modding/sync_global_catalog.py). Add -- --offline or --dry-run"
     cmds:

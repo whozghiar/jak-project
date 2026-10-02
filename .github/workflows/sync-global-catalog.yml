@@ -1,7 +1,8 @@
 name: "Catalog: 📦 Sync Global Mod Catalog"
 
 # Regenerates root index.json on master-dev by aggregating all published GitHub Releases
-# into an OpenGOAL Launcher Mod Source Schema v1 compliant catalog.
+# into an OpenGOAL Launcher Mod Source Schema v1 compliant catalog: this repository's, plus
+# those of every mod repository (repositories of the same owner with the opengoal-mod topic).
 #
 # This allows players to add a single URL into the OpenGOAL Launcher:
 #   https://raw.githubusercontent.com/<user>/<repo>/master-dev/index.json
@@ -15,6 +16,8 @@ name: "Catalog: 📦 Sync Global Mod Catalog"
 # - workflow_call: available for a future reusable-workflow `uses:` invocation;
 #   nothing calls it that way today - release.yml uses `gh workflow run`
 #   (workflow_dispatch) instead, see its own header comment
+# - schedule: daily, so releases published from mod repositories (which cannot
+#   trigger a workflow here) reach the catalog within a day
 # - workflow_dispatch: manual execution anytime from the Actions tab
 #
 # Restricted to the repository owner or release.yml's own internal automation
@@ -24,6 +27,9 @@ name: "Catalog: 📦 Sync Global Mod Catalog"
 on:
   release:
     types: [published, unpublished, edited, deleted]
+  schedule:
+    # Daily at 10:30 UTC, after sync-upstream.yaml (10:00 UTC).
+    - cron: '30 10 * * *'
   workflow_call:
   workflow_dispatch:
 

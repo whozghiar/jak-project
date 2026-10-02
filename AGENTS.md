@@ -109,10 +109,14 @@ Creating a mod step by step: [`docs/modding/guides/how_to_create_a_mod.md`](docs
 - `master` mirrors `open-goal/jak-project`. Never commit to it.
 - `master-dev` is the modding base. Every mod starts from it.
 - **One repository per mod:** `<owner>/<game>-mod-<slug>`, the slug being the mod's launcher
-  catalog key. In this clone it is the branch `mods/<name>`: switch with
-  `task modding-switch -- <name>` (not a bare `git switch`), `git push` goes to its `main`, and
+  catalog key. In this clone it is the branch `mods/<name>`, checked out in its own worktree
+  `.worktrees/<name>.jak-project` (or switched to with `task modding-switch -- <name>`, not a bare
+  `git switch`). `git push` goes to its `main`, and
   `task modding-sync-branch -- --push` merges the latest `master-dev` into it.
   `task modding-sync-all` does it for every mod repository; run it only when the user asks.
+- A worktree's `iso_data/` and `decompiler_out/` are junctions to the main folder's: delete them
+  with `rmdir` before `git worktree remove`, and keep `git clean -x` out of worktrees
+  ([`repository_workflow.md`](docs/modding/guides/repository_workflow.md#remove-a-mods-worktree)).
 - `task modding-new-mod` creates a mod repository (it asks for the game, name, description and
   visibility); `-- --from-branch <branch>` moves an archived mod branch into one.
 - The old mod branches (`jak[N]/[type]/[slug]`) are archived as tags `archive/<branch>`. Never

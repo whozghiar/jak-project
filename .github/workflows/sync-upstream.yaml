@@ -2,9 +2,9 @@ name: 🔄 Sync Upstream Mirror
 
 # Scope is deliberately just master and master-dev: fast-forwards master from
 # upstream open-goal/jak-project, then merges master into master-dev (pruning
-# any upstream workflow/issue-template this fork doesn't want). It no longer
-# touches mod branches automatically - use sync-branch-with-master-dev.yml
-# (per-branch, on demand) to catch a branch up with master-dev.
+# any upstream workflow/issue-template this fork doesn't want). It never
+# touches the mod repositories: `task modding-sync-all` brings master-dev into
+# them, on demand.
 #
 # Mother repository only: mod repositories created from master-dev inherit
 # this file, so the job runs only in a repository named jak-project (the mother
@@ -93,7 +93,7 @@ jobs:
       - name: Sync master-dev with master
         id: sync_master_dev
         run: |
-          allowed_workflows=(".github/workflows/sync-upstream.yaml" ".github/workflows/release.yml" ".github/workflows/branch-sync-check.yaml" ".github/workflows/sync-global-catalog.yml" ".github/workflows/mod-suggestion-triage.yml" ".github/workflows/lint.yml" ".github/workflows/build.yml" ".github/workflows/sync-branch-with-master-dev.yml")
+          allowed_workflows=(".github/workflows/sync-upstream.yaml" ".github/workflows/release.yml" ".github/workflows/sync-global-catalog.yml" ".github/workflows/mod-suggestion-triage.yml" ".github/workflows/lint.yml" ".github/workflows/build.yml")
 
           echo "Checking out master-dev..."
           git checkout master-dev

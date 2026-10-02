@@ -85,7 +85,7 @@ Every mod lives in its own repository, named `<game>-mod-<name>` and created fro
 
 ## Git Architecture & CI/CD Workflows
 
-`master` mirrors `open-goal/jak-project`, `master-dev` is the modding base, and every mod lives in its own repository created from `master-dev`, with the knowledge base mounted as a submodule. How it all works day to day (switching between mods in one working directory, syncing, releasing, recording knowledge): [Repository Workflow Guide](docs/modding/guides/repository_workflow.md). 8 GitHub Actions workflows automate this pipeline — see the [GitHub Actions Workflows Guide](docs/modding/guides/github_workflows.md) for every trigger and access rule.
+`master` mirrors `open-goal/jak-project`, `master-dev` is the modding base, and every mod lives in its own repository created from `master-dev`, with the knowledge base mounted as a submodule. How it all works day to day (switching between mods in one working directory, syncing, releasing, recording knowledge): [Repository Workflow Guide](docs/modding/guides/repository_workflow.md). 6 GitHub Actions workflows automate this pipeline — see the [GitHub Actions Workflows Guide](docs/modding/guides/github_workflows.md) for every trigger and access rule.
 
 ---
 

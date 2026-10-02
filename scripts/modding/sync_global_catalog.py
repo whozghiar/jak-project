@@ -522,6 +522,15 @@ def main():
       print(f"  • [{game}] {name} ({k}) — {v_count} version(s) [tags: {', '.join(tags)}]")
 
   catalog = generate_global_catalog(mods, texture_packs, args.source_name)
+  # Nothing new since the last run: keep its timestamp, so the file stays as it is and the daily
+  # workflow commits nothing.
+  try:
+    previous = json.loads(Path(args.output).read_text(encoding="utf-8"))
+    if ({k: v for k, v in previous.items() if k != "lastUpdated"}
+        == {k: v for k, v in catalog.items() if k != "lastUpdated"}):
+      catalog["lastUpdated"] = previous.get("lastUpdated", catalog["lastUpdated"])
+  except (OSError, ValueError):
+    pass
   catalog_json = json.dumps(catalog, indent=2, ensure_ascii=False) + "\n"
 
   if args.dry_run:

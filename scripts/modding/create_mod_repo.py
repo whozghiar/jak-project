@@ -33,6 +33,7 @@ import sys
 from pathlib import Path
 
 import sync_common
+from update_mod_catalog import sanitize_source_name
 
 MOTHER_ROOT = Path(__file__).resolve().parents[2]
 WORKTREES = MOTHER_ROOT.parent / ".mod-repo-worktrees"
@@ -184,6 +185,7 @@ def adjust_migrated(mod: Mod) -> None:
     if entry.get("displayName") in (None, "", mod.slug):
         entry["displayName"] = released if released and released != mod.slug else title(mod.slug)
     entry["websiteUrl"] = mod.url
+    catalog["sourceName"] = sanitize_source_name(entry["displayName"])
     index.write_text(json.dumps(catalog, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 

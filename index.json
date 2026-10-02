@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "sourceName": "Whozghiar OpenGOAL Mods Hub",
-  "lastUpdated": "2026-09-19T18:13:35Z",
+  "lastUpdated": "2026-10-02T12:36:01Z",
   "mods": {
     "blue-krimzon-guard": {
       "displayName": "Blue Krimzon Guard",
@@ -72,7 +72,7 @@
       "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/dark_jak_enhanced/docs/img/mod/mod_cover.png"
     },
     "haven-city-rebellion": {
-      "displayName": "haven-city-rebellion",
+      "displayName": "Haven City Rebellion",
       "description": "Adds the **Blue Crimson Guard** as its own standalone entity (`crimson-blue-guard`) with high-fidelity combat AI and custom textures, alongside the **City Insurrection** mode: a full-scale territorial civil war across Haven City between Baron Praxis's loyalist forces and the rebel blue guard insurgent faction.",
       "authors": [
         "whozghiar"
@@ -84,7 +84,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/haven-city-rebellion",
+      "websiteUrl": "https://github.com/whozghiar/jak2-haven-city-rebellion",
       "versions": [
         {
           "version": "1.0.0",
@@ -107,7 +107,7 @@
     },
     "jak3-jetBoard": {
       "displayName": "Jak 3 Jetboard",
-      "description": "This Jak 2 mod backports three signature Jetboard abilities directly from Jak 3 into Jak 2, integrating ported animations, particle VFX, and dedicated audio cues to enable kinetic loaded jumps (L1 + release X), radial zap attacks (Circle), and instant 180° quick-turns with forward speed boosts (Triangle).",
+      "description": "Ports three signature Jetboard mechanics from Jak 3 directly into Jak 2: the Charge / Loaded Jump (`L1` + release `X`), the Circular Zap Attack (`Circle`), and the 180° Quick Turn-Around (`Triangle`) with an exit speed boost, complete with ported animations, particle VFX, and dedicated audio cues.",
       "authors": [
         "whozghiar"
       ],
@@ -118,7 +118,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/jak3-jetBoard",
+      "websiteUrl": "https://github.com/whozghiar/jak2-jak3-jetBoard",
       "versions": [
         {
           "version": "1.0.0",
@@ -152,7 +152,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/transport-ag/alert",
+      "websiteUrl": "https://github.com/whozghiar/jak2-transport-ag-alert",
       "versions": [
         {
           "version": "1.0.0",
@@ -175,7 +175,7 @@
     },
     "transport-ag-traffic": {
       "displayName": "KG-Transporter Traffic",
-      "description": "This Jak 2 mod introduces the Krimzon Guard KG-Transport carrier into Haven City's ambient high-altitude air traffic, allowing Jak to hijack the craft, trigger Level 2 alerts, and fire mounted turrets (R1) while enemy transports actively track the player and drop squads of guards to street level.",
+      "description": "Integrates transport-v, an authentic Crimson Guard troop transport gunship into Haven City's ambient high-altitude traffic lanes, pilotable by Jak with a functional turret, chasing during alerts, and hovering to drop squads.",
       "authors": [
         "whozghiar"
       ],
@@ -186,7 +186,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/transport-ag/traffic",
+      "websiteUrl": "https://github.com/whozghiar/jak2-transport-ag-traffic",
       "versions": [
         {
           "version": "1.0.0",
@@ -209,7 +209,7 @@
     },
     "killable-yakow": {
       "displayName": "Killable Yakow",
-      "description": "This Jak 2 mod makes the peaceful Yakow livestock damageable and places them under Krimzon law, turning harmless farm animals into active combat triggers that immediately summon Alert Level 1 Krimzon Guards upon impact while releasing 6 Dark Eco pills upon defeat accompanied by purple dissolution death effects",
+      "description": "Makes the peaceful Yakow farm animals killable and protected by Krimzon law. Striking a Yakow immediately triggers a Krimzon Guard alert (\"Hands off the cow!\"), while defeating it drops dark eco pills with authentic death VFX.",
       "authors": [
         "whozghiar"
       ],
@@ -220,7 +220,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/killable_yakow",
+      "websiteUrl": "https://github.com/whozghiar/jak2-killable-yakow",
       "versions": [
         {
           "version": "yakow_killable-vkillable-yakow-v1.0",
@@ -273,7 +273,7 @@
     },
     "paddywagon-traffic": {
       "displayName": "Paddy-Wagon Traffic",
-      "description": "This Jak 2 mod integrates the retail Krimzon Guard paddy wagon into Haven City's ambient traffic, complete with authentic handling physics, active guard drivers, caged civilian prisoners, and full player hijacking support that raises city alert. Lane switching (R2) and onboard weapon fire (R1).",
+      "description": "The Krimzon Guard **paddy wagon** — the armoured prisoner van you chase during Guard at the controls**. It is a real guard vehicle: red dot on the minimap, joins the hunt during an alert, and **can be boarded and driven** — stealing it raises the city alarm exactly like stealing a hellcat or a guard bike.",
       "authors": [
         "whozghiar"
       ],
@@ -284,7 +284,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/paddywagon/traffic",
+      "websiteUrl": "https://github.com/whozghiar/jak2-paddywagon-traffic",
       "versions": [
         {
           "version": "1.0.0",
@@ -306,7 +306,7 @@
       "thumbnailArtUrl": "https://raw.githubusercontent.com/whozghiar/jak-project/jak2/features/paddywagon/traffic/docs/img/mod/mod_cover.png"
     },
     "peaceful-haven-city": {
-      "displayName": "peaceful-haven-city",
+      "displayName": "Peaceful Haven City",
       "description": "Adds a blue-recolored Crimson Guard as its own, standalone entity — a new GOAL type (`crimson-blue-guard`) that reuses 100% of the stock `crimson-guard`'s behavior, animations and sounds, only with a re-textured mesh. It appears in Haven City mixed into the normal ambient guard traffic, alongside the regular red guards.",
       "authors": [
         "whozghiar"
@@ -318,7 +318,7 @@
       "supportedGames": [
         "jak2"
       ],
-      "websiteUrl": "https://github.com/whozghiar/jak-project/tree/jak2/features/peaceful-haven-city",
+      "websiteUrl": "https://github.com/whozghiar/jak2-peaceful-haven-city",
       "versions": [
         {
           "version": "1.0.0",

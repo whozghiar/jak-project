@@ -123,14 +123,14 @@ def discover_mod_repos(owner: str, token: str) -> list[dict]:
 
 def mod_repo_entry(full_name: str, token: str) -> tuple[str | None, dict]:
   """The catalog key a mod repository publishes and its entry: the single mod of its own
-  index.json, or just the `<slug>` of its `<game>-<slug>` name when it has none yet."""
+  index.json, or just the `<slug>` of its `<game>-mod-<slug>` name when it has none yet."""
   try:
     mods = fetch_json(f"https://raw.githubusercontent.com/{full_name}/HEAD/index.json", token).get("mods") or {}
   except Exception:
     mods = {}
   if len(mods) == 1:
     return next(iter(mods.items()))
-  m = re.match(r"^jak[123]-(.+)$", full_name.split("/")[-1])
+  m = re.match(r"^jak[123]-(?:mod-)?(.+)$", full_name.split("/")[-1])
   return (m.group(1) if m else None), {}
 
 

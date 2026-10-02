@@ -79,7 +79,7 @@ This is the generic install flow for any mod published from this repository, usi
 
 ## Creating a Mod (Developers)
 
-Every mod lives in its own repository, created from this one with `task modding-new-mod`, which asks for the game, the mod name, a description and the visibility. To mod under your own GitHub account, fork this repository: the tooling reads the owner from your clone, so the fork works without edits. The full procedure, from the fork and the first build to the release, with the resources to read, the AI-agent workflow and how to feed the shared knowledge base: [How to Create a Mod](docs/modding/guides/how_to_create_a_mod.md).
+Every mod lives in its own repository, named `<game>-mod-<name>` and created from this one with `task modding-new-mod`, which asks for the game, the mod name, a description and the visibility. To mod under your own GitHub account, fork this repository: the tooling reads the owner from your clone, so the fork works without edits. The full procedure, from the fork and the first build to the release, with the resources to read, the AI-agent workflow and how to feed the shared knowledge base: [How to Create a Mod](docs/modding/guides/how_to_create_a_mod.md).
 
 ---
 

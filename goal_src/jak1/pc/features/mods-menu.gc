@@ -58,8 +58,8 @@
 ;; Shown when no mod registered anything, so the root page is never empty.
 (define *mods-menu-empty-entry* (new 'static 'popup-menu-button :label "(no mod registered)" :on-confirm (lambda () (none))))
 
-;; The popup menu itself.
-(define *mods-popup-menu* (new 'global 'popup-menu))
+;; The popup menu itself. draw? must start #f: a fresh object holds 0, which GOAL treats as true.
+(define *mods-popup-menu* (let ((menu (new 'global 'popup-menu))) (set! (-> menu draw?) #f) menu))
 
 ;; Buttons that open and close the menu. L3+SELECT is free in a retail boot; a mod may change it at
 ;; load time, e.g. (set! *mods-menu-bind* (pad-buttons l1 r1 triangle)).

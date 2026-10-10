@@ -134,12 +134,11 @@ itself when the task matches:
 1. **Put your code in your own files.** Touch vanilla files only where a hook is unavoidable,
    and mark each touch point with a `;; MOD <slug> --` comment so it stays easy to find and
    to merge.
-2. **Register in the Mods menu** (Jak 2 and Jak 3): copy
+2. **Register in the Mods menu**: copy
    [`mod_menu.template.gc`](../templates/mod_menu.template.gc) into your mod's menu file,
    for example `goal_src/jak2/pc/features/<slug>-menu.gc`. Never make that file debug-only: a
    debug segment is not linked in a launcher boot. Names: config variables and helpers prefixed
-   with the slug, builder named `mod-<slug>-build-menu` (see `mods_menu.md`). Jak 1 has no
-   unified Mods menu yet: use a debug submenu prefixed with the slug and say so in the README.
+   with the slug, builder named `mod-<slug>-build-menu` (see `mods_menu.md`).
 3. **Register every new `.gc` file:** its `.o` in a `.gd` list
    (`goal_src/<game>/dgos/*.gd`, a menu file after `"mods-menu.o"`), plus a compile step in
    `goal_src/<game>/game.gp`. Jak 2 and Jak 3 also need the file pre-marked so the build does not
@@ -231,8 +230,8 @@ Every repository picks the change up at its next Claude Code session, or with
 
 1. **Check** before releasing:
    - native non-regression: with the mod compiled but its toggle off, the game plays as stock;
-   - in-game Mods toggle: at least one entry in the Mods menu under the mod's slug (Jak 2 and
-     Jak 3, L3 + SELECT, in a retail boot), or a slug-prefixed debug submenu (Jak 1);
+   - in-game Mods toggle: at least one entry in the Mods menu under the mod's slug (L3 + SELECT,
+     in a retail boot);
    - no edit to `default-menu*.gc`, and every symbol prefixed with the mod's slug;
    - the GOAL patterns the mod relies on are in the Lisp wiki (recorded with the `kb` skill);
    - comments on every new or overridden type, method, state and macro;

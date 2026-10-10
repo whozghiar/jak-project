@@ -425,6 +425,8 @@
         (#when PC_PORT
           (if (and *display-sha* *debug-segment*) (draw-build-revision)))
         (*menu-hook*)
+        ;; og:preserve-this the mods menu is NOT debug code: it runs in a retail boot. See pc/features/mods-menu.gc
+        (*mods-menu-hook*)
         (add-ee-profile-frame 'draw :g #x40)
         ;; finally, update hints/text
         (make-current-level-available-to-progress)

@@ -44,14 +44,12 @@ only when its description matches the task.
 2. **Native non-regression.** A mod must not change default game behavior unless asked: every
    change ships off by default, gated behind the mod's runtime toggle.
 3. **In-game Mods toggle mandatory** for every mod, switchable from a retail boot.
-   - Jak 2 / Jak 3: the Mods menu opens with L3 + SELECT. See
+   - Jak 1 / Jak 2 / Jak 3: the Mods menu opens with L3 + SELECT. See
      [`docs/modding/guides/mods_menu.md`](docs/modding/guides/mods_menu.md) and
      [`docs/modding/templates/mod_menu.template.gc`](docs/modding/templates/mod_menu.template.gc);
      the registration call is in the Lisp wiki.
    - Never edit shared menu files, and never mark your menu file debug-only (a debug segment is
      not linked in a retail boot).
-   - Jak 1: the toggle is debug-only. Prefix submenus with the mod slug and say so in the mod
-     README.
 4. **Mandatory in-code comments.** Comment every function, method, state, hook and type change in
    `.gc` (purpose, arguments, return values, side effects).
 5. **Non-destructive changes.** Never delete or wipe original `.gc` files; prefer surgical

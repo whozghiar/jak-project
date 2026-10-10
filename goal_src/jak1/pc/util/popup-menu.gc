@@ -49,9 +49,10 @@
          (rows (+ (- end-index start-index) (if (< end-index entry-count) 1 0)))
          (width (popup-menu-widest-entry (-> state entries) (-> state title) font-ctx start-index end-index)))
     (with-dma-buffer-add-bucket ((buf (-> (current-frame) global-buf)) (bucket-id debug-no-zbuf))
-      ;; frame, then background
-      (draw-sprite2d-xy buf 6 21 (+ 19 width) (+ 17 (* POPUP_MENU_ROW_HEIGHT (+ rows 2))) (new 'static 'rgba :r 255 :g 255 :b 255 :a 75))
-      (draw-sprite2d-xy buf 7 22 (+ 17 width) (+ 15 (* POPUP_MENU_ROW_HEIGHT (+ rows 2))) (new 'static 'rgba :a 255))
+      ;; frame, then background (correct-x-int: widescreen, like the debug menu; the font's pc-hack
+      ;; flag already corrects the text)
+      (draw-sprite2d-xy buf (correct-x-int 6) 21 (correct-x-int (+ 19 width)) (+ 17 (* POPUP_MENU_ROW_HEIGHT (+ rows 2))) (new 'static 'rgba :r 255 :g 255 :b 255 :a 75))
+      (draw-sprite2d-xy buf (correct-x-int 7) 22 (correct-x-int (+ 17 width)) (+ 15 (* POPUP_MENU_ROW_HEIGHT (+ rows 2))) (new 'static 'rgba :a 255))
       ;; title
       (set! (-> font-ctx color) (font-color menu-parent))
       (draw-string (-> state title) buf font-ctx)

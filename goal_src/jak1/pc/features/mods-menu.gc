@@ -129,8 +129,8 @@
   (when (not *popup-menu-open*)
     (mods-menu-rebuild)
     (set! *mods-menu-open?* #t)
-    (set-master-mode 'menu)
-    (open! *mods-popup-menu* "Mods" *mods-menu-items*))
+    (open! *mods-popup-menu* "Mods" *mods-menu-items*)
+    (set-master-mode 'menu))
   (none))
 
 (defun mods-menu-update ()
@@ -142,10 +142,10 @@
     ;; bind pressed: toggle, except during a blackout (same guard as Jak 2)
     ((and (not *mods-menu-bind-consumed?*) (>= (-> *display* base-frame-counter) (-> *game-info* blackout-time)))
      (set! *mods-menu-bind-consumed?* #t)
-     (if *mods-menu-open?* (mods-menu-close!) (mods-menu-open!))
      ;; hide the bind from the rest of the frame: SELECT would reach determine-pause-mode
      (logclear! (cpad-hold 0) *mods-menu-bind*)
-     (logclear! (cpad-pressed 0) *mods-menu-bind*)))
+     (logclear! (cpad-pressed 0) *mods-menu-bind*)
+     (if *mods-menu-open?* (mods-menu-close!) (mods-menu-open!))))
   ;; the popup closed itself (SELECT, or CIRCLE at the root): unfreeze the game
   (when (and *mods-menu-open?* (not *popup-menu-open*))
     (set! *mods-menu-open?* #f)

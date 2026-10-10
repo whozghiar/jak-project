@@ -410,6 +410,10 @@
 (goal-src "levels/test-zone/test-zone-obs.gc" "process-focusable")
 (custom-level-cgo "TSZ.DGO" "test-zone/testzone.gd")
 
+;; indus-test: a level of the OpenGOAL Level Editor (custom_assets/jak3/levels/indus-test)
+(build-custom-level "indus-test")
+(custom-level-cgo "IXT.DGO" "indus-test/indus-test.gd")
+
 ;; generate the art group for a custom actor.
 ;; requires a .glb model file in custom_assets/jak3/models/custom_levels
 ;; options:

@@ -91,6 +91,12 @@ bool run_build_level(const std::string& input_file,
 
   // TFRAG
   file.drawable_trees.tfrags.emplace_back("drawable-tree-tfrag", "drawable-inline-array-tfrag");
+  // the translucent surfaces (glass, water, glows) are in a tree of their own, which the game only
+  // draws when the level has one (drawable-tree-tfrag-trans: it draws the PC level's TRANS trees)
+  if (!mesh_extract_out.tfrag.trans_strip_draws.empty()) {
+    file.drawable_trees.tfrags.emplace_back("drawable-tree-tfrag-trans",
+                                            "drawable-inline-array-tfrag-trans");
+  }
   tfrag_from_gltf(mesh_extract_out.tfrag, pc_level.tfrag_trees[0]);
 
   // TIE

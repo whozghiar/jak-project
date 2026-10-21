@@ -140,6 +140,19 @@ std::vector<u8> LevelFile::save_object_file() {
   //(bsphere                vector :inline                   :offset-assert  16)
   //(all-visible-list       (pointer uint8)                  :offset-assert  32)
   //(visible-list-length    int32                            :offset-assert  36)
+  // a custom level has no visibility data: the game copies this list in the level's vis-bits (2048
+  // bytes), so everything is listed visible. Without it, with the PC setting "PS2 actor vis", no
+  // actor of the level is ever born (entity.gc asks is-object-visible?).
+  {
+    constexpr int kVisBytes = 2048;
+    gen.align(4);  // copied by quadwords
+    const size_t list = gen.current_offset_bytes();
+    for (int i = 0; i < kVisBytes / 4; i++) {
+      gen.add_word(0xffffffff);
+    }
+    gen.link_word_to_byte(32 / 4, list);
+    gen.set_word(36 / 4, kVisBytes);
+  }
   //(drawable-trees         drawable-tree-array              :offset-assert  40)
   gen.link_word_to_byte(40 / 4, drawable_trees.add_to_object_file(gen));
   //(pat                    pointer                          :offset-assert  44)

@@ -1,0 +1,4 @@
+{
+  "builder": "jle-1",
+  "about": "This goalc's jak3 level builder has the fixes Jak Level Editor's exports need: nav meshes (nav_data), levels without regions, flat collision fragments, translucent surfaces (extras.og_blend), collision two-sided per mesh (extras.double_sided), the all-visible list. An export's jle-level.json names the builder it needs. Release packaging copies custom_assets/ into data/: data/custom_assets/jak3/jle-builder.json in a release, custom_assets/jak3/jle-builder.json in a checkout."
+}

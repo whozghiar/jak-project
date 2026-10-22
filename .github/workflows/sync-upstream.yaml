@@ -2,7 +2,8 @@ name: 🔄 Sync Upstream Mirror
 
 # Scope is deliberately just master and master-dev: fast-forwards master from
 # upstream open-goal/jak-project, then merges master into master-dev (pruning
-# any upstream workflow/issue-template this fork doesn't want). It never
+# any upstream workflow/issue-template, and upstream's AI policy, contributing
+# guide and pull request template, which this fork doesn't want). It never
 # touches the mod repositories: `task modding-sync-all` brings master-dev into
 # them, on demand.
 #
@@ -93,7 +94,7 @@ jobs:
       - name: Sync master-dev with master
         id: sync_master_dev
         run: |
-          allowed_workflows=(".github/workflows/sync-upstream.yaml" ".github/workflows/release.yml" ".github/workflows/sync-global-catalog.yml" ".github/workflows/mod-suggestion-triage.yml" ".github/workflows/lint.yml" ".github/workflows/build.yml")
+          allowed_workflows=(".github/workflows/sync-upstream.yaml" ".github/workflows/release.yml" ".github/workflows/release-tooling.yml" ".github/workflows/sync-global-catalog.yml" ".github/workflows/mod-suggestion-triage.yml" ".github/workflows/lint.yml" ".github/workflows/build.yml")
 
           echo "Checking out master-dev..."
           git checkout master-dev
@@ -128,6 +129,9 @@ jobs:
                   echo "Pruning upstream issue template: $file"
                   git rm -f "$file"
                 fi
+              elif [[ "$file" == AI_POLICY.md || "$file" == .github/CONTRIBUTING.md || "$file" == .github/PULL_REQUEST_TEMPLATE/* ]]; then
+                echo "Pruning upstream contribution file: $file"
+                git rm -f "$file"
               fi
             done
 
@@ -162,6 +166,9 @@ jobs:
               git rm -rf "$f" 2>/dev/null || rm -rf "$f"
             fi
           done
+
+          # Safety cleanup: upstream's AI policy, contributing guide and PR template point at open-goal
+          git rm -rf -q --ignore-unmatch AI_POLICY.md .github/CONTRIBUTING.md .github/PULL_REQUEST_TEMPLATE
 
           git commit -m "chore: sync master-dev with upstream master (AI-assisted)" || true
           git push origin master-dev

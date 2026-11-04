@@ -111,7 +111,7 @@ Read these before writing code:
 
 | Resource | Why |
 | :--- | :--- |
-| [`AGENTS.md`](../../../AGENTS.md), section 4 | The golden rules: every change off by default behind a runtime toggle, no edits to shared menu files, comments, change log. |
+| [`AGENTS.md`](../../../AGENTS.md), section 4 | The golden rules: every change off by default behind a runtime toggle, no edits to shared menu files, comments. |
 | [`mods_menu.md`](mods_menu.md) | How the in-game Mods menu (L3 + SELECT) works and how a mod registers in it. |
 | The Lisp wiki, [`.agents/skills/goal-lisp/wiki/`](../../../.agents/skills/goal-lisp/wiki/index.md) | Verified GOAL syntax and engine behavior: `common.md`, then the file of your game. The only place GOAL code examples live. Its background pages cover GOAL's concepts, the engine and build, custom assets and textures. |
 | `goal_src/<game>/` | The decompiled game code you hook into. Search it for the system you change. |
@@ -186,7 +186,7 @@ your go-ahead.
 | File | For | Content |
 | :--- | :--- | :--- |
 | `README.md` at the root | Players | Overview, features, controls, demo video. No change log, no checklist. |
-| `docs/modding/current_mod/<slug>_readme.md` | Developers and agents | Architecture, the hooks you placed and why, memory and performance notes, and the change log. Link to the Lisp wiki instead of pasting GOAL code. |
+| `docs/modding/current_mod/<slug>_readme.md` | Developers and agents | Architecture, the hooks you placed and why, memory and performance notes. Link to the Lisp wiki instead of pasting GOAL code. |
 | `docs/img/mod/mod_cover.png` | The launcher | Optional cover thumbnail. |
 
 ## 7. Record what you learned in the knowledge base
@@ -275,9 +275,9 @@ Every repository picks the change up at its next Claude Code session, or with
    compiles. It may also rebuild the C++ (`task build-release-game`) or the decompiler.
 4. **You run the cold boot** it gives you (`task boot-game`, or `task boot-game-retail` for the
    Mods menu) and tell it what you see. A change is done only after that.
-5. **The agent documents** the change in `docs/modding/current_mod/<slug>_readme.md`, its
-   change log included; the README changes only when players need to know (a feature, a
-   control).
+5. **The agent documents** the change in `docs/modding/current_mod/<slug>_readme.md`; the README
+   changes only when players need to know (a feature, a control). The change log is written by
+   hand at release time (the release workflow's `changelog` input), not by the agent.
 6. **Knowledge:** ask it to record what was verified and reusable with the `kb` skill; it
    commits and pushes from `.agents/skills`.
 7. **Commit and push** the mod. Commit messages written with an agent end with `(AI-assisted)`.

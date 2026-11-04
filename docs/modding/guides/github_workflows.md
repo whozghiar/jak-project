@@ -116,7 +116,8 @@ files when it syncs, and keeps only `release.yml`, `lint.yml` and `build.yml`
   - builds Windows and Linux binaries from clean source with static libraries, so players need
     no redistributable;
   - packages `gk`, `goalc`, `extractor` and `data/`, plus any texture pack found in
-    `docs/modding/current_mod/texture_packs/`;
+    `docs/modding/current_mod/texture_packs/`, and `mod_models` when the mod makes its models from
+    the player's discs ([Models made from the player's discs](models_from_the_discs.md));
   - writes `SHA256SUMS.txt`, updates the mod's own `index.json` and commits it back;
   - tags the release `<slug>-vX.Y.Z`. In a mod repository, the slug and game come from its
     `index.json` (else from its `<game>-mod-<slug>` name), so the launcher keeps the same

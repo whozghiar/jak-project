@@ -14,14 +14,17 @@ on:
   workflow_dispatch:
     inputs:
       mod_name:
-        description: 'Mod display name (required, e.g. Jak 3 JetBoard)'
-        required: true
+        description: 'Mod display name (e.g. Jak 3 JetBoard). Empty: the name of the last release (index.json)'
+        required: false
       mod_description:
-        description: 'Short mod description, required (included as-is in index.json)'
-        required: true
+        description: 'Short mod description (included as-is in index.json). Empty: the description of the last release (index.json), else the README'
+        required: false
       tag_name:
         description: 'Mod version tag, required (e.g. v1.0.0)'
         required: true
+      changelog:
+        description: 'Optional: path in the repository to a Markdown changelog (e.g. docs/changelog/v1.1.0.md), added to the release notes and attached to the release'
+        required: false
       prerelease:
         description: 'Mark as pre-release'
         type: boolean
@@ -60,10 +63,11 @@ jobs:
   # This workflow no longer offers a "recompile or not" choice: a release
   # always rebuilds Windows + Linux from source. That is a deliberate choice
   # - a mod shipped without ever going through a full compile is exactly the
-  # kind of release we don't want to distribute to players. The mod name,
-  # description and version tag are `required: true` on workflow_dispatch
-  # (see above), so there is no "auto" value to detect here, only the
-  # metadata explicitly provided by whoever triggers the release.
+  # kind of release we don't want to distribute to players. The version tag
+  # is `required: true` on workflow_dispatch (see above), so there is no
+  # "auto" value to detect here, only the metadata provided by whoever
+  # triggers the release. An empty name or description reuses the last
+  # release's, from the branch's index.json.
   # =========================================================================
   check_mode:
     name: "🔍 Resolve Version & Metadata"
@@ -358,9 +362,15 @@ jobs:
           TARGET_BRANCH: ${{ needs.check_mode.outputs.target_branch }}
           DISPLAY_NAME: ${{ needs.check_mode.outputs.display_name }}
           DESCRIPTION: ${{ needs.check_mode.outputs.description }}
+          CHANGELOG: ${{ github.event.inputs.changelog }}
         run: |
+          if [ -n "$CHANGELOG" ]; then
+            # attached to the release next to the packages (it fails here if the path is wrong)
+            cp "$CHANGELOG" "release-files/CHANGELOG-${RELEASE_TAG}.md"
+          fi
           python ./scripts/modding/update_mod_catalog.py \
             --generate-release-notes release_notes.md \
+            --changelog-file "${CHANGELOG}" \
             --branch "${TARGET_BRANCH}" \
             --tag "${RELEASE_TAG}" \
             --repo "${{ github.repository }}" \

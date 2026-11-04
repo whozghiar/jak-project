@@ -108,8 +108,10 @@ files when it syncs, and keeps only `release.yml`, `lint.yml` and `build.yml`
 
 ## 6. Release (`release.yml`)
 
-- **Runs:** by hand only, owner only, from a mod repository, with the inputs `mod_name`,
-  `mod_description`, `tag_name` (e.g. `v1.0.0`) and `prerelease`.
+- **Runs:** by hand only, owner only, from a mod repository, with the inputs `tag_name` (e.g.
+  `v1.0.0`, required), `mod_name` and `mod_description` (empty: the last release's, from the
+  mod's `index.json`), `changelog` (optional path to a Markdown file in the repository) and
+  `prerelease`.
 - **Does:**
   - builds Windows and Linux binaries from clean source with static libraries, so players need
     no redistributable;
